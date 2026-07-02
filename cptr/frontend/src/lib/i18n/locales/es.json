@@ -859,5 +859,9 @@
 	"general.persistentYes": "Activo",
 	"general.persistentNo": "No concedido",
 	"general.clearCache": "Borrar caché",
-	"general.cacheCleared": "Caché borrada"
+	"general.cacheCleared": "Caché borrada",
+	"general.uiScale": "UI Scale",
+	"general.default": "Default",
+	"general.decreaseUiScale": "Decrease UI Scale",
+	"general.increaseUiScale": "Increase UI Scale"
 }

@@ -859,5 +859,9 @@
 	"general.persistentYes": "有効",
 	"general.persistentNo": "許可されていません",
 	"general.clearCache": "キャッシュを消去",
-	"general.cacheCleared": "キャッシュを消去しました"
+	"general.cacheCleared": "キャッシュを消去しました",
+	"general.uiScale": "UI Scale",
+	"general.default": "Default",
+	"general.decreaseUiScale": "Decrease UI Scale",
+	"general.increaseUiScale": "Increase UI Scale"
 }

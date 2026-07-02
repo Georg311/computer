@@ -30,6 +30,7 @@ import { streamingChatTabs } from '$lib/stores/chat';
 import { keybindings, loadKeybindings } from '$lib/stores/keybindings';
 import { defaultPwaPreferences, type PwaPreferences } from '$lib/intents/types';
 import { getPathDisplayName, isSupportedWorkspacePath } from '$lib/utils/paths';
+import { setTextScale } from '$lib/utils/text-scale';
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -82,6 +83,7 @@ export interface UserPreferences {
 	requestParams?: Record<string, unknown>; // arbitrary params merged into API request body
 	showUpdateToast?: boolean; // show version update notifications (default true)
 	pwa?: PwaPreferences;
+	textScale?: number | null;
 }
 
 export type Theme = 'dark' | 'light' | 'system';
@@ -172,6 +174,7 @@ export type StreamingBehavior = 'queue' | 'interrupt';
 export const streamingBehavior = writable<StreamingBehavior>('queue');
 export const selectedModelId = writable<string>('');
 export const pwaPreferences = writable<PwaPreferences>(defaultPwaPreferences);
+export const textScale = writable<number | null>(null);
 
 /** Saved workspace path order for sidebar drag-reorder. */
 export const workspaceOrder = writable<string[]>([]);
@@ -308,7 +311,8 @@ function persistPreferences(): void {
 			selectedModelId: get(selectedModelId) || undefined,
 			requestParams: Object.keys(get(requestParams)).length ? get(requestParams) : undefined,
 			showUpdateToast: get(showUpdateToastPref),
-			pwa: get(pwaPreferences)
+			pwa: get(pwaPreferences),
+			textScale: get(textScale) ?? undefined
 		};
 		savePreferences(prefs as unknown as Record<string, unknown>).catch(() => {});
 	}, 300);
@@ -357,6 +361,9 @@ function subscribeForPersistence() {
 	pwaPreferences.subscribe(() => {
 		if (get(stateLoaded)) persistPreferences();
 	});
+	textScale.subscribe(() => {
+		if (get(stateLoaded)) persistPreferences();
+	});
 	i18next.on('languageChanged', () => {
 		if (get(stateLoaded)) persistPreferences();
 	});
@@ -386,6 +393,7 @@ export async function loadPreferences(): Promise<void> {
 		if (prefs.requestParams) requestParams.set(prefs.requestParams as Record<string, unknown>);
 		if (prefs.showUpdateToast !== undefined)
 			showUpdateToastPref.set(prefs.showUpdateToast as boolean);
+		textScale.set(typeof prefs.textScale === 'number' ? (prefs.textScale as number) : null);
 		const pwaPrefs = prefs.pwa;
 		if (pwaPrefs)
 			pwaPreferences.set({
@@ -503,6 +511,7 @@ function applyTheme(t: Theme) {
 }
 
 theme.subscribe(applyTheme);
+textScale.subscribe((scale) => setTextScale(scale ?? 1));
 
 if (typeof window !== 'undefined') {
 	window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {

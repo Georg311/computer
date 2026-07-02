@@ -859,5 +859,9 @@
 	"general.persistentYes": "Активно",
 	"general.persistentNo": "Не разрешено",
 	"general.clearCache": "Очистить кэш",
-	"general.cacheCleared": "Кэш очищен"
+	"general.cacheCleared": "Кэш очищен",
+	"general.uiScale": "UI Scale",
+	"general.default": "Default",
+	"general.decreaseUiScale": "Decrease UI Scale",
+	"general.increaseUiScale": "Increase UI Scale"
 }

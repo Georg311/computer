@@ -859,5 +859,9 @@
 	"general.persistentYes": "활성",
 	"general.persistentNo": "허용되지 않음",
 	"general.clearCache": "캐시 지우기",
-	"general.cacheCleared": "캐시가 지워졌습니다"
+	"general.cacheCleared": "캐시가 지워졌습니다",
+	"general.uiScale": "UI Scale",
+	"general.default": "Default",
+	"general.decreaseUiScale": "Decrease UI Scale",
+	"general.increaseUiScale": "Increase UI Scale"
 }

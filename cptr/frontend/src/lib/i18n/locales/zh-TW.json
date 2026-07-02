@@ -859,5 +859,9 @@
 	"general.persistentYes": "啟用",
 	"general.persistentNo": "未授予",
 	"general.clearCache": "清除快取",
-	"general.cacheCleared": "快取已清除"
+	"general.cacheCleared": "快取已清除",
+	"general.uiScale": "UI Scale",
+	"general.default": "Default",
+	"general.decreaseUiScale": "Decrease UI Scale",
+	"general.increaseUiScale": "Increase UI Scale"
 }
