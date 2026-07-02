@@ -1292,6 +1292,7 @@
 
 	.chat-editor-mount :global(.chat-prosemirror) {
 		@apply pt-2.5 pb-2 px-1 min-h-6 max-h-96 overflow-y-auto text-[13px] leading-relaxed text-gray-900 dark:text-gray-100 outline-none break-words;
+		font-size: 0.8125rem;
 	}
 
 	/* Placeholder */
@@ -1352,6 +1353,7 @@
 	}
 	.chat-editor-mount :global(.chat-prosemirror h3) {
 		@apply text-[13px] font-semibold my-1;
+		font-size: 0.8125rem;
 	}
 
 	/* HR */

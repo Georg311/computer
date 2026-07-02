@@ -124,7 +124,7 @@
 	class="w-full max-w-3xl mx-4 md:mx-0 flex flex-col md:flex-row max-h-[85vh] md:h-[560px]"
 >
 	<nav
-		class="shrink-0 min-w-0 overflow-x-auto md:overflow-x-visible scrollbar-hidden border-b md:border-b-0 md:border-r border-gray-200 dark:border-white/6 md:w-[180px]"
+		class="shrink-0 min-w-0 md:min-h-0 overflow-x-auto md:overflow-x-hidden md:overflow-y-auto scrollbar-none border-b md:border-b-0 md:border-r border-gray-200 dark:border-white/6 md:w-[180px]"
 	>
 		<div class="flex w-max min-w-full md:w-auto md:min-w-0 md:flex-col p-1 gap-px">
 			<button

@@ -219,8 +219,8 @@
 	.editor-toolbar {
 		display: flex;
 		align-items: center;
-		height: 36px;
-		padding: 0 8px;
+		height: 2.25rem;
+		padding: 0 0.5rem;
 		border-bottom: 1px solid var(--color-gray-200);
 		background: white;
 		flex-shrink: 0;
@@ -235,7 +235,7 @@
 	.toolbar-scroll {
 		display: flex;
 		align-items: center;
-		gap: 1px;
+		gap: 0.0625rem;
 		overflow-x: auto;
 		overflow-y: hidden;
 		scrollbar-width: none;
@@ -251,14 +251,14 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		min-width: 28px;
-		height: 28px;
-		padding: 0 6px;
+		min-width: 1.75rem;
+		height: 1.75rem;
+		padding: 0 0.375rem;
 		border: none;
-		border-radius: 5px;
+		border-radius: 0.3125rem;
 		background: transparent;
 		color: var(--color-gray-500);
-		font-size: 12px;
+		font-size: 0.75rem;
 		font-weight: 500;
 		cursor: pointer;
 		transition: all 0.1s;
@@ -296,16 +296,16 @@
 	}
 
 	.heading-btn {
-		font-size: 11px;
+		font-size: 0.6875rem;
 		font-weight: 700;
 		font-family: inherit;
 	}
 
 	.tb-divider {
 		width: 1px;
-		height: 16px;
+		height: 1rem;
 		background: var(--color-gray-200);
-		margin: 0 4px;
+		margin: 0 0.25rem;
 		flex-shrink: 0;
 	}
 
@@ -315,10 +315,10 @@
 
 	.highlight-icon {
 		background: rgba(255, 213, 79, 0.4);
-		border-radius: 2px;
-		padding: 0 3px;
+		border-radius: 0.125rem;
+		padding: 0 0.1875rem;
 		font-weight: 700;
-		font-size: 11px;
+		font-size: 0.6875rem;
 	}
 
 	/* ── Mobile: pin to bottom above keyboard ────── */
@@ -329,8 +329,8 @@
 			left: 0;
 			right: 0;
 			z-index: 60;
-			height: 44px;
-			padding: 0 12px;
+			height: 2.75rem;
+			padding: 0 0.75rem;
 			border-bottom: none;
 			border-top: 1px solid var(--color-gray-200);
 			padding-bottom: env(safe-area-inset-bottom, 0);
@@ -342,9 +342,9 @@
 		}
 
 		.tb-btn {
-			min-width: 36px;
-			height: 36px;
-			font-size: 13px;
+			min-width: 2.25rem;
+			height: 2.25rem;
+			font-size: 0.8125rem;
 		}
 	}
 </style>

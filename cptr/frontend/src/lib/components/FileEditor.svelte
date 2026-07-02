@@ -941,7 +941,7 @@
 			EditorView.theme({
 				'&': {
 					height: '100%',
-					fontSize: '13px',
+					fontSize: '0.8125rem',
 					backgroundColor: dark ? '#000' : '#ffffff'
 				},
 				'.cm-scroller': { fontFamily: '"JetBrains Mono", "Fira Code", ui-monospace, monospace' },
