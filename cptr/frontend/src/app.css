@@ -23,6 +23,10 @@
 	--color-gray-950: oklch(0.16 0 0);
 }
 
+:root {
+	--app-text-scale: 1;
+}
+
 @layer base {
 	*,
 	::after,
@@ -50,6 +54,7 @@
 	html {
 		color-scheme: dark light;
 		touch-action: manipulation;
+		font-size: calc(1rem * var(--app-text-scale, 1));
 	}
 
 	button {
