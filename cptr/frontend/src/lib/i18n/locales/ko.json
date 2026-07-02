@@ -268,6 +268,7 @@
 	"connections.apiKey": "API 키",
 	"connections.baseUrl": "기본 URL",
 	"connections.prefixId": "접두사 ID",
+	"connections.prefixPlaceholder": "예: openrouter",
 	"connections.models": "모델(쉼표로 구분, 선택 사항)",
 	"connections.modelsHint": "비워두면 프로바이더에서 자동 감지합니다.",
 	"connections.cancel": "취소",

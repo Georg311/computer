@@ -177,7 +177,7 @@
 		>
 		<input
 			type="password"
-			placeholder="••••••••  (leave blank to keep)"
+			placeholder={$t('connections.leaveBlankPlaceholder')}
 			bind:value={formApiKey}
 			autocomplete="new-password"
 			class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
@@ -188,7 +188,7 @@
 		>
 		<input
 			type="text"
-			placeholder="e.g. openrouter"
+			placeholder={$t('connections.prefixPlaceholder')}
 			bind:value={formPrefixId}
 			autocomplete="off"
 			spellcheck="false"

@@ -268,6 +268,7 @@
 	"connections.apiKey": "Clé API",
 	"connections.baseUrl": "URL de base",
 	"connections.prefixId": "ID de préfixe",
+	"connections.prefixPlaceholder": "p. ex. openrouter",
 	"connections.models": "Modèles (séparés par des virgules, facultatif)",
 	"connections.modelsHint": "Laisser vide pour la découverte automatique du fournisseur.",
 	"connections.cancel": "Annuler",

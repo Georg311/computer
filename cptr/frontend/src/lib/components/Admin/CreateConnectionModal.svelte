@@ -152,7 +152,7 @@
 		>
 		<input
 			type="text"
-			placeholder="e.g. openrouter"
+			placeholder={$t('connections.prefixPlaceholder')}
 			bind:value={formPrefixId}
 			autocomplete="off"
 			spellcheck="false"

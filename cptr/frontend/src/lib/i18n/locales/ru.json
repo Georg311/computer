@@ -268,6 +268,7 @@
 	"connections.apiKey": "API-ключ",
 	"connections.baseUrl": "Базовый URL",
 	"connections.prefixId": "ID префикса",
+	"connections.prefixPlaceholder": "например openrouter",
 	"connections.models": "Модели (через запятую, необязательно)",
 	"connections.modelsHint": "Оставьте пустым для автообнаружения от провайдера.",
 	"connections.cancel": "Отмена",
