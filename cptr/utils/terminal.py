@@ -35,6 +35,7 @@ class TerminalSession:
 
     def write(self, data: bytes) -> None:
         if IS_WINDOWS:
+            data = data.decode("utf-8", errors="replace")
             self._process.write(data)  # type: ignore
         else:
             os.write(self._fd, data)
@@ -43,6 +44,8 @@ class TerminalSession:
         try:
             if IS_WINDOWS:
                 data = self._process.read(size)  # type: ignore
+                if isinstance(data, str):
+                    data = data.encode("utf-8", errors="replace")
             else:
                 data = os.read(self._fd, size)
         except (BlockingIOError, OSError):

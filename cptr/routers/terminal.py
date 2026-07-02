@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
-from cptr.utils.config import check_access, get_auth_mode, get_user_uid_gid, AuthMode
+from cptr.utils.config import check_access
 from cptr.utils.terminal import manager, IS_WINDOWS
 from cptr.utils.tools import (
     command_session_bytes_since,
@@ -247,17 +246,18 @@ async def terminal_ws(websocket: WebSocket, session_id: str):
         try:
             if IS_WINDOWS:
                 # Windows ProactorEventLoop doesn't support add_reader;
-                # fall back to minimal-sleep polling.
+                # pywinpty read() blocks, so run it outside the event loop.
                 while True:
                     if not session.is_alive():
                         logger.info(f"Session {session_id} died, stopping read")
                         break
                     try:
-                        data = session.read(16384)
+                        data = await asyncio.to_thread(session.read, 16384)
                         if data:
                             await websocket.send_bytes(data)
-                        else:
-                            await asyncio.sleep(0.005)
+                    except EOFError:
+                        logger.info(f"Session {session_id} reached EOF")
+                        break
                     except (OSError, IOError) as e:
                         logger.error(f"PTY read error for {session_id}: {e}")
                         break
