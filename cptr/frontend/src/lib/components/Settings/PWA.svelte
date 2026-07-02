@@ -52,7 +52,7 @@
 
 		<h3 class="text-xs text-gray-400 dark:text-gray-600 mb-2">{tr('pwa.shareBehavior')}</h3>
 		<select
-			class="w-full max-w-[200px] bg-transparent text-[13px] text-gray-700 dark:text-gray-300 outline-none py-1 cursor-pointer"
+			class="w-full max-w-[12.5rem] bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none py-1 cursor-pointer"
 			value={$pwaPreferences.shareBehavior}
 			onchange={updateShareBehavior}
 		>
@@ -63,7 +63,7 @@
 
 		<h3 class="text-xs text-gray-400 dark:text-gray-600 mb-2 mt-5">{tr('pwa.fileImports')}</h3>
 		<select
-			class="w-full max-w-[200px] bg-transparent text-[13px] text-gray-700 dark:text-gray-300 outline-none py-1 cursor-pointer"
+			class="w-full max-w-[12.5rem] bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none py-1 cursor-pointer"
 			value={$pwaPreferences.importDestination}
 			onchange={updateImportDestination}
 		>
@@ -73,7 +73,7 @@
 		</select>
 		{#if $pwaPreferences.importDestination === 'configuredFolder'}
 			<input
-				class="mt-2 w-full h-8 bg-gray-100 dark:bg-white/6 rounded-lg px-2 text-[13px] text-gray-700 dark:text-gray-300 outline-none"
+				class="mt-2 w-full h-8 bg-gray-100 dark:bg-white/6 rounded-lg px-2 text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none"
 				placeholder={tr('pwa.importFolderPlaceholder')}
 				value={$pwaPreferences.importFolder ?? ''}
 				oninput={(e) =>
@@ -83,13 +83,13 @@
 
 		<h3 class="text-xs text-gray-400 dark:text-gray-600 mb-2 mt-5">{tr('pwa.resetTitle')}</h3>
 		<button
-			class="text-[13px] text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors disabled:opacity-40 disabled:pointer-events-none"
+			class="text-[0.8125rem] text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors disabled:opacity-40 disabled:pointer-events-none"
 			onclick={resetPwa}
 			disabled={resetting}
 		>
 			{resetting ? tr('pwa.resetting') : tr('pwa.reset')}
 		</button>
-		<p class="text-[11px] text-gray-400 dark:text-gray-600 mt-1">
+		<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-1">
 			{tr('pwa.resetDesc')}
 		</p>
 	</div>

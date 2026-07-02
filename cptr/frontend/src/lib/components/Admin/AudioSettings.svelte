@@ -121,7 +121,7 @@
 						}}
 					/>
 				</label>
-				<p class="text-[11px] text-gray-400 dark:text-gray-600 -mt-1">
+				<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 -mt-1">
 					{$t('admin.audio.voiceMemosHint')}
 				</p>
 
@@ -136,7 +136,7 @@
 						}}
 					/>
 				</label>
-				<p class="text-[11px] text-gray-400 dark:text-gray-600 -mt-1">
+				<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 -mt-1">
 					{transcribeEnabled
 						? $t('admin.audio.transcribeOnHint')
 						: $t('admin.audio.transcribeOffHint')}
@@ -155,7 +155,7 @@
 						<option value="low">{$t('admin.audio.qualityLow')}</option>
 					</select>
 				</div>
-				<p class="text-[11px] text-gray-400 dark:text-gray-600 -mt-1">
+				<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 -mt-1">
 					{quality === 'high'
 						? $t('admin.audio.qualityHintHigh')
 						: quality === 'medium'
@@ -204,7 +204,7 @@
 						class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
 					/>
 				</div>
-				<p class="text-[11px] text-gray-400 dark:text-gray-600">
+				<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600">
 					{$t('admin.audio.sttHint')}
 				</p>
 			</div>
@@ -223,7 +223,7 @@
 						}}
 					/>
 				</label>
-				<p class="text-[11px] text-gray-400 dark:text-gray-600 -mt-1">
+				<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 -mt-1">
 					{$t('admin.audio.ttsEnabledHint')}
 				</p>
 				<label class="flex items-center justify-between cursor-pointer">
@@ -237,7 +237,7 @@
 						}}
 					/>
 				</label>
-				<p class="text-[11px] text-gray-400 dark:text-gray-600 -mt-1">
+				<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 -mt-1">
 					{$t('admin.audio.ttsAutoStreamHint')}
 				</p>
 				<div>
@@ -322,7 +322,7 @@
 						>
 					</div>
 				</div>
-				<p class="text-[11px] text-gray-400 dark:text-gray-600">
+				<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600">
 					{$t('admin.audio.ttsHint')}
 				</p>
 			</div>
@@ -345,7 +345,7 @@
 						<option value="provider">{$t('admin.audio.voiceModeSttProvider')}</option>
 					</select>
 				</div>
-				<p class="text-[11px] text-gray-400 dark:text-gray-600 -mt-1">
+				<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 -mt-1">
 					{voiceModeSttMode === 'browser'
 						? $t('admin.audio.voiceModeBrowserSttHint')
 						: $t('admin.audio.voiceModeProviderSttHint')}
@@ -362,7 +362,7 @@
 						class="w-full mt-1 px-2 py-1.5 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors resize-y min-h-24"
 					></textarea>
 				</div>
-				<p class="text-[11px] text-gray-400 dark:text-gray-600">
+				<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600">
 					{$t('admin.audio.voiceModeSystemPromptHint')}
 				</p>
 			</div>
@@ -371,7 +371,7 @@
 		<!-- Save -->
 		<div class="shrink-0 pt-3 flex justify-end">
 			<button
-				class="text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100 disabled:opacity-50"
+				class="text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100 disabled:opacity-50"
 				onclick={() => save()}
 				disabled={saving}
 			>

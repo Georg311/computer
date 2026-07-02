@@ -289,7 +289,7 @@
 
 <Modal
 	{onclose}
-	class="w-full max-w-[560px] mx-4 max-md:mx-0 max-md:rounded-none max-h-[480px] max-md:max-h-dvh flex flex-col mb-[6vh] max-md:mb-0"
+	class="w-full max-w-[35rem] mx-4 max-md:mx-0 max-md:rounded-none max-h-[30rem] max-md:max-h-dvh flex flex-col mb-[6vh] max-md:mb-0"
 >
 	<!-- Path bar -->
 	<div class="flex items-center px-3.5 pt-2.5 pb-2 gap-2 shrink-0">
@@ -329,10 +329,10 @@
 					<span class="text-red-400 shrink-0 flex"><Icon name="xmark" size={12} /></span>
 				{/if}
 				{#if tabHint}
-					<span class="text-[10px] text-gray-400 whitespace-nowrap shrink-0">{tabHint}</span>
+					<span class="text-[0.625rem] text-gray-400 whitespace-nowrap shrink-0">{tabHint}</span>
 				{/if}
 				<span
-					class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/6 text-gray-400 shrink-0"
+					class="text-[0.625rem] font-mono px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/6 text-gray-400 shrink-0"
 					>TAB</span
 				>
 			</div>
@@ -348,17 +348,18 @@
 				}}
 			>
 				{#each breadcrumbs as seg, i (seg.path)}
-					{#if i > 1}<span class="text-gray-300 dark:text-gray-600 text-[11px] font-mono">/</span
+					{#if i > 1}<span class="text-gray-300 dark:text-gray-600 text-[0.6875rem] font-mono"
+							>/</span
 						>{/if}
 					{#if i === breadcrumbs.length - 1}
 						<span
-							class="text-[11px] font-mono text-gray-900 dark:text-white whitespace-nowrap overflow-hidden text-ellipsis"
+							class="text-[0.6875rem] font-mono text-gray-900 dark:text-white whitespace-nowrap overflow-hidden text-ellipsis"
 							>{seg.name}</span
 						>
 					{:else}
 						<!-- svelte-ignore a11y_no_static_element_interactions -->
 						<span
-							class="text-[11px] font-mono text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 whitespace-nowrap shrink-0 cursor-pointer px-0.5 transition-colors duration-75"
+							class="text-[0.6875rem] font-mono text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 whitespace-nowrap shrink-0 cursor-pointer px-0.5 transition-colors duration-75"
 							role="button"
 							tabindex="-1"
 							onclick={(e) => {
@@ -439,7 +440,7 @@
 	<!-- Footer -->
 	<div class="flex items-center gap-2 px-3.5 pb-3 pt-1 shrink-0">
 		<span
-			class="flex-1 text-[11px] text-gray-400 dark:text-gray-600 font-mono truncate min-w-0"
+			class="flex-1 text-[0.6875rem] text-gray-400 dark:text-gray-600 font-mono truncate min-w-0"
 			title={currentPath}>{currentPath}</span
 		>
 		<button

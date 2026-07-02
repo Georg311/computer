@@ -71,8 +71,8 @@
 		{#if sys.cpu_usage != null}
 			<div>
 				<div class="flex items-center justify-between mb-1">
-					<span class="text-[11px] text-gray-500 dark:text-gray-500">{$t('system.cpu')}</span>
-					<span class="text-[11px] text-gray-400 dark:text-gray-600 font-mono"
+					<span class="text-[0.6875rem] text-gray-500 dark:text-gray-500">{$t('system.cpu')}</span>
+					<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600 font-mono"
 						>{sys.cpu_usage}%</span
 					>
 				</div>
@@ -90,8 +90,10 @@
 			{@const memPct = Math.round((memUsed / sys.memory_total) * 100)}
 			<div>
 				<div class="flex items-center justify-between mb-1">
-					<span class="text-[11px] text-gray-500 dark:text-gray-500">{$t('system.memory')}</span>
-					<span class="text-[11px] text-gray-400 dark:text-gray-600 font-mono"
+					<span class="text-[0.6875rem] text-gray-500 dark:text-gray-500"
+						>{$t('system.memory')}</span
+					>
+					<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600 font-mono"
 						>{formatBytes(memUsed)} / {formatBytes(sys.memory_total)}</span
 					>
 				</div>
@@ -108,8 +110,8 @@
 			{@const diskPct = Math.round(((sys.disk_used ?? 0) / sys.disk_total) * 100)}
 			<div>
 				<div class="flex items-center justify-between mb-1">
-					<span class="text-[11px] text-gray-500 dark:text-gray-500">{$t('system.disk')}</span>
-					<span class="text-[11px] text-gray-400 dark:text-gray-600 font-mono"
+					<span class="text-[0.6875rem] text-gray-500 dark:text-gray-500">{$t('system.disk')}</span>
+					<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600 font-mono"
 						>{formatBytes(sys.disk_used ?? 0)} / {formatBytes(sys.disk_total)}</span
 					>
 				</div>
@@ -122,7 +124,9 @@
 			</div>
 		{/if}
 
-		<div class="flex items-center gap-4 text-[11px] text-gray-400 dark:text-gray-600 font-mono">
+		<div
+			class="flex items-center gap-4 text-[0.6875rem] text-gray-400 dark:text-gray-600 font-mono"
+		>
 			<span>{$t('system.cores', { count: sys.cpu_count })}</span>
 			<span>{sys.arch}</span>
 			{#if sys.uptime_seconds}
@@ -135,7 +139,7 @@
 
 		{#if sys.network?.length}
 			<div
-				class="flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] font-mono text-gray-400 dark:text-gray-600"
+				class="flex flex-wrap gap-x-4 gap-y-0.5 text-[0.6875rem] font-mono text-gray-400 dark:text-gray-600"
 			>
 				{#each sys.network as iface}
 					<span>{iface.name} {iface.ip}</span>
@@ -144,7 +148,7 @@
 		{/if}
 
 		{#if processes.length}
-			<div class="mt-1 font-mono text-[11px]">
+			<div class="mt-1 font-mono text-[0.6875rem]">
 				<div class="flex items-center gap-2 text-gray-400 dark:text-gray-600 mb-1">
 					<span class="w-14 text-right">{$t('system.cpuShort')}</span>
 					<span class="w-12 text-right">{$t('system.memoryShort')}</span>

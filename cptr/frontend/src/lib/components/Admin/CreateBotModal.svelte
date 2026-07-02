@@ -142,7 +142,9 @@
 			<!-- Platform + Name on same row -->
 			<div class="flex gap-3">
 				<div class="flex-1">
-					<label class="text-[10px] text-gray-400 dark:text-gray-600">{$t('messaging.name')}</label>
+					<label class="text-[0.625rem] text-gray-400 dark:text-gray-600"
+						>{$t('messaging.name')}</label
+					>
 					<input
 						type="text"
 						bind:value={name}
@@ -150,11 +152,11 @@
 						autofocus
 						autocomplete="off"
 						spellcheck="false"
-						class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5"
+						class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5"
 					/>
 				</div>
 				<div class="w-28 shrink-0">
-					<label class="text-[10px] text-gray-400 dark:text-gray-600"
+					<label class="text-[0.625rem] text-gray-400 dark:text-gray-600"
 						>{$t('messaging.platform')}</label
 					>
 					<select
@@ -162,7 +164,7 @@
 						onchange={() => {
 							verifyResult = null;
 						}}
-						class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer"
+						class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer"
 					>
 						<option value="telegram">Telegram</option>
 						<option value="discord">Discord</option>
@@ -174,7 +176,7 @@
 			</div>
 		{:else}
 			<!-- Edit mode: just name -->
-			<label class="text-[10px] text-gray-400 dark:text-gray-600">{$t('messaging.name')}</label>
+			<label class="text-[0.625rem] text-gray-400 dark:text-gray-600">{$t('messaging.name')}</label>
 			<input
 				type="text"
 				bind:value={name}
@@ -182,12 +184,12 @@
 				autofocus
 				autocomplete="off"
 				spellcheck="false"
-				class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5"
+				class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5"
 			/>
 		{/if}
 
 		<!-- Token -->
-		<label class="text-[10px] text-gray-400 dark:text-gray-600">
+		<label class="text-[0.625rem] text-gray-400 dark:text-gray-600">
 			Token {#if bot}<span class="text-gray-300 dark:text-gray-700">({bot.token_masked})</span>{/if}
 		</label>
 		<div class="flex gap-2 items-center mb-0.5">
@@ -198,12 +200,12 @@
 					? $t('messaging.tokenKeep')
 					: platformHints[platform] || $t('messaging.tokenPaste')}
 				autocomplete="new-password"
-				class="flex-1 bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
+				class="flex-1 bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
 			/>
 			{#if !bot}
 				<button
 					type="button"
-					class="text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors disabled:opacity-30"
+					class="text-[0.6875rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors disabled:opacity-30"
 					onclick={handleVerify}
 					disabled={verifying || !token.trim()}
 				>
@@ -217,7 +219,7 @@
 		</div>
 
 		{#if verifyResult}
-			<p class="text-[10px] mb-1 text-gray-500 dark:text-gray-400">
+			<p class="text-[0.625rem] mb-1 text-gray-500 dark:text-gray-400">
 				{#if verifyResult.ok}
 					✓ {verifyResult.info?.username
 						? `@${verifyResult.info.username}`
@@ -229,10 +231,10 @@
 		{/if}
 
 		<!-- Allowed senders -->
-		<label class="text-[10px] text-gray-400 dark:text-gray-600 mt-1"
+		<label class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-1"
 			>{$t('messaging.allowedSenders')}</label
 		>
-		<p class="text-[10px] text-gray-300 dark:text-gray-700 mb-0.5">
+		<p class="text-[0.625rem] text-gray-300 dark:text-gray-700 mb-0.5">
 			{$t('messaging.allowedSendersHint')}
 		</p>
 		<input
@@ -241,7 +243,7 @@
 			placeholder="123456789, 987654321"
 			autocomplete="off"
 			spellcheck="false"
-			class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
+			class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
 		/>
 
 		<!-- Bottom toolbar -->
@@ -254,11 +256,11 @@
 				<button
 					bind:this={workspaceButtonEl}
 					type="button"
-					class="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors duration-100"
+					class="flex items-center gap-1 px-2 py-1 rounded-lg text-[0.6875rem] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors duration-100"
 					onclick={() => (showWsMenu = !showWsMenu)}
 				>
 					<Icon name="folder" size={12} />
-					<span class="truncate max-w-[120px]">{selectedWorkspaceName}</span>
+					<span class="truncate max-w-[7.5rem]">{selectedWorkspaceName}</span>
 					<svg
 						class="w-3 h-3 opacity-50"
 						viewBox="0 0 24 24"
@@ -277,7 +279,7 @@
 				type="button"
 				disabled={saving || !name.trim() || (!bot && !token.trim()) || !modelId || !workspace}
 				onclick={handleSubmit}
-				class="text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100 disabled:opacity-30 disabled:pointer-events-none"
+				class="text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100 disabled:opacity-30 disabled:pointer-events-none"
 			>
 				{#if saving}
 					<Spinner size={14} />

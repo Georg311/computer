@@ -62,9 +62,11 @@
 	<Modal onclose={handleClose} class="w-full max-w-3xl mx-4 md:mx-0 flex flex-col max-h-[52vh]">
 		<div class="flex items-center gap-3 px-4 pt-4 pb-2 shrink-0">
 			<div class="min-w-0 flex-1">
-				<h2 class="text-sm font-medium text-gray-900 dark:text-white">{$t('changelog.whatsNew')}</h2>
+				<h2 class="text-sm font-medium text-gray-900 dark:text-white">
+					{$t('changelog.whatsNew')}
+				</h2>
 				{#if $appVersion}
-					<p class="mt-0.5 text-[11px] text-gray-400 dark:text-gray-600">
+					<p class="mt-0.5 text-[0.6875rem] text-gray-400 dark:text-gray-600">
 						{$t('changelog.releaseNotes')}
 					</p>
 				{/if}
@@ -85,15 +87,17 @@
 					{#each versions as [ver, data], i}
 						<div>
 							<div class="mb-2">
-								<h3 class="text-[13px] font-semibold text-gray-900 dark:text-white">v{ver}</h3>
-								<p class="text-[10px] text-gray-400 dark:text-gray-600 mt-0.5">{formatDate(data.date)}</p>
+								<h3 class="text-[0.8125rem] font-semibold text-gray-900 dark:text-white">v{ver}</h3>
+								<p class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-0.5">
+									{formatDate(data.date)}
+								</p>
 							</div>
 
 							{#each Object.entries(data).filter(([key]) => key !== 'date') as [section, items]}
 								{#if Array.isArray(items) && items.length > 0}
 									<div class="mb-3">
 										<span
-											class="inline-block text-[10px] font-semibold uppercase tracking-wide rounded-full px-2 py-0.5 my-1.5
+											class="inline-block text-[0.625rem] font-semibold uppercase tracking-wide rounded-full px-2 py-0.5 my-1.5
 											{section === 'added'
 												? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
 												: section === 'fixed'
@@ -150,14 +154,16 @@
 			{:else}
 				<div class="flex flex-col items-center justify-center py-16 gap-3">
 					<Spinner size={16} />
-					<span class="text-[11px] text-gray-400 dark:text-gray-600">{$t('changelog.loading')}</span>
+					<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600"
+						>{$t('changelog.loading')}</span
+					>
 				</div>
 			{/if}
 		</div>
 
 		<div class="flex items-center justify-end px-4 pt-1 pb-4 shrink-0">
 			<button
-				class="text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
+				class="text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
 				onclick={handleClose}
 			>
 				{$t('changelog.done')}

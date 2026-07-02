@@ -38,19 +38,26 @@
 		hover:bg-gray-50 dark:hover:bg-white/3"
 	role="button"
 	tabindex="0"
-	onclick={onclick}
-	onkeydown={(e) => { if (e.key === 'Enter') onclick(); }}
+	{onclick}
+	onkeydown={(e) => {
+		if (e.key === 'Enter') onclick();
+	}}
 	title={chat.title}
 >
 	{#if chat.is_active}
 		<Spinner size={10} borderWidth={1.5} class="opacity-50" />
 	{/if}
 	<span class="flex-1 text-xs text-gray-500 dark:text-gray-500 truncate min-w-0">{chat.title}</span>
-	<span class="text-[10px] text-gray-300 dark:text-gray-700 shrink-0 tabular-nums">{formatTime(chat.updated_at)}</span>
+	<span class="text-[0.625rem] text-gray-300 dark:text-gray-700 shrink-0 tabular-nums"
+		>{formatTime(chat.updated_at)}</span
+	>
 	{#if onmenu}
 		<button
 			class="flex items-center justify-center w-5 h-5 rounded shrink-0 text-gray-300 dark:text-gray-700 hover:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/8 transition-all duration-75"
-			onclick={(e) => { e.stopPropagation(); onmenu?.(e); }}
+			onclick={(e) => {
+				e.stopPropagation();
+				onmenu?.(e);
+			}}
 			aria-label={$t('a11y.chatOptions')}
 		>
 			<svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">

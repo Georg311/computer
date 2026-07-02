@@ -147,13 +147,34 @@
 		bind:this={triggerEl}
 		type="button"
 		class="schedule-trigger"
-		onclick={() => { updatePosition(); showDropdown = !showDropdown; }}
+		onclick={() => {
+			updatePosition();
+			showDropdown = !showDropdown;
+		}}
 	>
-		<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5">
-			<path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			fill="none"
+			viewBox="0 0 24 24"
+			stroke-width="1.5"
+			stroke="currentColor"
+			class="w-3.5 h-3.5"
+		>
+			<path
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+			/>
 		</svg>
 		<span>{scheduleLabel}</span>
-		<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-2.5 h-2.5">
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			fill="none"
+			viewBox="0 0 24 24"
+			stroke-width="2"
+			stroke="currentColor"
+			class="w-2.5 h-2.5"
+		>
 			<path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
 		</svg>
 	</button>
@@ -269,10 +290,10 @@
 	.schedule-trigger {
 		display: flex;
 		align-items: center;
-		gap: 6px;
-		padding: 4px 10px;
-		border-radius: 16px;
-		font-size: 12px;
+		gap: 0.375rem;
+		padding: 0.25rem 0.625rem;
+		border-radius: 1rem;
+		font-size: 0.75rem;
 		color: var(--color-gray-600);
 		transition: background 0.1s;
 	}
@@ -293,13 +314,13 @@
 		position: fixed;
 		z-index: 201;
 		width: 12rem;
-		padding: 4px;
-		border-radius: 16px;
+		padding: 0.25rem;
+		border-radius: 1rem;
 		background: white;
 		border: 1px solid var(--color-gray-200);
 		box-shadow:
-			0 4px 6px -1px rgba(0, 0, 0, 0.1),
-			0 2px 4px -2px rgba(0, 0, 0, 0.1);
+			0 0.25rem 0.375rem -0.0625rem rgba(0, 0, 0, 0.1),
+			0 0.125rem 0.25rem -0.125rem rgba(0, 0, 0, 0.1);
 	}
 
 	:global(.dark) .schedule-panel {

@@ -256,11 +256,11 @@ Files:
 
 {#snippet systemPromptField(value: string, onInput: (v: string) => void, placeholder: string)}
 	<div class="mb-2">
-		<span class="text-[10px] text-gray-400 dark:text-gray-600 uppercase tracking-wide"
+		<span class="text-[0.625rem] text-gray-400 dark:text-gray-600 uppercase tracking-wide"
 			>{$t('models.systemPrompt')}</span
 		>
 		<textarea
-			class="w-full mt-1 bg-gray-50 dark:bg-white/4 border border-gray-200 dark:border-white/8 rounded-lg px-2.5 py-2 text-[11px] font-mono text-gray-600 dark:text-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none resize-y leading-relaxed"
+			class="w-full mt-1 bg-gray-50 dark:bg-white/4 border border-gray-200 dark:border-white/8 rounded-lg px-2.5 py-2 text-[0.6875rem] font-mono text-gray-600 dark:text-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none resize-y leading-relaxed"
 			rows="6"
 			{placeholder}
 			{value}
@@ -269,7 +269,7 @@ Files:
 		></textarea>
 		<div class="flex items-center gap-2 mt-1">
 			<button
-				class="text-[10px] text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-75"
+				class="text-[0.625rem] text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-75"
 				onclick={() => (showVariables = !showVariables)}
 			>
 				{$t('models.templateVariables')}
@@ -277,7 +277,7 @@ Files:
 			</button>
 			{#if value.trim()}
 				<button
-					class="text-[10px] text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-75"
+					class="text-[0.625rem] text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-75"
 					onclick={() => onInput('')}
 				>
 					{$t('models.resetToDefault')}
@@ -290,10 +290,11 @@ Files:
 			>
 				{#each TEMPLATE_VARIABLES as v}
 					<div class="flex items-baseline gap-2 h-5">
-						<code class="text-[10px] font-mono text-gray-500 dark:text-gray-500 shrink-0 select-all"
+						<code
+							class="text-[0.625rem] font-mono text-gray-500 dark:text-gray-500 shrink-0 select-all"
 							>{`{{${v.name}}}`}</code
 						>
-						<span class="text-[10px] text-gray-400 dark:text-gray-600 truncate">{v.desc}</span>
+						<span class="text-[0.625rem] text-gray-400 dark:text-gray-600 truncate">{v.desc}</span>
 					</div>
 				{/each}
 			</div>
@@ -308,7 +309,7 @@ Files:
 	onAdd: () => void
 )}
 	<div class="mb-2">
-		<span class="text-[10px] text-gray-400 dark:text-gray-600 uppercase tracking-wide"
+		<span class="text-[0.625rem] text-gray-400 dark:text-gray-600 uppercase tracking-wide"
 			>request params</span
 		>
 		{#each rows as row, i}
@@ -320,7 +321,7 @@ Files:
 					oninput={onInput}
 					autocomplete="off"
 					spellcheck="false"
-					class="w-24 shrink-0 bg-transparent text-[11px] font-mono text-gray-500 dark:text-gray-500 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none"
+					class="w-24 shrink-0 bg-transparent text-[0.6875rem] font-mono text-gray-500 dark:text-gray-500 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none"
 				/>
 				<input
 					type="text"
@@ -329,7 +330,7 @@ Files:
 					oninput={onInput}
 					autocomplete="off"
 					spellcheck="false"
-					class="flex-1 min-w-0 bg-transparent text-[11px] font-mono text-gray-500 dark:text-gray-500 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none"
+					class="flex-1 min-w-0 bg-transparent text-[0.6875rem] font-mono text-gray-500 dark:text-gray-500 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none"
 				/>
 				<button
 					type="button"
@@ -342,7 +343,7 @@ Files:
 			</div>
 		{/each}
 		<button
-			class="flex items-center gap-1 h-6 text-[11px] text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-75"
+			class="flex items-center gap-1 h-6 text-[0.6875rem] text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-75"
 			onclick={onAdd}
 		>
 			<Icon name="plus" size={10} />
@@ -358,7 +359,7 @@ Files:
 )}
 	<div class="mb-2">
 		<label
-			class="text-[10px] text-gray-400 dark:text-gray-600 uppercase tracking-wide"
+			class="text-[0.625rem] text-gray-400 dark:text-gray-600 uppercase tracking-wide"
 			for={inputId}>{$t('admin.compactTokenThreshold')}</label
 		>
 		<div class="flex items-center gap-1.5 mt-1">
@@ -372,7 +373,7 @@ Files:
 				placeholder={$t('admin.compactTokenThreshold')}
 				class="w-24 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
 			/>
-			<span class="text-[11px] text-gray-400 dark:text-gray-600"
+			<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600"
 				>{$t('admin.compactTokenThresholdUnit')}</span
 			>
 		</div>
@@ -406,7 +407,7 @@ Files:
 			<div class="mb-1">
 				<ModelSelector bind:selectedModel={defaultModelId} preferAbove={false} align="start" />
 			</div>
-			<p class="text-[11px] text-gray-400 dark:text-gray-600 mb-5">
+			<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mb-5">
 				{$t('models.defaultModelHint')}
 			</p>
 
@@ -429,11 +430,11 @@ Files:
 							step="10000"
 							class="w-24 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
 						/>
-						<span class="text-[11px] text-gray-400 dark:text-gray-600"
+						<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600"
 							>{$t('admin.compactTokenThresholdUnit')}</span
 						>
 					</div>
-					<p class="text-[11px] text-gray-400 dark:text-gray-600 mt-0.5">
+					<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-0.5">
 						{$t('admin.compactTokenThresholdHint')}
 					</p>
 				</div>
@@ -444,11 +445,11 @@ Files:
 				class="group flex items-center gap-2 w-full h-7 text-left"
 				onclick={() => (globalExpanded = !globalExpanded)}
 			>
-				<span class="flex-1 text-[13px] text-gray-500 dark:text-gray-400"
+				<span class="flex-1 text-[0.8125rem] text-gray-500 dark:text-gray-400"
 					>{$t('models.defaults')}</span
 				>
 				{#if globalRows.filter((r) => r.key.trim()).length > 0 || globalSystemPrompt.trim()}
-					<span class="text-[10px] text-gray-400 dark:text-gray-600">
+					<span class="text-[0.625rem] text-gray-400 dark:text-gray-600">
 						{#if globalSystemPrompt.trim()}prompt{/if}
 						{#if globalRows.filter((r) => r.key.trim()).length > 0}
 							{globalRows.filter((r) => r.key.trim()).length} params
@@ -500,7 +501,7 @@ Files:
 					onclick={() => (selectedId = selectedId === model.id ? null : model.id)}
 				>
 					<span
-						class="flex-1 text-[13px] truncate {model.is_active
+						class="flex-1 text-[0.8125rem] truncate {model.is_active
 							? 'text-gray-700 dark:text-gray-300'
 							: 'text-gray-400 dark:text-gray-600'}"
 					>
@@ -561,7 +562,7 @@ Files:
 			{/each}
 
 			{#if models.length === 0}
-				<p class="text-[13px] text-gray-400 dark:text-gray-600 py-4">
+				<p class="text-[0.8125rem] text-gray-400 dark:text-gray-600 py-4">
 					{$t('models.noModels')}
 				</p>
 			{/if}
@@ -569,7 +570,7 @@ Files:
 
 		<div class="shrink-0 pt-3 flex justify-end">
 			<button
-				class="text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
+				class="text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
 				onclick={saveAll}
 			>
 				{#if saving}{$t('settings.saving')}{:else}{$t('settings.save')}{/if}

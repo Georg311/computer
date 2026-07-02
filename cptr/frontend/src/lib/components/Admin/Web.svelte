@@ -49,7 +49,8 @@
 			perplexityKey = (config['web.perplexity_api_key'] as string) || '';
 			perplexityBaseUrl = (config['web.perplexity_base_url'] as string) || '';
 			firecrawlSearchKey = (config['web.firecrawl_api_key'] as string) || '';
-			firecrawlSearchBaseUrl = (config['web.firecrawl_base_url'] as string) || 'https://api.firecrawl.dev';
+			firecrawlSearchBaseUrl =
+				(config['web.firecrawl_base_url'] as string) || 'https://api.firecrawl.dev';
 			ccKey = (config['web.chat_completions_api_key'] as string) || '';
 			ccBaseUrl = (config['web.chat_completions_base_url'] as string) || '';
 			ccModel = (config['web.chat_completions_model'] as string) || '';
@@ -58,12 +59,15 @@
 			browserEnabled = config['browser.enabled'] === true || config['browser.enabled'] === 'true';
 			browserProvider = (config['browser.provider'] as typeof browserProvider) || 'local';
 			cdpUrl = (config['browser.cdp_url'] as string) || 'http://localhost:9222';
-			autoLaunch = config['browser.auto_launch'] !== false && config['browser.auto_launch'] !== 'false';
+			autoLaunch =
+				config['browser.auto_launch'] !== false && config['browser.auto_launch'] !== 'false';
 			sessionTimeout = Number(config['browser.session_timeout_minutes']) || 10;
 			firecrawlApiKey = (config['browser.firecrawl_api_key'] as string) || '';
-			firecrawlBaseUrl = (config['browser.firecrawl_base_url'] as string) || 'https://api.firecrawl.dev';
+			firecrawlBaseUrl =
+				(config['browser.firecrawl_base_url'] as string) || 'https://api.firecrawl.dev';
 			browserUseApiKey = (config['browser.browser_use_api_key'] as string) || '';
-			browserUseBaseUrl = (config['browser.browser_use_base_url'] as string) || 'https://api.browser-use.com';
+			browserUseBaseUrl =
+				(config['browser.browser_use_base_url'] as string) || 'https://api.browser-use.com';
 		} catch {
 			toast.error($t('admin.failedToLoadConfig'));
 		}
@@ -136,15 +140,22 @@
 		<div class="flex flex-col gap-2.5">
 			<label class="flex items-center justify-between cursor-pointer">
 				<span class="text-xs text-gray-600 dark:text-gray-400">{$t('admin.webEnabled')}</span>
-				<ToggleSwitch value={webEnabled} onchange={(v) => { webEnabled = v; }} />
+				<ToggleSwitch
+					value={webEnabled}
+					onchange={(v) => {
+						webEnabled = v;
+					}}
+				/>
 			</label>
-			<p class="text-[11px] text-gray-400 dark:text-gray-600 -mt-1">
+			<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 -mt-1">
 				{webEnabled ? $t('admin.webEnabledHint') : $t('admin.webDisabledHint')}
 			</p>
 
 			{#if webEnabled}
 				<div class="flex items-center justify-between">
-					<span class="text-xs text-gray-600 dark:text-gray-400">{$t('admin.webSearchProvider')}</span>
+					<span class="text-xs text-gray-600 dark:text-gray-400"
+						>{$t('admin.webSearchProvider')}</span
+					>
 					<select
 						bind:value={searchProvider}
 						class="bg-transparent text-xs text-gray-600 dark:text-gray-400 outline-none cursor-pointer"
@@ -159,7 +170,7 @@
 						<option value="chat_completions">{$t('admin.webChatCompletions')}</option>
 					</select>
 				</div>
-				<p class="text-[11px] text-gray-400 dark:text-gray-600 -mt-1">
+				<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 -mt-1">
 					{#if searchProvider === 'auto'}
 						{$t('admin.webAutoHint')}
 					{:else if searchProvider === 'duckduckgo'}
@@ -169,68 +180,154 @@
 
 				{#if searchProvider === 'exa'}
 					<div>
-						<label class="text-xs text-gray-600 dark:text-gray-400" for="exa-key">{$t('admin.webExaKey')}</label>
-						<input id="exa-key" type="password" bind:value={exaKey} placeholder="exa-..."
-							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors" />
-						<p class="text-[11px] text-gray-400 dark:text-gray-600 mt-0.5">{$t('admin.webExaHint')}</p>
+						<label class="text-xs text-gray-600 dark:text-gray-400" for="exa-key"
+							>{$t('admin.webExaKey')}</label
+						>
+						<input
+							id="exa-key"
+							type="password"
+							bind:value={exaKey}
+							placeholder="exa-..."
+							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+						/>
+						<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-0.5">
+							{$t('admin.webExaHint')}
+						</p>
 					</div>
 				{:else if searchProvider === 'tavily'}
 					<div>
-						<label class="text-xs text-gray-600 dark:text-gray-400" for="tavily-key">{$t('admin.webTavilyKey')}</label>
-						<input id="tavily-key" type="password" bind:value={tavilyKey} placeholder="tvly-..."
-							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors" />
-						<p class="text-[11px] text-gray-400 dark:text-gray-600 mt-0.5">{$t('admin.webTavilyHint')}</p>
+						<label class="text-xs text-gray-600 dark:text-gray-400" for="tavily-key"
+							>{$t('admin.webTavilyKey')}</label
+						>
+						<input
+							id="tavily-key"
+							type="password"
+							bind:value={tavilyKey}
+							placeholder="tvly-..."
+							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+						/>
+						<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-0.5">
+							{$t('admin.webTavilyHint')}
+						</p>
 					</div>
 				{:else if searchProvider === 'brave'}
 					<div>
-						<label class="text-xs text-gray-600 dark:text-gray-400" for="brave-key">{$t('admin.webBraveKey')}</label>
-						<input id="brave-key" type="password" bind:value={braveKey} placeholder="BSA..."
-							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors" />
-						<p class="text-[11px] text-gray-400 dark:text-gray-600 mt-0.5">{$t('admin.webBraveHint')}</p>
+						<label class="text-xs text-gray-600 dark:text-gray-400" for="brave-key"
+							>{$t('admin.webBraveKey')}</label
+						>
+						<input
+							id="brave-key"
+							type="password"
+							bind:value={braveKey}
+							placeholder="BSA..."
+							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+						/>
+						<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-0.5">
+							{$t('admin.webBraveHint')}
+						</p>
 					</div>
 				{:else if searchProvider === 'firecrawl'}
 					<div>
-						<label class="text-xs text-gray-600 dark:text-gray-400" for="web-fc-key">{$t('admin.webFirecrawlKey')}</label>
-						<input id="web-fc-key" type="password" bind:value={firecrawlSearchKey} placeholder="fc-..."
-							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors" />
-						<p class="text-[11px] text-gray-400 dark:text-gray-600 mt-0.5">{$t('admin.webFirecrawlHint')}</p>
+						<label class="text-xs text-gray-600 dark:text-gray-400" for="web-fc-key"
+							>{$t('admin.webFirecrawlKey')}</label
+						>
+						<input
+							id="web-fc-key"
+							type="password"
+							bind:value={firecrawlSearchKey}
+							placeholder="fc-..."
+							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+						/>
+						<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-0.5">
+							{$t('admin.webFirecrawlHint')}
+						</p>
 					</div>
 					<div>
-						<label class="text-xs text-gray-600 dark:text-gray-400" for="web-fc-url">{$t('admin.webFirecrawlBaseUrl')}</label>
-						<input id="web-fc-url" type="text" bind:value={firecrawlSearchBaseUrl} placeholder="https://api.firecrawl.dev"
-							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors" />
-						<p class="text-[11px] text-gray-400 dark:text-gray-600 mt-0.5">{$t('admin.browserFirecrawlBaseUrlHint')}</p>
+						<label class="text-xs text-gray-600 dark:text-gray-400" for="web-fc-url"
+							>{$t('admin.webFirecrawlBaseUrl')}</label
+						>
+						<input
+							id="web-fc-url"
+							type="text"
+							bind:value={firecrawlSearchBaseUrl}
+							placeholder="https://api.firecrawl.dev"
+							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+						/>
+						<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-0.5">
+							{$t('admin.browserFirecrawlBaseUrlHint')}
+						</p>
 					</div>
 				{:else if searchProvider === 'perplexity'}
 					<div>
-						<label class="text-xs text-gray-600 dark:text-gray-400" for="pplx-key">{$t('admin.webPerplexityKey')}</label>
-						<input id="pplx-key" type="password" bind:value={perplexityKey} placeholder="pplx-..."
-							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors" />
-						<p class="text-[11px] text-gray-400 dark:text-gray-600 mt-0.5">{$t('admin.webPerplexityHint')}</p>
+						<label class="text-xs text-gray-600 dark:text-gray-400" for="pplx-key"
+							>{$t('admin.webPerplexityKey')}</label
+						>
+						<input
+							id="pplx-key"
+							type="password"
+							bind:value={perplexityKey}
+							placeholder="pplx-..."
+							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+						/>
+						<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-0.5">
+							{$t('admin.webPerplexityHint')}
+						</p>
 					</div>
 					<div>
-						<label class="text-xs text-gray-600 dark:text-gray-400" for="pplx-base-url">{$t('admin.webPerplexityBaseUrl')}</label>
-						<input id="pplx-base-url" type="text" bind:value={perplexityBaseUrl} placeholder="https://api.perplexity.ai"
-							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors" />
-						<p class="text-[11px] text-gray-400 dark:text-gray-600 mt-0.5">{$t('admin.webPerplexityBaseUrlHint')}</p>
+						<label class="text-xs text-gray-600 dark:text-gray-400" for="pplx-base-url"
+							>{$t('admin.webPerplexityBaseUrl')}</label
+						>
+						<input
+							id="pplx-base-url"
+							type="text"
+							bind:value={perplexityBaseUrl}
+							placeholder="https://api.perplexity.ai"
+							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+						/>
+						<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-0.5">
+							{$t('admin.webPerplexityBaseUrlHint')}
+						</p>
 					</div>
 				{:else if searchProvider === 'chat_completions'}
 					<div>
-						<label class="text-xs text-gray-600 dark:text-gray-400" for="cc-base-url">{$t('admin.webCcBaseUrl')}</label>
-						<input id="cc-base-url" type="text" bind:value={ccBaseUrl} placeholder="https://api.perplexity.ai/v1"
-							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors" />
+						<label class="text-xs text-gray-600 dark:text-gray-400" for="cc-base-url"
+							>{$t('admin.webCcBaseUrl')}</label
+						>
+						<input
+							id="cc-base-url"
+							type="text"
+							bind:value={ccBaseUrl}
+							placeholder="https://api.perplexity.ai/v1"
+							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+						/>
 					</div>
 					<div>
-						<label class="text-xs text-gray-600 dark:text-gray-400" for="cc-key">{$t('admin.webCcKey')}</label>
-						<input id="cc-key" type="password" bind:value={ccKey} placeholder="sk-..."
-							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors" />
+						<label class="text-xs text-gray-600 dark:text-gray-400" for="cc-key"
+							>{$t('admin.webCcKey')}</label
+						>
+						<input
+							id="cc-key"
+							type="password"
+							bind:value={ccKey}
+							placeholder="sk-..."
+							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+						/>
 					</div>
 					<div>
-						<label class="text-xs text-gray-600 dark:text-gray-400" for="cc-model">{$t('admin.webCcModel')}</label>
-						<input id="cc-model" type="text" bind:value={ccModel} placeholder="sonar-pro"
-							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors" />
+						<label class="text-xs text-gray-600 dark:text-gray-400" for="cc-model"
+							>{$t('admin.webCcModel')}</label
+						>
+						<input
+							id="cc-model"
+							type="text"
+							bind:value={ccModel}
+							placeholder="sonar-pro"
+							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+						/>
 					</div>
-					<p class="text-[11px] text-gray-400 dark:text-gray-600 -mt-1">{$t('admin.webCcHint')}</p>
+					<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 -mt-1">
+						{$t('admin.webCcHint')}
+					</p>
 				{/if}
 			{/if}
 		</div>
@@ -241,15 +338,21 @@
 		<div class="flex flex-col gap-2.5">
 			<label class="flex items-center justify-between cursor-pointer">
 				<span class="text-xs text-gray-600 dark:text-gray-400">{$t('admin.browserTools')}</span>
-				<ToggleSwitch value={browserEnabled} onchange={(v) => { browserEnabled = v; }} />
+				<ToggleSwitch
+					value={browserEnabled}
+					onchange={(v) => {
+						browserEnabled = v;
+					}}
+				/>
 			</label>
-			<p class="text-[11px] text-gray-400 dark:text-gray-600 -mt-1">
+			<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 -mt-1">
 				{$t('admin.browserHint')}
 			</p>
 
 			{#if browserEnabled}
 				<div class="flex items-center justify-between">
-					<span class="text-xs text-gray-600 dark:text-gray-400">{$t('admin.browserProvider')}</span>
+					<span class="text-xs text-gray-600 dark:text-gray-400">{$t('admin.browserProvider')}</span
+					>
 					<select
 						bind:value={browserProvider}
 						class="bg-transparent text-xs text-gray-600 dark:text-gray-400 outline-none cursor-pointer"
@@ -259,7 +362,7 @@
 						<option value="browser_use">{$t('admin.browserBrowserUse')}</option>
 					</select>
 				</div>
-				<p class="text-[11px] text-gray-400 dark:text-gray-600 -mt-1">
+				<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 -mt-1">
 					{#if browserProvider === 'local'}
 						{$t('admin.browserLocalHint')}
 					{:else if browserProvider === 'firecrawl'}
@@ -272,60 +375,120 @@
 				{#if browserProvider === 'local'}
 					<label class="flex items-center justify-between cursor-pointer">
 						<div>
-							<span class="text-xs text-gray-600 dark:text-gray-400">{$t('admin.browserAutoLaunch')}</span>
-							<p class="text-[10px] text-gray-400 dark:text-gray-600">{$t('admin.browserAutoLaunchHint')}</p>
+							<span class="text-xs text-gray-600 dark:text-gray-400"
+								>{$t('admin.browserAutoLaunch')}</span
+							>
+							<p class="text-[0.625rem] text-gray-400 dark:text-gray-600">
+								{$t('admin.browserAutoLaunchHint')}
+							</p>
 						</div>
-						<ToggleSwitch value={autoLaunch} onchange={(v) => { autoLaunch = v; }} />
+						<ToggleSwitch
+							value={autoLaunch}
+							onchange={(v) => {
+								autoLaunch = v;
+							}}
+						/>
 					</label>
 
 					<div>
-						<label class="text-xs text-gray-600 dark:text-gray-400" for="cdp-url">{$t('admin.browserCdpUrl')}</label>
+						<label class="text-xs text-gray-600 dark:text-gray-400" for="cdp-url"
+							>{$t('admin.browserCdpUrl')}</label
+						>
 						<div class="flex gap-1.5 mt-1">
-							<input id="cdp-url" type="text" bind:value={cdpUrl} placeholder="http://localhost:9222"
-								class="flex-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors" />
+							<input
+								id="cdp-url"
+								type="text"
+								bind:value={cdpUrl}
+								placeholder="http://localhost:9222"
+								class="flex-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+							/>
 							<button
 								class="h-7 px-2.5 rounded-lg text-xs bg-gray-200/50 dark:bg-white/8 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors disabled:opacity-50"
 								onclick={() => testConnection()}
-								disabled={testing}
-							>{testing ? '...' : $t('admin.browserTest')}</button>
+								disabled={testing}>{testing ? '...' : $t('admin.browserTest')}</button
+							>
 						</div>
 						{#if testResult}
-							<p class="text-[11px] mt-1 {testResult.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}">
+							<p
+								class="text-[0.6875rem] mt-1 {testResult.ok
+									? 'text-emerald-600 dark:text-emerald-400'
+									: 'text-red-500'}"
+							>
 								{testResult.message}
 							</p>
 						{/if}
 					</div>
 
 					<div>
-						<label class="text-xs text-gray-600 dark:text-gray-400" for="session-timeout">{$t('admin.browserSessionTimeout')}</label>
+						<label class="text-xs text-gray-600 dark:text-gray-400" for="session-timeout"
+							>{$t('admin.browserSessionTimeout')}</label
+						>
 						<div class="flex items-center gap-1.5 mt-1">
-							<input id="session-timeout" type="number" bind:value={sessionTimeout} min="1" max="120"
-								class="w-16 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors" />
-							<span class="text-[11px] text-gray-400 dark:text-gray-600">{$t('admin.browserMinutes')}</span>
+							<input
+								id="session-timeout"
+								type="number"
+								bind:value={sessionTimeout}
+								min="1"
+								max="120"
+								class="w-16 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+							/>
+							<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600"
+								>{$t('admin.browserMinutes')}</span
+							>
 						</div>
 					</div>
 				{:else if browserProvider === 'firecrawl'}
 					<div>
-						<label class="text-xs text-gray-600 dark:text-gray-400" for="fc-key">{$t('admin.browserApiKey')}</label>
-						<input id="fc-key" type="password" bind:value={firecrawlApiKey} placeholder="fc-..."
-							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors" />
+						<label class="text-xs text-gray-600 dark:text-gray-400" for="fc-key"
+							>{$t('admin.browserApiKey')}</label
+						>
+						<input
+							id="fc-key"
+							type="password"
+							bind:value={firecrawlApiKey}
+							placeholder="fc-..."
+							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+						/>
 					</div>
 					<div>
-						<label class="text-xs text-gray-600 dark:text-gray-400" for="fc-url">{$t('admin.browserBaseUrl')}</label>
-						<input id="fc-url" type="text" bind:value={firecrawlBaseUrl} placeholder="https://api.firecrawl.dev"
-							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors" />
-						<p class="text-[11px] text-gray-400 dark:text-gray-600 mt-0.5">{$t('admin.browserFirecrawlBaseUrlHint')}</p>
+						<label class="text-xs text-gray-600 dark:text-gray-400" for="fc-url"
+							>{$t('admin.browserBaseUrl')}</label
+						>
+						<input
+							id="fc-url"
+							type="text"
+							bind:value={firecrawlBaseUrl}
+							placeholder="https://api.firecrawl.dev"
+							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+						/>
+						<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-0.5">
+							{$t('admin.browserFirecrawlBaseUrlHint')}
+						</p>
 					</div>
 				{:else if browserProvider === 'browser_use'}
 					<div>
-						<label class="text-xs text-gray-600 dark:text-gray-400" for="bu-key">{$t('admin.browserApiKey')}</label>
-						<input id="bu-key" type="password" bind:value={browserUseApiKey} placeholder="bu-..."
-							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors" />
+						<label class="text-xs text-gray-600 dark:text-gray-400" for="bu-key"
+							>{$t('admin.browserApiKey')}</label
+						>
+						<input
+							id="bu-key"
+							type="password"
+							bind:value={browserUseApiKey}
+							placeholder="bu-..."
+							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+						/>
 					</div>
 					<div>
-						<label class="text-xs text-gray-600 dark:text-gray-400" for="bu-url">{$t('admin.browserBaseUrl')}</label>
-						<input id="bu-url" type="text" bind:value={browserUseBaseUrl} placeholder="https://api.browser-use.com"
-							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors" />
+						<label class="text-xs text-gray-600 dark:text-gray-400" for="bu-url"
+							>{$t('admin.browserBaseUrl')}</label
+						>
+						<input
+							id="bu-url"
+							type="text"
+							bind:value={browserUseBaseUrl}
+							placeholder="https://api.browser-use.com"
+							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+						/>
 					</div>
 				{/if}
 			{/if}
@@ -334,10 +497,10 @@
 		<!-- Save -->
 		<div class="mt-auto pt-6 flex justify-end">
 			<button
-				class="text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100 disabled:opacity-50"
+				class="text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100 disabled:opacity-50"
 				onclick={() => save()}
-				disabled={saving}
-			>{$t('settings.save')}</button>
+				disabled={saving}>{$t('settings.save')}</button
+			>
 		</div>
 	{/if}
 </div>

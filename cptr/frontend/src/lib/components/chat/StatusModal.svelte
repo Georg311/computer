@@ -114,10 +114,12 @@
 {#if selectedSession}
 	<Modal
 		{onclose}
-		class="mx-4 flex h-[min(760px,82dvh)] w-full max-w-[min(960px,calc(100vw-2rem))] flex-col overflow-hidden max-sm:mx-0 max-sm:h-[100dvh] max-sm:max-w-none max-sm:rounded-none"
+		class="mx-4 flex h-[min(47.5rem,82dvh)] w-full max-w-[min(60rem,calc(100vw-2rem))] flex-col overflow-hidden max-sm:mx-0 max-sm:h-[100dvh] max-sm:max-w-none max-sm:rounded-none"
 	>
 		<div class="flex h-full min-h-0 flex-col overflow-hidden">
-			<div class="flex h-9 shrink-0 items-center gap-3 border-b border-gray-100 px-3 dark:border-white/8">
+			<div
+				class="flex h-9 shrink-0 items-center gap-3 border-b border-gray-100 px-3 dark:border-white/8"
+			>
 				<button
 					type="button"
 					class="flex h-7 shrink-0 items-center gap-1.5 rounded-lg pr-2 text-xs text-gray-400 transition-colors duration-75 hover:text-gray-700 dark:text-gray-600 dark:hover:text-gray-300"
@@ -160,10 +162,10 @@
 		align="end"
 		className="w-80 max-w-[calc(100vw-1.5rem)] p-0"
 	>
-		<div class="max-h-[70dvh] overflow-y-auto px-1 py-0.5 text-xs sm:max-h-[min(72dvh,520px)]">
+		<div class="max-h-[70dvh] overflow-y-auto px-1 py-0.5 text-xs sm:max-h-[min(72dvh,32.5rem)]">
 			{#if missingSessionId}
 				<div
-					class="rounded-xl px-1.5 py-1.5 text-[11px] leading-relaxed text-gray-400 dark:text-gray-600"
+					class="rounded-xl px-1.5 py-1.5 text-[0.6875rem] leading-relaxed text-gray-400 dark:text-gray-600"
 				>
 					Live session unavailable. Saved output remains in the chat.
 				</div>
@@ -172,21 +174,23 @@
 			{#if runningSessions.length}
 				<section>
 					<div
-						class="px-1.5 pb-0.5 pt-1.5 text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600"
+						class="px-1.5 pb-0.5 pt-1.5 text-[0.625rem] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600"
 					>
 						Sessions
 					</div>
 					{#each runningSessions as session}
-						<div class="flex h-7 min-w-0 items-center gap-3 rounded-xl px-1.5 text-gray-600 dark:text-gray-400">
+						<div
+							class="flex h-7 min-w-0 items-center gap-3 rounded-xl px-1.5 text-gray-600 dark:text-gray-400"
+						>
 							<button
 								type="button"
-								class="min-w-0 flex-1 truncate text-left font-mono text-[11px] text-gray-400 underline-offset-2 transition-colors duration-75 hover:text-gray-700 hover:underline dark:text-gray-600 dark:hover:text-gray-200"
+								class="min-w-0 flex-1 truncate text-left font-mono text-[0.6875rem] text-gray-400 underline-offset-2 transition-colors duration-75 hover:text-gray-700 hover:underline dark:text-gray-600 dark:hover:text-gray-200"
 								title={shortCommand(session.command)}
 								onclick={() => (selectedSessionId = session.command_session_id)}
 							>
 								{sessionLabel(session)}
 							</button>
-							<span class="shrink-0 text-[10px] text-gray-400 dark:text-gray-600">
+							<span class="shrink-0 text-[0.625rem] text-gray-400 dark:text-gray-600">
 								{statusLabel(session)}
 							</span>
 						</div>
@@ -198,7 +202,7 @@
 				<div class="rounded-xl px-1.5 py-1.5 text-gray-600 dark:text-gray-400">
 					<div class="flex h-5 items-center gap-3">
 						<span class="min-w-0 flex-1 truncate">Context</span>
-						<span class="shrink-0 font-mono text-[10px] text-gray-400 dark:text-gray-600">
+						<span class="shrink-0 font-mono text-[0.625rem] text-gray-400 dark:text-gray-600">
 							{contextValue}
 						</span>
 					</div>
@@ -211,29 +215,35 @@
 				</div>
 
 				{#if queuedMessages.length}
-					<div class="flex h-7 items-center gap-3 rounded-xl px-1.5 text-gray-600 dark:text-gray-400">
+					<div
+						class="flex h-7 items-center gap-3 rounded-xl px-1.5 text-gray-600 dark:text-gray-400"
+					>
 						<span class="min-w-0 flex-1 truncate">Queued messages</span>
-						<span class="font-mono text-[10px] text-gray-400 dark:text-gray-600">
+						<span class="font-mono text-[0.625rem] text-gray-400 dark:text-gray-600">
 							{queuedMessages.length}
 						</span>
 					</div>
 				{/if}
 
 				{#if chatId}
-					<div class="flex h-7 items-center gap-3 rounded-xl px-1.5 text-gray-600 dark:text-gray-400">
+					<div
+						class="flex h-7 items-center gap-3 rounded-xl px-1.5 text-gray-600 dark:text-gray-400"
+					>
 						<span class="min-w-0 flex-1 truncate">Chat ID</span>
 						<button
 							type="button"
-							class="min-w-0 max-w-[11rem] truncate font-mono text-[10px] text-gray-400 underline-offset-2 transition-colors duration-75 hover:text-gray-700 hover:underline dark:text-gray-600 dark:hover:text-gray-200"
+							class="min-w-0 max-w-[11rem] truncate font-mono text-[0.625rem] text-gray-400 underline-offset-2 transition-colors duration-75 hover:text-gray-700 hover:underline dark:text-gray-600 dark:hover:text-gray-200"
 							onclick={copyChatId}
 						>
 							{copied ? $t('about.copied') : chatId}
 						</button>
 					</div>
 				{:else}
-					<div class="flex h-7 items-center gap-3 rounded-xl px-1.5 text-gray-600 dark:text-gray-400">
+					<div
+						class="flex h-7 items-center gap-3 rounded-xl px-1.5 text-gray-600 dark:text-gray-400"
+					>
 						<span class="min-w-0 flex-1 truncate">Chat ID</span>
-						<span class="font-mono text-[10px] text-gray-400 dark:text-gray-600">
+						<span class="font-mono text-[0.625rem] text-gray-400 dark:text-gray-600">
 							{$t('chat.statusNoChat')}
 						</span>
 					</div>

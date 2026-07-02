@@ -118,12 +118,12 @@
 		height: 100%;
 		overflow: hidden;
 		background: repeating-conic-gradient(var(--color-gray-100) 0% 25%, transparent 0% 50%) 50% /
-			16px 16px;
+			1rem 1rem;
 	}
 
 	:global(.dark) .image-preview {
 		background: repeating-conic-gradient(rgba(255, 255, 255, 0.04) 0% 25%, transparent 0% 50%) 50% /
-			16px 16px;
+			1rem 1rem;
 	}
 
 	.image-content {
@@ -138,39 +138,39 @@
 		max-width: 100%;
 		max-height: 100%;
 		object-fit: contain;
-		padding: 12px;
+		padding: 0.75rem;
 		user-select: none;
 	}
 
 	.zoom-toolbar {
 		position: absolute;
-		bottom: 12px;
+		bottom: 0.75rem;
 		left: 50%;
 		transform: translateX(-50%);
 		display: flex;
 		align-items: center;
-		gap: 2px;
-		padding: 2px;
-		border-radius: 8px;
+		gap: 0.125rem;
+		padding: 0.125rem;
+		border-radius: 0.5rem;
 		background: rgba(255, 255, 255, 0.9);
-		backdrop-filter: blur(8px);
+		backdrop-filter: blur(0.5rem);
 		border: 1px solid rgba(0, 0, 0, 0.08);
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+		box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.1);
 	}
 
 	:global(.dark) .zoom-toolbar {
 		background: rgba(30, 30, 30, 0.9);
 		border-color: rgba(255, 255, 255, 0.1);
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+		box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.3);
 	}
 
 	.zoom-btn {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 28px;
-		height: 28px;
-		border-radius: 6px;
+		width: 1.75rem;
+		height: 1.75rem;
+		border-radius: 0.375rem;
 		color: var(--color-gray-500);
 		transition: all 0.1s;
 	}
@@ -186,13 +186,13 @@
 	}
 
 	.zoom-level {
-		min-width: 48px;
-		padding: 4px 6px;
-		font-size: 11px;
+		min-width: 3rem;
+		padding: 0.25rem 0.375rem;
+		font-size: 0.6875rem;
 		font-weight: 500;
 		text-align: center;
 		color: var(--color-gray-500);
-		border-radius: 6px;
+		border-radius: 0.375rem;
 		font-variant-numeric: tabular-nums;
 		transition: all 0.1s;
 	}

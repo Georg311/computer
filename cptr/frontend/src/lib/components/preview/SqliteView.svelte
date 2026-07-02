@@ -220,9 +220,15 @@
 		<!-- Pagination -->
 		{#if !queryMode && totalRows > PAGE_SIZE}
 			<div class="pagination">
-				<button class="page-btn" onclick={prevPage} disabled={page === 0}>{$t('sqlite.prev')}</button>
+				<button class="page-btn" onclick={prevPage} disabled={page === 0}
+					>{$t('sqlite.prev')}</button
+				>
 				<span class="page-info">
-					{$t('sqlite.pageInfo', { start: page * PAGE_SIZE + 1, end: Math.min((page + 1) * PAGE_SIZE, totalRows), total: totalRows })}
+					{$t('sqlite.pageInfo', {
+						start: page * PAGE_SIZE + 1,
+						end: Math.min((page + 1) * PAGE_SIZE, totalRows),
+						total: totalRows
+					})}
 				</span>
 				<button class="page-btn" onclick={nextPage} disabled={(page + 1) * PAGE_SIZE >= totalRows}
 					>{$t('sqlite.next')}</button
@@ -250,11 +256,9 @@
 	}
 
 	.error-msg {
-		font-size: 13px;
+		font-size: 0.8125rem;
 		color: #ef4444;
 	}
-
-
 
 	/* ── Tab bar ──────────────────────────────────── */
 
@@ -263,7 +267,7 @@
 		align-items: center;
 		gap: 0;
 		border-bottom: 1px solid var(--color-gray-200);
-		padding: 0 4px;
+		padding: 0 0.25rem;
 		flex-shrink: 0;
 		overflow-x: auto;
 	}
@@ -281,11 +285,11 @@
 	}
 
 	.tab {
-		padding: 6px 12px;
-		font-size: 11px;
+		padding: 0.375rem 0.75rem;
+		font-size: 0.6875rem;
 		font-weight: 500;
 		color: var(--color-gray-500);
-		border-bottom: 2px solid transparent;
+		border-bottom: 0.125rem solid transparent;
 		transition: all 0.1s;
 		white-space: nowrap;
 	}
@@ -311,15 +315,15 @@
 	.query-tab {
 		margin-left: auto;
 		font-family: var(--font-mono);
-		font-size: 10px;
+		font-size: 0.625rem;
 	}
 
 	/* ── Query bar ────────────────────────────────── */
 
 	.query-bar {
 		display: flex;
-		gap: 8px;
-		padding: 8px 12px;
+		gap: 0.5rem;
+		padding: 0.5rem 0.75rem;
 		border-bottom: 1px solid var(--color-gray-100);
 		flex-shrink: 0;
 	}
@@ -331,10 +335,10 @@
 	.query-input {
 		flex: 1;
 		font-family: var(--font-mono);
-		font-size: 12px;
-		padding: 6px 10px;
+		font-size: 0.75rem;
+		padding: 0.375rem 0.625rem;
 		border: 1px solid var(--color-gray-200);
-		border-radius: 6px;
+		border-radius: 0.375rem;
 		background: transparent;
 		color: var(--color-gray-800);
 		resize: vertical;
@@ -351,12 +355,12 @@
 	}
 
 	.run-btn {
-		padding: 6px 12px;
-		font-size: 11px;
+		padding: 0.375rem 0.75rem;
+		font-size: 0.6875rem;
 		font-weight: 500;
 		color: white;
 		background: #2563eb;
-		border-radius: 6px;
+		border-radius: 0.375rem;
 		align-self: flex-end;
 		transition: background 0.1s;
 	}
@@ -366,8 +370,8 @@
 	}
 
 	.query-error {
-		padding: 6px 12px;
-		font-size: 11px;
+		padding: 0.375rem 0.75rem;
+		font-size: 0.6875rem;
 		font-family: var(--font-mono);
 		color: #ef4444;
 		background: rgba(239, 68, 68, 0.06);
@@ -384,7 +388,7 @@
 	table {
 		width: 100%;
 		border-collapse: collapse;
-		font-size: 12px;
+		font-size: 0.75rem;
 		font-family: var(--font-mono);
 		white-space: nowrap;
 	}
@@ -399,8 +403,8 @@
 		background: var(--color-gray-50);
 		color: var(--color-gray-600);
 		font-weight: 600;
-		font-size: 11px;
-		padding: 5px 10px;
+		font-size: 0.6875rem;
+		padding: 0.3125rem 0.625rem;
 		text-align: left;
 		border-bottom: 1px solid var(--color-gray-200);
 	}
@@ -412,7 +416,7 @@
 	}
 
 	td {
-		padding: 3px 10px;
+		padding: 0.1875rem 0.625rem;
 		color: var(--color-gray-800);
 		border-bottom: 1px solid var(--color-gray-100);
 	}
@@ -432,11 +436,11 @@
 
 	.row-num {
 		color: var(--color-gray-400);
-		font-size: 10px;
+		font-size: 0.625rem;
 		text-align: right;
-		padding-right: 6px;
+		padding-right: 0.375rem;
 		user-select: none;
-		min-width: 32px;
+		min-width: 2rem;
 		border-right: 1px solid var(--color-gray-100);
 	}
 
@@ -469,8 +473,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		gap: 12px;
-		padding: 6px;
+		gap: 0.75rem;
+		padding: 0.375rem;
 		border-top: 1px solid var(--color-gray-100);
 		flex-shrink: 0;
 	}
@@ -480,9 +484,9 @@
 	}
 
 	.page-btn {
-		font-size: 11px;
-		padding: 3px 10px;
-		border-radius: 4px;
+		font-size: 0.6875rem;
+		padding: 0.1875rem 0.625rem;
+		border-radius: 0.25rem;
 		color: var(--color-gray-500);
 		transition: all 0.1s;
 	}
@@ -503,7 +507,7 @@
 	}
 
 	.page-info {
-		font-size: 11px;
+		font-size: 0.6875rem;
 		color: var(--color-gray-400);
 		font-variant-numeric: tabular-nums;
 	}

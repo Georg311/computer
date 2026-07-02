@@ -97,13 +97,9 @@
 <div class="flex flex-col gap-2.5 mb-3">
 	<label class="flex items-center justify-between cursor-pointer">
 		<span class="text-xs text-gray-600 dark:text-gray-400">{$t('admin.allowSignUp')}</span>
-		<ToggleSwitch
-			value={signupEnabled}
-			onchange={(v) => toggleSignup(v)}
-			disabled={savingConfig}
-		/>
+		<ToggleSwitch value={signupEnabled} onchange={(v) => toggleSignup(v)} disabled={savingConfig} />
 	</label>
-	<p class="text-[11px] text-gray-400 dark:text-gray-600 -mt-1">
+	<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 -mt-1">
 		{signupEnabled ? $t('admin.signUpEnabled') : $t('admin.signUpDisabled')}
 	</p>
 </div>
@@ -124,11 +120,11 @@
 					alt=""
 					class="w-4 h-4 rounded-full object-cover shrink-0"
 				/>
-				<span class="flex-1 text-[13px] text-gray-700 dark:text-gray-300 truncate"
+				<span class="flex-1 text-[0.8125rem] text-gray-700 dark:text-gray-300 truncate"
 					>{user.display_name || user.username}</span
 				>
 				<span
-					class="text-[11px] transition-colors duration-75
+					class="text-[0.6875rem] transition-colors duration-75
 					{user.role === 'admin'
 						? 'text-gray-900 dark:text-white font-medium'
 						: 'text-gray-400 dark:text-gray-600'}">{user.role}</span
@@ -137,7 +133,7 @@
 		{/each}
 
 		{#if users.length === 0}
-			<p class="text-[13px] text-gray-400 dark:text-gray-600 py-4">{$t('admin.noUsers')}</p>
+			<p class="text-[0.8125rem] text-gray-400 dark:text-gray-600 py-4">{$t('admin.noUsers')}</p>
 		{/if}
 	</div>
 
@@ -146,13 +142,15 @@
 			class="flex items-center justify-between mt-4 pt-3 border-t border-gray-200 dark:border-white/6"
 		>
 			<button
-				class="text-[11px] text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+				class="text-[0.6875rem] text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors disabled:opacity-30 disabled:pointer-events-none"
 				disabled={page === 0}
 				onclick={() => page--}>← {$t('admin.prev').replace('← ', '')}</button
 			>
-			<span class="text-[11px] text-gray-400 dark:text-gray-600">{page + 1} / {totalPages}</span>
+			<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600"
+				>{page + 1} / {totalPages}</span
+			>
 			<button
-				class="text-[11px] text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+				class="text-[0.6875rem] text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors disabled:opacity-30 disabled:pointer-events-none"
 				disabled={page >= totalPages - 1}
 				onclick={() => page++}>{$t('admin.next')}</button
 			>

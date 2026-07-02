@@ -475,7 +475,7 @@
 							e.stopPropagation();
 							showChangelog.set(true);
 						}}
-						class="ml-auto text-[10px] text-gray-400 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 font-mono hover:underline cursor-pointer"
+						class="ml-auto text-[0.625rem] text-gray-400 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 font-mono hover:underline cursor-pointer"
 					>
 						v{$appVersion}
 					</button>
@@ -562,13 +562,13 @@
 		left: 0;
 		top: 0;
 		bottom: 0;
-		width: 220px;
+		width: 13.75rem;
 		z-index: 50;
 		display: flex;
 		flex-direction: column;
 		background: white;
 		border-right: 1px solid var(--color-gray-200);
-		padding-top: env(safe-area-inset-top, 0px);
+		padding-top: env(safe-area-inset-top, 0);
 	}
 
 	:global(.dark) .sidebar {
@@ -580,7 +580,7 @@
 		.sidebar {
 			position: relative;
 			z-index: auto;
-			width: var(--sw, 220px);
+			width: var(--sw, 13.75rem);
 		}
 	}
 
@@ -592,10 +592,10 @@
 		.resize-handle {
 			display: block;
 			position: absolute;
-			right: -3px;
+			right: -0.1875rem;
 			top: 0;
 			bottom: 0;
-			width: 6px;
+			width: 0.375rem;
 			cursor: col-resize;
 			z-index: 10;
 			transition: background 0.15s;
@@ -610,7 +610,7 @@
 	/* ── Workspace chat items ────────────────────────────── */
 
 	.ws-item {
-		margin-bottom: 2px;
+		margin-bottom: 0.125rem;
 	}
 
 	.ws-expand-btn {
@@ -623,8 +623,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 14px;
-		height: 14px;
+		width: 0.875rem;
+		height: 0.875rem;
 		cursor: pointer;
 	}
 
@@ -660,18 +660,18 @@
 	}
 
 	.ws-chats {
-		padding-left: 4px;
-		padding-bottom: 4px;
+		padding-left: 0.25rem;
+		padding-bottom: 0.25rem;
 	}
 
 	.ws-chat-show-more {
 		display: block;
 		width: 100%;
-		padding: 2px 8px;
+		padding: 0.125rem 0.5rem;
 		border: none;
 		background: none;
 		cursor: pointer;
-		font-size: 11px;
+		font-size: 0.6875rem;
 		color: #b0b5be;
 		text-align: left;
 		transition: color 0.1s;
@@ -691,13 +691,13 @@
 
 	.ws-chat-loading {
 		display: flex;
-		gap: 4px;
-		padding: 6px 8px;
+		gap: 0.25rem;
+		padding: 0.375rem 0.5rem;
 	}
 
 	.ws-chat-loading-dot {
-		width: 4px;
-		height: 4px;
+		width: 0.25rem;
+		height: 0.25rem;
 		border-radius: 50%;
 		background: #9ca3af;
 		animation: dotPulse 1s ease-in-out infinite;

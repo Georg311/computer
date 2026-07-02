@@ -127,7 +127,7 @@
 	<h2 class="text-sm font-medium text-gray-900 dark:text-white mb-1">
 		{$t('admin.gateway.title')}
 	</h2>
-	<p class="text-[11px] text-gray-400 dark:text-gray-600 mb-4">
+	<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mb-4">
 		{$t('admin.gateway.description')}
 	</p>
 
@@ -152,7 +152,7 @@
 					{/each}
 				</select>
 			</div>
-			<p class="text-[11px] text-gray-400 dark:text-gray-600 mt-1.5">
+			<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-1.5">
 				{$t('admin.gateway.modelDescription')}
 			</p>
 		</div>
@@ -164,7 +164,7 @@
 						{$t('admin.gateway.newKey')}
 					</h3>
 					<button
-						class="shrink-0 text-[11px] text-gray-500 hover:text-gray-900 dark:text-gray-500 dark:hover:text-white transition-colors"
+						class="shrink-0 text-[0.6875rem] text-gray-500 hover:text-gray-900 dark:text-gray-500 dark:hover:text-white transition-colors"
 						onclick={copyKey}
 					>
 						{$t('admin.gateway.copy')}
@@ -172,12 +172,12 @@
 				</div>
 				<div class="flex items-center gap-2">
 					<code
-						class="flex-1 min-w-0 text-[11px] font-mono bg-gray-50 dark:bg-white/4 px-2.5 py-2 rounded-lg border border-gray-100 dark:border-white/5 text-gray-600 dark:text-gray-400 select-all break-all"
+						class="flex-1 min-w-0 text-[0.6875rem] font-mono bg-gray-50 dark:bg-white/4 px-2.5 py-2 rounded-lg border border-gray-100 dark:border-white/5 text-gray-600 dark:text-gray-400 select-all break-all"
 					>
 						{revealedKey}
 					</code>
 				</div>
-				<p class="text-[11px] text-gray-400 dark:text-gray-600 mt-1.5">
+				<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-1.5">
 					{$t('admin.gateway.keyWarning')}
 				</p>
 			</div>
@@ -194,7 +194,7 @@
 				disabled={creating}
 			/>
 			<button
-				class="shrink-0 text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100 disabled:opacity-50"
+				class="shrink-0 text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100 disabled:opacity-50"
 				onclick={createKey}
 				disabled={creating}
 			>
@@ -224,7 +224,7 @@
 							<span class="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">
 								{key.name}
 							</span>
-							<span class="text-[10px] text-gray-400 dark:text-gray-600 shrink-0">
+							<span class="text-[0.625rem] text-gray-400 dark:text-gray-600 shrink-0">
 								{formatDate(key.created_at)}
 							</span>
 						</div>
@@ -244,7 +244,7 @@
 			<h3 class="text-xs text-gray-400 dark:text-gray-600 mb-2">
 				{$t('admin.gateway.howToConnect')}
 			</h3>
-			<div class="space-y-1.5 text-[11px] font-mono text-gray-600 dark:text-gray-400">
+			<div class="space-y-1.5 text-[0.6875rem] font-mono text-gray-600 dark:text-gray-400">
 				<div>
 					<span class="text-gray-400 dark:text-gray-600">{$t('admin.gateway.baseUrl')}</span>
 					<span class="text-gray-700 dark:text-gray-300"
@@ -259,14 +259,14 @@
 					<div class="flex items-center justify-between gap-2 mb-1">
 						<span class="text-gray-400 dark:text-gray-600">{$t('admin.gateway.headers')}</span>
 						<button
-							class="shrink-0 text-[11px] font-sans text-gray-500 hover:text-gray-900 dark:text-gray-500 dark:hover:text-white transition-colors"
+							class="shrink-0 text-[0.6875rem] font-sans text-gray-500 hover:text-gray-900 dark:text-gray-500 dark:hover:text-white transition-colors"
 							onclick={copyHeaders}
 						>
 							{$t('admin.gateway.copy')}
 						</button>
 					</div>
 					<button
-						class="w-full text-left whitespace-pre-wrap rounded-lg border border-gray-100 dark:border-white/5 bg-gray-50 dark:bg-white/4 px-2.5 py-2 text-[11px] font-mono text-gray-700 dark:text-gray-300 transition-colors hover:border-gray-200 dark:hover:border-white/10"
+						class="w-full text-left whitespace-pre-wrap rounded-lg border border-gray-100 dark:border-white/5 bg-gray-50 dark:bg-white/4 px-2.5 py-2 text-[0.6875rem] font-mono text-gray-700 dark:text-gray-300 transition-colors hover:border-gray-200 dark:hover:border-white/10"
 						onclick={copyHeaders}
 					>
 						{openWebUIHeaders}
@@ -277,7 +277,7 @@
 
 		<div class="mt-auto pt-6 flex justify-end">
 			<button
-				class="text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100 disabled:opacity-50"
+				class="text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100 disabled:opacity-50"
 				onclick={() => save()}
 				disabled={saving}>{$t('settings.save')}</button
 			>

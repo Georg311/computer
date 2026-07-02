@@ -97,20 +97,20 @@
 				autofocus
 				autocomplete="username"
 				spellcheck="false"
-				class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-1"
+				class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-1"
 			/>
 			<input
 				type="password"
 				placeholder={$t('auth.password')}
 				bind:value={password}
 				autocomplete={isSetup ? 'new-password' : 'current-password'}
-				class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-1"
+				class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-1"
 			/>
 
 			<button
 				type="submit"
 				disabled={loading || !password || !username.trim()}
-				class="flex items-center gap-2 text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100
+				class="flex items-center gap-2 text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100
 					disabled:opacity-30 disabled:pointer-events-none mt-2"
 			>
 				{#if loading}
@@ -126,7 +126,7 @@
 		</form>
 
 		{#if !isSetup && signupEnabled && mode === 'password'}
-			<p class="text-[11px] text-gray-400 dark:text-gray-600 mt-4">
+			<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-4">
 				{#if isSignup}
 					{$t('auth.alreadyHaveAccount')}
 					<button

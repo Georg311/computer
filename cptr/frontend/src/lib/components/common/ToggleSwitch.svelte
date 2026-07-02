@@ -17,9 +17,7 @@
 	aria-checked={value}
 >
 	<span
-		class="absolute top-[2px] w-3 h-3 rounded-full transition-all duration-150
-			{value
-				? 'left-[14px] bg-white dark:bg-black'
-				: 'left-[2px] bg-white dark:bg-gray-500'}"
+		class="absolute top-[0.125rem] w-3 h-3 rounded-full transition-all duration-150
+			{value ? 'left-[0.875rem] bg-white dark:bg-black' : 'left-[0.125rem] bg-white dark:bg-gray-500'}"
 	></span>
 </button>

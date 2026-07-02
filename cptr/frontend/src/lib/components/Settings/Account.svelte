@@ -170,14 +170,14 @@
 			>
 			<div class="flex items-center gap-2">
 				<button
-					class="text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
+					class="text-[0.6875rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
 					onclick={handleAvatarSelect}
 					disabled={uploadingAvatar}>{$t('account.uploadPhoto')}</button
 				>
 				{#if avatarUrl}
-					<span class="text-gray-300 dark:text-gray-700 text-[11px]">·</span>
+					<span class="text-gray-300 dark:text-gray-700 text-[0.6875rem]">·</span>
 					<button
-						class="text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
+						class="text-[0.6875rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
 						onclick={handleAvatarDelete}
 						disabled={uploadingAvatar}>{$t('account.removePhoto')}</button
 					>
@@ -192,7 +192,7 @@
 		type="text"
 		placeholder={$t('account.displayNamePlaceholder')}
 		bind:value={displayName}
-		class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-1 mb-5"
+		class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-1 mb-5"
 	/>
 
 	<!-- Password -->
@@ -202,19 +202,19 @@
 		placeholder={$t('account.currentPassword')}
 		bind:value={currentPassword}
 		autocomplete="current-password"
-		class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-1"
+		class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-1"
 	/>
 	<input
 		type="password"
 		placeholder={$t('account.newPassword')}
 		bind:value={newPassword}
 		autocomplete="new-password"
-		class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-1"
+		class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-1"
 	/>
 	<button
 		disabled={updatingPassword || !currentPassword || !newPassword}
 		onclick={updatePassword}
-		class="mt-2 self-start text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100
+		class="mt-2 self-start text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100
 		disabled:opacity-30 disabled:pointer-events-none"
 	>
 		{#if updatingPassword}
@@ -229,7 +229,7 @@
 		<button
 			onclick={saveDisplayName}
 			disabled={savingProfile}
-			class="text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100
+			class="text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100
 			disabled:opacity-30 disabled:pointer-events-none"
 		>
 			{#if savingProfile}

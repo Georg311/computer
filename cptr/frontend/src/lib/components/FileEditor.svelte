@@ -1,11 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import {
-		clearTabEdit,
-		markTabUnsaved,
-		updateTabFilePath,
-		activeWorkspace
-	} from '$lib/stores';
+	import { clearTabEdit, markTabUnsaved, updateTabFilePath, activeWorkspace } from '$lib/stores';
 	import { get } from 'svelte/store';
 	import { tooltip } from '$lib/tooltip';
 	import { readFile, writeFile } from '$lib/apis/files';
@@ -202,14 +197,20 @@
 		for (const change of changes) {
 			if (change.line < 1) continue;
 			const current = byLine.get(change.line);
-			byLine.set(change.line, current === 'added' || change.type === 'added' ? 'added' : 'modified');
+			byLine.set(
+				change.line,
+				current === 'added' || change.type === 'added' ? 'added' : 'modified'
+			);
 		}
 		return [...byLine.entries()]
 			.sort((a, b) => a[0] - b[0])
 			.map(([line, type]) => ({ line, type }));
 	}
 
-	function buildGitGutterMarkers(doc: EditorState['doc'], changes: GitLineChange[]): RangeSet<GutterMarker> {
+	function buildGitGutterMarkers(
+		doc: EditorState['doc'],
+		changes: GitLineChange[]
+	): RangeSet<GutterMarker> {
 		const builder = new RangeSetBuilder<GutterMarker>();
 		for (const change of normalizeGitLineChanges(changes)) {
 			if (change.line < 1 || change.line > doc.lines) continue;
@@ -246,9 +247,7 @@
 			}
 			return value;
 		},
-		provide: (field) => [
-			gutterLineClass.from(field, (value) => value.markers)
-		]
+		provide: (field) => [gutterLineClass.from(field, (value) => value.markers)]
 	});
 
 	function diffHunkStart(header: string): { oldStart: number; newStart: number } {
@@ -537,9 +536,8 @@
 
 	function diffBlockClass(type: DiffLine['type']): string {
 		if (type === 'added')
-			return 'bg-green-100 border-l-[3px] border-l-green-500 dark:bg-green-500/15 dark:border-l-green-400';
-		if (type === 'removed')
-			return 'bg-red-100 diff-gutter-removed dark:bg-red-500/15';
+			return 'bg-green-100 border-l-[0.1875rem] border-l-green-500 dark:bg-green-500/15 dark:border-l-green-400';
+		if (type === 'removed') return 'bg-red-100 diff-gutter-removed dark:bg-red-500/15';
 		return '';
 	}
 
@@ -642,13 +640,18 @@
 		const status = gitStatusStore.status;
 		const data = fileData;
 		const content = data?.content;
-		if (!data || data.binary || isBinaryPreview || isUntitled || content === null || content === undefined) {
+		if (
+			!data ||
+			data.binary ||
+			isBinaryPreview ||
+			isUntitled ||
+			content === null ||
+			content === undefined
+		) {
 			return;
 		}
 
-		const statusKey = status
-			? `${status.is_repo}:${gitFilesSignature(status.files)}`
-			: 'pending';
+		const statusKey = status ? `${status.is_repo}:${gitFilesSignature(status.files)}` : 'pending';
 		const key = `${wsPath}:${data.path}:${content.length}:${statusKey}`;
 		if (key === lastGitLineRefreshKey) return;
 		lastGitLineRefreshKey = key;
@@ -953,10 +956,10 @@
 				'.cm-activeLineGutter': { backgroundColor: dark ? '#1a1a1a' : '#f3f4f6' },
 				'.cm-activeLine': { backgroundColor: dark ? '#1a1a1a' : '#f9fafb' },
 				'.cm-lineNumbers .cm-gutterElement.cm-git-line-added': {
-					boxShadow: `inset 2px 0 0 ${dark ? 'rgba(52, 211, 153, 0.75)' : 'rgba(5, 150, 105, 0.65)'}`
+					boxShadow: `inset 0.125rem 0 0 ${dark ? 'rgba(52, 211, 153, 0.75)' : 'rgba(5, 150, 105, 0.65)'}`
 				},
 				'.cm-lineNumbers .cm-gutterElement.cm-git-line-modified': {
-					boxShadow: `inset 2px 0 0 ${dark ? 'rgba(251, 191, 36, 0.7)' : 'rgba(217, 119, 6, 0.6)'}`
+					boxShadow: `inset 0.125rem 0 0 ${dark ? 'rgba(251, 191, 36, 0.7)' : 'rgba(217, 119, 6, 0.6)'}`
 				},
 				'&.cm-focused': { outline: 'none' }
 			}),
@@ -1224,7 +1227,7 @@
 					{#each diffFiles as df}
 						{#each df.hunks as hunk}
 							<div
-								class="grid w-full grid-cols-[2.75rem_2.75rem_1.25rem_auto] border-b border-gray-100 bg-gray-50 text-gray-400 dark:border-white/4 dark:bg-white/3 dark:text-gray-600 font-mono text-[11px]"
+								class="grid w-full grid-cols-[2.75rem_2.75rem_1.25rem_auto] border-b border-gray-100 bg-gray-50 text-gray-400 dark:border-white/4 dark:bg-white/3 dark:text-gray-600 font-mono text-[0.6875rem]"
 							>
 								<span></span>
 								<span></span>
@@ -1235,7 +1238,7 @@
 								<div class="w-full {diffBlockClass(group.type)}">
 									{#each group.lines as line}
 										<div
-											class="grid w-full grid-cols-[2.75rem_2.75rem_1.25rem_auto] font-mono text-[11px] leading-[18px]"
+											class="grid w-full grid-cols-[2.75rem_2.75rem_1.25rem_auto] font-mono text-[0.6875rem] leading-[1.125rem]"
 										>
 											<span
 												class="select-none border-r border-black/5 px-2 text-right text-gray-400 dark:border-white/4 dark:text-gray-600"
@@ -1293,9 +1296,9 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 8px;
-		height: 30px;
-		padding: 0 10px;
+		gap: 0.5rem;
+		height: 1.875rem;
+		padding: 0 0.625rem;
 		border-bottom: 1px solid var(--color-gray-200);
 		flex-shrink: 0;
 	}
@@ -1308,7 +1311,7 @@
 		display: flex;
 		align-items: center;
 		flex: 1 1 auto;
-		gap: 8px;
+		gap: 0.5rem;
 		min-width: 0;
 		overflow: hidden;
 	}
@@ -1317,7 +1320,7 @@
 		display: flex;
 		align-items: center;
 		flex: 0 0 auto;
-		gap: 2px;
+		gap: 0.125rem;
 	}
 
 	.file-name {
@@ -1327,7 +1330,7 @@
 		overflow-x: auto;
 		overflow-y: hidden;
 		white-space: nowrap;
-		font-size: 12px;
+		font-size: 0.75rem;
 		font-weight: 500;
 		color: var(--color-gray-700);
 	}
@@ -1343,7 +1346,7 @@
 	.file-size {
 		flex: 0 0 auto;
 		white-space: nowrap;
-		font-size: 11px;
+		font-size: 0.6875rem;
 		color: var(--color-gray-400);
 	}
 
@@ -1352,26 +1355,26 @@
 		align-items: center;
 		justify-content: center;
 		flex: 0 0 auto;
-		width: 20px;
-		height: 20px;
-		border-radius: 4px;
+		width: 1.25rem;
+		height: 1.25rem;
+		border-radius: 0.25rem;
 		color: var(--color-gray-400);
 		transition: all 0.1s;
 	}
 
 	@media (max-width: 768px) {
 		.toolbar-btn {
-			width: 32px;
-			height: 32px;
-			border-radius: 6px;
+			width: 2rem;
+			height: 2rem;
+			border-radius: 0.375rem;
 		}
 
 		.toolbar {
-			height: 38px;
+			height: 2.375rem;
 		}
 
 		.toolbar-right {
-			gap: 4px;
+			gap: 0.25rem;
 		}
 	}
 
@@ -1408,19 +1411,19 @@
 		align-items: center;
 		justify-content: center;
 		height: 100%;
-		padding: 24px;
+		padding: 1.5rem;
 	}
 
 	.media-container video {
 		max-width: 100%;
 		max-height: 100%;
-		border-radius: 8px;
+		border-radius: 0.5rem;
 		background: #000;
 	}
 
 	.media-container audio {
 		width: 100%;
-		max-width: 480px;
+		max-width: 30rem;
 	}
 
 	/* ── Tree container ──────────────────────────────────── */
@@ -1428,7 +1431,7 @@
 	.tree-container {
 		height: 100%;
 		overflow: auto;
-		padding: 8px 12px;
+		padding: 0.5rem 0.75rem;
 	}
 
 	/* ── Markdown preview container ──────────────────────── */
@@ -1437,7 +1440,7 @@
 		height: 100%;
 		width: 100%;
 		overflow-y: auto;
-		padding: 24px 32px;
+		padding: 1.5rem 2rem;
 	}
 
 	/* ── States ──────────────────────────────────────────── */
@@ -1448,26 +1451,24 @@
 		align-items: center;
 		justify-content: center;
 		height: 100%;
-		gap: 6px;
+		gap: 0.375rem;
 	}
 
 	.state.error {
 		color: var(--color-gray-400);
-		font-size: 13px;
+		font-size: 0.8125rem;
 	}
 
 	.state-title {
-		font-size: 14px;
+		font-size: 0.875rem;
 		font-weight: 500;
 		color: var(--color-gray-400);
 	}
 
 	.state-sub {
-		font-size: 12px;
+		font-size: 0.75rem;
 		color: var(--color-gray-500);
 	}
-
-
 
 	/* ── Diff view ────────────────────────────────────────── */
 
@@ -1475,12 +1476,12 @@
 		height: 100%;
 		overflow: auto;
 		font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
-		font-size: 12px;
-		line-height: 18px;
+		font-size: 0.75rem;
+		line-height: 1.125rem;
 	}
 
 	.diff-hunk-header {
-		padding: 2px 8px;
+		padding: 0.125rem 0.5rem;
 		color: var(--color-gray-400);
 		background: var(--color-gray-50);
 	}
@@ -1491,14 +1492,14 @@
 	}
 
 	.diff-line {
-		padding: 0 8px;
+		padding: 0 0.5rem;
 		white-space: pre-wrap;
 		word-break: break-all;
 	}
 
 	.diff-prefix {
 		display: inline-block;
-		width: 16px;
+		width: 1rem;
 		user-select: none;
 	}
 
@@ -1553,13 +1554,13 @@
 	}
 
 	.diff-gutter-removed {
-		border-left: 3px solid transparent;
+		border-left: 0.1875rem solid transparent;
 		border-image: repeating-linear-gradient(
 				-45deg,
 				#ef4444 0,
 				#ef4444 1px,
 				transparent 1px,
-				transparent 3px
+				transparent 0.1875rem
 			)
 			3;
 	}

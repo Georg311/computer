@@ -81,7 +81,7 @@
 	<!-- Workspace name -->
 	{#if $activeWorkspace}
 		<span
-			class="text-[11px] font-medium text-gray-500 dark:text-gray-500 px-1 truncate flex-1 min-w-0"
+			class="text-[0.6875rem] font-medium text-gray-500 dark:text-gray-500 px-1 truncate flex-1 min-w-0"
 		>
 			{$activeWorkspace.name}
 		</span>
@@ -125,9 +125,9 @@
 <style>
 	@media (display-mode: window-controls-overlay) {
 		.wco-bar {
-			padding-left: env(titlebar-area-x, 0px);
+			padding-left: env(titlebar-area-x, 0);
 			width: env(titlebar-area-width, 100%);
-			height: env(titlebar-area-height, 36px);
+			height: env(titlebar-area-height, 2.25rem);
 			app-region: drag;
 		}
 		.wco-bar button,

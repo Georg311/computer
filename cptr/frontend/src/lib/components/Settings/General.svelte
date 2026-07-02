@@ -128,7 +128,7 @@
 
 		<h3 class="text-xs text-gray-400 dark:text-gray-600 mb-2 mt-5">{$t('general.language')}</h3>
 		<select
-			class="w-full max-w-[200px] bg-transparent text-[13px] text-gray-700 dark:text-gray-300 outline-none py-1 cursor-pointer"
+			class="w-full max-w-[12.5rem] bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none py-1 cursor-pointer"
 			value={$locale}
 			onchange={(e) => changeLocale((e.currentTarget as HTMLSelectElement).value)}
 		>
@@ -205,7 +205,7 @@
 				>
 				<ToggleSwitch value={$notificationsEnabled} onchange={() => toggleNotifications()} />
 			</label>
-			<p class="text-[11px] text-gray-400 dark:text-gray-600 -mt-1">
+			<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 -mt-1">
 				{$t('general.browserNotificationsDesc')}
 			</p>
 
@@ -229,7 +229,7 @@
 					placeholder="https://hooks.slack.com/services/..."
 					class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
 				/>
-				<p class="text-[11px] text-gray-400 dark:text-gray-600 mt-1">
+				<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-1">
 					{$t('general.webhookUrlHint')}
 				</p>
 			</div>
@@ -243,7 +243,7 @@
 				>
 				<ToggleSwitch value={$showUpdateToastPref} onchange={(v) => showUpdateToastPref.set(v)} />
 			</label>
-			<p class="text-[11px] text-gray-400 dark:text-gray-600 mt-1">
+			<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-1">
 				{$t('general.updateNotificationsDesc')}
 			</p>
 		{/if}
@@ -262,14 +262,14 @@
 				</button>
 			{/each}
 		</div>
-		<p class="text-[11px] text-gray-400 dark:text-gray-600 mt-1">
+		<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-1">
 			{$streamingBehavior === 'queue' ? $t('general.queueDesc') : $t('general.interruptDesc')}
 		</p>
 	</div>
 
 	<div class="shrink-0 pt-3 flex justify-end">
 		<button
-			class="text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100
+			class="text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100
 			disabled:opacity-30 disabled:pointer-events-none"
 			onclick={save}
 			disabled={saving}
@@ -289,7 +289,7 @@
 
 	.ui-scale-range::-webkit-slider-runnable-track {
 		height: 0.125rem;
-		border-radius: 9999px;
+		border-radius: 624.9375rem;
 		background: rgb(209 213 219 / 0.7);
 	}
 
@@ -298,21 +298,21 @@
 		width: 0.75rem;
 		height: 0.75rem;
 		margin-top: -0.3125rem;
-		border-radius: 9999px;
+		border-radius: 624.9375rem;
 		border: 1px solid rgb(156 163 175 / 0.45);
 		background: rgb(255 255 255);
 	}
 
 	.ui-scale-range::-moz-range-track {
 		height: 0.125rem;
-		border-radius: 9999px;
+		border-radius: 624.9375rem;
 		background: rgb(209 213 219 / 0.7);
 	}
 
 	.ui-scale-range::-moz-range-thumb {
 		width: 0.75rem;
 		height: 0.75rem;
-		border-radius: 9999px;
+		border-radius: 624.9375rem;
 		border: 1px solid rgb(156 163 175 / 0.45);
 		background: rgb(255 255 255);
 	}

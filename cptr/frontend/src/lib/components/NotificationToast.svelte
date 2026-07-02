@@ -92,7 +92,7 @@
 	<div class="min-w-0">
 		{#if title}
 			<div
-				class="text-[13px] font-medium mb-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-gray-900 dark:text-white"
+				class="text-[0.8125rem] font-medium mb-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-gray-900 dark:text-white"
 			>
 				{title}
 			</div>
@@ -105,6 +105,6 @@
 
 <style>
 	.notification-toast {
-		min-width: var(--width, 300px);
+		min-width: var(--width, 18.75rem);
 	}
 </style>

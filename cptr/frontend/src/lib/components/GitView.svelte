@@ -203,7 +203,7 @@
 	function blockClass(type: DiffLine['type']): string {
 		switch (type) {
 			case 'added':
-				return 'bg-green-100 border-l-[3px] border-l-green-500 dark:bg-green-500/15 dark:border-l-green-400';
+				return 'bg-green-100 border-l-[0.1875rem] border-l-green-500 dark:bg-green-500/15 dark:border-l-green-400';
 			case 'removed':
 				return 'bg-red-100 diff-gutter-removed dark:bg-red-500/15';
 			default:
@@ -266,7 +266,7 @@
 		<div class="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
 			<Icon name="git-diff" size={24} class="text-gray-300 dark:text-gray-700" />
 			<p class="text-xs font-medium text-gray-700 dark:text-gray-300">Unable to load changes</p>
-			<p class="max-w-sm text-[11px] text-gray-400 dark:text-gray-600">{error}</p>
+			<p class="max-w-sm text-[0.6875rem] text-gray-400 dark:text-gray-600">{error}</p>
 		</div>
 	{:else if !gitStatus?.is_repo}
 		<div class="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
@@ -284,22 +284,22 @@
 				>
 				{#if gitStatus.upstream}
 					<Icon name="chevron-right" size={12} class="shrink-0 text-gray-300 dark:text-gray-700" />
-					<span class="truncate font-mono text-[11px] text-gray-400 dark:text-gray-600"
+					<span class="truncate font-mono text-[0.6875rem] text-gray-400 dark:text-gray-600"
 						>{gitStatus.upstream}</span
 					>
 				{/if}
 				{#if gitStatus.ahead > 0}
-					<span class="font-mono text-[10px] text-gray-400 dark:text-gray-600"
+					<span class="font-mono text-[0.625rem] text-gray-400 dark:text-gray-600"
 						>+{gitStatus.ahead}</span
 					>
 				{/if}
 				{#if gitStatus.behind > 0}
-					<span class="font-mono text-[10px] text-gray-400 dark:text-gray-600"
+					<span class="font-mono text-[0.625rem] text-gray-400 dark:text-gray-600"
 						>-{gitStatus.behind}</span
 					>
 				{/if}
 				{#if totalChanges > 0}
-					<span class="ml-1 font-mono text-[10px] text-gray-400 dark:text-gray-600"
+					<span class="ml-1 font-mono text-[0.625rem] text-gray-400 dark:text-gray-600"
 						>{totalChanges} changed</span
 					>
 				{/if}
@@ -321,14 +321,14 @@
 				class="flex h-8 shrink-0 items-center gap-2 border-b border-gray-200 px-3 dark:border-white/6"
 			>
 				<button
-					class="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/6 dark:hover:text-gray-300"
+					class="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.6875rem] text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/6 dark:hover:text-gray-300"
 					onclick={toggleAll}
 				>
 					<Icon name={anyExpanded ? 'chevron-down' : 'chevron-right'} size={12} />
 					<span>{anyExpanded ? 'Collapse All' : 'Expand All'}</span>
 				</button>
-				<span class="text-[11px] text-gray-500 dark:text-gray-400">Uncommitted</span>
-				<span class="ml-auto text-[11px] text-gray-400 dark:text-gray-600"
+				<span class="text-[0.6875rem] text-gray-500 dark:text-gray-400">Uncommitted</span>
+				<span class="ml-auto text-[0.6875rem] text-gray-400 dark:text-gray-600"
 					>{totalChanges} {totalChanges === 1 ? 'change' : 'changes'}</span
 				>
 			</div>
@@ -370,7 +370,7 @@
 										: ''}"
 								/>
 								<span
-									class="w-4 shrink-0 text-center font-mono text-[11px] font-bold {meta.className}"
+									class="w-4 shrink-0 text-center font-mono text-[0.6875rem] font-bold {meta.className}"
 									title={meta.label}>{meta.char}</span
 								>
 								<Icon name="git-diff" size={13} class="shrink-0 text-gray-400 dark:text-gray-600" />
@@ -385,26 +385,26 @@
 									>
 									{#if parts.dir}
 										<span
-											class="hidden truncate text-[11px] text-gray-400 dark:text-gray-600 sm:inline"
+											class="hidden truncate text-[0.6875rem] text-gray-400 dark:text-gray-600 sm:inline"
 											>{parts.dir}</span
 										>
 									{/if}
 								</div>
 								{#if file.additions > 0}
 									<span
-										class="shrink-0 font-mono text-[11px] font-medium text-green-600 dark:text-green-400"
+										class="shrink-0 font-mono text-[0.6875rem] font-medium text-green-600 dark:text-green-400"
 										>+{file.additions}</span
 									>
 								{/if}
 								{#if file.deletions > 0}
 									<span
-										class="shrink-0 font-mono text-[11px] font-medium text-red-500 dark:text-red-400"
+										class="shrink-0 font-mono text-[0.6875rem] font-medium text-red-500 dark:text-red-400"
 										>-{file.deletions}</span
 									>
 								{/if}
 
 								<span
-									class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-rose-500 bg-rose-50 dark:bg-rose-500/10 dark:text-rose-300"
+									class="shrink-0 rounded px-1.5 py-0.5 text-[0.625rem] font-medium text-rose-500 bg-rose-50 dark:bg-rose-500/10 dark:text-rose-300"
 								>
 									{file.staged ? 'Staged' : 'Uncommitted'}
 								</span>
@@ -412,14 +412,14 @@
 
 							{#if file.expanded}
 								<div
-									class="mb-1 overflow-x-auto border-y border-gray-100 bg-white font-mono text-[11px] leading-[18px] dark:border-white/4 dark:bg-black"
+									class="mb-1 overflow-x-auto border-y border-gray-100 bg-white font-mono text-[0.6875rem] leading-[1.125rem] dark:border-white/4 dark:bg-black"
 								>
 									<div class="diff-content">
 										{#if file.diffFiles.some((diffFile) => diffFile.hunks.length > 0)}
 											{#each file.diffFiles as diffFile}
 												{#if file.diffFiles.length > 1}
 													<div
-														class="sticky top-0 z-10 border-b border-gray-100 bg-gray-50 px-2 py-1 text-[10px] font-medium text-gray-500 dark:border-white/4 dark:bg-white/3 dark:text-gray-400"
+														class="sticky top-0 z-10 border-b border-gray-100 bg-gray-50 px-2 py-1 text-[0.625rem] font-medium text-gray-500 dark:border-white/4 dark:bg-white/3 dark:text-gray-400"
 													>
 														{diffFile.path}
 													</div>
@@ -460,7 +460,7 @@
 											{/each}
 										{:else}
 											<div
-												class="px-3 py-8 text-center text-[11px] text-gray-400 dark:text-gray-600"
+												class="px-3 py-8 text-center text-[0.6875rem] text-gray-400 dark:text-gray-600"
 											>
 												No textual diff available
 											</div>
@@ -483,13 +483,13 @@
 	}
 
 	.diff-gutter-removed {
-		border-left: 3px solid transparent;
+		border-left: 0.1875rem solid transparent;
 		border-image: repeating-linear-gradient(
 				-45deg,
 				#ef4444 0,
 				#ef4444 1px,
 				transparent 1px,
-				transparent 3px
+				transparent 0.1875rem
 			)
 			3;
 	}

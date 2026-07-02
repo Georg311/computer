@@ -47,13 +47,13 @@
 	});
 </script>
 
-<Modal {onclose} class="w-full max-w-[420px] mx-4">
+<Modal {onclose} class="w-full max-w-[26.25rem] mx-4">
 	<div class="px-4 py-3.5">
 		<div class="mb-3 flex items-baseline justify-between gap-3">
 			<div class="min-w-0">
 				<h2 class="text-sm font-medium text-gray-900 dark:text-white">{$t('system.infoTitle')}</h2>
 				{#if welcomeData?.hostname}
-					<p class="mt-0.5 truncate font-mono text-[11px] text-gray-400 dark:text-gray-600">
+					<p class="mt-0.5 truncate font-mono text-[0.6875rem] text-gray-400 dark:text-gray-600">
 						{welcomeData.hostname}
 					</p>
 				{/if}

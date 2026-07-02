@@ -989,10 +989,10 @@
 		<div
 			class="flex items-center gap-1.5 h-7 px-3 border-b border-gray-200 dark:border-white/6 shrink-0"
 		>
-			<span class="text-[10px] text-gray-400 shrink-0">{$t('files.ports')}</span>
+			<span class="text-[0.625rem] text-gray-400 shrink-0">{$t('files.ports')}</span>
 			{#each workspacePorts as p (p.port)}
 				<button
-					class="px-1.5 py-0.5 rounded text-[11px] font-mono font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6 transition-colors duration-75"
+					class="px-1.5 py-0.5 rounded text-[0.6875rem] font-mono font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6 transition-colors duration-75"
 					onclick={() => openPreviewTab(p.port)}
 					use:tooltip={$t('files.clickToPreview', { process: p.process })}>:{p.port}</button
 				>
@@ -1082,7 +1082,7 @@
 					<!-- Inline rename -->
 					<div
 						class="flex items-center gap-2 h-7"
-						style="padding-left: {8 + entry.depth * 16}px; padding-right: 8px;"
+						style="padding-left: {8 + entry.depth * 16}px; padding-right: 0.5rem;"
 					>
 						<Icon
 							name={fileIconName(entry.name, entry.type)}
@@ -1122,7 +1122,7 @@
 									? 'bg-blue-100 dark:bg-blue-500/20'
 									: 'bg-blue-50/60 dark:bg-blue-500/8'
 								: 'hover:bg-gray-100 dark:hover:bg-white/4'}"
-						style="padding-left: {8 + entry.depth * 16}px; padding-right: 8px;"
+						style="padding-left: {8 + entry.depth * 16}px; padding-right: 0.5rem;"
 						onclick={(e) => handleClick(e, entry, i)}
 						oncontextmenu={(e) => onContextMenu(e, entry)}
 						draggable="true"
@@ -1185,12 +1185,13 @@
 						{/if}
 						{#if fileGitStatus && entryGitDecoration}
 							<span
-								class="text-[10px] font-mono font-bold shrink-0 {entryGitDecoration.badgeColor}"
+								class="text-[0.625rem] font-mono font-bold shrink-0 {entryGitDecoration.badgeColor}"
 								use:tooltip={gitStatusTooltip(fileGitStatus, entry)}>{entryGitDecoration.char}</span
 							>
 						{/if}
 						{#if entry.type !== 'directory' && entry.size !== null}
-							<span class="ml-1 text-[11px] font-mono text-gray-400 dark:text-gray-600 shrink-0"
+							<span
+								class="ml-1 text-[0.6875rem] font-mono text-gray-400 dark:text-gray-600 shrink-0"
 								>{formatSize(entry.size)}</span
 							>
 						{/if}
@@ -1227,26 +1228,26 @@
 		<div
 			class="flex items-center justify-between h-8 px-2 border-t border-gray-200 dark:border-white/6 shrink-0 bg-blue-50 dark:bg-blue-500/5"
 		>
-			<span class="text-[11px] font-medium text-blue-600 dark:text-blue-400"
+			<span class="text-[0.6875rem] font-medium text-blue-600 dark:text-blue-400"
 				>{$t('files.selected', { count: selectedPaths.size })}</span
 			>
 			<div class="flex items-center gap-1">
 				<button
-					class="text-[11px] px-2 py-0.5 rounded text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors duration-75"
+					class="text-[0.6875rem] px-2 py-0.5 rounded text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors duration-75"
 					onclick={selectAll}>{$t('files.all')}</button
 				>
 				<button
-					class="text-[11px] px-2 py-0.5 rounded text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors duration-75"
+					class="text-[0.6875rem] px-2 py-0.5 rounded text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors duration-75"
 					onclick={archiveSelected}
 					use:tooltip={$t('files.downloadAsZip')}><Icon name="download" size={12} /></button
 				>
 				<button
-					class="text-[11px] px-2 py-0.5 rounded text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors duration-75"
+					class="text-[0.6875rem] px-2 py-0.5 rounded text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors duration-75"
 					onclick={deleteSelected}
 					use:tooltip={$t('files.deleteSelected')}><Icon name="trash" size={12} /></button
 				>
 				<button
-					class="text-[11px] px-2 py-0.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-75"
+					class="text-[0.6875rem] px-2 py-0.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-75"
 					onclick={clearSelection}><Icon name="xmark" size={11} /></button
 				>
 			</div>

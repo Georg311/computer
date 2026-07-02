@@ -90,7 +90,7 @@
 			const keyboardInset = Math.max(0, window.innerHeight - visualBottom);
 			document.documentElement.style.setProperty(
 				'--keyboard-inset-bottom',
-				keyboardInset > 100 ? `${keyboardInset}px` : '0px'
+				keyboardInset > 100 ? `${keyboardInset}px` : '0'
 			);
 		};
 
@@ -448,7 +448,7 @@
 		<div
 			id="main-col"
 			class="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden"
-			style="padding-top: env(safe-area-inset-top, 0px); padding-bottom: var(--keyboard-inset-bottom, 0px);"
+			style="padding-top: env(safe-area-inset-top, 0); padding-bottom: var(--keyboard-inset-bottom, 0);"
 		>
 			{#if !$currentWorkspace && $page.url.pathname === '/'}
 				<Bar />
@@ -494,6 +494,6 @@
 	closeButton
 	richColors
 	toastOptions={{
-		style: 'font-size: 12px; font-family: var(--font-sans); border-radius: 8px;'
+		style: 'font-size: 0.75rem; font-family: var(--font-sans); border-radius: 0.5rem;'
 	}}
 />

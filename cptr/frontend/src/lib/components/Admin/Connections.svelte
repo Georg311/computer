@@ -77,7 +77,7 @@
 				onclick={() => (editConn = conn)}
 			>
 				<span
-					class="flex-1 text-[13px] truncate
+					class="flex-1 text-[0.8125rem] truncate
 					{conn.enabled ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600'}"
 				>
 					{conn.name}
@@ -106,7 +106,9 @@
 		{/each}
 
 		{#if connections.length === 0}
-			<p class="text-[13px] text-gray-400 dark:text-gray-600 py-4">{$t('connections.empty')}</p>
+			<p class="text-[0.8125rem] text-gray-400 dark:text-gray-600 py-4">
+				{$t('connections.empty')}
+			</p>
 		{/if}
 	</div>
 {/if}

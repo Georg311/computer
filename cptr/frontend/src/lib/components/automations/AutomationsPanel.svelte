@@ -253,7 +253,7 @@
 				<!-- Info rows -->
 				<div class="border-b border-gray-200 dark:border-white/6">
 					<div class="flex items-center h-7 px-3">
-						<span class="text-[11px] text-gray-400 dark:text-gray-500 w-20 shrink-0"
+						<span class="text-[0.6875rem] text-gray-400 dark:text-gray-500 w-20 shrink-0"
 							>{$t('automations.status')}</span
 						>
 						<div class="flex items-center gap-1.5">
@@ -268,7 +268,7 @@
 						</div>
 					</div>
 					<div class="flex items-center h-7 px-3">
-						<span class="text-[11px] text-gray-400 dark:text-gray-500 w-20 shrink-0"
+						<span class="text-[0.6875rem] text-gray-400 dark:text-gray-500 w-20 shrink-0"
 							>{$t('automations.schedule')}</span
 						>
 						<span class="text-xs text-gray-700 dark:text-gray-300"
@@ -276,15 +276,15 @@
 						>
 					</div>
 					<div class="flex items-center h-7 px-3">
-						<span class="text-[11px] text-gray-400 dark:text-gray-500 w-20 shrink-0"
+						<span class="text-[0.6875rem] text-gray-400 dark:text-gray-500 w-20 shrink-0"
 							>{$t('automations.model')}</span
 						>
-						<span class="text-[11px] text-gray-500 dark:text-gray-400 font-mono"
+						<span class="text-[0.6875rem] text-gray-500 dark:text-gray-400 font-mono"
 							>{detail.model_id}</span
 						>
 					</div>
 					<div class="flex items-center h-7 px-3">
-						<span class="text-[11px] text-gray-400 dark:text-gray-500 w-20 shrink-0"
+						<span class="text-[0.6875rem] text-gray-400 dark:text-gray-500 w-20 shrink-0"
 							>{$t('automations.nextRun')}</span
 						>
 						<span class="text-xs text-gray-700 dark:text-gray-300"
@@ -292,7 +292,7 @@
 						>
 					</div>
 					<div class="flex items-center h-7 px-3">
-						<span class="text-[11px] text-gray-400 dark:text-gray-500 w-20 shrink-0"
+						<span class="text-[0.6875rem] text-gray-400 dark:text-gray-500 w-20 shrink-0"
 							>{$t('automations.lastRun')}</span
 						>
 						<span class="text-xs text-gray-700 dark:text-gray-300"
@@ -300,16 +300,16 @@
 						>
 					</div>
 					<div class="flex items-center min-h-[1.75rem] px-3">
-						<span class="text-[11px] text-gray-400 dark:text-gray-500 w-20 shrink-0"
+						<span class="text-[0.6875rem] text-gray-400 dark:text-gray-500 w-20 shrink-0"
 							>{$t('automations.webhook')}</span
 						>
 						{#if detail.webhook_url}
 							<div class="flex items-center gap-1.5 min-w-0 flex-1">
-								<span class="text-[11px] text-gray-500 dark:text-gray-400 font-mono truncate"
+								<span class="text-[0.6875rem] text-gray-500 dark:text-gray-400 font-mono truncate"
 									>...?token={detail.webhook_url.split('token=')[1]?.slice(0, 12)}...</span
 								>
 								<button
-									class="text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-75 shrink-0"
+									class="text-[0.6875rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-75 shrink-0"
 									onclick={copyWebhookUrl}
 								>
 									{webhookCopied ? $t('automations.copied') : $t('automations.copy')}
@@ -318,12 +318,12 @@
 						{:else if detail.has_webhook}
 							<!-- Webhook enabled, URL not available -->
 							<div class="flex items-center gap-1.5">
-								<span class="text-[11px] text-gray-700 dark:text-gray-300"
+								<span class="text-[0.6875rem] text-gray-700 dark:text-gray-300"
 									>{$t('automations.enabled')}</span
 								>
 								<span class="text-gray-300 dark:text-gray-600">·</span>
 								<button
-									class="text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-75"
+									class="text-[0.6875rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-75"
 									onclick={handleGenerateWebhook}
 									disabled={webhookLoading}
 								>
@@ -331,7 +331,7 @@
 								</button>
 								<span class="text-gray-300 dark:text-gray-600">·</span>
 								<button
-									class="text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-75"
+									class="text-[0.6875rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-75"
 									onclick={handleRevokeWebhook}
 									disabled={webhookLoading}
 								>
@@ -340,7 +340,7 @@
 							</div>
 						{:else}
 							<button
-								class="text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-75"
+								class="text-[0.6875rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-75"
 								onclick={handleGenerateWebhook}
 								disabled={webhookLoading}
 							>
@@ -352,7 +352,7 @@
 
 				<!-- Prompt -->
 				<div class="border-b border-gray-200 dark:border-white/6 px-3 py-2">
-					<div class="text-[11px] text-gray-400 dark:text-gray-500 mb-1">
+					<div class="text-[0.6875rem] text-gray-400 dark:text-gray-500 mb-1">
 						{$t('automations.prompt')}
 					</div>
 					<div
@@ -364,11 +364,11 @@
 
 				<!-- Runs -->
 				<div class="px-3 py-2">
-					<div class="text-[11px] text-gray-400 dark:text-gray-500 mb-1">
+					<div class="text-[0.6875rem] text-gray-400 dark:text-gray-500 mb-1">
 						{$t('automations.runs')}
 					</div>
 					{#if runs.length === 0}
-						<div class="text-[11px] text-gray-400 dark:text-gray-600 py-2">
+						<div class="text-[0.6875rem] text-gray-400 dark:text-gray-600 py-2">
 							{$t('automations.noRuns')}
 						</div>
 					{:else}
@@ -382,7 +382,7 @@
 								<span class="text-gray-500 dark:text-gray-400">{formatTime(run.created_at)}</span>
 								{#if run.chat_id}
 									<button
-										class="text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-75"
+										class="text-[0.6875rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-75"
 										onclick={() => {
 											const workspacePath = detail?.workspace;
 											const workspaceQuery = workspacePath
@@ -395,7 +395,7 @@
 									</button>
 								{/if}
 								{#if run.error}
-									<span class="text-[11px] text-red-400 truncate" title={run.error}
+									<span class="text-[0.6875rem] text-red-400 truncate" title={run.error}
 										>{run.error}</span
 									>
 								{/if}
@@ -424,12 +424,12 @@
 			{/if}
 			<span class="text-xs text-gray-900 dark:text-white">{$t('automations.title')}</span>
 			{#if total > 0}
-				<span class="text-[11px] text-gray-400 dark:text-gray-600">{total}</span>
+				<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600">{total}</span>
 			{/if}
 
 			<div class="ml-auto flex items-center gap-1">
 				<select
-					class="text-[11px] bg-transparent text-gray-400 dark:text-gray-500 outline-none cursor-pointer"
+					class="text-[0.6875rem] bg-transparent text-gray-400 dark:text-gray-500 outline-none cursor-pointer"
 					bind:value={statusFilter}
 					onchange={loadList}
 				>
@@ -513,11 +513,11 @@
 						>
 							{a.name}
 						</button>
-						<span class="text-[11px] text-gray-400 dark:text-gray-600 shrink-0"
+						<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600 shrink-0"
 							>{getPathDisplayName(a.workspace, a.workspace)}</span
 						>
-						<span class="text-[11px] text-gray-400 dark:text-gray-600 shrink-0">·</span>
-						<span class="text-[11px] text-gray-400 dark:text-gray-600 shrink-0"
+						<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600 shrink-0">·</span>
+						<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600 shrink-0"
 							>{parseFrequency(a.rrule)}</span
 						>
 

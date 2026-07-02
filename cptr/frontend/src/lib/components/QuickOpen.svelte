@@ -77,7 +77,7 @@
 
 <Modal
 	{onclose}
-	class="w-full max-w-[520px] mx-4 max-md:mx-0 max-md:rounded-none max-h-[400px] max-md:max-h-dvh flex flex-col mb-[6vh] max-md:mb-0"
+	class="w-full max-w-[32.5rem] mx-4 max-md:mx-0 max-md:rounded-none max-h-[25rem] max-md:max-h-dvh flex flex-col mb-[6vh] max-md:mb-0"
 >
 	<div class="flex items-center px-4 py-2.5 gap-2.5 border-b border-gray-200 dark:border-white/6">
 		<Icon name="search" size={14} class="text-gray-400 shrink-0" />
@@ -89,7 +89,7 @@
 			bind:value={query}
 		/>
 		<span
-			class="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/6 text-gray-400 shrink-0"
+			class="text-[0.625rem] font-mono font-medium px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/6 text-gray-400 shrink-0"
 			>ESC</span
 		>
 	</div>
@@ -111,7 +111,8 @@
 						class="shrink-0 text-gray-400"
 					/>
 					<span class="text-xs font-medium shrink-0">{r.name}</span>
-					<span class="text-[11px] text-gray-400 overflow-hidden text-ellipsis whitespace-nowrap"
+					<span
+						class="text-[0.6875rem] text-gray-400 overflow-hidden text-ellipsis whitespace-nowrap"
 						>{relativePath(r.path)}</span
 					>
 				</button>

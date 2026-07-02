@@ -139,21 +139,21 @@
 <div
 	class="not-prose rounded-2xl overflow-hidden bg-black/[0.03] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/[0.06]"
 >
-	<div class="flex items-center justify-between h-[30px] px-2.5">
-		<span class="text-[11px] font-medium text-gray-500 lowercase">{language || 'text'}</span>
+	<div class="flex items-center justify-between h-[1.875rem] px-2.5">
+		<span class="text-[0.6875rem] font-medium text-gray-500 lowercase">{language || 'text'}</span>
 		<div class="flex items-center gap-1">
 			{#if isDiff && onapply}
 				<button
-					class="text-[11px] px-2 py-0.5 rounded text-green-600 hover:bg-green-600/10 transition-all duration-100"
+					class="text-[0.6875rem] px-2 py-0.5 rounded text-green-600 hover:bg-green-600/10 transition-all duration-100"
 					onclick={() => onapply?.(code)}>Apply</button
 				>
 				<button
-					class="text-[11px] px-2 py-0.5 rounded text-red-600 hover:bg-red-600/10 transition-all duration-100"
+					class="text-[0.6875rem] px-2 py-0.5 rounded text-red-600 hover:bg-red-600/10 transition-all duration-100"
 					onclick={() => onreject?.()}>Reject</button
 				>
 			{/if}
 			<button
-				class="text-[11px] px-2 py-0.5 rounded text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/[0.08] transition-all duration-100"
+				class="text-[0.6875rem] px-2 py-0.5 rounded text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/[0.08] transition-all duration-100"
 				onclick={handleCopy}
 			>
 				{copied ? '✓' : 'Copy'}
@@ -163,14 +163,14 @@
 
 	{#if isDiff}
 		<pre
-			class="!m-0 !pb-3 !px-4 overflow-x-auto text-[13px] leading-normal !bg-transparent font-mono"><code
+			class="!m-0 !pb-3 !px-4 overflow-x-auto text-[0.8125rem] leading-normal !bg-transparent font-mono"><code
 				>{#each diffLines as line}<span class="diff-line diff-{line.type}"
 						>{line.text}
 </span>{/each}</code
 			></pre>
 	{:else}
 		<pre
-			class="!m-0 !pb-3 !px-4 overflow-x-auto text-[13px] leading-normal !bg-transparent text-[#24292e] dark:text-[#e1e4e8] font-mono"><code
+			class="!m-0 !pb-3 !px-4 overflow-x-auto text-[0.8125rem] leading-normal !bg-transparent text-[#24292e] dark:text-[#e1e4e8] font-mono"><code
 				class="font-[inherit]"
 				bind:this={codeEl}>{code}</code
 			></pre>

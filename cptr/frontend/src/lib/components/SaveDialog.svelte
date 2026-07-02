@@ -128,7 +128,7 @@
 >
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
-		class="w-full max-w-[520px] mx-4 bg-white dark:bg-[#111] dark:border dark:border-white/8 rounded-3xl overflow-hidden shadow-2xl max-h-[420px] flex flex-col"
+		class="w-full max-w-[32.5rem] mx-4 bg-white dark:bg-[#111] dark:border dark:border-white/8 rounded-3xl overflow-hidden shadow-2xl max-h-[26.25rem] flex flex-col"
 		onmousedown={(e) => e.stopPropagation()}
 		onkeydown={() => {}}
 	>
@@ -145,7 +145,7 @@
 				autocomplete="off"
 			/>
 			<span
-				class="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/6 text-gray-400 shrink-0"
+				class="text-[0.625rem] font-mono font-medium px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/6 text-gray-400 shrink-0"
 				>ESC</span
 			>
 		</div>
@@ -163,12 +163,12 @@
 					<Icon name="chevron-left" size={13} />
 				</button>
 			{/if}
-			<span class="flex-1 text-[11px] text-gray-400 dark:text-gray-500 font-mono truncate"
+			<span class="flex-1 text-[0.6875rem] text-gray-400 dark:text-gray-500 font-mono truncate"
 				>{currentPath}</span
 			>
 			<label class="flex items-center gap-1.5 cursor-pointer select-none shrink-0">
 				<input type="checkbox" bind:checked={showHidden} class="w-3 h-3 rounded accent-gray-500" />
-				<span class="text-[10px] text-gray-400">{$t('saveDialog.hidden')}</span>
+				<span class="text-[0.625rem] text-gray-400">{$t('saveDialog.hidden')}</span>
 			</label>
 		</div>
 
@@ -221,7 +221,7 @@
 		>
 			{#if fileName.trim()}
 				<span
-					class="flex-1 text-[11px] text-gray-400 dark:text-gray-600 font-mono truncate min-w-0"
+					class="flex-1 text-[0.6875rem] text-gray-400 dark:text-gray-600 font-mono truncate min-w-0"
 					title={savePath}>{savePath}</span
 				>
 			{:else}

@@ -211,9 +211,9 @@
 	.preview-toolbar {
 		display: flex;
 		align-items: center;
-		gap: 4px;
-		height: 32px;
-		padding: 0 6px;
+		gap: 0.25rem;
+		height: 2rem;
+		padding: 0 0.375rem;
 		border-bottom: 1px solid var(--color-gray-200);
 		flex-shrink: 0;
 	}
@@ -226,9 +226,9 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 22px;
-		height: 22px;
-		border-radius: 4px;
+		width: 1.375rem;
+		height: 1.375rem;
+		border-radius: 0.25rem;
 		color: var(--color-gray-500);
 		transition: all 0.1s;
 		flex-shrink: 0;
@@ -265,9 +265,9 @@
 	.url-input {
 		width: 100%;
 		border: 1px solid var(--color-gray-200);
-		border-radius: 9999px;
-		padding: 3px 12px;
-		font-size: 11px;
+		border-radius: 624.9375rem;
+		padding: 0.1875rem 0.75rem;
+		font-size: 0.6875rem;
 		font-family: var(--font-mono);
 		background: white;
 		color: var(--color-gray-600);
@@ -277,7 +277,7 @@
 
 	.url-input:focus {
 		border-color: oklch(0.65 0.15 250);
-		box-shadow: 0 0 0 2px oklch(0.65 0.15 250 / 0.15);
+		box-shadow: 0 0 0 0.125rem oklch(0.65 0.15 250 / 0.15);
 	}
 
 	:global(.dark) .url-input {
@@ -288,11 +288,11 @@
 
 	:global(.dark) .url-input:focus {
 		border-color: oklch(0.65 0.15 250);
-		box-shadow: 0 0 0 2px oklch(0.65 0.15 250 / 0.1);
+		box-shadow: 0 0 0 0.125rem oklch(0.65 0.15 250 / 0.1);
 	}
 
 	.loading-track {
-		height: 2px;
+		height: 0.125rem;
 		background: var(--color-gray-100);
 		flex-shrink: 0;
 		overflow: hidden;
@@ -305,7 +305,7 @@
 	.loading-bar {
 		height: 100%;
 		background: oklch(0.65 0.15 250);
-		border-radius: 9999px;
+		border-radius: 624.9375rem;
 		animation: loading-bar 1.5s ease-in-out infinite;
 	}
 
@@ -343,26 +343,26 @@
 		align-items: center;
 		justify-content: center;
 		height: 100%;
-		gap: 6px;
+		gap: 0.375rem;
 	}
 
 	.error-title {
-		font-size: 14px;
+		font-size: 0.875rem;
 		font-weight: 500;
 		color: var(--color-gray-500);
 	}
 
 	.error-sub {
-		font-size: 12px;
+		font-size: 0.75rem;
 		color: var(--color-gray-400);
 		font-family: var(--font-mono);
 	}
 
 	.error-retry {
-		margin-top: 8px;
-		padding: 4px 14px;
-		border-radius: 6px;
-		font-size: 12px;
+		margin-top: 0.5rem;
+		padding: 0.25rem 0.875rem;
+		border-radius: 0.375rem;
+		font-size: 0.75rem;
 		background: var(--color-gray-100);
 		color: var(--color-gray-600);
 		transition: all 0.1s;

@@ -208,7 +208,7 @@
 
 <Modal
 	{onclose}
-	class="w-full max-w-[560px] mx-4 max-md:mx-0 max-md:rounded-none max-h-[480px] max-md:max-h-dvh flex flex-col mb-[6vh] max-md:mb-0"
+	class="w-full max-w-[35rem] mx-4 max-md:mx-0 max-md:rounded-none max-h-[30rem] max-md:max-h-dvh flex flex-col mb-[6vh] max-md:mb-0"
 >
 	<!-- Search input -->
 	<div class="flex items-center px-3.5 py-3 gap-2">
@@ -227,7 +227,7 @@
 		{#if showingRecents && filteredRecents.length > 0}
 			<!-- Recent chats (empty query) -->
 			<div
-				class="text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600 px-2 pt-1 pb-0.5"
+				class="text-[0.625rem] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600 px-2 pt-1 pb-0.5"
 			>
 				{$t('search.recentChats')}
 			</div>
@@ -248,7 +248,7 @@
 							class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-100"
 						/>
 					{/if}
-					<span class="text-[10px] text-gray-400 dark:text-gray-600 shrink-0"
+					<span class="text-[0.625rem] text-gray-400 dark:text-gray-600 shrink-0"
 						>{getWorkspaceDisplayName(chat.workspace)}</span
 					>
 				</button>
@@ -261,7 +261,7 @@
 			{#if displayedChats.length > 0}
 				<!-- Chat search results -->
 				<div
-					class="text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600 px-2 pt-1 pb-0.5"
+					class="text-[0.625rem] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600 px-2 pt-1 pb-0.5"
 				>
 					{$t('search.chats')}
 				</div>
@@ -279,17 +279,17 @@
 						<div class="flex-1 min-w-0">
 							<div class="flex items-center gap-2">
 								<span class="text-xs font-medium truncate">{chat.title}</span>
-								<span class="text-[10px] text-gray-400 dark:text-gray-600 shrink-0"
+								<span class="text-[0.625rem] text-gray-400 dark:text-gray-600 shrink-0"
 									>{relativeTime(chat.updated_at)}</span
 								>
 							</div>
 							{#if chat.snippet}
-								<div class="text-[11px] text-gray-400 dark:text-gray-600 truncate mt-0.5">
+								<div class="text-[0.6875rem] text-gray-400 dark:text-gray-600 truncate mt-0.5">
 									{chat.snippet}
 								</div>
 							{/if}
 						</div>
-						<span class="text-[10px] text-gray-400 dark:text-gray-600 shrink-0"
+						<span class="text-[0.625rem] text-gray-400 dark:text-gray-600 shrink-0"
 							>{getWorkspaceDisplayName(chat.workspace)}</span
 						>
 					</button>
@@ -299,7 +299,7 @@
 			{#if fileResults.length > 0}
 				<!-- File search results -->
 				<div
-					class="text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600 px-2 pt-1 pb-0.5 {displayedChats.length >
+					class="text-[0.625rem] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600 px-2 pt-1 pb-0.5 {displayedChats.length >
 					0
 						? 'mt-1'
 						: ''}"
@@ -323,10 +323,11 @@
 							class="shrink-0 text-gray-400"
 						/>
 						<span class="text-xs font-medium shrink-0">{file.name}</span>
-						<span class="text-[11px] text-gray-400 overflow-hidden text-ellipsis whitespace-nowrap"
+						<span
+							class="text-[0.6875rem] text-gray-400 overflow-hidden text-ellipsis whitespace-nowrap"
 							>{relPath(file.path, file.workspace)}</span
 						>
-						<span class="text-[10px] text-gray-400 dark:text-gray-600 shrink-0 ml-auto"
+						<span class="text-[0.625rem] text-gray-400 dark:text-gray-600 shrink-0 ml-auto"
 							>{getWorkspaceDisplayName(file.workspace)}</span
 						>
 					</button>

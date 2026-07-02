@@ -58,7 +58,7 @@
 				</span>
 			</div>
 
-			<div class="flex shrink-0 self-center translate-y-[1px]">
+			<div class="flex shrink-0 self-center translate-y-[0.0625rem]">
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					fill="none"

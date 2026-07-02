@@ -51,7 +51,7 @@
 			<div
 				class="overflow-x-auto max-w-full rounded-lg border border-gray-200/60 dark:border-white/8"
 			>
-				<table class="w-full text-[13px] text-left text-gray-600 dark:text-gray-300">
+				<table class="w-full text-[0.8125rem] text-left text-gray-600 dark:text-gray-300">
 					<thead
 						class="text-xs text-gray-500 dark:text-gray-400 uppercase bg-gray-50/80 dark:bg-white/[0.03]"
 					>

@@ -88,22 +88,22 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		gap: 1px;
-		padding-top: 8px;
+		gap: 0.0625rem;
+		padding-top: 0.5rem;
 	}
 
 	.pagination-btn {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		min-width: 22px;
-		height: 22px;
-		padding: 0 3px;
+		min-width: 1.375rem;
+		height: 1.375rem;
+		padding: 0 0.1875rem;
 		border: none;
-		border-radius: 5px;
+		border-radius: 0.3125rem;
 		background: transparent;
 		color: #c4c4c4;
-		font-size: 10.5px;
+		font-size: 0.65625rem;
 		font-weight: 500;
 		cursor: pointer;
 		transition:
@@ -131,12 +131,12 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		min-width: 22px;
-		height: 22px;
-		font-size: 10.5px;
+		min-width: 1.375rem;
+		height: 1.375rem;
+		font-size: 0.65625rem;
 		color: #d1d5db;
 		user-select: none;
-		letter-spacing: 1px;
+		letter-spacing: 0.0625rem;
 	}
 
 	/* Dark mode */

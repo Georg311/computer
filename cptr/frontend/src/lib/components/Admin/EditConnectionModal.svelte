@@ -113,7 +113,9 @@
 
 		<div class="flex gap-3">
 			<div class="flex-1">
-				<label class="text-[10px] text-gray-400 dark:text-gray-600">{$t('connections.name')}</label>
+				<label class="text-[0.625rem] text-gray-400 dark:text-gray-600"
+					>{$t('connections.name')}</label
+				>
 				<input
 					type="text"
 					placeholder="Optional"
@@ -121,14 +123,14 @@
 					autofocus
 					autocomplete="off"
 					spellcheck="false"
-					class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5"
+					class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5"
 				/>
 			</div>
 			<div class="w-28 shrink-0">
-				<label class="text-[10px] text-gray-400 dark:text-gray-600">Provider</label>
+				<label class="text-[0.625rem] text-gray-400 dark:text-gray-600">Provider</label>
 				<select
 					bind:value={formProvider}
-					class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer"
+					class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer"
 				>
 					<option value="openai">OpenAI</option>
 					<option value="anthropic">Anthropic</option>
@@ -137,17 +139,17 @@
 		</div>
 
 		{#if formProvider === 'openai'}
-			<label class="text-[10px] text-gray-400 dark:text-gray-600 mt-2">API Type</label>
+			<label class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2">API Type</label>
 			<select
 				bind:value={formApiType}
-				class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer"
+				class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer"
 			>
 				<option value="chat_completions">Chat Completions</option>
 				<option value="responses">Responses</option>
 			</select>
 		{/if}
 
-		<label class="text-[10px] text-gray-400 dark:text-gray-600 mt-2"
+		<label class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2"
 			>{$t('connections.baseUrl')}</label
 		>
 		<input
@@ -157,7 +159,7 @@
 			autocomplete="off"
 			spellcheck="false"
 			list="base-url-suggestions-edit"
-			class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
+			class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
 		/>
 		<datalist id="base-url-suggestions-edit">
 			<option value="https://api.anthropic.com/v1" />
@@ -166,7 +168,7 @@
 			<option value="http://localhost:11434/v1" />
 		</datalist>
 
-		<label class="text-[10px] text-gray-400 dark:text-gray-600 mt-2"
+		<label class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2"
 			>{$t('connections.apiKey')}</label
 		>
 		<input
@@ -174,10 +176,10 @@
 			placeholder="••••••••  (leave blank to keep)"
 			bind:value={formApiKey}
 			autocomplete="new-password"
-			class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
+			class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
 		/>
 
-		<label class="text-[10px] text-gray-400 dark:text-gray-600 mt-2"
+		<label class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2"
 			>{$t('connections.prefixId')}</label
 		>
 		<input
@@ -186,30 +188,32 @@
 			bind:value={formPrefixId}
 			autocomplete="off"
 			spellcheck="false"
-			class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
+			class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
 		/>
 
-		<label class="text-[10px] text-gray-400 dark:text-gray-600 mt-2"
+		<label class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2"
 			>{$t('connections.models')}</label
 		>
-		<p class="text-[10px] text-gray-300 dark:text-gray-700 mb-0.5">{$t('connections.modelsHint')}</p>
+		<p class="text-[0.625rem] text-gray-300 dark:text-gray-700 mb-0.5">
+			{$t('connections.modelsHint')}
+		</p>
 		<input
 			type="text"
 			placeholder="claude-sonnet-4-20250514, claude-opus-4-20250514"
 			bind:value={formModels}
 			autocomplete="off"
 			spellcheck="false"
-			class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
+			class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
 		/>
 
 		<div class="flex items-center justify-between mt-3">
 			<div class="flex items-center gap-3">
 				<button
-					class="text-[13px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
+					class="text-[0.8125rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
 					onclick={handleDelete}>{$t('admin.delete') || 'Delete'}</button
 				>
 				<button
-					class="text-[13px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 disabled:opacity-30"
+					class="text-[0.8125rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 disabled:opacity-30"
 					disabled={verifying}
 					onclick={handleVerify}
 				>
@@ -223,7 +227,7 @@
 			<button
 				disabled={saving || !formBaseUrl.trim()}
 				onclick={save}
-				class="text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100 disabled:opacity-30 disabled:pointer-events-none"
+				class="text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100 disabled:opacity-30 disabled:pointer-events-none"
 			>
 				{#if saving}
 					<Spinner size={14} />

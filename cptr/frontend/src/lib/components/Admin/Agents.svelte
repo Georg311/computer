@@ -262,23 +262,23 @@
 				>
 					<span class="flex-1 min-w-0">
 						<span
-							class="block text-[13px] truncate {profile.mode === 'disabled'
+							class="block text-[0.8125rem] truncate {profile.mode === 'disabled'
 								? 'text-gray-400 dark:text-gray-600'
 								: 'text-gray-700 dark:text-gray-300'}"
 						>
 							{profile.name}
 						</span>
-						<span class="block text-[11px] text-gray-400 dark:text-gray-600 truncate">
+						<span class="block text-[0.6875rem] text-gray-400 dark:text-gray-600 truncate">
 							{profileSubtitle(profile)}
 						</span>
 						{#if detected[profile.id]?.message}
-							<span class="block text-[11px] text-gray-300 dark:text-gray-700 truncate">
+							<span class="block text-[0.6875rem] text-gray-300 dark:text-gray-700 truncate">
 								{detected[profile.id]?.message}
 							</span>
 						{/if}
 					</span>
 					<span
-						class="hidden sm:flex items-center gap-1.5 shrink-0 text-[11px] text-gray-400 dark:text-gray-600"
+						class="hidden sm:flex items-center gap-1.5 shrink-0 text-[0.6875rem] text-gray-400 dark:text-gray-600"
 					>
 						<span class="w-1.5 h-1.5 rounded-full {statusTone(profile)}"></span>
 						<span>{$t(statusKey(profile))}</span>
@@ -310,7 +310,7 @@
 		</div>
 
 		{#if profiles.length === 0}
-			<p class="text-[13px] text-gray-400 dark:text-gray-600 py-4">No agent profiles</p>
+			<p class="text-[0.8125rem] text-gray-400 dark:text-gray-600 py-4">No agent profiles</p>
 		{/if}
 
 		<div class="mt-auto pt-6 flex items-center justify-between">
@@ -318,7 +318,7 @@
 				{profiles.length} profile{profiles.length === 1 ? '' : 's'}
 			</span>
 			<button
-				class="text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100 disabled:opacity-50"
+				class="text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100 disabled:opacity-50"
 				onclick={save}
 				disabled={saving}
 			>

@@ -423,6 +423,4 @@
 	.group-tabs-row::-webkit-scrollbar {
 		display: none;
 	}
-
-
 </style>

@@ -122,8 +122,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		height: 36px;
-		padding: 0 12px;
+		height: 2.25rem;
+		padding: 0 0.75rem;
 		border-bottom: 1px solid var(--color-gray-200);
 		flex-shrink: 0;
 	}
@@ -140,11 +140,11 @@
 	.toolbar-right {
 		display: flex;
 		align-items: center;
-		gap: 2px;
+		gap: 0.125rem;
 	}
 
 	.file-label {
-		font-size: 11px;
+		font-size: 0.6875rem;
 		font-weight: 500;
 		color: var(--color-gray-500);
 	}
@@ -153,10 +153,10 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		min-width: 24px;
-		height: 24px;
-		padding: 0 4px;
-		border-radius: 6px;
+		min-width: 1.5rem;
+		height: 1.5rem;
+		padding: 0 0.25rem;
+		border-radius: 0.375rem;
 		color: var(--color-gray-400);
 		transition: all 0.1s;
 	}
@@ -178,7 +178,7 @@
 	}
 
 	.zoom-text {
-		font-size: 10px;
+		font-size: 0.625rem;
 		font-weight: 500;
 		font-variant-numeric: tabular-nums;
 	}
@@ -193,12 +193,12 @@
 		height: 100%;
 		overflow: hidden;
 		background: repeating-conic-gradient(var(--color-gray-100) 0% 25%, transparent 0% 50%) 50% /
-			16px 16px;
+			1rem 1rem;
 	}
 
 	:global(.dark) .visual-container {
 		background: repeating-conic-gradient(rgba(255, 255, 255, 0.04) 0% 25%, transparent 0% 50%) 50% /
-			16px 16px;
+			1rem 1rem;
 	}
 
 	.visual-content {
@@ -207,7 +207,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		padding: 24px;
+		padding: 1.5rem;
 	}
 
 	.visual-content :global(svg) {
@@ -220,9 +220,9 @@
 		height: 100%;
 		overflow: auto;
 		margin: 0;
-		padding: 12px 16px;
+		padding: 0.75rem 1rem;
 		font-family: var(--font-mono);
-		font-size: 12.5px;
+		font-size: 0.78125rem;
 		line-height: 1.6;
 		color: var(--color-gray-800);
 		white-space: pre-wrap;

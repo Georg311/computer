@@ -222,8 +222,8 @@
 	.shortcut-bar {
 		display: flex;
 		align-items: center;
-		gap: 4px;
-		padding: 4px 8px;
+		gap: 0.25rem;
+		padding: 0.25rem 0.5rem;
 		background: var(--color-gray-100);
 		border-top: 1px solid var(--color-gray-200);
 		overflow-x: auto;
@@ -241,17 +241,17 @@
 	}
 
 	.key {
-		padding: 4px 10px;
-		font-size: 12px;
+		padding: 0.25rem 0.625rem;
+		font-size: 0.75rem;
 		font-family: var(--font-mono);
 		font-weight: 500;
-		border-radius: 5px;
+		border-radius: 0.3125rem;
 		color: var(--color-gray-600);
 		background: var(--color-gray-200);
 		white-space: nowrap;
 		flex-shrink: 0;
 		transition: all 0.1s ease;
-		min-width: 32px;
+		min-width: 2rem;
 		text-align: center;
 		-webkit-tap-highlight-color: transparent;
 	}

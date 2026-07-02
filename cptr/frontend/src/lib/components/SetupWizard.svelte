@@ -109,12 +109,12 @@
 				<h1 class="text-lg tracking-tight text-gray-900 dark:text-white mb-1">
 					{$t('onboarding.welcomeTitle')}
 				</h1>
-				<p class="text-[13px] text-gray-500 dark:text-gray-500 mb-6 leading-relaxed">
+				<p class="text-[0.8125rem] text-gray-500 dark:text-gray-500 mb-6 leading-relaxed">
 					{$t('onboarding.welcomeDesc')}
 				</p>
 
 				<button
-					class="text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
+					class="text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
 					onclick={next}
 				>
 					{$t('onboarding.getStarted')}
@@ -126,18 +126,18 @@
 				<h2 class="text-xs text-gray-400 dark:text-gray-600 mb-1">
 					{$t('onboarding.openFolder')}
 				</h2>
-				<p class="text-[13px] text-gray-500 dark:text-gray-500 mb-4 leading-relaxed">
+				<p class="text-[0.8125rem] text-gray-500 dark:text-gray-500 mb-4 leading-relaxed">
 					{$t('onboarding.openFolderDesc')}
 				</p>
 
 				{#if selectedPath}
-					<p class="text-[12px] font-mono text-gray-700 dark:text-gray-300 mb-3">
+					<p class="text-[0.75rem] font-mono text-gray-700 dark:text-gray-300 mb-3">
 						{selectedPath}
 					</p>
 				{/if}
 
 				<button
-					class="text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
+					class="text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
 					onclick={() => (showPicker = true)}
 				>
 					{$t('onboarding.openFolder')}
@@ -145,7 +145,7 @@
 
 				<div class="mt-4">
 					<button
-						class="text-[11px] text-gray-400 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 transition-colors duration-100"
+						class="text-[0.6875rem] text-gray-400 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 transition-colors duration-100"
 						onclick={skipFolder}
 					>
 						{$t('onboarding.skip')}
@@ -164,28 +164,28 @@
 				<h2 class="text-xs text-gray-400 dark:text-gray-600 mb-1">
 					{$t('onboarding.connectAi')}
 				</h2>
-				<p class="text-[13px] text-gray-500 dark:text-gray-500 mb-4 leading-relaxed">
+				<p class="text-[0.8125rem] text-gray-500 dark:text-gray-500 mb-4 leading-relaxed">
 					{$t('onboarding.connectAiDesc')}
 				</p>
 
 				{#if aiConnected}
-					<p class="text-[13px] text-gray-700 dark:text-gray-300 mb-4">
+					<p class="text-[0.8125rem] text-gray-700 dark:text-gray-300 mb-4">
 						{$t('onboarding.connected', { name: config.name })}
 					</p>
 					<button
-						class="text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
+						class="text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
 						onclick={next}
 					>
 						{$t('onboarding.next')}
 					</button>
 				{:else}
 					<div class="mb-3">
-						<p class="text-[11px] text-gray-400 dark:text-gray-600 mb-0.5">
+						<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mb-0.5">
 							{$t('onboarding.provider')}
 						</p>
 						<select
 							bind:value={provider}
-							class="bg-transparent text-[13px] text-gray-700 dark:text-gray-300 outline-none py-0.5 border-none cursor-pointer"
+							class="bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none py-0.5 border-none cursor-pointer"
 						>
 							<option value="openai">OpenAI</option>
 							<option value="anthropic">Anthropic</option>
@@ -194,12 +194,12 @@
 
 					{#if provider === 'openai'}
 						<div class="mb-3">
-							<p class="text-[11px] text-gray-400 dark:text-gray-600 mb-0.5">
+							<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mb-0.5">
 								{$t('onboarding.apiType')}
 							</p>
 							<select
 								bind:value={apiType}
-								class="bg-transparent text-[13px] text-gray-700 dark:text-gray-300 outline-none py-0.5 border-none cursor-pointer"
+								class="bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none py-0.5 border-none cursor-pointer"
 							>
 								<option value="chat_completions">Chat Completions</option>
 								<option value="responses">Responses</option>
@@ -208,7 +208,7 @@
 					{/if}
 
 					<div class="mb-3">
-						<p class="text-[11px] text-gray-400 dark:text-gray-600 mb-0.5">
+						<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mb-0.5">
 							{$t('connections.baseUrl')}
 						</p>
 						<input
@@ -218,7 +218,7 @@
 							autocomplete="off"
 							spellcheck="false"
 							list="setup-base-url-suggestions"
-							class="block w-full bg-transparent text-[13px] font-mono text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5"
+							class="block w-full bg-transparent text-[0.8125rem] font-mono text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5"
 						/>
 						<datalist id="setup-base-url-suggestions">
 							<option value="https://api.openai.com/v1" />
@@ -229,7 +229,7 @@
 					</div>
 
 					<div class="mb-2">
-						<p class="text-[11px] text-gray-400 dark:text-gray-600 mb-0.5">
+						<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mb-0.5">
 							{$t('connections.apiKey')}
 						</p>
 						<input
@@ -237,16 +237,16 @@
 							placeholder={config.placeholder}
 							bind:value={apiKey}
 							autocomplete="new-password"
-							class="block w-full bg-transparent text-[13px] font-mono text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-1"
+							class="block w-full bg-transparent text-[0.8125rem] font-mono text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-1"
 						/>
 					</div>
 
-					<p class="text-[11px] text-gray-400 dark:text-gray-600 mb-4">
+					<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mb-4">
 						{$t('onboarding.keyStaysLocal')}
 					</p>
 
 					<button
-						class="flex items-center gap-2 text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100
+						class="flex items-center gap-2 text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100
 							disabled:opacity-30 disabled:pointer-events-none"
 						onclick={connectAi}
 						disabled={connecting || !apiKey.trim()}
@@ -260,7 +260,7 @@
 
 					<div class="mt-4">
 						<button
-							class="text-[11px] text-gray-400 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 transition-colors duration-100"
+							class="text-[0.6875rem] text-gray-400 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 transition-colors duration-100"
 							onclick={skipAi}
 						>
 							{$t('onboarding.connectAiSkip')}
@@ -274,24 +274,24 @@
 				<h2 class="text-xs text-gray-400 dark:text-gray-600 mb-1">
 					{$t('onboarding.ready')}
 				</h2>
-				<p class="text-[13px] text-gray-500 dark:text-gray-500 mb-5 leading-relaxed">
+				<p class="text-[0.8125rem] text-gray-500 dark:text-gray-500 mb-5 leading-relaxed">
 					{$t('onboarding.readyDesc')}
 				</p>
 
 				<div class="flex flex-col gap-1.5 mb-6">
-					<p class="text-[12px] text-gray-500 dark:text-gray-500">
+					<p class="text-[0.75rem] text-gray-500 dark:text-gray-500">
 						{$t('onboarding.tipSearch', { shortcut: searchShortcut })}
 					</p>
-					<p class="text-[12px] text-gray-500 dark:text-gray-500">
+					<p class="text-[0.75rem] text-gray-500 dark:text-gray-500">
 						{$t('onboarding.tipTerminal')}
 					</p>
-					<p class="text-[12px] text-gray-500 dark:text-gray-500">
+					<p class="text-[0.75rem] text-gray-500 dark:text-gray-500">
 						{$t('onboarding.tipMobile')}
 					</p>
 				</div>
 
 				<button
-					class="text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
+					class="text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
 					onclick={finish}
 				>
 					{$t('onboarding.startUsing')}
@@ -326,7 +326,7 @@
 	@keyframes fadeIn {
 		from {
 			opacity: 0;
-			transform: translateY(4px);
+			transform: translateY(0.25rem);
 		}
 		to {
 			opacity: 1;

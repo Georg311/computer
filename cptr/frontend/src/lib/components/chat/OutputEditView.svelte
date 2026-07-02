@@ -37,9 +37,9 @@
 					json(),
 					editorTheme.of(isDark ? oneDark : []),
 					EditorView.theme({
-						'&': { fontSize: '13px' },
+						'&': { fontSize: '0.8125rem' },
 						'.cm-content': { fontFamily: 'ui-monospace, monospace' },
-						'.cm-scroller': { maxHeight: '320px', overflow: 'auto' },
+						'.cm-scroller': { maxHeight: '20rem', overflow: 'auto' },
 						'&.cm-focused': { outline: 'none' }
 					}),
 					EditorView.updateListener.of((e) => {
@@ -237,7 +237,7 @@
 					<!-- Role label -->
 					<div class="flex items-start pt-1.5">
 						<div
-							class="text-[11px] font-semibold uppercase tracking-wide min-w-[4.5rem] text-gray-400 dark:text-gray-500"
+							class="text-[0.6875rem] font-semibold uppercase tracking-wide min-w-[4.5rem] text-gray-400 dark:text-gray-500"
 						>
 							{getItemLabel(di)}
 						</div>

@@ -992,7 +992,7 @@
 			class="absolute left-2 bottom-full mb-1 z-50 w-60 max-h-40 overflow-y-auto rounded-xl bg-white dark:bg-[#1a1a1a] border border-gray-150 dark:border-white/6 shadow-xl p-0.5"
 		>
 			<div
-				class="mb-0.5 px-2 pt-1 pb-0.5 text-[10px] leading-none text-gray-400 dark:text-gray-600"
+				class="mb-0.5 px-2 pt-1 pb-0.5 text-[0.625rem] leading-none text-gray-400 dark:text-gray-600"
 			>
 				Commands
 			</div>
@@ -1038,7 +1038,7 @@
 					</span>
 					<span class="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
 						<span class="truncate">{$t('chat.commandCompact')}</span>
-						<span class="text-[10px] text-gray-400 dark:text-gray-600 truncate shrink-0">
+						<span class="text-[0.625rem] text-gray-400 dark:text-gray-600 truncate shrink-0">
 							{$t('chat.commandCompactPercent', { percent: contextPercent })}
 						</span>
 					</span>
@@ -1078,7 +1078,7 @@
 					</span>
 					<span class="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
 						<span class="truncate">{$t('chat.commandPlan')}</span>
-						<span class="text-[10px] text-gray-400 dark:text-gray-600 truncate shrink-0">
+						<span class="text-[0.625rem] text-gray-400 dark:text-gray-600 truncate shrink-0">
 							{$planMode ? $t('chat.commandPlanOn') : $t('chat.commandPlanOff')}
 						</span>
 					</span>
@@ -1116,7 +1116,7 @@
 					</span>
 					<span class="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
 						<span class="truncate">{$t('chat.commandStatus')}</span>
-						<span class="text-[10px] text-gray-400 dark:text-gray-600 truncate shrink-0">
+						<span class="text-[0.625rem] text-gray-400 dark:text-gray-600 truncate shrink-0">
 							{$t('chat.commandStatusDesc')}
 						</span>
 					</span>
@@ -1157,7 +1157,7 @@
 										class="dark:text-gray-100 text-xs flex justify-between items-center w-full gap-2"
 									>
 										<div class="font-medium truncate flex-1">{upload.name}</div>
-										<div class="text-[10px] text-gray-500 capitalize shrink-0">
+										<div class="text-[0.625rem] text-gray-500 capitalize shrink-0">
 											{upload.type === 'file' ? 'File' : upload.type}
 										</div>
 									</div>
@@ -1193,7 +1193,7 @@
 		<div class="px-2.5">
 			{#if $voiceModeEnabled}
 				<div
-					class="pt-2 flex items-center gap-2 text-[11px] font-medium text-gray-600 dark:text-gray-300"
+					class="pt-2 flex items-center gap-2 text-[0.6875rem] font-medium text-gray-600 dark:text-gray-300"
 				>
 					<span class="relative flex size-2">
 						<span
@@ -1232,7 +1232,7 @@
 				{#if $planMode}
 					<button
 						type="button"
-						class="group p-[5px] flex gap-1 items-center text-xs rounded-full transition-colors duration-150
+						class="group p-[0.3125rem] flex gap-1 items-center text-xs rounded-full transition-colors duration-150
 						text-gray-600 dark:text-gray-300 bg-gray-50 hover:bg-gray-100 dark:bg-white/8 dark:hover:bg-white/12 border border-gray-200 dark:border-white/8"
 						onclick={() => planMode.set(false)}
 					>
@@ -1291,7 +1291,7 @@
 	/* ── ProseMirror editor ───────────────────────── */
 
 	.chat-editor-mount :global(.chat-prosemirror) {
-		@apply pt-2.5 pb-2 px-1 min-h-6 max-h-96 overflow-y-auto text-[13px] leading-relaxed text-gray-900 dark:text-gray-100 outline-none break-words;
+		@apply pt-2.5 pb-2 px-1 min-h-6 max-h-96 overflow-y-auto text-[0.8125rem] leading-relaxed text-gray-900 dark:text-gray-100 outline-none break-words;
 		font-size: 0.8125rem;
 	}
 
@@ -1352,7 +1352,7 @@
 		@apply text-sm font-semibold my-1;
 	}
 	.chat-editor-mount :global(.chat-prosemirror h3) {
-		@apply text-[13px] font-semibold my-1;
+		@apply text-[0.8125rem] font-semibold my-1;
 		font-size: 0.8125rem;
 	}
 

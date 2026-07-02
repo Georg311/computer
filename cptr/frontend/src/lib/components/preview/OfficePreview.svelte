@@ -348,19 +348,17 @@
 	}
 
 	.error-msg {
-		font-size: 13px;
+		font-size: 0.8125rem;
 		color: #ef4444;
 	}
-
-
 
 	/* ── DOCX ────────────────────────────────────── */
 
 	.docx-content {
 		flex: 1;
 		overflow-y: auto;
-		padding: 24px 32px;
-		font-size: 14px;
+		padding: 1.5rem 2rem;
+		font-size: 0.875rem;
 		line-height: 1.7;
 		color: var(--color-gray-800);
 	}
@@ -370,32 +368,32 @@
 	}
 
 	.docx-content :global(h1) {
-		font-size: 24px;
+		font-size: 1.5rem;
 		font-weight: 600;
-		margin: 0 0 8px;
+		margin: 0 0 0.5rem;
 	}
 	.docx-content :global(h2) {
-		font-size: 20px;
+		font-size: 1.25rem;
 		font-weight: 600;
-		margin: 24px 0 8px;
+		margin: 1.5rem 0 0.5rem;
 	}
 	.docx-content :global(h3) {
-		font-size: 16px;
+		font-size: 1rem;
 		font-weight: 600;
-		margin: 20px 0 6px;
+		margin: 1.25rem 0 0.375rem;
 	}
 	.docx-content :global(p) {
-		margin: 0 0 12px;
+		margin: 0 0 0.75rem;
 	}
 	.docx-content :global(table) {
 		border-collapse: collapse;
-		margin: 12px 0;
-		font-size: 13px;
+		margin: 0.75rem 0;
+		font-size: 0.8125rem;
 	}
 	.docx-content :global(td),
 	.docx-content :global(th) {
 		border: 1px solid var(--color-gray-200);
-		padding: 4px 8px;
+		padding: 0.25rem 0.5rem;
 	}
 	.docx-content :global(img) {
 		max-width: 100%;
@@ -408,7 +406,7 @@
 		display: flex;
 		gap: 0;
 		border-bottom: 1px solid var(--color-gray-200);
-		padding: 0 4px;
+		padding: 0 0.25rem;
 		flex-shrink: 0;
 		overflow-x: auto;
 	}
@@ -418,11 +416,11 @@
 	}
 
 	.sheet-tab {
-		padding: 6px 12px;
-		font-size: 11px;
+		padding: 0.375rem 0.75rem;
+		font-size: 0.6875rem;
 		font-weight: 500;
 		color: var(--color-gray-500);
-		border-bottom: 2px solid transparent;
+		border-bottom: 0.125rem solid transparent;
 		white-space: nowrap;
 		transition: all 0.1s;
 	}
@@ -445,7 +443,7 @@
 	.xlsx-content :global(table) {
 		width: 100%;
 		border-collapse: collapse;
-		font-size: 12px;
+		font-size: 0.75rem;
 		font-family: var(--font-mono);
 		white-space: nowrap;
 	}
@@ -460,8 +458,8 @@
 		background: var(--color-gray-50);
 		color: var(--color-gray-500);
 		font-weight: 600;
-		font-size: 10px;
-		padding: 4px 8px;
+		font-size: 0.625rem;
+		padding: 0.25rem 0.5rem;
 		text-align: center;
 		border-bottom: 1px solid var(--color-gray-200);
 	}
@@ -473,7 +471,7 @@
 	}
 
 	.xlsx-content :global(td) {
-		padding: 3px 8px;
+		padding: 0.1875rem 0.5rem;
 		color: var(--color-gray-800);
 		border-bottom: 1px solid var(--color-gray-100);
 		border-right: 1px solid var(--color-gray-100);
@@ -487,10 +485,10 @@
 
 	.xlsx-content :global(.rn) {
 		color: var(--color-gray-400);
-		font-size: 10px;
+		font-size: 0.625rem;
 		text-align: right;
 		user-select: none;
-		min-width: 28px;
+		min-width: 1.75rem;
 		border-right: 1px solid var(--color-gray-200);
 		background: var(--color-gray-50);
 	}
@@ -514,10 +512,10 @@
 	.pptx-content {
 		flex: 1;
 		overflow-y: auto;
-		padding: 16px;
+		padding: 1rem;
 		display: flex;
 		flex-direction: column;
-		gap: 8px;
+		gap: 0.5rem;
 		align-items: center;
 		background: var(--color-gray-100);
 	}
@@ -529,9 +527,9 @@
 	.slide {
 		position: relative;
 		width: 100%;
-		max-width: 800px;
-		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
-		border-radius: 4px;
+		max-width: 50rem;
+		box-shadow: 0 0.0625rem 0.25rem rgba(0, 0, 0, 0.12);
+		border-radius: 0.25rem;
 		overflow: hidden;
 	}
 
@@ -542,13 +540,13 @@
 
 	.slide-num {
 		position: absolute;
-		top: 6px;
-		left: 6px;
-		font-size: 10px;
+		top: 0.375rem;
+		left: 0.375rem;
+		font-size: 0.625rem;
 		font-weight: 600;
 		color: white;
 		background: rgba(0, 0, 0, 0.4);
-		padding: 1px 6px;
-		border-radius: 3px;
+		padding: 0.0625rem 0.375rem;
+		border-radius: 0.1875rem;
 	}
 </style>

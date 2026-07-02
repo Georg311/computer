@@ -153,7 +153,7 @@
 								</button>
 							</div>
 						{/each}
-						<p class="text-[11px] text-gray-400 dark:text-gray-600 -mt-1">{userUsage}</p>
+						<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 -mt-1">{userUsage}</p>
 					</div>
 				{/if}
 			{/if}
@@ -161,7 +161,7 @@
 
 		<div class="shrink-0 pt-3 flex justify-end">
 			<button
-				class="text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100 disabled:opacity-50"
+				class="text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100 disabled:opacity-50"
 				onclick={saveSettings}
 				disabled={saving}
 			>

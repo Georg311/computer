@@ -95,7 +95,7 @@
 		<!-- Sort header -->
 		{#if onsort}
 			<div
-				class="flex items-center text-[10px] font-medium text-gray-400 dark:text-gray-600 mb-1 px-2 select-none"
+				class="flex items-center text-[0.625rem] font-medium text-gray-400 dark:text-gray-600 mb-1 px-2 select-none"
 			>
 				<button
 					class="flex-1 flex items-center gap-1 hover:text-gray-600 dark:hover:text-gray-400 transition-colors"
@@ -131,11 +131,7 @@
 		{/if}
 
 		{#each chats as chat (chat.id)}
-			<ChatItem
-				{chat}
-				onclick={() => onopen(chat.id)}
-				onmenu={(e) => openMenu(e, chat.id)}
-			/>
+			<ChatItem {chat} onclick={() => onopen(chat.id)} onmenu={(e) => openMenu(e, chat.id)} />
 		{/each}
 		{#if onpagechange}
 			<Pagination {page} {totalPages} {onpagechange} />
@@ -159,4 +155,3 @@
 		onclose={closeMenu}
 	/>
 {/if}
-

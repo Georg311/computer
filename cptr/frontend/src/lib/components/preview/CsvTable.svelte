@@ -76,7 +76,7 @@
 	table {
 		width: 100%;
 		border-collapse: collapse;
-		font-size: 12.5px;
+		font-size: 0.78125rem;
 		font-family: var(--font-mono);
 		white-space: nowrap;
 	}
@@ -91,10 +91,10 @@
 		background: var(--color-gray-50);
 		color: var(--color-gray-600);
 		font-weight: 600;
-		font-size: 11px;
+		font-size: 0.6875rem;
 		text-transform: uppercase;
 		letter-spacing: 0.03em;
-		padding: 6px 12px;
+		padding: 0.375rem 0.75rem;
 		text-align: left;
 		border-bottom: 1px solid var(--color-gray-200);
 	}
@@ -106,7 +106,7 @@
 	}
 
 	td {
-		padding: 4px 12px;
+		padding: 0.25rem 0.75rem;
 		color: var(--color-gray-800);
 		border-bottom: 1px solid var(--color-gray-100);
 	}
@@ -127,12 +127,12 @@
 	/* Row numbers */
 	.row-num {
 		color: var(--color-gray-400);
-		font-size: 11px;
+		font-size: 0.6875rem;
 		text-align: right;
-		padding-right: 8px;
-		padding-left: 8px;
+		padding-right: 0.5rem;
+		padding-left: 0.5rem;
 		user-select: none;
-		min-width: 32px;
+		min-width: 2rem;
 		border-right: 1px solid var(--color-gray-100);
 	}
 

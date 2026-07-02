@@ -43,7 +43,7 @@
 
 <Modal
 	onclose={oncancel}
-	class="w-full max-w-[560px] mx-4 max-md:mx-0 max-md:rounded-none max-h-[480px] max-md:max-h-dvh flex flex-col mb-[6vh] max-md:mb-0"
+	class="w-full max-w-[35rem] mx-4 max-md:mx-0 max-md:rounded-none max-h-[30rem] max-md:max-h-dvh flex flex-col mb-[6vh] max-md:mb-0"
 >
 	<div class="flex items-center px-3.5 py-3 gap-2">
 		<div class="flex-1 min-w-0">
@@ -53,7 +53,10 @@
 
 	{#if needsShareBehavior}
 		<div class="flex items-center gap-3 px-3.5 pb-2">
-			<label class="text-[11px] text-gray-400 dark:text-gray-600 shrink-0" for="share-behavior">
+			<label
+				class="text-[0.6875rem] text-gray-400 dark:text-gray-600 shrink-0"
+				for="share-behavior"
+			>
 				{$t('pwa.shareBehavior')}
 			</label>
 			<select
@@ -80,7 +83,7 @@
 				>
 					<span class="text-xs shrink-0 truncate max-w-[34%]">{ws.name}</span>
 					<span
-						class="text-[11px] text-gray-400 overflow-hidden text-ellipsis whitespace-nowrap font-mono"
+						class="text-[0.6875rem] text-gray-400 overflow-hidden text-ellipsis whitespace-nowrap font-mono"
 					>
 						{ws.path}
 					</span>

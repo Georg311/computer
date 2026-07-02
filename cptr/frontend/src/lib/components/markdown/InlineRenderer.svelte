@@ -69,7 +69,7 @@
 			{@const fileName = filePath.split('/').pop() || filePath}
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<button
-				class="inline-flex items-center gap-1 px-1 py-px rounded text-[13px] leading-snug font-medium cursor-pointer border-none text-blue-500 dark:text-blue-400 hover:bg-blue-500/8 transition-colors align-baseline"
+				class="inline-flex items-center gap-1 px-1 py-px rounded text-[0.8125rem] leading-snug font-medium cursor-pointer border-none text-blue-500 dark:text-blue-400 hover:bg-blue-500/8 transition-colors align-baseline"
 				title={filePath}
 				onclick={(e) => {
 					e.preventDefault();

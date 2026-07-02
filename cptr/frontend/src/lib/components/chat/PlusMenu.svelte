@@ -39,9 +39,7 @@
 		}))
 	);
 
-	const paramCount = $derived(
-		paramRows.filter((r) => r.key.trim()).length
-	);
+	const paramCount = $derived(paramRows.filter((r) => r.key.trim()).length);
 
 	const canAddParam = $derived(
 		paramRows.length === 0 || paramRows.every((r) => r.key.trim() || r.value.trim())
@@ -271,7 +269,9 @@
 						stroke-linecap="round"
 						stroke-linejoin="round"
 					>
-						<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+						<path
+							d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
+						/>
 						<circle cx="12" cy="13" r="4" />
 					</svg>
 					<span class="flex-1 text-left truncate">{$t('plusMenu.capture')}</span>
@@ -310,7 +310,7 @@
 				>
 					<Icon name="shield" size={14} />
 					<span class="flex-1 text-left truncate">{$t('plusMenu.toolPermissions')}</span>
-					<span class="text-[10px] text-gray-400 dark:text-gray-500 truncate max-w-16"
+					<span class="text-[0.625rem] text-gray-400 dark:text-gray-500 truncate max-w-16"
 						>{currentModeLabel}</span
 					>
 					<Icon name="chevron-right" size={12} class="shrink-0 text-gray-400 dark:text-gray-500" />
@@ -332,11 +332,13 @@
 						stroke-linejoin="round"
 					>
 						<circle cx="12" cy="12" r="3" />
-						<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+						<path
+							d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+						/>
 					</svg>
 					<span class="flex-1 text-left truncate">{$t('plusMenu.parameters')}</span>
 					{#if paramCount > 0}
-						<span class="text-[10px] text-gray-400 dark:text-gray-500">{paramCount}</span>
+						<span class="text-[0.625rem] text-gray-400 dark:text-gray-500">{paramCount}</span>
 					{/if}
 					<Icon name="chevron-right" size={12} class="shrink-0 text-gray-400 dark:text-gray-500" />
 				</button>
@@ -394,7 +396,11 @@
 				<div class="h-px bg-gray-100/50 dark:bg-white/3 mx-1 my-0.5"></div>
 
 				{#if paramRows.length === 0}
-					<p class="px-2 h-7 flex items-center justify-center text-[11px] text-gray-400 dark:text-gray-500">{$t('plusMenu.noParams')}</p>
+					<p
+						class="px-2 h-7 flex items-center justify-center text-[0.6875rem] text-gray-400 dark:text-gray-500"
+					>
+						{$t('plusMenu.noParams')}
+					</p>
 				{:else}
 					<div class="px-0.5 py-0.5 flex flex-col max-h-48 overflow-y-auto">
 						{#each paramRows as row, i}
@@ -406,7 +412,7 @@
 									onblur={syncParams}
 									autocomplete="off"
 									spellcheck="false"
-									class="w-[72px] shrink-0 bg-transparent text-[11px] font-mono text-gray-600 dark:text-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 outline-none"
+									class="w-[4.5rem] shrink-0 bg-transparent text-[0.6875rem] font-mono text-gray-600 dark:text-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 outline-none"
 								/>
 								<input
 									type="text"
@@ -415,7 +421,7 @@
 									onblur={syncParams}
 									autocomplete="off"
 									spellcheck="false"
-									class="flex-1 min-w-0 bg-transparent text-[11px] font-mono text-gray-600 dark:text-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 outline-none"
+									class="flex-1 min-w-0 bg-transparent text-[0.6875rem] font-mono text-gray-600 dark:text-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 outline-none"
 								/>
 								<button
 									type="button"
@@ -457,7 +463,7 @@
 	@keyframes slideFromLeft {
 		from {
 			opacity: 0;
-			transform: translateX(-12px);
+			transform: translateX(-0.75rem);
 		}
 		to {
 			opacity: 1;
@@ -468,7 +474,7 @@
 	@keyframes slideFromRight {
 		from {
 			opacity: 0;
-			transform: translateX(12px);
+			transform: translateX(0.75rem);
 		}
 		to {
 			opacity: 1;

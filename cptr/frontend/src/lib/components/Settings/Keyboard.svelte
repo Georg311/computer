@@ -95,15 +95,18 @@
 	<div class="flex items-center justify-between mb-3">
 		<h2 class="text-sm font-medium text-gray-900 dark:text-white">{$t('keyboard.title')}</h2>
 		<button
-			class="text-[10px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
+			class="text-[0.625rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
 			onclick={resetKeybindings}>{$t('keyboard.resetDefaults')}</button
 		>
 	</div>
 
 	<!-- Column headers -->
 	<div class="flex items-center gap-2 mb-0.5 px-1">
-		<span class="flex-1 text-[10px] font-medium text-gray-400 dark:text-gray-600">{$t('keyboard.command')}</span>
-		<span class="w-[140px] text-[10px] font-medium text-gray-400 dark:text-gray-600 text-right"
+		<span class="flex-1 text-[0.625rem] font-medium text-gray-400 dark:text-gray-600"
+			>{$t('keyboard.command')}</span
+		>
+		<span
+			class="w-[8.75rem] text-[0.625rem] font-medium text-gray-400 dark:text-gray-600 text-right"
 			>{$t('keyboard.keybinding')}</span
 		>
 	</div>
@@ -116,15 +119,15 @@
 
 			<div class="shortcut-row">
 				<div class="flex-1 min-w-0">
-					<div class="text-[11.5px] text-gray-700 dark:text-gray-300">
+					<div class="text-[0.71875rem] text-gray-700 dark:text-gray-300">
 						{ACTION_LABELS[actionId]}
 					</div>
-					<div class="text-[10px] text-gray-400 dark:text-gray-600 truncate leading-tight">
+					<div class="text-[0.625rem] text-gray-400 dark:text-gray-600 truncate leading-tight">
 						{ACTION_DESCRIPTIONS[actionId]}
 					</div>
 				</div>
 
-				<div class="w-[140px] flex items-center justify-end shrink-0">
+				<div class="w-[8.75rem] flex items-center justify-end shrink-0">
 					{#if isRecording}
 						<span class="recording-indicator">{$t('keyboard.pressKeys')}</span>
 					{:else if chord}
@@ -137,14 +140,14 @@
 						</button>
 					{:else}
 						<button
-							class="text-[10px] text-gray-500 dark:text-gray-600 cursor-pointer hover:text-gray-400 transition-colors duration-75"
+							class="text-[0.625rem] text-gray-500 dark:text-gray-600 cursor-pointer hover:text-gray-400 transition-colors duration-75"
 							onclick={() => startRecording(actionId)}>{$t('keyboard.unassigned')}</button
 						>
 					{/if}
 
 					{#if conflict}
 						<span
-							class="text-[9px] text-amber-500 ml-1"
+							class="text-[0.5625rem] text-amber-500 ml-1"
 							title={$t('keyboard.conflict', { action: ACTION_LABELS[conflict] })}>!</span
 						>
 					{/if}
@@ -153,7 +156,7 @@
 		{/each}
 	</div>
 
-	<p class="text-[10px] text-gray-400 dark:text-gray-600 mt-3">
+	<p class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-3">
 		{$t('keyboard.rebindHint')}
 	</p>
 </div>
@@ -173,10 +176,10 @@
 	.recording-indicator {
 		display: inline-flex;
 		align-items: center;
-		height: 18px;
-		padding: 0 8px;
-		border-radius: 4px;
-		font-size: 10px;
+		height: 1.125rem;
+		padding: 0 0.5rem;
+		border-radius: 0.25rem;
+		font-size: 0.625rem;
 		font-weight: 500;
 		background: rgba(59, 130, 246, 0.1);
 		color: rgba(59, 130, 246, 0.7);
@@ -194,6 +197,6 @@
 	}
 
 	.kbd-inline {
-		@apply inline px-0.5 py-px rounded text-[9px] font-mono bg-gray-100 dark:bg-white/6 text-gray-500;
+		@apply inline px-0.5 py-px rounded text-[0.5625rem] font-mono bg-gray-100 dark:bg-white/6 text-gray-500;
 	}
 </style>

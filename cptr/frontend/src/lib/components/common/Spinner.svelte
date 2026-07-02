@@ -1,6 +1,6 @@
 <script lang="ts">
 	interface Props {
-		/** Size in px or Tailwind class like '3.5' or '5'. Defaults to 16px. */
+		/** Size in px or Tailwind class like '3.5' or '5'. Defaults to 1rem. */
 		size?: number | string;
 		/** Border width in px. Scales automatically if not set. */
 		borderWidth?: number;
@@ -26,7 +26,7 @@
 		border-style: solid;
 		border-color: var(--color-gray-300);
 		border-top-color: var(--color-gray-600);
-		border-radius: 9999px;
+		border-radius: 624.9375rem;
 		animation: spin 0.75s linear infinite;
 		flex-shrink: 0;
 	}

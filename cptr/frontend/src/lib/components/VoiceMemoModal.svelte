@@ -232,7 +232,7 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<Modal onclose={phase === 'recording' ? cancel : onclose} class="w-full max-w-[260px] mx-4">
+<Modal onclose={phase === 'recording' ? cancel : onclose} class="w-full max-w-[16.25rem] mx-4">
 	<div
 		class="px-4 py-3.5"
 		onkeydown={(e) => {
@@ -259,11 +259,11 @@
 
 			<div class="flex items-center justify-end gap-3 mt-3">
 				<button
-					class="text-[13px] text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-colors"
+					class="text-[0.8125rem] text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-colors"
 					onclick={cancel}>{$t('common.cancel')}</button
 				>
 				<button
-					class="text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
+					class="text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
 					onclick={stop}>{$t('voiceMemo.done')}</button
 				>
 			</div>
@@ -279,7 +279,9 @@
 				</p>
 			{/if}
 
-			<label class="text-[10px] text-gray-400 dark:text-gray-600">{$t('voiceMemo.filename')}</label>
+			<label class="text-[0.625rem] text-gray-400 dark:text-gray-600"
+				>{$t('voiceMemo.filename')}</label
+			>
 			<input
 				bind:this={filenameInput}
 				type="text"
@@ -287,9 +289,9 @@
 				placeholder={$t('voiceMemo.filenamePlaceholder')}
 				autocomplete="off"
 				spellcheck="false"
-				class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5"
+				class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5"
 			/>
-			<p class="text-[10px] text-gray-300 dark:text-gray-700 mt-0.5">
+			<p class="text-[0.625rem] text-gray-300 dark:text-gray-700 mt-0.5">
 				{directory.split('/').pop()}
 			</p>
 
@@ -297,7 +299,7 @@
 				<button
 					onclick={save}
 					disabled={!fileName.trim()}
-					class="text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100 disabled:opacity-30 disabled:pointer-events-none"
+					class="text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100 disabled:opacity-30 disabled:pointer-events-none"
 					>{$t('common.save')} →</button
 				>
 			</div>

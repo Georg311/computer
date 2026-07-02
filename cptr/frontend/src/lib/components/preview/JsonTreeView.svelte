@@ -95,9 +95,9 @@
 	.tree-node {
 		display: flex;
 		align-items: baseline;
-		min-height: 22px;
+		min-height: 1.375rem;
 		font-family: var(--font-mono);
-		font-size: 12.5px;
+		font-size: 0.78125rem;
 		line-height: 1.6;
 		white-space: nowrap;
 	}
@@ -106,11 +106,11 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 16px;
-		height: 16px;
+		width: 1rem;
+		height: 1rem;
 		flex-shrink: 0;
 		color: var(--color-gray-400);
-		font-size: 8px;
+		font-size: 0.5rem;
 		transition: color 0.1s;
 	}
 
@@ -132,7 +132,7 @@
 	}
 
 	.spacer {
-		width: 16px;
+		width: 1rem;
 		flex-shrink: 0;
 	}
 
@@ -150,7 +150,7 @@
 
 	.preview {
 		color: var(--color-gray-400);
-		font-size: 11px;
+		font-size: 0.6875rem;
 	}
 
 	.bracket {

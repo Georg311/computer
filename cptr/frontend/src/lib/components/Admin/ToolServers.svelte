@@ -227,7 +227,7 @@
 				onclick={() => openEdit(s)}
 			>
 				<span
-					class="text-[10px] font-mono shrink-0
+					class="text-[0.625rem] font-mono shrink-0
 					{s.type === 'mcp' || s.type === 'mcp_stdio'
 						? 'text-purple-500 dark:text-purple-400'
 						: 'text-blue-500 dark:text-blue-400'}"
@@ -235,7 +235,7 @@
 					{s.type === 'mcp' ? 'MCP' : s.type === 'mcp_stdio' ? 'STDIO' : 'API'}
 				</span>
 				<span
-					class="flex-1 text-[13px] truncate
+					class="flex-1 text-[0.8125rem] truncate
 					{s.enabled ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600'}"
 				>
 					{s.name || s.command || s.url}
@@ -264,7 +264,7 @@
 		{/each}
 
 		{#if servers.length === 0}
-			<p class="text-[13px] text-gray-400 dark:text-gray-600 py-4">
+			<p class="text-[0.8125rem] text-gray-400 dark:text-gray-600 py-4">
 				{$t('toolServers.empty')}
 			</p>
 		{/if}
@@ -287,7 +287,7 @@
 			<!-- ID + Type -->
 			<div class="flex gap-3">
 				<div class="flex-1">
-					<label class="text-[10px] text-gray-400 dark:text-gray-600"
+					<label class="text-[0.625rem] text-gray-400 dark:text-gray-600"
 						>{$t('toolServers.id')}</label
 					>
 					<input
@@ -298,16 +298,16 @@
 						autocomplete="off"
 						spellcheck="false"
 						disabled={!!editServer}
-						class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono disabled:opacity-50"
+						class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono disabled:opacity-50"
 					/>
 				</div>
 				<div class="w-28 shrink-0">
-					<label class="text-[10px] text-gray-400 dark:text-gray-600"
+					<label class="text-[0.625rem] text-gray-400 dark:text-gray-600"
 						>{$t('toolServers.type')}</label
 					>
 					<select
 						bind:value={formType}
-						class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer"
+						class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer"
 					>
 						<option value="openapi">{$t('toolServers.typeOpenAPI')}</option>
 						<option value="mcp">{$t('toolServers.typeMCP')}</option>
@@ -317,7 +317,7 @@
 			</div>
 
 			<!-- Name -->
-			<label class="text-[10px] text-gray-400 dark:text-gray-600 mt-2"
+			<label class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2"
 				>{$t('toolServers.name')}</label
 			>
 			<input
@@ -326,12 +326,12 @@
 				bind:value={formName}
 				autocomplete="off"
 				spellcheck="false"
-				class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5"
+				class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5"
 			/>
 
 			<!-- URL (openapi/mcp only) -->
 			{#if formType !== 'mcp_stdio'}
-				<label class="text-[10px] text-gray-400 dark:text-gray-600 mt-2"
+				<label class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2"
 					>{$t('toolServers.url')}</label
 				>
 				<input
@@ -342,13 +342,13 @@
 					bind:value={formUrl}
 					autocomplete="off"
 					spellcheck="false"
-					class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
+					class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
 				/>
 			{/if}
 
 			<!-- Command + Args (mcp_stdio only) -->
 			{#if formType === 'mcp_stdio'}
-				<label class="text-[10px] text-gray-400 dark:text-gray-600 mt-2"
+				<label class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2"
 					>{$t('toolServers.command')}</label
 				>
 				<input
@@ -357,9 +357,9 @@
 					bind:value={formCommand}
 					autocomplete="off"
 					spellcheck="false"
-					class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
+					class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
 				/>
-				<label class="text-[10px] text-gray-400 dark:text-gray-600 mt-2"
+				<label class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2"
 					>{$t('toolServers.args')}</label
 				>
 				<input
@@ -368,9 +368,9 @@
 					bind:value={formArgs}
 					autocomplete="off"
 					spellcheck="false"
-					class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
+					class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
 				/>
-				<label class="text-[10px] text-gray-400 dark:text-gray-600 mt-2"
+				<label class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2"
 					>{$t('toolServers.cwd')}</label
 				>
 				<input
@@ -379,13 +379,13 @@
 					bind:value={formCwd}
 					autocomplete="off"
 					spellcheck="false"
-					class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
+					class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
 				/>
 			{/if}
 
 			<!-- Spec path (OpenAPI only) -->
 			{#if formType === 'openapi'}
-				<label class="text-[10px] text-gray-400 dark:text-gray-600 mt-2"
+				<label class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2"
 					>{$t('toolServers.specPath')}</label
 				>
 				<input
@@ -394,7 +394,7 @@
 					bind:value={formPath}
 					autocomplete="off"
 					spellcheck="false"
-					class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
+					class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
 				/>
 			{/if}
 
@@ -402,12 +402,12 @@
 			{#if formType !== 'mcp_stdio'}
 				<div class="flex gap-3 mt-2">
 					<div class="w-28 shrink-0">
-						<label class="text-[10px] text-gray-400 dark:text-gray-600"
+						<label class="text-[0.625rem] text-gray-400 dark:text-gray-600"
 							>{$t('toolServers.auth')}</label
 						>
 						<select
 							bind:value={formAuthType}
-							class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer"
+							class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer"
 						>
 							<option value="none">{$t('toolServers.authNone')}</option>
 							<option value="bearer">{$t('toolServers.authBearer')}</option>
@@ -415,7 +415,7 @@
 					</div>
 					{#if formAuthType === 'bearer'}
 						<div class="flex-1">
-							<label class="text-[10px] text-gray-400 dark:text-gray-600"
+							<label class="text-[0.625rem] text-gray-400 dark:text-gray-600"
 								>{$t('toolServers.apiKey')}</label
 							>
 							<input
@@ -423,7 +423,7 @@
 								placeholder={editServer ? $t('toolServers.apiKeyKeep') : 'sk-...'}
 								bind:value={formKey}
 								autocomplete="new-password"
-								class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
+								class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
 							/>
 						</div>
 					{/if}
@@ -431,7 +431,7 @@
 			{/if}
 
 			<!-- Description -->
-			<label class="text-[10px] text-gray-400 dark:text-gray-600 mt-2"
+			<label class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2"
 				>{$t('toolServers.description')}</label
 			>
 			<input
@@ -440,27 +440,28 @@
 				bind:value={formDescription}
 				autocomplete="off"
 				spellcheck="false"
-				class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5"
+				class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5"
 			/>
 
 			<!-- Headers -->
-			<label class="text-[10px] text-gray-400 dark:text-gray-600 mt-2"
+			<label class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2"
 				>{$t('toolServers.headers')}</label
 			>
-			<p class="text-[10px] text-gray-300 dark:text-gray-700 mb-0.5">{$t('toolServers.headersHint')}</p>
+			<p class="text-[0.625rem] text-gray-300 dark:text-gray-700 mb-0.5">
+				{$t('toolServers.headersHint')}
+			</p>
 			<textarea
 				placeholder={'{"X-Custom-Header": "value"}'}
 				bind:value={formHeaders}
 				autocomplete="off"
 				spellcheck="false"
 				rows="2"
-				class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono resize-none"
+				class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono resize-none"
 			></textarea>
-
 
 			<!-- Verify result -->
 			{#if verifyResult?.ok && verifyResult.tools}
-				<div class="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+				<div class="mt-2 text-[0.6875rem] text-gray-500 dark:text-gray-400">
 					{verifyResult.tools.length}
 					{$t('toolServers.toolsFound')}:
 					<span class="text-gray-400 dark:text-gray-500"
@@ -474,11 +475,11 @@
 				<div class="flex items-center gap-3">
 					{#if editServer}
 						<button
-							class="text-[13px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
+							class="text-[0.8125rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
 							onclick={handleDelete}>{$t('toolServers.delete')}</button
 						>
 						<button
-							class="text-[13px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 disabled:opacity-30"
+							class="text-[0.8125rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 disabled:opacity-30"
 							disabled={verifying}
 							onclick={handleVerify}
 						>
@@ -493,7 +494,7 @@
 				<button
 					disabled={saving || (formType === 'mcp_stdio' ? !formCommand.trim() : !formUrl.trim())}
 					onclick={handleSubmit}
-					class="text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100 disabled:opacity-30 disabled:pointer-events-none"
+					class="text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100 disabled:opacity-30 disabled:pointer-events-none"
 				>
 					{#if saving}
 						<Spinner size={14} />

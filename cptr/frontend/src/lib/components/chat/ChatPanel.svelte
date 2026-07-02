@@ -295,7 +295,9 @@
 	const summaryCount = $derived(runningCommandSessions.length);
 	const statusButtonClass =
 		'text-gray-400 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-600 dark:hover:bg-white/5 dark:hover:text-gray-300';
-	const statusTitle = $derived(summaryCount > 0 ? `${summaryCount} active command session` : 'Status');
+	const statusTitle = $derived(
+		summaryCount > 0 ? `${summaryCount} active command session` : 'Status'
+	);
 
 	// Queued messages: user-authored messages waiting behind an active response.
 	const queuedMessages = $derived(
@@ -1417,7 +1419,9 @@
 		<div
 			class="flex h-7 shrink-0 items-center gap-2 border-b border-gray-100 px-3 dark:border-white/6"
 		>
-			<div class="min-w-0 flex-1 truncate text-[11px] font-medium text-gray-600 dark:text-gray-400">
+			<div
+				class="min-w-0 flex-1 truncate text-[0.6875rem] font-medium text-gray-600 dark:text-gray-400"
+			>
 				{displayChatTitle}
 			</div>
 			<button

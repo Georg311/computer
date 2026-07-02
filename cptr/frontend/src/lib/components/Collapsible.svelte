@@ -25,7 +25,7 @@
 		<span class="text-xs text-gray-400 dark:text-gray-600">{title}</span>
 		{#if !expanded && summary}
 			<span
-				class="text-[11px] text-gray-400 dark:text-gray-600 font-mono ml-auto truncate max-w-[60%] text-right"
+				class="text-[0.6875rem] text-gray-400 dark:text-gray-600 font-mono ml-auto truncate max-w-[60%] text-right"
 				>{summary}</span
 			>
 		{/if}

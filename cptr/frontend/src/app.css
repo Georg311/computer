@@ -67,7 +67,7 @@
 	--tw-border-opacity: 1;
 	background-color: rgba(215, 215, 215, 0.6);
 	border-color: rgba(255, 255, 255, var(--tw-border-opacity));
-	border-radius: 9999px;
+	border-radius: 624.9375rem;
 	border-width: 1px;
 }
 
@@ -84,7 +84,7 @@
 
 ::-webkit-scrollbar-track {
 	background-color: transparent;
-	border-radius: 9999px;
+	border-radius: 624.9375rem;
 }
 
 .scrollbar-hidden,
@@ -202,9 +202,9 @@
 .tippy-box[data-theme~='cptr'] {
 	background: #1a1a1a;
 	color: #e0e0e0;
-	font-size: 11px;
+	font-size: 0.6875rem;
 	font-weight: 500;
-	padding: 2px 4px;
-	border-radius: 6px;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+	padding: 0.125rem 0.25rem;
+	border-radius: 0.375rem;
+	box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.3);
 }

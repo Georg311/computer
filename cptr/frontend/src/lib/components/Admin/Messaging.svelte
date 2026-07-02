@@ -81,15 +81,17 @@
 		{#each bots as bot}
 			<div class="group flex items-center gap-2 w-full h-7">
 				<!-- Platform icon -->
-				<span class="shrink-0
-					{bot.is_running ? 'text-gray-400 dark:text-gray-500' : 'text-gray-300 dark:text-gray-700'}">
+				<span
+					class="shrink-0
+					{bot.is_running ? 'text-gray-400 dark:text-gray-500' : 'text-gray-300 dark:text-gray-700'}"
+				>
 					<Icon name={bot.platform} size={14} />
 				</span>
 
 				<!-- Name (clickable to edit) -->
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<span
-					class="flex-1 text-[13px] truncate cursor-pointer
+					class="flex-1 text-[0.8125rem] truncate cursor-pointer
 					{bot.is_running ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600'}"
 					onclick={() => (editBot = bot)}
 					onkeydown={() => {}}
@@ -131,7 +133,7 @@
 		{/each}
 
 		{#if bots.length === 0}
-			<p class="text-[13px] text-gray-400 dark:text-gray-600 py-4">{$t('messaging.noBots')}</p>
+			<p class="text-[0.8125rem] text-gray-400 dark:text-gray-600 py-4">{$t('messaging.noBots')}</p>
 		{/if}
 	</div>
 {/if}
@@ -141,9 +143,5 @@
 {/if}
 
 {#if editBot}
-	<CreateBotModal
-		bot={editBot}
-		onclose={() => (editBot = null)}
-		onsave={handleSaved}
-	/>
+	<CreateBotModal bot={editBot} onclose={() => (editBot = null)} onsave={handleSaved} />
 {/if}

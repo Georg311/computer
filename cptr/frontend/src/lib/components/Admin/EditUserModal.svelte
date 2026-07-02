@@ -91,23 +91,25 @@
 <Modal {onclose} class="w-full max-w-sm mx-4">
 	<div class="p-4">
 		<h2 class="text-sm font-medium text-gray-900 dark:text-white mb-2">{$t('admin.editUser')}</h2>
-		<label class="text-[10px] text-gray-400 dark:text-gray-600 mt-1">{$t('admin.username')}</label>
+		<label class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-1"
+			>{$t('admin.username')}</label
+		>
 		<input
 			type="text"
 			placeholder={$t('admin.username')}
 			bind:value={username}
-			class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5"
+			class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5"
 		/>
-		<label class="text-[10px] text-gray-400 dark:text-gray-600 mt-1"
+		<label class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-1"
 			>{$t('admin.displayName')}</label
 		>
 		<input
 			type="text"
 			placeholder={$t('admin.optional')}
 			bind:value={displayName}
-			class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5"
+			class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5"
 		/>
-		<label class="text-[10px] text-gray-400 dark:text-gray-600 mt-1"
+		<label class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-1"
 			>{$t('admin.newPasswordLabel')}</label
 		>
 		<input
@@ -115,20 +117,20 @@
 			placeholder={$t('admin.leaveBlank')}
 			bind:value={newPassword}
 			autocomplete="new-password"
-			class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5"
+			class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5"
 		/>
-		<label class="text-[10px] text-gray-400 dark:text-gray-600 mt-1">{$t('admin.role')}</label>
+		<label class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-1">{$t('admin.role')}</label>
 		<select
 			bind:value={role}
 			disabled={isSelf}
-			class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer disabled:opacity-50"
+			class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer disabled:opacity-50"
 		>
 			{#each ROLES as r}<option value={r}>{r}</option>{/each}
 		</select>
 		<div class="flex items-center justify-between mt-3">
 			{#if !isSelf && (user.role !== 'admin' || adminCount > 1)}
 				<button
-					class="text-[13px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
+					class="text-[0.8125rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
 					onclick={deleteUser}>{$t('admin.delete')}</button
 				>
 			{:else}
@@ -137,7 +139,7 @@
 			<button
 				disabled={saving}
 				onclick={save}
-				class="text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100 disabled:opacity-30 disabled:pointer-events-none"
+				class="text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100 disabled:opacity-30 disabled:pointer-events-none"
 			>
 				{#if saving}{$t('settings.saving')}{:else}{$t('settings.save')}{/if}
 			</button>

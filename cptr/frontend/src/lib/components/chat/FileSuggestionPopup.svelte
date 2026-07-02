@@ -41,7 +41,9 @@
 			No files found
 		</div>
 	{:else}
-		<div class="mb-0.5 px-2 pt-1 pb-0.5 text-[10px] leading-none text-gray-400 dark:text-gray-600">
+		<div
+			class="mb-0.5 px-2 pt-1 pb-0.5 text-[0.625rem] leading-none text-gray-400 dark:text-gray-600"
+		>
 			Files
 		</div>
 		<div bind:this={listEl}>
@@ -68,7 +70,7 @@
 					<span class="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
 						<span class="truncate">{item.label}</span>
 						{#if relativePath(item.id)}
-							<span class="text-[10px] text-gray-400 dark:text-gray-600 truncate shrink-0"
+							<span class="text-[0.625rem] text-gray-400 dark:text-gray-600 truncate shrink-0"
 								>{relativePath(item.id)}</span
 							>
 						{/if}

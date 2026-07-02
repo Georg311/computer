@@ -44,28 +44,28 @@
 		{#if $appVersion}
 			<button
 				onclick={() => showChangelog.set(true)}
-				class="text-[11px] text-gray-400 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 font-mono hover:underline cursor-pointer"
+				class="text-[0.6875rem] text-gray-400 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 font-mono hover:underline cursor-pointer"
 				>v{$appVersion}</button
 			>
 		{/if}
 		{#if $updateAvailable}
-			<span class="text-[11px] text-gray-300 dark:text-gray-600">·</span>
+			<span class="text-[0.6875rem] text-gray-300 dark:text-gray-600">·</span>
 			<a
 				href="https://github.com/open-webui/computer/releases"
 				target="_blank"
 				rel="noopener noreferrer"
-				class="text-[11px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+				class="text-[0.6875rem] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
 				>{$t('about.updateAvailable', { version: $latestVersion })}</a
 			>
 		{/if}
 	</div>
 
-	<p class="text-[13px] text-gray-500 mt-0.5 mb-4">{$t('app.tagline')}</p>
+	<p class="text-[0.8125rem] text-gray-500 mt-0.5 mb-4">{$t('app.tagline')}</p>
 
 	<h3 class="text-xs text-gray-400 dark:text-gray-600 mb-1">
 		{$t('about.license')}
 	</h3>
-	<p class="text-[11px] text-gray-500 leading-relaxed font-mono whitespace-pre-line">
+	<p class="text-[0.6875rem] text-gray-500 leading-relaxed font-mono whitespace-pre-line">
 		<a
 			href="https://github.com/open-webui/computer/blob/main/LICENSE"
 			target="_blank"
@@ -79,28 +79,28 @@
 </div>
 
 <div class="flex items-center gap-1.5 pt-6">
-	<span class="text-[11px] text-gray-400 dark:text-gray-600 mr-1">{$t('about.share')}</span>
+	<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mr-1">{$t('about.share')}</span>
 	{#each shareLinks as link, i}
 		{#if i > 0}
-			<span class="text-[11px] text-gray-200 dark:text-gray-700">·</span>
+			<span class="text-[0.6875rem] text-gray-200 dark:text-gray-700">·</span>
 		{/if}
 		<a
 			href={link.href}
 			target="_blank"
 			rel="noopener noreferrer"
-			class="text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-500 transition-colors"
+			class="text-[0.6875rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-500 transition-colors"
 			>{link.label}</a
 		>
 	{/each}
-	<span class="text-[11px] text-gray-200 dark:text-gray-700">·</span>
+	<span class="text-[0.6875rem] text-gray-200 dark:text-gray-700">·</span>
 	<button
 		onclick={copyLink}
-		class="text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-500 transition-colors cursor-pointer"
+		class="text-[0.6875rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-500 transition-colors cursor-pointer"
 	>
 		{copied ? $t('about.copied') : $t('about.copyLink')}
 	</button>
 </div>
 
-<p class="text-[11px] text-gray-300 dark:text-gray-700 pt-4">
+<p class="text-[0.6875rem] text-gray-300 dark:text-gray-700 pt-4">
 	{$t('about.createdBy')}
 </p>

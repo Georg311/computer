@@ -63,8 +63,7 @@ export const updateMemory = (
 	scope: MemoryScope,
 	workspace: string,
 	operations: MemoryOperation[]
-) =>
-	fetchJSON('/api/memory/update', jsonBody({ scope, workspace, operations }));
+) => fetchJSON('/api/memory/update', jsonBody({ scope, workspace, operations }));
 
 export const searchMemory = (body: {
 	query?: string;

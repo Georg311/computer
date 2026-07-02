@@ -108,7 +108,7 @@
 
 		<!-- Prompt -->
 		<div class="px-5 pb-2">
-			<div class="mb-1 text-[11px] text-gray-400 dark:text-gray-500">
+			<div class="mb-1 text-[0.6875rem] text-gray-400 dark:text-gray-500">
 				{$t('automationModal.instructions')}
 			</div>
 			<textarea
@@ -133,11 +133,11 @@
 				<button
 					bind:this={workspaceButtonEl}
 					type="button"
-					class="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors duration-100"
+					class="flex items-center gap-1 px-2 py-1 rounded-lg text-[0.6875rem] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors duration-100"
 					onclick={() => (showWsMenu = !showWsMenu)}
 				>
 					<Icon name="folder" size={12} />
-					<span class="truncate max-w-[120px]">{selectedWorkspaceName}</span>
+					<span class="truncate max-w-[7.5rem]">{selectedWorkspaceName}</span>
 					<svg
 						class="w-3 h-3 opacity-50"
 						viewBox="0 0 24 24"

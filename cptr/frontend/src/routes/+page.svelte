@@ -715,7 +715,7 @@
 					{#if $appVersion}
 						<button
 							onclick={() => showChangelog.set(true)}
-							class="cursor-pointer font-mono text-[11px] text-gray-400 hover:text-gray-500 hover:underline dark:text-gray-600 dark:hover:text-gray-400"
+							class="cursor-pointer font-mono text-[0.6875rem] text-gray-400 hover:text-gray-500 hover:underline dark:text-gray-600 dark:hover:text-gray-400"
 						>
 							v{$appVersion}
 						</button>
@@ -731,7 +731,7 @@
 			<div class="mb-6">
 				<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">{$t('home.start')}</h2>
 				<button
-					class="text-[13px] text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+					class="text-[0.8125rem] text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
 					onclick={() => (showPicker = true)}
 				>
 					{$t('home.openWorkspace')}
@@ -747,22 +747,22 @@
 					>
 						<span class="flex min-w-0 items-baseline gap-2">
 							<span
-								class="truncate text-[13px] text-gray-800 group-hover:text-gray-950 dark:text-gray-200 dark:group-hover:text-white"
+								class="truncate text-[0.8125rem] text-gray-800 group-hover:text-gray-950 dark:text-gray-200 dark:group-hover:text-white"
 							>
 								{continuation.name}
 							</span>
-							<span class="truncate font-mono text-[11px] text-gray-400 dark:text-gray-600">
+							<span class="truncate font-mono text-[0.6875rem] text-gray-400 dark:text-gray-600">
 								{shortenPath(continuation.path)}
 							</span>
 						</span>
 						{#if continueSignals.length}
 							<span
-								class="mt-0.5 block truncate font-mono text-[10px] text-gray-400 dark:text-gray-600"
+								class="mt-0.5 block truncate font-mono text-[0.625rem] text-gray-400 dark:text-gray-600"
 							>
 								{continueSignals.join('  ')}
 							</span>
 						{:else if continueResume?.activeLabels.length}
-							<span class="mt-0.5 block truncate text-[11px] text-gray-400 dark:text-gray-600">
+							<span class="mt-0.5 block truncate text-[0.6875rem] text-gray-400 dark:text-gray-600">
 								{continueResume.activeLabels.join(' · ')}
 							</span>
 						{/if}
@@ -783,22 +783,26 @@
 							>
 								<span class="flex min-w-0 items-baseline gap-2">
 									<span
-										class="truncate text-[13px] text-gray-700 group-hover:text-gray-900 dark:text-gray-300 dark:group-hover:text-white"
+										class="truncate text-[0.8125rem] text-gray-700 group-hover:text-gray-900 dark:text-gray-300 dark:group-hover:text-white"
 									>
 										{item.name}
 									</span>
-									<span class="truncate font-mono text-[11px] text-gray-400 dark:text-gray-600">
+									<span
+										class="truncate font-mono text-[0.6875rem] text-gray-400 dark:text-gray-600"
+									>
 										{shortenPath(item.path)}
 									</span>
 								</span>
 								{#if signals.length}
 									<span
-										class="mt-0.5 block truncate font-mono text-[10px] text-gray-400 dark:text-gray-600"
+										class="mt-0.5 block truncate font-mono text-[0.625rem] text-gray-400 dark:text-gray-600"
 									>
 										{signals.join('  ')}
 									</span>
 								{:else if resume?.activeLabels.length}
-									<span class="mt-0.5 block truncate text-[11px] text-gray-400 dark:text-gray-600">
+									<span
+										class="mt-0.5 block truncate text-[0.6875rem] text-gray-400 dark:text-gray-600"
+									>
 										{resume.activeLabels.join(' · ')}
 									</span>
 								{/if}
@@ -810,7 +814,7 @@
 				<div class="mb-6">
 					<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">{$t('home.recent')}</h2>
 					<button
-						class="text-[13px] text-gray-500 transition-colors duration-100 hover:text-gray-900 dark:text-gray-500 dark:hover:text-white"
+						class="text-[0.8125rem] text-gray-500 transition-colors duration-100 hover:text-gray-900 dark:text-gray-500 dark:hover:text-white"
 						onclick={() => (showPicker = true)}
 					>
 						{$t('home.noWorkspaces')}
@@ -824,7 +828,7 @@
 					<div class="flex flex-col">
 						{#each nearby as item}
 							<button
-								class="flex min-w-0 items-center gap-2 py-1.5 text-left text-[13px] text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+								class="flex min-w-0 items-center gap-2 py-1.5 text-left text-[0.8125rem] text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
 								onclick={() => quickOpen(item.path)}
 							>
 								<Icon
@@ -834,7 +838,7 @@
 									class="shrink-0 text-gray-400 dark:text-gray-600"
 								/>
 								<span class="truncate">{item.name}</span>
-								<span class="truncate font-mono text-[11px] text-gray-400 dark:text-gray-600">
+								<span class="truncate font-mono text-[0.6875rem] text-gray-400 dark:text-gray-600">
 									{shortenPath(item.path)}
 								</span>
 							</button>
@@ -1024,12 +1028,12 @@
 	}
 
 	.split-divider-h {
-		width: 6px;
+		width: 0.375rem;
 		cursor: col-resize;
 	}
 
 	.split-divider-v {
-		height: 6px;
+		height: 0.375rem;
 		cursor: row-resize;
 	}
 
@@ -1090,22 +1094,22 @@
 		position: absolute;
 		z-index: 15;
 		background: oklch(0.65 0.15 250 / 0.08);
-		border: 2px dashed oklch(0.65 0.15 250 / 0.3);
-		border-radius: 8px;
+		border: 0.125rem dashed oklch(0.65 0.15 250 / 0.3);
+		border-radius: 0.5rem;
 		pointer-events: none;
 	}
 
 	.split-drop-right {
-		top: 8px;
-		right: 8px;
-		bottom: 8px;
+		top: 0.5rem;
+		right: 0.5rem;
+		bottom: 0.5rem;
 		width: 45%;
 	}
 
 	.split-drop-bottom {
-		left: 8px;
-		right: 8px;
-		bottom: 8px;
+		left: 0.5rem;
+		right: 0.5rem;
+		bottom: 0.5rem;
 		height: 45%;
 	}
 

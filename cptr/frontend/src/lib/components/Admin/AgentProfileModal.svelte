@@ -76,7 +76,7 @@
 			</h2>
 			<button
 				type="button"
-				class="text-[13px] text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+				class="text-[0.8125rem] text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
 				onclick={onclose}
 			>
 				Close
@@ -85,7 +85,7 @@
 
 		<div class="flex gap-3">
 			<div class="flex-1">
-				<label for={`${fieldPrefix}-name`} class="text-[10px] text-gray-400 dark:text-gray-600">
+				<label for={`${fieldPrefix}-name`} class="text-[0.625rem] text-gray-400 dark:text-gray-600">
 					{$t('admin.agentsProfileName')}
 				</label>
 				<input
@@ -94,11 +94,11 @@
 					bind:value={draft.name}
 					autocomplete="off"
 					spellcheck="false"
-					class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5"
+					class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5"
 				/>
 			</div>
 			<div class="w-32 shrink-0">
-				<label for={`${fieldPrefix}-type`} class="text-[10px] text-gray-400 dark:text-gray-600">
+				<label for={`${fieldPrefix}-type`} class="text-[0.625rem] text-gray-400 dark:text-gray-600">
 					{$t('admin.agentsType')}
 				</label>
 				<select
@@ -119,7 +119,7 @@
 							launch_args: draft.launch_args || ''
 						};
 					}}
-					class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer"
+					class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer"
 				>
 					<option value="codex">Codex</option>
 					<option value="claude_code">Claude Code</option>
@@ -130,7 +130,7 @@
 			</div>
 		</div>
 
-		<label for={`${fieldPrefix}-id`} class="text-[10px] text-gray-400 dark:text-gray-600 mt-2">
+		<label for={`${fieldPrefix}-id`} class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2">
 			{$t('admin.agentsProfileId')}
 		</label>
 		<input
@@ -139,10 +139,13 @@
 			bind:value={draft.id}
 			autocomplete="off"
 			spellcheck="false"
-			class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
+			class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
 		/>
 
-		<label for={`${fieldPrefix}-command`} class="text-[10px] text-gray-400 dark:text-gray-600 mt-2">
+		<label
+			for={`${fieldPrefix}-command`}
+			class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2"
+		>
 			{$t('admin.agentsCommand')}
 		</label>
 		<input
@@ -152,10 +155,13 @@
 			placeholder={defaultCommand(draft.agent)}
 			autocomplete="off"
 			spellcheck="false"
-			class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
+			class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
 		/>
 
-		<label for={`${fieldPrefix}-home`} class="text-[10px] text-gray-400 dark:text-gray-600 mt-2">
+		<label
+			for={`${fieldPrefix}-home`}
+			class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2"
+		>
 			{$t('admin.agentsHome')}
 		</label>
 		<input
@@ -166,13 +172,13 @@
 			autocomplete="off"
 			spellcheck="false"
 			oninput={(e) => (draft.home = e.currentTarget.value || null)}
-			class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
+			class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
 		/>
 
 		{#if draft.agent === 'claude_code'}
 			<label
 				for={`${fieldPrefix}-launch-args`}
-				class="text-[10px] text-gray-400 dark:text-gray-600 mt-2"
+				class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2"
 			>
 				{$t('admin.agentsLaunchArgs')}
 			</label>
@@ -182,14 +188,14 @@
 				bind:value={draft.launch_args}
 				autocomplete="off"
 				spellcheck="false"
-				class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
+				class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
 			/>
 		{/if}
 
 		{#if draft.agent === 'cursor'}
 			<label
 				for={`${fieldPrefix}-api-endpoint`}
-				class="text-[10px] text-gray-400 dark:text-gray-600 mt-2"
+				class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2"
 			>
 				{$t('admin.agentsApiEndpoint')}
 			</label>
@@ -200,14 +206,14 @@
 				placeholder="Optional"
 				autocomplete="off"
 				spellcheck="false"
-				class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
+				class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
 			/>
 		{/if}
 
 		{#if draft.agent === 'opencode'}
 			<label
 				for={`${fieldPrefix}-server-url`}
-				class="text-[10px] text-gray-400 dark:text-gray-600 mt-2"
+				class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2"
 			>
 				{$t('admin.agentsServerUrl')}
 			</label>
@@ -218,12 +224,12 @@
 				placeholder="Optional"
 				autocomplete="off"
 				spellcheck="false"
-				class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
+				class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
 			/>
 
 			<label
 				for={`${fieldPrefix}-server-password`}
-				class="text-[10px] text-gray-400 dark:text-gray-600 mt-2"
+				class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2"
 			>
 				{$t('admin.agentsServerPassword')}
 			</label>
@@ -234,7 +240,7 @@
 				placeholder="Optional"
 				autocomplete="off"
 				spellcheck="false"
-				class="block w-full bg-transparent text-[13px] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
+				class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
 			/>
 		{/if}
 
@@ -243,7 +249,7 @@
 				{#if !isNew}
 					<button
 						type="button"
-						class="text-[13px] text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors duration-100"
+						class="text-[0.8125rem] text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors duration-100"
 						onclick={ondelete}
 						title={$t('admin.agentsDeleteProfile')}
 					>
@@ -254,7 +260,7 @@
 			<button
 				type="button"
 				onclick={() => onsave(normalizeDraft())}
-				class="text-[13px] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
+				class="text-[0.8125rem] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
 			>
 				{$t('settings.save')}
 			</button>

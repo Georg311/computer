@@ -67,14 +67,14 @@
 				<span class="text-xs font-medium font-mono text-gray-700 dark:text-gray-200"
 					>:{port.port}</span
 				>
-				<span class="text-[11px] text-gray-400">({port.process})</span>
+				<span class="text-[0.6875rem] text-gray-400">({port.process})</span>
 				{#if terminalLabel(port.session_id)}
-					<span class="text-[10px] text-gray-400 italic"
+					<span class="text-[0.625rem] text-gray-400 italic"
 						>{$t('port.via', { name: terminalLabel(port.session_id) })}</span
 					>
 				{/if}
 				<button
-					class="ml-1 px-2 py-0.5 rounded text-[11px] font-medium text-white bg-blue-500 hover:bg-blue-600 transition-colors duration-100 shrink-0"
+					class="ml-1 px-2 py-0.5 rounded text-[0.6875rem] font-medium text-white bg-blue-500 hover:bg-blue-600 transition-colors duration-100 shrink-0"
 					onclick={() => preview(port)}>{$t('port.preview')}</button
 				>
 				<button
@@ -95,7 +95,7 @@
 
 	@keyframes slideIn {
 		from {
-			transform: translateY(6px);
+			transform: translateY(0.375rem);
 			opacity: 0;
 		}
 		to {

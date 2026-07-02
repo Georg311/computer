@@ -6,14 +6,14 @@
 
 	// ── Compact binary WebSocket protocol ─────────────────────
 	// Client → Server:  byte 0 = type, rest = payload
-//   0x00 + raw input bytes (microtask-batched for throughput)
-//   0x02 + uint16 cols + uint16 rows, big-endian (5 bytes total)
-//   0x03 stop, 0x04 force stop
-// Server → Client:  raw PTY output bytes (no prefix)
-const MSG_INPUT = 0;
-const MSG_RESIZE = 2;
-const MSG_STOP = 3;
-const MSG_FORCE_STOP = 4;
+	//   0x00 + raw input bytes (microtask-batched for throughput)
+	//   0x02 + uint16 cols + uint16 rows, big-endian (5 bytes total)
+	//   0x03 stop, 0x04 force stop
+	// Server → Client:  raw PTY output bytes (no prefix)
+	const MSG_INPUT = 0;
+	const MSG_RESIZE = 2;
+	const MSG_STOP = 3;
+	const MSG_FORCE_STOP = 4;
 
 	const textEncoder = new TextEncoder();
 
@@ -38,24 +38,24 @@ const MSG_FORCE_STOP = 4;
 	}
 
 	interface Props {
-	sessionId?: string;
-	wsPath?: string;
-	initialOutput?: string;
-	initialOffset?: number;
-	stopSignal?: number;
-	forceStopSignal?: number;
-	readOnly?: boolean;
-}
+		sessionId?: string;
+		wsPath?: string;
+		initialOutput?: string;
+		initialOffset?: number;
+		stopSignal?: number;
+		forceStopSignal?: number;
+		readOnly?: boolean;
+	}
 
-let {
-	sessionId = '',
-	wsPath = '',
-	initialOutput = '',
-	initialOffset = 0,
-	stopSignal = 0,
-	forceStopSignal = 0,
-	readOnly = false
-}: Props = $props();
+	let {
+		sessionId = '',
+		wsPath = '',
+		initialOutput = '',
+		initialOffset = 0,
+		stopSignal = 0,
+		forceStopSignal = 0,
+		readOnly = false
+	}: Props = $props();
 
 	let containerEl: HTMLDivElement | undefined = $state();
 	let term: Terminal | null = null;
@@ -211,23 +211,23 @@ let {
 		ws!.send(resizeBuf);
 	}
 
-let lastStopSignal = 0;
-$effect(() => {
-	if (!stopSignal || stopSignal === lastStopSignal) return;
-	lastStopSignal = stopSignal;
-	if (ws?.readyState === WebSocket.OPEN) {
-		ws.send(new Uint8Array([MSG_STOP]));
-	}
-});
+	let lastStopSignal = 0;
+	$effect(() => {
+		if (!stopSignal || stopSignal === lastStopSignal) return;
+		lastStopSignal = stopSignal;
+		if (ws?.readyState === WebSocket.OPEN) {
+			ws.send(new Uint8Array([MSG_STOP]));
+		}
+	});
 
-let lastForceStopSignal = 0;
-$effect(() => {
-	if (!forceStopSignal || forceStopSignal === lastForceStopSignal) return;
-	lastForceStopSignal = forceStopSignal;
-	if (ws?.readyState === WebSocket.OPEN) {
-		ws.send(new Uint8Array([MSG_FORCE_STOP]));
-	}
-});
+	let lastForceStopSignal = 0;
+	$effect(() => {
+		if (!forceStopSignal || forceStopSignal === lastForceStopSignal) return;
+		lastForceStopSignal = forceStopSignal;
+		if (ws?.readyState === WebSocket.OPEN) {
+			ws.send(new Uint8Array([MSG_FORCE_STOP]));
+		}
+	});
 
 	$effect(() => {
 		if (term) term.options.disableStdin = readOnly;

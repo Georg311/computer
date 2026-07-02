@@ -56,7 +56,6 @@
 			toggleExpanded();
 		}
 	}
-
 </script>
 
 <div class="w-full min-w-0 flex flex-col">
@@ -156,7 +155,7 @@
 			{#if isPending && chatId}
 				<span class="flex gap-1 shrink-0">
 					<button
-						class="text-[11px] px-2.5 py-0.5 rounded-md
+						class="text-[0.6875rem] px-2.5 py-0.5 rounded-md
 						text-gray-600 dark:text-gray-300
 						bg-gray-100 dark:bg-white/8
 						hover:bg-gray-200 dark:hover:bg-white/12
@@ -167,7 +166,7 @@
 						}}>{$t('chat.allow')}</button
 					>
 					<button
-						class="text-[11px] px-2 py-0.5 rounded-md
+						class="text-[0.6875rem] px-2 py-0.5 rounded-md
 						text-gray-400 dark:text-gray-500
 						hover:text-gray-600 dark:hover:text-gray-300
 						transition-colors duration-100"
@@ -204,13 +203,13 @@
 				{#if Object.keys(args).length > 0}
 					<div>
 						<div
-							class="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1.5 px-1"
+							class="text-[0.625rem] uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1.5 px-1"
 						>
 							{$t('chat.toolInput')}
 						</div>
 						{#if toolName === 'edit_file' && args.target}
 							<div
-								class="text-[11px] font-mono rounded-lg overflow-hidden border border-gray-200/60 dark:border-white/6"
+								class="text-[0.6875rem] font-mono rounded-lg overflow-hidden border border-gray-200/60 dark:border-white/6"
 							>
 								<div
 									class="bg-red-50/80 dark:bg-red-950/20 text-red-700 dark:text-red-400 px-2.5 py-1 whitespace-pre-wrap break-all leading-relaxed"
@@ -231,7 +230,7 @@
 								</div>
 							</div>
 							{#if args.start_line}
-								<div class="text-[10px] text-gray-400 dark:text-gray-600 mt-1 px-1">
+								<div class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-1 px-1">
 									{$t('chat.toolLines', {
 										start: args.start_line,
 										end: args.end_line || 'end'
@@ -261,7 +260,7 @@
 				{#if pairedOutput?.output}
 					<div>
 						<div
-							class="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1.5 px-1"
+							class="text-[0.625rem] uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1.5 px-1"
 						>
 							{$t('chat.toolOutput')}
 						</div>
@@ -282,7 +281,7 @@
 										: formattedOutput}</pre>
 							{/if}
 							{#if !imageToolOutput?.length && formattedOutput.length > 10000}
-								<div class="text-[10px] text-gray-400 dark:text-gray-600 mt-1 px-1">
+								<div class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-1 px-1">
 									{$t('chat.totalChars', {
 										count: formattedOutput.length.toLocaleString()
 									})}
