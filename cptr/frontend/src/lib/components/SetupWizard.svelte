@@ -201,8 +201,8 @@
 								bind:value={apiType}
 								class="bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none py-0.5 border-none cursor-pointer"
 							>
-								<option value="chat_completions">Chat Completions</option>
-								<option value="responses">Responses</option>
+								<option value="chat_completions">{$t('connections.chatCompletions')}</option>
+								<option value="responses">{$t('connections.responses')}</option>
 							</select>
 						</div>
 					{/if}

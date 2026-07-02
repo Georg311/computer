@@ -75,7 +75,7 @@
 			<button
 				class="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-600 dark:hover:bg-white/6 dark:hover:text-gray-300 transition-colors duration-75"
 				onclick={handleClose}
-				aria-label="Close"
+				aria-label={$t('common.close')}
 			>
 				<Icon name="xmark" size={14} />
 			</button>

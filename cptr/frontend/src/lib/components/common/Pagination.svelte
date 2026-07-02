@@ -53,7 +53,7 @@
 					class="pagination-btn"
 					class:active={item === page}
 					onclick={() => onpagechange(item)}
-					aria-label="Page {item}"
+					aria-label={$t('a11y.page', { page: item })}
 					aria-current={item === page ? 'page' : undefined}
 				>
 					{item}

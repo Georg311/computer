@@ -144,8 +144,8 @@
 		<button
 			class="key inline-flex items-center justify-center"
 			class:active={dictating}
-			aria-label="Dictate terminal input"
-			title="Dictate terminal input"
+			aria-label={i18next.t('terminal.dictateInput')}
+			title={i18next.t('terminal.dictateInput')}
 			onmousedown={(e) => e.preventDefault()}
 			ontouchstart={(e) => {
 				e.preventDefault();

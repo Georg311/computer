@@ -315,7 +315,9 @@
 			{/each}
 
 			{#if displayItems.length === 0}
-				<div class="text-sm text-gray-400 dark:text-gray-500 italic px-1">No output items</div>
+				<div class="text-sm text-gray-400 dark:text-gray-500 italic px-1">
+					{$t('chat.noOutputItems')}
+				</div>
 			{/if}
 		</div>
 	{/if}

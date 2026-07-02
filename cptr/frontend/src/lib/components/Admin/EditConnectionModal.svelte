@@ -118,7 +118,7 @@
 				>
 				<input
 					type="text"
-					placeholder="Optional"
+					placeholder={$t('connections.optional')}
 					bind:value={formName}
 					autofocus
 					autocomplete="off"
@@ -127,7 +127,9 @@
 				/>
 			</div>
 			<div class="w-28 shrink-0">
-				<label class="text-[0.625rem] text-gray-400 dark:text-gray-600">Provider</label>
+				<label class="text-[0.625rem] text-gray-400 dark:text-gray-600">
+					{$t('connections.provider')}
+				</label>
 				<select
 					bind:value={formProvider}
 					class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer"
@@ -139,13 +141,15 @@
 		</div>
 
 		{#if formProvider === 'openai'}
-			<label class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2">API Type</label>
+			<label class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2">
+				{$t('connections.apiType')}
+			</label>
 			<select
 				bind:value={formApiType}
 				class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer"
 			>
-				<option value="chat_completions">Chat Completions</option>
-				<option value="responses">Responses</option>
+				<option value="chat_completions">{$t('connections.chatCompletions')}</option>
+				<option value="responses">{$t('connections.responses')}</option>
 			</select>
 		{/if}
 

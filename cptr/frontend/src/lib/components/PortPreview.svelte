@@ -126,7 +126,7 @@
 			class="preview-btn {canGoBack ? '' : 'disabled'}"
 			onclick={goBack}
 			disabled={!canGoBack}
-			use:tooltip={'Back'}
+			use:tooltip={$t('settings.back')}
 		>
 			<Icon name="chevron-left" size={12} />
 		</button>
@@ -136,13 +136,13 @@
 			class="preview-btn {canGoForward ? '' : 'disabled'}"
 			onclick={goForward}
 			disabled={!canGoForward}
-			use:tooltip={'Forward'}
+			use:tooltip={$t('common.forward')}
 		>
 			<Icon name="chevron-right" size={12} />
 		</button>
 
 		<!-- Refresh -->
-		<button class="preview-btn" onclick={refresh} use:tooltip={'Refresh'}>
+		<button class="preview-btn" onclick={refresh} use:tooltip={$t('files.refresh')}>
 			<Icon name="refresh" size={12} />
 		</button>
 
@@ -159,7 +159,7 @@
 		</div>
 
 		<!-- Open external -->
-		<button class="preview-btn" onclick={openExternal} use:tooltip={'Open in new tab'}>
+		<button class="preview-btn" onclick={openExternal} use:tooltip={$t('port.openInNewTab')}>
 			<Icon name="external-link" size={12} />
 		</button>
 	</div>
@@ -176,15 +176,15 @@
 		{#if loadError}
 			<div class="preview-error">
 				<p class="error-title">{$t('port.cannotConnect')}</p>
-				<p class="error-sub">localhost:{port} is not responding</p>
-				<button class="error-retry" onclick={refresh}>Retry</button>
+				<p class="error-sub">{$t('port.notResponding', { port })}</p>
+				<button class="error-retry" onclick={refresh}>{$t('files.retry')}</button>
 			</div>
 		{:else}
 			{#key iframeKey}
 				<iframe
 					bind:this={iframeEl}
 					src={proxyUrl}
-					title="Port {port} preview"
+					title={$t('port.previewTitle', { port })}
 					sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
 					class="preview-iframe"
 					onload={onIframeLoad}

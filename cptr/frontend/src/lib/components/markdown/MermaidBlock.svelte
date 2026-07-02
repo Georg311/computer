@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n';
+
 	let { code }: { code: string } = $props();
 
 	let containerEl: HTMLDivElement | undefined = $state();
@@ -27,7 +29,7 @@
 					rendered = true;
 				}
 			} catch (e: any) {
-				error = e.message || 'Failed to render diagram';
+				error = e.message || $t('preview.diagramRenderError');
 			}
 		})();
 	});
@@ -36,7 +38,7 @@
 <div class="mermaid-block">
 	{#if error}
 		<div class="mermaid-error">
-			<span class="mermaid-error-label">Diagram error</span>
+			<span class="mermaid-error-label">{$t('preview.diagramError')}</span>
 			<pre class="mermaid-error-msg">{error}</pre>
 			<pre class="mermaid-source">{code}</pre>
 		</div>

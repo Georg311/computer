@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n';
+
 	interface Props {
 		canSend: boolean;
 		streaming: boolean;
@@ -35,8 +37,8 @@
 			? 'bg-gray-900 text-white dark:bg-white dark:text-black'
 			: 'bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-white/90 dark:text-black dark:hover:bg-white'}"
 		onclick={onvoice}
-		aria-label="Voice mode"
-		title="Voice mode"
+		aria-label={$t('admin.audio.voiceMode')}
+		title={$t('admin.audio.voiceMode')}
 	>
 		<svg
 			xmlns="http://www.w3.org/2000/svg"

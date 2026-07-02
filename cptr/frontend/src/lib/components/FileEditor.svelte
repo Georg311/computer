@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { clearTabEdit, markTabUnsaved, updateTabFilePath, activeWorkspace } from '$lib/stores';
 	import { get } from 'svelte/store';
+	import { t } from '$lib/i18n';
 	import { tooltip } from '$lib/tooltip';
 	import { readFile, writeFile } from '$lib/apis/files';
 	import { getGitDiff } from '$lib/apis/git';
@@ -1210,7 +1211,7 @@
 		{:else if fileData?.binary}
 			<!-- Unknown binary, fallback -->
 			<div class="state">
-				<p class="state-title">Binary file</p>
+				<p class="state-title">{$t('editor.binaryFile')}</p>
 				<p class="state-sub">{fileData.name} ({formatSize(fileData.size)})</p>
 			</div>
 		{:else if diffMode}
@@ -1219,8 +1220,8 @@
 				<div class="state"><Spinner size={20} /></div>
 			{:else if diffFiles.length === 0}
 				<div class="state">
-					<p class="state-title">No changes</p>
-					<p class="state-sub">This file has no uncommitted modifications.</p>
+					<p class="state-title">{$t('editor.noChanges')}</p>
+					<p class="state-sub">{$t('editor.noUncommittedModifications')}</p>
 				</div>
 			{:else}
 				<div class="diff-scroll">

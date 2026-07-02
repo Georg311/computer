@@ -183,7 +183,7 @@
 					<p class="text-xs text-red-400">{error}</p>
 					<button
 						class="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-3 py-1 rounded-lg bg-gray-100 dark:bg-white/6 transition-colors duration-100"
-						onclick={() => fetchDirectories(currentPath)}>Retry</button
+						onclick={() => fetchDirectories(currentPath)}>{$t('saveDialog.retry')}</button
 					>
 				</div>
 			{:else if filteredDirs.length === 0}

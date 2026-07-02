@@ -310,7 +310,9 @@
 		</div>
 
 		{#if profiles.length === 0}
-			<p class="text-[0.8125rem] text-gray-400 dark:text-gray-600 py-4">No agent profiles</p>
+			<p class="text-[0.8125rem] text-gray-400 dark:text-gray-600 py-4">
+				{$t('admin.agentsNoProfiles')}
+			</p>
 		{/if}
 
 		<div class="mt-auto pt-6 flex items-center justify-between">

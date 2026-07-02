@@ -310,13 +310,13 @@ Files:
 )}
 	<div class="mb-2">
 		<span class="text-[0.625rem] text-gray-400 dark:text-gray-600 uppercase tracking-wide"
-			>request params</span
+			>{$t('models.requestParams')}</span
 		>
 		{#each rows as row, i}
 			<div class="group/row flex items-center gap-1.5 h-6">
 				<input
 					type="text"
-					placeholder="key"
+					placeholder={$t('models.paramKey')}
 					bind:value={row.key}
 					oninput={onInput}
 					autocomplete="off"
@@ -325,7 +325,7 @@ Files:
 				/>
 				<input
 					type="text"
-					placeholder="value"
+					placeholder={$t('models.paramValue')}
 					bind:value={row.value}
 					oninput={onInput}
 					autocomplete="off"
@@ -336,7 +336,7 @@ Files:
 					type="button"
 					onclick={() => onRemove(i)}
 					class="shrink-0 text-gray-300 dark:text-gray-700 opacity-0 group-hover/row:opacity-100 hover:text-gray-500 dark:hover:text-gray-400 transition-colors duration-75"
-					aria-label="Remove"
+					aria-label={$t('common.remove')}
 				>
 					<Icon name="xmark" size={8} />
 				</button>
@@ -347,7 +347,7 @@ Files:
 			onclick={onAdd}
 		>
 			<Icon name="plus" size={10} />
-			<span>Add</span>
+			<span>{$t('common.add')}</span>
 		</button>
 	</div>
 {/snippet}

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { HighlighterCore } from 'shiki/core';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		language: string;
@@ -145,18 +146,18 @@
 			{#if isDiff && onapply}
 				<button
 					class="text-[0.6875rem] px-2 py-0.5 rounded text-green-600 hover:bg-green-600/10 transition-all duration-100"
-					onclick={() => onapply?.(code)}>Apply</button
+					onclick={() => onapply?.(code)}>{$t('common.apply')}</button
 				>
 				<button
 					class="text-[0.6875rem] px-2 py-0.5 rounded text-red-600 hover:bg-red-600/10 transition-all duration-100"
-					onclick={() => onreject?.()}>Reject</button
+					onclick={() => onreject?.()}>{$t('common.reject')}</button
 				>
 			{/if}
 			<button
 				class="text-[0.6875rem] px-2 py-0.5 rounded text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/[0.08] transition-all duration-100"
 				onclick={handleCopy}
 			>
-				{copied ? '✓' : 'Copy'}
+				{copied ? '✓' : $t('common.copy')}
 			</button>
 		</div>
 	</div>

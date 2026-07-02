@@ -3,6 +3,7 @@
 	import panzoom, { type PanZoom } from 'panzoom';
 	import { fetchHandler } from '$lib/apis';
 	import Spinner from '$lib/components/common/Spinner.svelte';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		src: string;
@@ -41,7 +42,7 @@
 			await renderAllPages();
 		} catch (e: any) {
 			console.error('PDF render error:', e);
-			error = 'Failed to load PDF.';
+			error = $t('preview.pdfLoadError');
 		} finally {
 			loading = false;
 		}
@@ -240,7 +241,7 @@
 
 	{#if !loading && !error && pdfDoc}
 		<div class="zoom-toolbar">
-			<button class="zoom-btn" onclick={zoomOut} aria-label="Zoom out">
+			<button class="zoom-btn" onclick={zoomOut} aria-label={$t('a11y.zoomOut')}>
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					viewBox="0 0 20 20"
@@ -255,10 +256,10 @@
 					/>
 				</svg>
 			</button>
-			<button class="zoom-level" onclick={resetView} aria-label="Reset zoom">
+			<button class="zoom-level" onclick={resetView} aria-label={$t('a11y.resetZoom')}>
 				{Math.round(zoomLevel * 100)}%
 			</button>
-			<button class="zoom-btn" onclick={zoomIn} aria-label="Zoom in">
+			<button class="zoom-btn" onclick={zoomIn} aria-label={$t('a11y.zoomIn')}>
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					viewBox="0 0 20 20"

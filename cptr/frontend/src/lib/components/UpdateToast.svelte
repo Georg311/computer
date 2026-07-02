@@ -25,7 +25,7 @@
 		<button
 			onclick={onclose}
 			class="app-icon-muted app-interactive ml-0.5 flex items-center justify-center w-5 h-5 rounded transition-colors duration-75"
-			aria-label="Dismiss"
+			aria-label={$t('a11y.dismissNotification')}
 		>
 			<Icon name="xmark" size={12} />
 		</button>

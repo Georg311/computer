@@ -102,7 +102,7 @@
 			reviewFiles = nextFiles;
 		} catch (e) {
 			if (seq !== loadSeq) return;
-			error = e instanceof Error ? e.message : 'Failed to load git changes';
+			error = e instanceof Error ? e.message : $t('git.loadChangesFailed');
 			reviewFiles = [];
 		} finally {
 			if (seq === loadSeq) {
@@ -265,13 +265,15 @@
 	{:else if error && !gitStatus}
 		<div class="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
 			<Icon name="git-diff" size={24} class="text-gray-300 dark:text-gray-700" />
-			<p class="text-xs font-medium text-gray-700 dark:text-gray-300">Unable to load changes</p>
+			<p class="text-xs font-medium text-gray-700 dark:text-gray-300">
+				{$t('git.unableToLoadChanges')}
+			</p>
 			<p class="max-w-sm text-[0.6875rem] text-gray-400 dark:text-gray-600">{error}</p>
 		</div>
 	{:else if !gitStatus?.is_repo}
 		<div class="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
 			<Icon name="git-branch" size={24} class="text-gray-300 dark:text-gray-700" />
-			<p class="text-xs text-gray-400 dark:text-gray-600">Not a git repository</p>
+			<p class="text-xs text-gray-400 dark:text-gray-600">{$t('git.notARepo')}</p>
 		</div>
 	{:else}
 		<header
@@ -300,7 +302,7 @@
 				{/if}
 				{#if totalChanges > 0}
 					<span class="ml-1 font-mono text-[0.625rem] text-gray-400 dark:text-gray-600"
-						>{totalChanges} changed</span
+						>{$t('git.changedCount', { count: totalChanges })}</span
 					>
 				{/if}
 			</div>
@@ -325,11 +327,13 @@
 					onclick={toggleAll}
 				>
 					<Icon name={anyExpanded ? 'chevron-down' : 'chevron-right'} size={12} />
-					<span>{anyExpanded ? 'Collapse All' : 'Expand All'}</span>
+					<span>{anyExpanded ? $t('git.collapseAll') : $t('git.expandAll')}</span>
 				</button>
-				<span class="text-[0.6875rem] text-gray-500 dark:text-gray-400">Uncommitted</span>
+				<span class="text-[0.6875rem] text-gray-500 dark:text-gray-400">
+					{$t('git.uncommittedChanges')}
+				</span>
 				<span class="ml-auto text-[0.6875rem] text-gray-400 dark:text-gray-600"
-					>{totalChanges} {totalChanges === 1 ? 'change' : 'changes'}</span
+					>{$t('git.change', { count: totalChanges })}</span
 				>
 			</div>
 		{/if}
@@ -345,10 +349,10 @@
 							class="text-gray-300 dark:text-gray-700"
 						/>
 						<h2 class="text-sm font-medium text-gray-700 dark:text-gray-300">
-							No file changes yet
+							{$t('git.noFileChangesYet')}
 						</h2>
 						<p class="text-xs text-gray-400 dark:text-gray-600">
-							Changes in this project will appear here.
+							{$t('git.projectChangesHint')}
 						</p>
 					</div>
 				</div>
@@ -406,7 +410,7 @@
 								<span
 									class="shrink-0 rounded px-1.5 py-0.5 text-[0.625rem] font-medium text-rose-500 bg-rose-50 dark:bg-rose-500/10 dark:text-rose-300"
 								>
-									{file.staged ? 'Staged' : 'Uncommitted'}
+									{file.staged ? $t('git.staged') : $t('git.uncommittedChanges')}
 								</span>
 							</button>
 
@@ -462,7 +466,7 @@
 											<div
 												class="px-3 py-8 text-center text-[0.6875rem] text-gray-400 dark:text-gray-600"
 											>
-												No textual diff available
+												{$t('git.noTextualDiff')}
 											</div>
 										{/if}
 									</div>

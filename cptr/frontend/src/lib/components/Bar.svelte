@@ -30,7 +30,7 @@
 		const direction = $activeWorkspace?.splitDirection ?? 'horizontal';
 		return [
 			{
-				label: 'Split Right',
+				label: $t('bar.splitRight'),
 				icon: 'split-horizontal',
 				active: direction === 'horizontal',
 				onclick: () => {
@@ -39,7 +39,7 @@
 				}
 			},
 			{
-				label: 'Split Down',
+				label: $t('bar.splitDown'),
 				icon: 'split-vertical',
 				active: direction === 'vertical',
 				onclick: () => {
@@ -100,8 +100,8 @@
 					? 'bg-gray-200 text-gray-900 dark:bg-white/8 dark:text-white'
 					: 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}"
 				onclick={() => (showSplitMenu = !showSplitMenu)}
-				aria-label="Split Editor"
-				use:tooltip={'Split Editor'}
+				aria-label={$t('a11y.splitEditor')}
+				use:tooltip={$t('a11y.splitEditor')}
 			>
 				<Icon
 					name={$activeWorkspace?.splitDirection === 'vertical'

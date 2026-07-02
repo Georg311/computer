@@ -84,8 +84,10 @@
 
 	function statusLabel(session: CommandSession): string {
 		if (!session.done) return elapsedLabel(session.created_at);
-		if (session.exit_code && session.exit_code !== 0) return `Failed ${session.exit_code}`;
-		return 'Finished';
+		if (session.exit_code && session.exit_code !== 0) {
+			return $t('chat.failedWithCode', { code: session.exit_code });
+		}
+		return $t('chat.finished');
 	}
 
 	function terminateSelectedSession() {
@@ -126,7 +128,7 @@
 					onclick={onclose}
 				>
 					<Icon name="chevron-left" size={12} />
-					<span>Back</span>
+					<span>{$t('settings.back')}</span>
 				</button>
 				<div class="min-w-0 flex-1">
 					<div class="truncate font-mono text-xs font-medium text-gray-900 dark:text-white">
@@ -136,11 +138,11 @@
 				<button
 					type="button"
 					class="h-7 shrink-0 px-1.5 text-xs text-gray-400 underline-offset-2 transition-colors duration-75 hover:text-gray-700 hover:underline disabled:cursor-default disabled:text-gray-300 disabled:no-underline dark:text-gray-600 dark:hover:text-gray-200 dark:disabled:text-gray-700"
-					title={terminatingSelectedSession ? 'Terminating' : 'Force terminate'}
+					title={terminatingSelectedSession ? $t('chat.terminating') : $t('chat.forceTerminate')}
 					disabled={terminatingSelectedSession}
 					onclick={terminateSelectedSession}
 				>
-					{terminatingSelectedSession ? 'Terminating' : 'Terminate'}
+					{terminatingSelectedSession ? $t('chat.terminating') : $t('chat.terminate')}
 				</button>
 			</div>
 			<div class="min-h-0 flex-1" style="background: var(--app-bg); color: var(--app-fg);">
@@ -167,7 +169,7 @@
 				<div
 					class="rounded-xl px-1.5 py-1.5 text-[0.6875rem] leading-relaxed text-gray-400 dark:text-gray-600"
 				>
-					Live session unavailable. Saved output remains in the chat.
+					{$t('chat.sessionUnavailable')}
 				</div>
 			{/if}
 
@@ -176,7 +178,7 @@
 					<div
 						class="px-1.5 pb-0.5 pt-1.5 text-[0.625rem] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600"
 					>
-						Sessions
+						{$t('chat.sessions')}
 					</div>
 					{#each runningSessions as session}
 						<div
@@ -201,7 +203,7 @@
 			<section>
 				<div class="rounded-xl px-1.5 py-1.5 text-gray-600 dark:text-gray-400">
 					<div class="flex h-5 items-center gap-3">
-						<span class="min-w-0 flex-1 truncate">Context</span>
+						<span class="min-w-0 flex-1 truncate">{$t('chat.statusContextUsage')}</span>
 						<span class="shrink-0 font-mono text-[0.625rem] text-gray-400 dark:text-gray-600">
 							{contextValue}
 						</span>
@@ -218,7 +220,7 @@
 					<div
 						class="flex h-7 items-center gap-3 rounded-xl px-1.5 text-gray-600 dark:text-gray-400"
 					>
-						<span class="min-w-0 flex-1 truncate">Queued messages</span>
+						<span class="min-w-0 flex-1 truncate">{$t('chat.queuedMessages')}</span>
 						<span class="font-mono text-[0.625rem] text-gray-400 dark:text-gray-600">
 							{queuedMessages.length}
 						</span>
@@ -229,7 +231,7 @@
 					<div
 						class="flex h-7 items-center gap-3 rounded-xl px-1.5 text-gray-600 dark:text-gray-400"
 					>
-						<span class="min-w-0 flex-1 truncate">Chat ID</span>
+						<span class="min-w-0 flex-1 truncate">{$t('chat.statusChatId')}</span>
 						<button
 							type="button"
 							class="min-w-0 max-w-[11rem] truncate font-mono text-[0.625rem] text-gray-400 underline-offset-2 transition-colors duration-75 hover:text-gray-700 hover:underline dark:text-gray-600 dark:hover:text-gray-200"
@@ -242,7 +244,7 @@
 					<div
 						class="flex h-7 items-center gap-3 rounded-xl px-1.5 text-gray-600 dark:text-gray-400"
 					>
-						<span class="min-w-0 flex-1 truncate">Chat ID</span>
+						<span class="min-w-0 flex-1 truncate">{$t('chat.statusChatId')}</span>
 						<span class="font-mono text-[0.625rem] text-gray-400 dark:text-gray-600">
 							{$t('chat.statusNoChat')}
 						</span>

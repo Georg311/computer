@@ -349,7 +349,7 @@
 			flash($t('git.uncommitted'));
 			switchView('changes');
 		} catch (e) {
-			flash(e instanceof Error ? e.message : 'Failed to undo commit');
+			flash(e instanceof Error ? e.message : $t('git.uncommitFailed'));
 		}
 		loading = false;
 		await refresh();
@@ -449,7 +449,7 @@
 					message?: string;
 				};
 				if (!stashResult.ok) {
-					flash(stashResult.message || 'No changes stashed');
+					flash(stashResult.message || $t('git.noChangesStashed'));
 					return;
 				}
 			}
@@ -457,7 +457,7 @@
 			pendingCheckoutBranch = null;
 			await restoreStashedChangesForBranch(branch);
 		} catch (e) {
-			flash(e instanceof Error ? e.message : 'Failed to switch branch');
+			flash(e instanceof Error ? e.message : $t('git.switchBranchFailed'));
 		} finally {
 			loading = false;
 			await refresh();
@@ -493,7 +493,7 @@
 				await loadWorktrees();
 			}
 		} catch (e) {
-			flash(e instanceof Error ? e.message : 'Failed to create worktree');
+			flash(e instanceof Error ? e.message : $t('git.createWorktreeFailed'));
 		} finally {
 			loading = false;
 		}
@@ -512,7 +512,7 @@
 					message?: string;
 				};
 				if (!stashResult.ok) {
-					flash(stashResult.message || 'No changes stashed');
+					flash(stashResult.message || $t('git.noChangesStashed'));
 					return;
 				}
 			}
@@ -522,7 +522,7 @@
 			showBranches = false;
 			pendingCreateBranch = null;
 		} catch (e) {
-			flash(e instanceof Error ? e.message : 'Failed to create branch');
+			flash(e instanceof Error ? e.message : $t('git.createBranchFailed'));
 		} finally {
 			loading = false;
 			await refresh();
@@ -564,36 +564,36 @@
 
 	async function renameBranch(branch: BranchItem) {
 		if (!branch.is_local) return;
-		const nextName = window.prompt('Rename branch', branch.name)?.trim();
+		const nextName = window.prompt($t('git.renameBranch'), branch.name)?.trim();
 		if (!nextName || nextName === branch.name) return;
 		try {
 			await renameGitBranch(workspacePath, branch.name, nextName);
-			flash('Branch renamed');
+			flash($t('git.branchRenamed'));
 			closeBranchActionMenu();
 			await refresh({ force: true });
 			await loadBranches();
 		} catch (e) {
-			flash(e instanceof Error ? e.message : 'Failed to rename branch');
+			flash(e instanceof Error ? e.message : $t('git.renameBranchFailed'));
 		}
 	}
 
 	function copyBranchName(branch: BranchItem) {
 		navigator.clipboard.writeText(branch.name);
-		flash('Branch name copied');
+		flash($t('git.branchNameCopied'));
 		closeBranchActionMenu();
 	}
 
 	async function deleteBranch(branch: BranchItem) {
 		if (!branch.is_local || branch.is_current) return;
-		if (!confirm(`Delete branch "${branch.name}"?`)) return;
+		if (!confirm($t('git.deleteBranchConfirm', { name: branch.name }))) return;
 		try {
 			await deleteGitBranch(workspacePath, branch.name);
-			flash('Branch deleted');
+			flash($t('git.branchDeleted'));
 			closeBranchActionMenu();
 			await refresh({ force: true });
 			await loadBranches();
 		} catch (e) {
-			flash(e instanceof Error ? e.message : 'Failed to delete branch');
+			flash(e instanceof Error ? e.message : $t('git.deleteBranchFailed'));
 		}
 	}
 
@@ -864,7 +864,7 @@
 							<input
 								bind:this={branchSearchInputEl}
 								bind:value={branchSearch}
-								placeholder="Search"
+								placeholder={$t('search.search')}
 								class="w-full bg-transparent text-[0.6875rem] text-gray-500 dark:text-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 outline-none"
 								onkeydown={(e) => {
 									if (e.key === 'Escape') showBranches = false;
@@ -884,7 +884,7 @@
 							<div
 								class="px-2 pt-1 pb-0.5 text-[0.625rem] uppercase text-gray-300 dark:text-gray-600"
 							>
-								Branches
+								{$t('git.branches')}
 							</div>
 							{#each filteredBranches as branch (branch.name)}
 								<div
@@ -915,7 +915,7 @@
 									</button>
 									<button
 										class="flex items-center justify-center w-5 h-5 mr-0.5 rounded-lg shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-all duration-75"
-										aria-label="Branch actions"
+										aria-label={$t('git.branchActions')}
 										onclick={(e) => {
 											e.stopPropagation();
 											branchActionMenu = { branch, anchor: e.currentTarget as HTMLElement };
@@ -929,12 +929,12 @@
 
 						{#if filteredBranches.length === 0}
 							<div class="px-3 py-2 text-[0.6875rem] text-gray-400 dark:text-gray-500 text-center">
-								No branches found
+								{$t('git.noBranchesFound')}
 							</div>
 						{/if}
 					{:else if branchData}
 						<div class="px-3 py-2 text-[0.6875rem] text-gray-400 dark:text-gray-500 text-center">
-							No branches found
+							{$t('git.noBranchesFound')}
 						</div>
 					{/if}
 				{/snippet}
@@ -981,7 +981,7 @@
 							}}
 						>
 							<Icon name="plus" size={14} />
-							<span class="truncate">New branch</span>
+							<span class="truncate">{$t('git.newBranch')}</span>
 						</button>
 					{/if}
 				{/snippet}
@@ -1013,7 +1013,7 @@
 							<input
 								bind:this={worktreeSearchInputEl}
 								bind:value={worktreeSearch}
-								placeholder="Search worktrees"
+								placeholder={$t('git.searchWorktrees')}
 								class="w-full bg-transparent text-[0.6875rem] text-gray-500 dark:text-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 outline-none"
 								onkeydown={(e) => {
 									if (e.key === 'Escape') showWorktrees = false;
@@ -1033,7 +1033,7 @@
 							<div
 								class="px-2 pt-1 pb-0.5 text-[0.625rem] uppercase text-gray-300 dark:text-gray-600"
 							>
-								Worktrees
+								{$t('git.worktrees')}
 							</div>
 							{#each filteredWorktrees as worktree (worktree.path)}
 								<button
@@ -1068,7 +1068,7 @@
 							{/each}
 						{:else}
 							<div class="px-3 py-2 text-[0.6875rem] text-gray-400 dark:text-gray-500 text-center">
-								No worktrees found
+								{$t('git.noWorktreesFound')}
 							</div>
 						{/if}
 					{/if}
@@ -1081,7 +1081,7 @@
 								bind:this={newWorktreeInputEl}
 								type="text"
 								class="flex-1 border-none outline-none bg-transparent text-xs text-gray-900 dark:text-white placeholder:text-gray-400"
-								placeholder="Branch name"
+								placeholder={$t('git.branchName')}
 								bind:value={newWorktreeBranch}
 								onkeydown={(e) => {
 									if (e.key === 'Enter') createWorktree();
@@ -1117,7 +1117,7 @@
 							}}
 						>
 							<Icon name="plus" size={14} />
-							<span class="truncate">New worktree</span>
+							<span class="truncate">{$t('git.newWorktree')}</span>
 						</button>
 					{/if}
 				{/snippet}
@@ -1331,7 +1331,7 @@
 												class="text-gray-400 dark:text-gray-600 shrink-0"
 											/>
 											<span class="text-[0.625rem] text-gray-400 dark:text-gray-600">
-												{unpushedCount} unpushed {unpushedCount === 1 ? 'commit' : 'commits'}
+												{$t('git.unpushedCommit', { count: unpushedCount })}
 											</span>
 										</div>
 									{/if}
@@ -1345,7 +1345,7 @@
 										{#if i < unpushedCount}
 											<span
 												class="w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-blue-400 shrink-0"
-												title="Unpushed"
+												title={$t('git.unpushed')}
 											></span>
 										{/if}
 										<div class="flex flex-col min-w-0 flex-1">
@@ -1469,11 +1469,11 @@
 {#if pendingCheckoutBranch}
 	<Modal onclose={() => (pendingCheckoutBranch = null)} class="w-full max-w-sm mx-4">
 		<div class="p-4">
-			<h2 class="text-sm font-medium text-gray-900 dark:text-white">Switch branches?</h2>
+			<h2 class="text-sm font-medium text-gray-900 dark:text-white">{$t('git.switchBranches')}</h2>
 			<p class="mt-1.5 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
-				You have {totalChanges} changed {totalChanges === 1 ? 'file' : 'files'} on
-				<span class="font-mono text-gray-700 dark:text-gray-300">{gitStatus?.branch}</span>. Choose
-				whether to leave those changes here or bring them to
+				{$t('git.moveChangesPromptPrefix', { count: totalChanges })}
+				<span class="font-mono text-gray-700 dark:text-gray-300">{gitStatus?.branch}</span>.
+				{$t('git.moveChangesPromptMiddle')}
 				<span class="font-mono text-gray-700 dark:text-gray-300">{pendingCheckoutBranch}</span>.
 			</p>
 			<div class="mt-4 flex items-center justify-end gap-2">
@@ -1481,21 +1481,21 @@
 					class="px-2.5 py-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
 					onclick={() => (pendingCheckoutBranch = null)}
 				>
-					Cancel
+					{$t('common.cancel')}
 				</button>
 				<button
 					class="px-2.5 py-1 text-xs text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
 					onclick={() => performBranchCheckout(pendingCheckoutBranch!, 'leave')}
 					disabled={loading}
 				>
-					Leave changes
+					{$t('git.leaveChanges')}
 				</button>
 				<button
 					class="px-3.5 py-1.5 text-xs bg-black hover:bg-gray-900 text-white dark:bg-white dark:text-black dark:hover:bg-gray-100 transition-colors rounded-full disabled:opacity-50"
 					onclick={() => performBranchCheckout(pendingCheckoutBranch!, 'bring')}
 					disabled={loading}
 				>
-					Bring changes
+					{$t('git.bringChanges')}
 				</button>
 			</div>
 		</div>
@@ -1505,11 +1505,13 @@
 {#if pendingCreateBranch}
 	<Modal onclose={() => (pendingCreateBranch = null)} class="w-full max-w-sm mx-4">
 		<div class="p-4">
-			<h2 class="text-sm font-medium text-gray-900 dark:text-white">Create branch?</h2>
+			<h2 class="text-sm font-medium text-gray-900 dark:text-white">
+				{$t('git.createBranchPrompt')}
+			</h2>
 			<p class="mt-1.5 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
-				You have {totalChanges} changed {totalChanges === 1 ? 'file' : 'files'} on
-				<span class="font-mono text-gray-700 dark:text-gray-300">{gitStatus?.branch}</span>. Choose
-				whether to leave those changes here or bring them to
+				{$t('git.moveChangesPromptPrefix', { count: totalChanges })}
+				<span class="font-mono text-gray-700 dark:text-gray-300">{gitStatus?.branch}</span>.
+				{$t('git.moveChangesPromptMiddle')}
 				<span class="font-mono text-gray-700 dark:text-gray-300">{pendingCreateBranch}</span>.
 			</p>
 			<div class="mt-4 flex items-center justify-end gap-2">
@@ -1517,21 +1519,21 @@
 					class="px-2.5 py-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
 					onclick={() => (pendingCreateBranch = null)}
 				>
-					Cancel
+					{$t('common.cancel')}
 				</button>
 				<button
 					class="px-2.5 py-1 text-xs text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
 					onclick={() => performBranchCreate(pendingCreateBranch!, 'leave')}
 					disabled={loading}
 				>
-					Leave changes
+					{$t('git.leaveChanges')}
 				</button>
 				<button
 					class="px-3.5 py-1.5 text-xs bg-black hover:bg-gray-900 text-white dark:bg-white dark:text-black dark:hover:bg-gray-100 transition-colors rounded-full disabled:opacity-50"
 					onclick={() => performBranchCreate(pendingCreateBranch!, 'bring')}
 					disabled={loading}
 				>
-					Bring changes
+					{$t('git.bringChanges')}
 				</button>
 			</div>
 		</div>
@@ -1545,21 +1547,21 @@
 			...(branchActionMenu.branch.is_local
 				? [
 						{
-							label: 'Rename',
+							label: $t('files.rename'),
 							icon: 'pencil',
 							onclick: () => renameBranch(branchActionMenu!.branch)
 						}
 					]
 				: []),
 			{
-				label: 'Copy branch name',
+				label: $t('git.copyBranchName'),
 				icon: 'copy',
 				onclick: () => copyBranchName(branchActionMenu!.branch)
 			},
 			...(branchActionMenu.branch.is_local && !branchActionMenu.branch.is_current
 				? [
 						{
-							label: 'Delete',
+							label: $t('files.delete'),
 							icon: 'xmark',
 							onclick: () => deleteBranch(branchActionMenu!.branch)
 						}

@@ -4,6 +4,7 @@
 	import panzoom, { type PanZoom } from 'panzoom';
 	import { onMount, onDestroy } from 'svelte';
 	import DOMPurify from 'dompurify';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		content: string;
@@ -77,7 +78,7 @@
 				onclick={() => {
 					mode = 'visual';
 				}}
-				use:tooltip={'Visual'}><Icon name="eye" size={14} /></button
+				use:tooltip={$t('preview.visual')}><Icon name="eye" size={14} /></button
 			>
 			<button
 				class="toolbar-btn"
@@ -85,10 +86,10 @@
 				onclick={() => {
 					mode = 'source';
 				}}
-				use:tooltip={'Source'}><Icon name="code" size={14} /></button
+				use:tooltip={$t('preview.source')}><Icon name="code" size={14} /></button
 			>
 			{#if mode === 'visual'}
-				<button class="toolbar-btn" onclick={resetView} use:tooltip={'Reset zoom'}>
+				<button class="toolbar-btn" onclick={resetView} use:tooltip={$t('a11y.resetZoom')}>
 					<span class="zoom-text">{Math.round(zoomLevel * 100)}%</span>
 				</button>
 			{/if}

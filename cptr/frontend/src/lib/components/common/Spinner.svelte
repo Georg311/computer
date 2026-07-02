@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n';
+
 	interface Props {
 		/** Size in px or Tailwind class like '3.5' or '5'. Defaults to 1rem. */
 		size?: number | string;
@@ -17,7 +19,7 @@
 	class="spinner {className}"
 	style="width:{px}px;height:{px}px;border-width:{bw}px"
 	role="status"
-	aria-label="Loading"
+	aria-label={$t('common.loading')}
 ></div>
 
 <style>

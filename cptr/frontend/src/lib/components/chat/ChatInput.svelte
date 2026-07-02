@@ -991,7 +991,9 @@
 		<div
 			class="app-theme app-surface absolute left-2 bottom-full mb-1 z-50 w-60 max-h-40 overflow-y-auto rounded-xl border shadow-xl p-0.5"
 		>
-			<div class="app-muted mb-0.5 px-2 pt-1 pb-0.5 text-[0.625rem] leading-none">Commands</div>
+			<div class="app-muted mb-0.5 px-2 pt-1 pb-0.5 text-[0.625rem] leading-none">
+				{$t('chat.commands')}
+			</div>
 			{#if slashCommandIds.includes('compact')}
 				<button
 					type="button"

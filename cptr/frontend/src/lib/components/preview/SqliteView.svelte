@@ -179,7 +179,7 @@
 				<textarea
 					class="query-input"
 					bind:value={customQuery}
-					placeholder="SELECT * FROM ..."
+					placeholder={$t('sqlite.queryPlaceholder')}
 					rows="2"
 					onkeydown={(e) => {
 						if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') runQuery();

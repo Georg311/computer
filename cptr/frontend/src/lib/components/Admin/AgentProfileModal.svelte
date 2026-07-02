@@ -168,7 +168,7 @@
 			id={`${fieldPrefix}-home`}
 			type="text"
 			value={draft.home || ''}
-			placeholder="Optional"
+			placeholder={$t('admin.optional')}
 			autocomplete="off"
 			spellcheck="false"
 			oninput={(e) => (draft.home = e.currentTarget.value || null)}
@@ -203,7 +203,7 @@
 				id={`${fieldPrefix}-api-endpoint`}
 				type="text"
 				bind:value={draft.api_endpoint}
-				placeholder="Optional"
+				placeholder={$t('admin.optional')}
 				autocomplete="off"
 				spellcheck="false"
 				class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
@@ -221,7 +221,7 @@
 				id={`${fieldPrefix}-server-url`}
 				type="text"
 				bind:value={draft.server_url}
-				placeholder="Optional"
+				placeholder={$t('admin.optional')}
 				autocomplete="off"
 				spellcheck="false"
 				class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"
@@ -237,7 +237,7 @@
 				id={`${fieldPrefix}-server-password`}
 				type="password"
 				bind:value={draft.server_password}
-				placeholder="Optional"
+				placeholder={$t('admin.optional')}
 				autocomplete="off"
 				spellcheck="false"
 				class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-700 outline-none py-0.5 font-mono"

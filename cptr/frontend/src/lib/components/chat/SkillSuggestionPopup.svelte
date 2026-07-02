@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n';
+
 	interface SuggestionItem {
 		id: string;
 		label: string;
@@ -28,9 +30,11 @@
 	class="app-theme app-surface fixed z-50 w-60 max-h-40 overflow-y-auto rounded-xl border shadow-xl p-0.5"
 >
 	{#if items.length === 0}
-		<div class="app-muted flex items-center h-6 px-2 text-xs">No skills found</div>
+		<div class="app-muted flex items-center h-6 px-2 text-xs">{$t('chat.noSkillsFound')}</div>
 	{:else}
-		<div class="app-muted px-2 pt-1 pb-0.5 text-[0.625rem] leading-none">Skills</div>
+		<div class="app-muted px-2 pt-1 pb-0.5 text-[0.625rem] leading-none">
+			{$t('chat.skills')}
+		</div>
 		<div bind:this={listEl}>
 			{#each items as item, i (item.id)}
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
