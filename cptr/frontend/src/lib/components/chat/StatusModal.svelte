@@ -143,7 +143,7 @@
 					{terminatingSelectedSession ? 'Terminating' : 'Terminate'}
 				</button>
 			</div>
-			<div class="min-h-0 flex-1 bg-white dark:bg-black">
+			<div class="min-h-0 flex-1" style="background: var(--app-bg); color: var(--app-fg);">
 				<Terminal
 					wsPath={`/api/terminal/sessions/${selectedSession.command_session_id}/ws`}
 					initialOutput={selectedSession.output ?? ''}

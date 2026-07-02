@@ -84,6 +84,7 @@
 	"search.noRecentChats": "Sem conversas recentes",
 	"settings.back": "Voltar",
 	"settings.general": "Geral",
+	"settings.appearance": "Appearance",
 	"settings.memory": "Memória",
 	"pwa.settingsTitle": "Aplicativo Web Progressivo",
 	"intent.chooseWorkspace": "Workspace",
@@ -863,5 +864,18 @@
 	"general.uiScale": "UI Scale",
 	"general.default": "Default",
 	"general.decreaseUiScale": "Decrease UI Scale",
-	"general.increaseUiScale": "Increase UI Scale"
+	"general.increaseUiScale": "Increase UI Scale",
+	"appearance.title": "Appearance",
+	"appearance.colors": "Colors",
+	"appearance.interface": "Interface",
+	"appearance.import": "Import",
+	"appearance.exportTheme": "Export",
+	"appearance.reset": "Reset",
+	"appearance.background": "Background",
+	"appearance.foreground": "Foreground",
+	"appearance.uiFont": "UI font",
+	"appearance.exported": "Theme exported",
+	"appearance.exportFailed": "Failed to export theme",
+	"appearance.imported": "Theme imported",
+	"appearance.importFailed": "Failed to import theme"
 }

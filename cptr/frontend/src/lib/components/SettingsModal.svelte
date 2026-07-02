@@ -3,6 +3,7 @@
 	import Icon from './Icon.svelte';
 	import Modal from './Modal.svelte';
 	import General from './Settings/General.svelte';
+	import Appearance from './Settings/Appearance.svelte';
 	import Memory from './Settings/Memory.svelte';
 	import PWA from './Settings/PWA.svelte';
 	import Account from './Settings/Account.svelte';
@@ -24,6 +25,7 @@
 
 	type Tab =
 		| 'general'
+		| 'appearance'
 		| 'memory'
 		| 'pwa'
 		| 'keyboard'
@@ -73,6 +75,7 @@
 	const personalTabs: SettingsTab[] = $derived.by(() => {
 		const tabs: SettingsTab[] = [
 			{ id: 'general', label: $t('settings.general'), icon: 'settings' },
+			{ id: 'appearance', label: $t('settings.appearance'), icon: 'sun-light' },
 			{ id: 'keyboard', label: $t('settings.keyboard'), icon: 'terminal' },
 			{ id: 'account', label: $t('settings.account'), icon: 'user' }
 		];
@@ -172,9 +175,11 @@
 		</div>
 	</nav>
 
-	<div class="flex-1 overflow-y-auto min-h-0 p-4 md:px-5">
+	<div class="flex-1 overflow-y-auto scrollbar-none min-h-0 p-4 md:px-5">
 		{#if activeTab === 'general'}
 			<General />
+		{:else if activeTab === 'appearance'}
+			<Appearance />
 		{:else if activeTab === 'memory'}
 			<Memory />
 		{:else if activeTab === 'pwa' && showPwaSettings}

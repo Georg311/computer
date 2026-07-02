@@ -30,7 +30,15 @@ import { streamingChatTabs } from '$lib/stores/chat';
 import { keybindings, loadKeybindings } from '$lib/stores/keybindings';
 import { defaultPwaPreferences, type PwaPreferences } from '$lib/intents/types';
 import { getPathDisplayName, isSupportedWorkspacePath } from '$lib/utils/paths';
-import { setTextScale } from '$lib/utils/text-scale';
+import {
+	applyAppearance,
+	sanitizeThemeConfig,
+	type AppearancePreferences,
+	type Theme,
+	type ThemeConfig
+} from '$lib/utils/appearance';
+
+export type { AppearancePreferences, Theme, ThemeConfig };
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -70,7 +78,8 @@ export interface WorkspaceState {
 export type ToolApprovalMode = 'ask' | 'auto' | 'full';
 
 export interface UserPreferences {
-	theme: Theme;
+	theme?: Theme;
+	appearance?: AppearancePreferences;
 	sidebarOpen: boolean;
 	sidebarWidth: number;
 	toolApprovalMode: ToolApprovalMode;
@@ -85,8 +94,6 @@ export interface UserPreferences {
 	pwa?: PwaPreferences;
 	textScale?: number | null;
 }
-
-export type Theme = 'dark' | 'light' | 'system';
 
 // ── ID generation ───────────────────────────────────────────────
 
@@ -174,6 +181,7 @@ export type StreamingBehavior = 'queue' | 'interrupt';
 export const streamingBehavior = writable<StreamingBehavior>('queue');
 export const selectedModelId = writable<string>('');
 export const pwaPreferences = writable<PwaPreferences>(defaultPwaPreferences);
+export const themeConfig = writable<ThemeConfig | null>(null);
 export const textScale = writable<number | null>(null);
 
 /** Saved workspace path order for sidebar drag-reorder. */
@@ -300,6 +308,11 @@ function persistPreferences(): void {
 	_savePrefTimer = setTimeout(() => {
 		const prefs: UserPreferences = {
 			theme: get(theme),
+			appearance: {
+				theme: get(theme),
+				themeConfig: sanitizeThemeConfig(get(themeConfig)),
+				textScale: get(textScale) ?? undefined
+			},
 			sidebarOpen: get(sidebarOpen),
 			sidebarWidth: get(sidebarWidth),
 			toolApprovalMode: get(toolApprovalMode),
@@ -326,6 +339,9 @@ function subscribeForPersistence() {
 		if (get(stateLoaded)) persistWorkspace();
 	});
 	theme.subscribe(() => {
+		if (get(stateLoaded)) persistPreferences();
+	});
+	themeConfig.subscribe(() => {
 		if (get(stateLoaded)) persistPreferences();
 	});
 	sidebarOpen.subscribe(() => {
@@ -374,7 +390,11 @@ function subscribeForPersistence() {
 export async function loadPreferences(): Promise<void> {
 	try {
 		const prefs = await getPreferences();
-		if (prefs.theme) theme.set(prefs.theme as Theme);
+		const appearance = (
+			prefs.appearance && typeof prefs.appearance === 'object' ? prefs.appearance : {}
+		) as AppearancePreferences;
+		if (appearance.theme || prefs.theme) theme.set((appearance.theme ?? prefs.theme) as Theme);
+		themeConfig.set(sanitizeThemeConfig(appearance.themeConfig));
 		if (prefs.sidebarOpen !== undefined) sidebarOpen.set(prefs.sidebarOpen as boolean);
 		if (prefs.sidebarWidth !== undefined) sidebarWidth.set(prefs.sidebarWidth as number);
 		// Support new toolApprovalMode and legacy boolean autoApproveTools
@@ -393,7 +413,13 @@ export async function loadPreferences(): Promise<void> {
 		if (prefs.requestParams) requestParams.set(prefs.requestParams as Record<string, unknown>);
 		if (prefs.showUpdateToast !== undefined)
 			showUpdateToastPref.set(prefs.showUpdateToast as boolean);
-		textScale.set(typeof prefs.textScale === 'number' ? (prefs.textScale as number) : null);
+		textScale.set(
+			typeof appearance.textScale === 'number'
+				? appearance.textScale
+				: typeof prefs.textScale === 'number'
+					? (prefs.textScale as number)
+					: null
+		);
 		const pwaPrefs = prefs.pwa;
 		if (pwaPrefs)
 			pwaPreferences.set({
@@ -496,26 +522,19 @@ export async function initState(): Promise<void> {
 /** @deprecated Use initState */
 export const loadStateFromServer = initState;
 
-// ── Theme application ───────────────────────────────────────────
+// ── Appearance application ──────────────────────────────────────
 
-function applyTheme(t: Theme) {
-	if (typeof window === 'undefined') return;
-	let resolved = t;
-	if (t === 'system') {
-		resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-	}
-	document.documentElement.classList.toggle('dark', resolved === 'dark');
-	document.documentElement.style.colorScheme = resolved;
-	const meta = document.querySelector('meta[name="theme-color"]');
-	if (meta) meta.setAttribute('content', resolved === 'dark' ? '#0d0d0d' : '#ffffff');
+function applyCurrentAppearance() {
+	applyAppearance(get(theme), get(themeConfig), get(textScale));
 }
 
-theme.subscribe(applyTheme);
-textScale.subscribe((scale) => setTextScale(scale ?? 1));
+theme.subscribe(applyCurrentAppearance);
+themeConfig.subscribe(applyCurrentAppearance);
+textScale.subscribe(applyCurrentAppearance);
 
 if (typeof window !== 'undefined') {
 	window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-		if (get(theme) === 'system') applyTheme('system');
+		if (get(theme) === 'system') applyCurrentAppearance();
 	});
 }
 
@@ -534,6 +553,10 @@ if (typeof BroadcastChannel !== 'undefined') {
 		try {
 			if (type === 'theme' && value) {
 				theme.set(value);
+			} else if (type === 'appearance' && value) {
+				if (value.theme) theme.set(value.theme);
+				themeConfig.set(sanitizeThemeConfig(value.themeConfig));
+				textScale.set(typeof value.textScale === 'number' ? value.textScale : null);
 			} else if (type === 'locale' && value) {
 				changeLocale(value);
 			}
@@ -545,6 +568,28 @@ if (typeof BroadcastChannel !== 'undefined') {
 	theme.subscribe((t) => {
 		if (!_syncingFromBroadcast) {
 			channel.postMessage({ type: 'theme', value: t });
+			channel.postMessage({
+				type: 'appearance',
+				value: { theme: t, themeConfig: get(themeConfig), textScale: get(textScale) }
+			});
+		}
+	});
+
+	themeConfig.subscribe((config) => {
+		if (!_syncingFromBroadcast) {
+			channel.postMessage({
+				type: 'appearance',
+				value: { theme: get(theme), themeConfig: config, textScale: get(textScale) }
+			});
+		}
+	});
+
+	textScale.subscribe((scale) => {
+		if (!_syncingFromBroadcast) {
+			channel.postMessage({
+				type: 'appearance',
+				value: { theme: get(theme), themeConfig: get(themeConfig), textScale: scale }
+			});
 		}
 	});
 

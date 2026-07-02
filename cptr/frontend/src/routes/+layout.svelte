@@ -421,7 +421,10 @@
 
 {#if authState === 'checking'}
 	<!-- Loading spinner while checking auth -->
-	<div class="flex items-center justify-center h-dvh bg-white dark:bg-black">
+	<div
+		class="app-theme flex items-center justify-center h-dvh bg-white dark:bg-black"
+		style="background: var(--app-bg); color: var(--app-fg);"
+	>
 		<Spinner size={20} />
 	</div>
 {:else if authState === 'needs_setup' || authState === 'needs_login'}
@@ -441,7 +444,8 @@
 	/>
 {:else if $stateLoaded}
 	<div
-		class="h-screen max-h-[100dvh] flex overflow-hidden font-sans antialiased text-gray-900 bg-white dark:text-gray-100 dark:bg-black"
+		class="app-theme h-screen max-h-[100dvh] flex overflow-hidden font-sans antialiased text-gray-900 bg-white dark:text-gray-100 dark:bg-black"
+		style="background: var(--app-bg); color: var(--app-fg);"
 	>
 		<Sidebar />
 
@@ -483,7 +487,10 @@
 		/>
 	{/if}
 {:else}
-	<div class="flex items-center justify-center h-dvh bg-white dark:bg-black">
+	<div
+		class="app-theme flex items-center justify-center h-dvh bg-white dark:bg-black"
+		style="background: var(--app-bg); color: var(--app-fg);"
+	>
 		<Spinner size={20} />
 	</div>
 {/if}

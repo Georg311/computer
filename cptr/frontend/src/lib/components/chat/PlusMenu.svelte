@@ -227,7 +227,7 @@
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		bind:this={menuEl}
-		class="fixed z-[101] w-56 rounded-xl bg-white dark:bg-[#1a1a1a] border border-gray-150 dark:border-white/6 shadow-xl p-0.5 overflow-hidden"
+		class="app-theme app-surface fixed z-[101] w-56 rounded-xl border shadow-xl p-0.5 overflow-hidden"
 		style="left: {pos.x}px; bottom: {pos.bottom}px; opacity: {ready ? 1 : 0}; pointer-events: {ready
 			? 'auto'
 			: 'none'};"
@@ -277,7 +277,7 @@
 					<span class="flex-1 text-left truncate">{$t('plusMenu.capture')}</span>
 				</button>
 
-				<div class="h-px bg-gray-100/50 dark:bg-white/3 mx-1 my-0.5"></div>
+				<div class="app-divider h-px mx-1 my-0.5"></div>
 
 				<!-- Plan mode toggle -->
 				<button
@@ -302,7 +302,7 @@
 					<ToggleSwitch value={$planMode} onchange={(v) => planMode.set(v)} />
 				</button>
 
-				<div class="h-px bg-gray-100/50 dark:bg-white/3 mx-1 my-0.5"></div>
+				<div class="app-divider h-px mx-1 my-0.5"></div>
 
 				<button
 					class="flex items-center gap-2 w-full h-7 px-2 rounded-xl text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors duration-75"
@@ -316,7 +316,7 @@
 					<Icon name="chevron-right" size={12} class="shrink-0 text-gray-400 dark:text-gray-500" />
 				</button>
 
-				<div class="h-px bg-gray-100/50 dark:bg-white/3 mx-1 my-0.5"></div>
+				<div class="app-divider h-px mx-1 my-0.5"></div>
 
 				<button
 					class="flex items-center gap-2 w-full h-7 px-2 rounded-xl text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors duration-75"
@@ -354,7 +354,7 @@
 					<span class="flex-1 text-left font-medium">{$t('plusMenu.toolPermissions')}</span>
 				</button>
 
-				<div class="h-px bg-gray-100/50 dark:bg-white/3 mx-1 my-0.5"></div>
+				<div class="app-divider h-px mx-1 my-0.5"></div>
 
 				{#each modes as mode}
 					<button
@@ -393,7 +393,7 @@
 					<span class="flex-1 text-left font-medium">{$t('plusMenu.parameters')}</span>
 				</button>
 
-				<div class="h-px bg-gray-100/50 dark:bg-white/3 mx-1 my-0.5"></div>
+				<div class="app-divider h-px mx-1 my-0.5"></div>
 
 				{#if paramRows.length === 0}
 					<p

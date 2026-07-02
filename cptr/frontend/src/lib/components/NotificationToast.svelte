@@ -60,7 +60,7 @@
 <div
 	role="status"
 	aria-live="polite"
-	class="notification-toast group relative flex gap-2.5 text-left w-full bg-white dark:bg-[#1a1a1a] text-gray-700 dark:text-gray-300 border border-black/[0.08] dark:border-white/[0.06] shadow-lg dark:shadow-none rounded-2xl py-3 px-4 cursor-pointer select-none"
+	class="notification-toast app-theme app-surface group relative flex gap-2.5 text-left w-full border shadow-lg dark:shadow-none rounded-2xl py-3 px-4 cursor-pointer select-none"
 	onpointerdown={onPointerDown}
 	onpointermove={onPointerMove}
 	onpointerup={onPointerUp}
@@ -69,7 +69,7 @@
 	<!-- Close button -->
 	<button
 		bind:this={closeButtonEl}
-		class="absolute -top-0.5 -left-0.5 p-0.5 rounded-full opacity-0 group-hover:opacity-100 bg-gray-200 dark:bg-[#222] text-gray-500 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-[#333] hover:text-gray-700 dark:hover:text-gray-300 border-none cursor-pointer transition-opacity duration-150 z-10"
+		class="app-subtle-surface app-muted app-interactive absolute -top-0.5 -left-0.5 p-0.5 rounded-full opacity-0 group-hover:opacity-100 border-none cursor-pointer transition-opacity duration-150 z-10"
 		aria-label={$t('a11y.dismissNotification')}
 		onclick={(e) => {
 			e.stopPropagation();
@@ -92,13 +92,13 @@
 	<div class="min-w-0">
 		{#if title}
 			<div
-				class="text-[0.8125rem] font-medium mb-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-gray-900 dark:text-white"
+				class="text-[0.8125rem] font-medium mb-0.5 overflow-hidden text-ellipsis whitespace-nowrap"
 			>
 				{title}
 			</div>
 		{/if}
 		{#if content}
-			<div class="text-xs text-gray-500 dark:text-[#aaa] font-normal line-clamp-2">{content}</div>
+			<div class="app-muted text-xs font-normal line-clamp-2">{content}</div>
 		{/if}
 	</div>
 </div>

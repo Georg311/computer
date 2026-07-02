@@ -128,7 +128,7 @@
 >
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
-		class="w-full max-w-[32.5rem] mx-4 bg-white dark:bg-[#111] dark:border dark:border-white/8 rounded-3xl overflow-hidden shadow-2xl max-h-[26.25rem] flex flex-col"
+		class="app-theme app-surface w-full max-w-[32.5rem] mx-4 border rounded-3xl overflow-hidden shadow-2xl max-h-[26.25rem] flex flex-col"
 		onmousedown={(e) => e.stopPropagation()}
 		onkeydown={() => {}}
 	>
@@ -194,10 +194,8 @@
 				{#each filteredDirs as dir, i (dir.name)}
 					<button
 						data-index={i}
-						class="flex items-center gap-2 w-full h-7 px-2 rounded-lg text-left transition-colors duration-75
-							{i === selectedIndex
-							? 'bg-gray-200/50 text-gray-900 dark:bg-white/6 dark:text-white'
-							: 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/4'}"
+						class="directory-row flex items-center gap-2 w-full h-7 px-2 rounded-lg text-left transition-colors duration-75
+					{i === selectedIndex ? 'app-interactive-active' : ''}"
 						onclick={() => navigateTo(dir.name)}
 						onmouseenter={() => {
 							selectedIndex = i;
@@ -239,3 +237,14 @@
 		</div>
 	</div>
 </div>
+
+<style>
+	.directory-row {
+		color: color-mix(in oklab, var(--app-fg) 62%, var(--app-bg));
+	}
+
+	.directory-row:hover {
+		background: color-mix(in oklab, var(--app-fg) 7%, transparent);
+		color: var(--app-fg);
+	}
+</style>

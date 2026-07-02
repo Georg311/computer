@@ -1414,10 +1414,14 @@
 	}
 </script>
 
-<div class="relative flex h-full flex-col bg-white dark:bg-black">
+<div
+	class="app-theme relative flex h-full flex-col"
+	style="background: var(--app-bg); color: var(--app-fg);"
+>
 	{#if !isLanding}
 		<div
 			class="flex h-7 shrink-0 items-center gap-2 border-b border-gray-100 px-3 dark:border-white/6"
+			style="border-color: color-mix(in oklab, var(--app-fg) 8%, transparent);"
 		>
 			<div
 				class="min-w-0 flex-1 truncate text-[0.6875rem] font-medium text-gray-600 dark:text-gray-400"
@@ -1487,7 +1491,12 @@
 				<Spinner size={24} />
 			</div>
 		{:else}
-			<div bind:this={messagesEl} class="flex-1 overflow-y-auto" onscroll={handleMessagesScroll}>
+			<div
+				bind:this={messagesEl}
+				class="flex-1 overflow-y-auto"
+				style="background: var(--app-bg); color: var(--app-fg);"
+				onscroll={handleMessagesScroll}
+			>
 				<div class="max-w-2xl mx-auto px-4 pt-4 pb-16 flex flex-col gap-4">
 					{#if hasHiddenMessages}
 						<div bind:this={loadSentinelEl} class="h-1 w-full" aria-hidden="true"></div>
@@ -1526,14 +1535,14 @@
 		{/if}
 
 		<!-- Input area -->
-		<div class="px-4 py-3">
+		<div class="px-4 py-3" style="background: var(--app-bg);">
 			<div class="max-w-2xl mx-auto relative">
 				{#if !autoScroll && activePath.length > 0}
 					<div
 						class="absolute -top-10 left-0 right-0 pr-2 flex justify-end z-30 pointer-events-none"
 					>
 						<button
-							class="bg-white dark:bg-white/20 border border-gray-200 dark:border-gray-700 p-1 rounded-full pointer-events-auto shadow-sm hover:bg-gray-50 dark:hover:bg-white/30 transition-colors"
+							class="app-surface app-interactive border p-1 rounded-full pointer-events-auto shadow-sm transition-colors"
 							onclick={() => {
 								autoScroll = true;
 								scrollToBottom();

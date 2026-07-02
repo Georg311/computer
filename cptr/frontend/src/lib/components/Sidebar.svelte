@@ -281,6 +281,7 @@
 		<!-- Logo header with collapse button -->
 		<div
 			class="flex items-center justify-between h-9 pl-3.5 pr-1.5 shrink-0 border-b border-gray-200 dark:border-white/6"
+			style="border-color: var(--app-border);"
 		>
 			<a
 				href="/"
@@ -566,14 +567,14 @@
 		z-index: 50;
 		display: flex;
 		flex-direction: column;
-		background: white;
-		border-right: 1px solid var(--color-gray-200);
+		background: var(--app-bg);
+		color: var(--app-fg);
+		border-right: 1px solid var(--app-border);
 		padding-top: env(safe-area-inset-top, 0);
 	}
 
 	:global(.dark) .sidebar {
-		background: #000;
-		border-right-color: rgba(255, 255, 255, 0.06);
+		border-right-color: var(--app-border);
 	}
 
 	@media (min-width: 768px) {

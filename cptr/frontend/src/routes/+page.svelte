@@ -982,6 +982,8 @@
 		height: 100%;
 		position: relative;
 		overflow: hidden;
+		background: var(--app-bg);
+		color: var(--app-fg);
 	}
 
 	.split-horizontal {
@@ -1014,6 +1016,8 @@
 		min-width: 0;
 		overflow: hidden;
 		position: relative;
+		background: var(--app-bg);
+		color: var(--app-fg);
 	}
 
 	/* ── Divider ─────────────────────────────────────────────── */

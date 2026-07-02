@@ -61,15 +61,13 @@
 	<div class="fixed bottom-8 right-3 z-[200] flex flex-col gap-1.5 pointer-events-none">
 		{#each relevantPorts as port (port.port)}
 			<div
-				class="flex items-center gap-2 px-3 py-2 rounded-lg bg-white dark:bg-neutral-900 border border-gray-200 dark:border-white/10 shadow-lg pointer-events-auto animate-in"
+				class="app-theme app-surface flex items-center gap-2 px-3 py-2 rounded-lg border shadow-lg pointer-events-auto animate-in"
 			>
-				<span class="text-xs text-gray-400 shrink-0">🌐</span>
-				<span class="text-xs font-medium font-mono text-gray-700 dark:text-gray-200"
-					>:{port.port}</span
-				>
-				<span class="text-[0.6875rem] text-gray-400">({port.process})</span>
+				<span class="app-icon-muted text-xs shrink-0">🌐</span>
+				<span class="text-xs font-medium font-mono">:{port.port}</span>
+				<span class="app-muted text-[0.6875rem]">({port.process})</span>
 				{#if terminalLabel(port.session_id)}
-					<span class="text-[0.625rem] text-gray-400 italic"
+					<span class="app-muted text-[0.625rem] italic"
 						>{$t('port.via', { name: terminalLabel(port.session_id) })}</span
 					>
 				{/if}
@@ -78,7 +76,7 @@
 					onclick={() => preview(port)}>{$t('port.preview')}</button
 				>
 				<button
-					class="flex items-center justify-center w-4 h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 shrink-0"
+					class="app-icon-muted app-interactive flex items-center justify-center w-4 h-4 rounded transition-colors duration-100 shrink-0"
 					onclick={() => dismiss(port)}
 				>
 					<Icon name="xmark" size={9} />

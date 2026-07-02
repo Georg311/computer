@@ -84,6 +84,7 @@
 	"search.noRecentChats": "最近のチャットはありません",
 	"settings.back": "戻る",
 	"settings.general": "一般",
+	"settings.appearance": "Appearance",
 	"settings.memory": "メモリ",
 	"pwa.settingsTitle": "プログレッシブ Web アプリ",
 	"intent.chooseWorkspace": "ワークスペース",
@@ -863,5 +864,18 @@
 	"general.uiScale": "UI Scale",
 	"general.default": "Default",
 	"general.decreaseUiScale": "Decrease UI Scale",
-	"general.increaseUiScale": "Increase UI Scale"
+	"general.increaseUiScale": "Increase UI Scale",
+	"appearance.title": "Appearance",
+	"appearance.colors": "Colors",
+	"appearance.interface": "Interface",
+	"appearance.import": "Import",
+	"appearance.exportTheme": "Export",
+	"appearance.reset": "Reset",
+	"appearance.background": "Background",
+	"appearance.foreground": "Foreground",
+	"appearance.uiFont": "UI font",
+	"appearance.exported": "Theme exported",
+	"appearance.exportFailed": "Failed to export theme",
+	"appearance.imported": "Theme imported",
+	"appearance.importFailed": "Failed to import theme"
 }

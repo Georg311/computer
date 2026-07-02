@@ -84,6 +84,7 @@
 	"search.noRecentChats": "没有最近对话",
 	"settings.back": "返回",
 	"settings.general": "通用",
+	"settings.appearance": "Appearance",
 	"settings.memory": "记忆",
 	"pwa.settingsTitle": "渐进式 Web 应用",
 	"intent.chooseWorkspace": "工作区",
@@ -863,5 +864,18 @@
 	"general.uiScale": "UI Scale",
 	"general.default": "Default",
 	"general.decreaseUiScale": "Decrease UI Scale",
-	"general.increaseUiScale": "Increase UI Scale"
+	"general.increaseUiScale": "Increase UI Scale",
+	"appearance.title": "Appearance",
+	"appearance.colors": "Colors",
+	"appearance.interface": "Interface",
+	"appearance.import": "Import",
+	"appearance.exportTheme": "Export",
+	"appearance.reset": "Reset",
+	"appearance.background": "Background",
+	"appearance.foreground": "Foreground",
+	"appearance.uiFont": "UI font",
+	"appearance.exported": "Theme exported",
+	"appearance.exportFailed": "Failed to export theme",
+	"appearance.imported": "Theme imported",
+	"appearance.importFailed": "Failed to import theme"
 }

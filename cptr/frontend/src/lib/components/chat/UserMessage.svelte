@@ -155,9 +155,7 @@
 	{:else if edit}
 		<!-- Edit mode: full width -->
 		<div class="w-full">
-			<div
-				class="bg-gray-50 dark:bg-white/4 rounded-xl border border-gray-200 dark:border-white/8 px-3.5 py-2.5"
-			>
+			<div class="app-subtle-surface rounded-xl border px-3.5 py-2.5">
 				<textarea
 					bind:this={textareaEl}
 					bind:value={editedContent}
@@ -194,17 +192,15 @@
 							<img src={upload.url} alt={upload.name || 'image'} class="max-h-96 rounded-lg" />
 						{:else}
 							<div
-								class="relative group py-1.5 px-2 w-48 flex items-center gap-1.5 bg-white dark:bg-[#1a1a1a] border border-gray-100 dark:border-white/5 rounded-xl text-left flex-shrink-0 shadow-sm"
+								class="app-surface relative group py-1.5 px-2 w-48 flex items-center gap-1.5 border rounded-xl text-left flex-shrink-0 shadow-sm"
 							>
 								<div class="shrink-0">
-									<Icon name="page-text" size={14} class="text-gray-500 dark:text-gray-400" />
+									<Icon name="page-text" size={14} class="app-icon-muted" />
 								</div>
 								<div class="flex flex-col justify-center w-full overflow-hidden">
-									<div
-										class="dark:text-gray-100 text-xs flex justify-between items-center w-full gap-2"
-									>
+									<div class="text-xs flex justify-between items-center w-full gap-2">
 										<div class="font-medium truncate flex-1">{upload.name || 'File'}</div>
-										<div class="text-[0.625rem] text-gray-500 capitalize shrink-0">
+										<div class="app-muted text-[0.625rem] capitalize shrink-0">
 											{upload.type === 'file' ? 'File' : upload.type || 'File'}
 										</div>
 									</div>
@@ -216,7 +212,7 @@
 			</div>
 		{/if}
 		<div class="flex justify-end">
-			<div class="max-w-[90%] px-4 py-2 rounded-3xl bg-gray-50 dark:bg-white/[0.06]">
+			<div class="max-w-[90%] px-4 py-2 rounded-3xl app-interactive-active">
 				<div
 					class="text-[0.8125rem] leading-relaxed text-gray-900 dark:text-gray-200 whitespace-pre-wrap break-words"
 				>

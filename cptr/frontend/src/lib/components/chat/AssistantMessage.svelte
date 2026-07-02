@@ -365,9 +365,7 @@
 	{#if edit}
 		<!-- Edit mode -->
 		<div class="w-full">
-			<div
-				class="bg-gray-50 dark:bg-white/4 rounded-xl border border-gray-200 dark:border-white/8 px-3.5 py-2.5"
-			>
+			<div class="app-subtle-surface rounded-xl border px-3.5 py-2.5">
 				{#if editedOutput}
 					<OutputEditView
 						output={editedOutput}

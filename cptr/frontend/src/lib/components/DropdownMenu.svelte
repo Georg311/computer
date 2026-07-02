@@ -337,7 +337,7 @@
 	bind:this={menuEl}
 	class="{inlineAbove
 		? `absolute bottom-full mb-1 ${align === 'end' ? 'right-0' : 'left-0'}`
-		: 'fixed'} z-[1001] min-w-36 rounded-xl bg-white dark:bg-[#1a1a1a] border border-gray-150 dark:border-white/6 shadow-xl p-0.5 flex flex-col overflow-hidden {className}"
+		: 'fixed'} app-theme app-surface z-[1001] min-w-36 rounded-xl border shadow-xl p-0.5 flex flex-col overflow-hidden {className}"
 	style="{inlineAbove
 		? ''
 		: `left: ${pos.x}px; ${pos.bottom != null ? `bottom: ${pos.bottom}px;` : `top: ${pos.top ?? -9999}px;`} ${
@@ -352,7 +352,7 @@
 		<div class="flex-none">
 			{@render header()}
 			{#if headerDivider}
-				<div class="h-px bg-gray-100/50 dark:bg-white/3 mx-1 my-0.5"></div>
+				<div class="app-divider h-px mx-1 my-0.5"></div>
 			{/if}
 		</div>
 	{/if}
@@ -365,13 +365,12 @@
 		{:else}
 			{#each items as item}
 				{#if item.divider}
-					<div class="h-px bg-gray-100/50 dark:bg-white/3 mx-1 my-0.5"></div>
+					<div class="app-divider h-px mx-1 my-0.5"></div>
 				{:else}
 					<div
-						class="group flex items-center gap-1 w-full h-6 rounded-xl text-xs transition-colors duration-75
-							{item.active
-							? 'text-gray-900 dark:text-white bg-gray-50 dark:bg-white/5'
-							: 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white'}"
+						class="group menu-row flex items-center gap-1 w-full h-6 rounded-xl text-xs transition-colors duration-75 {item.active
+							? 'app-interactive-active'
+							: ''}"
 					>
 						<button
 							class="flex items-center gap-2 min-w-0 flex-1 h-full px-2 text-inherit"
@@ -391,7 +390,7 @@
 							{/if}
 							{#if item.check && item.active}
 								<svg
-									class="w-3 h-3 shrink-0 text-gray-400 dark:text-gray-500"
+									class="app-icon-muted w-3 h-3 shrink-0"
 									viewBox="0 0 24 24"
 									fill="none"
 									stroke="currentColor"
@@ -405,7 +404,7 @@
 						</button>
 						{#if item.actionIcon && item.actionOnclick}
 							<button
-								class="flex items-center justify-center w-5 h-5 mr-0.5 rounded-lg shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-all duration-75"
+								class="app-icon-muted app-interactive flex items-center justify-center w-5 h-5 mr-0.5 rounded-lg shrink-0 transition-all duration-75"
 								aria-label={item.actionLabel}
 								onclick={(e) => {
 									e.stopPropagation();
@@ -424,9 +423,20 @@
 	{#if footer}
 		<div class="flex-none">
 			{#if footerDivider}
-				<div class="h-px bg-gray-100/50 dark:bg-white/3 mx-1 my-0.5"></div>
+				<div class="app-divider h-px mx-1 my-0.5"></div>
 			{/if}
 			{@render footer()}
 		</div>
 	{/if}
 </div>
+
+<style>
+	.menu-row {
+		color: color-mix(in oklab, var(--app-fg) 62%, var(--app-bg));
+	}
+
+	.menu-row:hover {
+		background: color-mix(in oklab, var(--app-fg) 6%, transparent);
+		color: var(--app-fg);
+	}
+</style>

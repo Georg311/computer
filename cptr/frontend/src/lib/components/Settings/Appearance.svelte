@@ -1,0 +1,381 @@
+<script lang="ts">
+	import { toast } from 'svelte-sonner';
+	import Icon from '../Icon.svelte';
+	import { t } from '$lib/i18n';
+	import { textScale, theme, themeConfig } from '$lib/stores';
+	import type { Theme, ThemeConfig } from '$lib/stores';
+	import {
+		normalizeHexColor,
+		resolveThemeMode,
+		resolveThemeConfig,
+		sanitizeThemeConfig
+	} from '$lib/utils/appearance';
+
+	const minTextScale = 1;
+	const maxTextScale = 1.5;
+
+	let fileInput: HTMLInputElement;
+	let scaleEnabled = $state(false);
+	let scaleDraft = $state(1);
+	let colorDrafts = $state({ background: '', foreground: '' });
+
+	const resolvedTheme = $derived(resolveThemeMode($theme));
+	const resolvedConfig = $derived(resolveThemeConfig($theme, $themeConfig));
+	const hasCustomAppearance = $derived(Boolean($themeConfig || $textScale !== null));
+
+	$effect(() => {
+		colorDrafts = {
+			background: resolvedConfig.background,
+			foreground: resolvedConfig.foreground
+		};
+		if ($textScale !== null) {
+			scaleEnabled = true;
+			scaleDraft = $textScale;
+		} else if (!scaleEnabled) {
+			scaleDraft = 1;
+		}
+	});
+
+	function setTheme(v: Theme) {
+		theme.set(v);
+	}
+
+	function updateThemeColors(next: { background?: string; foreground?: string }) {
+		const current = $themeConfig ?? {};
+		themeConfig.set(
+			sanitizeThemeConfig({
+				...current,
+				[resolvedTheme]: { ...(current[resolvedTheme] ?? {}), ...next }
+			})
+		);
+	}
+
+	function updateThemeConfig(next: ThemeConfig) {
+		themeConfig.set(sanitizeThemeConfig({ ...($themeConfig ?? {}), ...next }));
+	}
+
+	function updateColor(key: 'background' | 'foreground', value: string) {
+		colorDrafts = { ...colorDrafts, [key]: value };
+		const color = normalizeHexColor(value);
+		if (color) updateThemeColors({ [key]: color });
+	}
+
+	function updateFont(value: string) {
+		updateThemeConfig({ uiFont: value });
+	}
+
+	function toggleTextScale() {
+		if (scaleEnabled) {
+			scaleEnabled = false;
+			scaleDraft = 1;
+			textScale.set(null);
+		} else {
+			scaleEnabled = true;
+			scaleDraft = $textScale ?? 1;
+		}
+	}
+
+	function normalizeTextScale(scale: number | string) {
+		const value = Number(scale);
+		if (!Number.isFinite(value)) return minTextScale;
+		return Math.max(minTextScale, Math.min(maxTextScale, Number(value.toFixed(2))));
+	}
+
+	function scaleLabel(scale: number) {
+		return `${scale.toFixed(scale % 1 === 0 ? 0 : 2)}x`;
+	}
+
+	function setTextScalePreference(scale: number | string) {
+		const next = normalizeTextScale(scale);
+		scaleDraft = next;
+		if (next === minTextScale) {
+			scaleEnabled = false;
+			textScale.set(null);
+		} else {
+			scaleEnabled = true;
+			textScale.set(next);
+		}
+	}
+
+	function resetAppearance() {
+		themeConfig.set(null);
+		scaleEnabled = false;
+		scaleDraft = 1;
+		textScale.set(null);
+	}
+
+	function exportTheme() {
+		const payload = {
+			theme: $theme,
+			themeConfig: sanitizeThemeConfig($themeConfig),
+			textScale: $textScale
+		};
+
+		try {
+			const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+			const url = URL.createObjectURL(blob);
+			const link = document.createElement('a');
+			link.href = url;
+			link.download = 'computer-theme.json';
+			link.click();
+			URL.revokeObjectURL(url);
+			toast.success($t('appearance.exported'));
+		} catch {
+			toast.error($t('appearance.exportFailed'));
+		}
+	}
+
+	function validateImportedColors(source: Record<string, unknown>) {
+		for (const bucket of [source, source.light, source.dark]) {
+			if (!bucket || typeof bucket !== 'object') continue;
+			for (const key of ['background', 'foreground']) {
+				if (key in bucket && !normalizeHexColor((bucket as Record<string, unknown>)[key])) {
+					throw new Error('invalid color');
+				}
+			}
+		}
+	}
+
+	async function importTheme(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		input.value = '';
+		if (!file) return;
+
+		try {
+			const parsed = JSON.parse(await file.text());
+			const source = parsed?.themeConfig ?? parsed;
+			if (!source || typeof source !== 'object') throw new Error('invalid theme');
+			validateImportedColors(source);
+			const importedConfig = sanitizeThemeConfig(source);
+			const importedTheme = ['system', 'light', 'dark'].includes(parsed?.theme)
+				? (parsed.theme as Theme)
+				: null;
+			const importedScale =
+				typeof parsed?.textScale === 'number' && Number.isFinite(parsed.textScale)
+					? normalizeTextScale(parsed.textScale)
+					: undefined;
+
+			if (!importedConfig && !importedTheme && importedScale === undefined) {
+				throw new Error('empty theme');
+			}
+			if (importedTheme) theme.set(importedTheme);
+			if (importedConfig) themeConfig.set(importedConfig);
+			if (importedScale !== undefined) textScale.set(importedScale === 1 ? null : importedScale);
+			toast.success($t('appearance.imported'));
+		} catch {
+			toast.error($t('appearance.importFailed'));
+		}
+	}
+</script>
+
+<div class="flex flex-col h-full">
+	<div class="flex-1 min-h-0 overflow-y-auto scrollbar-none pr-1.5 -mr-1.5">
+		<div class="flex items-center justify-between mb-4">
+			<h2 class="text-sm font-medium text-gray-900 dark:text-white">{$t('appearance.title')}</h2>
+			<div class="flex items-center gap-2">
+				<input
+					bind:this={fileInput}
+					type="file"
+					accept="application/json,.json"
+					class="hidden"
+					onchange={importTheme}
+				/>
+				<button
+					type="button"
+					class="text-[0.625rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
+					onclick={() => fileInput?.click()}
+				>
+					{$t('appearance.import')}
+				</button>
+				<button
+					type="button"
+					class="text-[0.625rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
+					onclick={exportTheme}
+				>
+					{$t('appearance.exportTheme')}
+				</button>
+				<button
+					type="button"
+					class="text-[0.625rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 disabled:opacity-30 disabled:pointer-events-none"
+					disabled={!hasCustomAppearance}
+					onclick={resetAppearance}
+				>
+					{$t('appearance.reset')}
+				</button>
+			</div>
+		</div>
+
+		<h3 class="text-xs text-gray-400 dark:text-gray-600 mb-2">{$t('general.theme')}</h3>
+		<div class="flex gap-1">
+			{#each [{ value: 'light' as Theme, label: $t('general.light'), icon: 'sun-light' }, { value: 'dark' as Theme, label: $t('general.dark'), icon: 'half-moon' }, { value: 'system' as Theme, label: $t('general.system'), icon: 'monitor' }] as opt}
+				<button
+					class="flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs transition-colors duration-100
+					{$theme === opt.value
+						? 'bg-gray-200/50 dark:bg-white/8 text-gray-900 dark:text-white font-medium'
+						: 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}"
+					onclick={() => setTheme(opt.value)}
+				>
+					<Icon name={opt.icon} size={13} />
+					{opt.label}
+				</button>
+			{/each}
+		</div>
+
+		<h3 class="text-xs text-gray-400 dark:text-gray-600 mb-2 mt-5">
+			{$t('appearance.colors')}
+		</h3>
+		<div class="flex flex-col gap-2.5">
+			{#each [{ key: 'background' as const, label: $t('appearance.background'), value: resolvedConfig.background }, { key: 'foreground' as const, label: $t('appearance.foreground'), value: resolvedConfig.foreground }] as opt}
+				<label class="flex items-center justify-between gap-3">
+					<span class="text-xs text-gray-600 dark:text-gray-400">{opt.label}</span>
+					<div class="flex items-center gap-2 min-w-0">
+						<input
+							type="color"
+							value={opt.value}
+							class="appearance-swatch"
+							aria-label={opt.label}
+							oninput={(e) => updateColor(opt.key, e.currentTarget.value)}
+						/>
+						<input
+							value={colorDrafts[opt.key]}
+							class="w-24 bg-transparent text-right text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none"
+							aria-label={opt.label}
+							oninput={(e) => updateColor(opt.key, e.currentTarget.value)}
+						/>
+					</div>
+				</label>
+			{/each}
+		</div>
+
+		<h3 class="text-xs text-gray-400 dark:text-gray-600 mb-2 mt-5">
+			{$t('appearance.interface')}
+		</h3>
+		<label class="flex items-center justify-between gap-3">
+			<span class="text-xs text-gray-600 dark:text-gray-400">{$t('appearance.uiFont')}</span>
+			<input
+				value={$themeConfig?.uiFont ?? ''}
+				placeholder={resolvedConfig.uiFont}
+				class="w-full max-w-[15rem] bg-transparent text-right text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none"
+				aria-label={$t('appearance.uiFont')}
+				onchange={(e) => updateFont(e.currentTarget.value)}
+			/>
+		</label>
+
+		<h3 class="text-xs text-gray-400 dark:text-gray-600 mb-2 mt-5">
+			{$t('general.uiScale')}
+		</h3>
+		<div class="w-full">
+			<div class="flex items-center gap-2">
+				<span id="ui-scale-label" class="text-xs text-gray-600 dark:text-gray-400">
+					{$t('general.uiScale')}
+				</span>
+				<button
+					type="button"
+					class="ml-auto h-6 px-2 rounded-lg text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/6 transition-colors"
+					aria-live="polite"
+					onclick={toggleTextScale}
+				>
+					{scaleEnabled ? scaleLabel(scaleDraft) : $t('general.default')}
+				</button>
+			</div>
+
+			{#if scaleEnabled}
+				<div class="flex items-center gap-1.5 pt-1.5">
+					<button
+						type="button"
+						class="flex items-center justify-center w-6 h-6 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/6 transition-colors"
+						aria-labelledby="ui-scale-label"
+						aria-label={$t('general.decreaseUiScale')}
+						onclick={() => setTextScalePreference(scaleDraft - 0.1)}
+					>
+						<Icon name="minus" size={12} />
+					</button>
+					<input
+						id="ui-scale-slider"
+						class="ui-scale-range flex-1 min-w-0"
+						type="range"
+						min={minTextScale}
+						max={maxTextScale}
+						step="0.01"
+						bind:value={scaleDraft}
+						aria-labelledby="ui-scale-label"
+						aria-valuemin={minTextScale}
+						aria-valuemax={maxTextScale}
+						aria-valuenow={scaleDraft}
+						aria-valuetext={scaleLabel(scaleDraft)}
+						oninput={() => setTextScalePreference(scaleDraft)}
+					/>
+					<button
+						type="button"
+						class="flex items-center justify-center w-6 h-6 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/6 transition-colors"
+						aria-labelledby="ui-scale-label"
+						aria-label={$t('general.increaseUiScale')}
+						onclick={() => setTextScalePreference(scaleDraft + 0.1)}
+					>
+						<Icon name="plus" size={12} />
+					</button>
+				</div>
+			{/if}
+		</div>
+	</div>
+</div>
+
+<style>
+	.appearance-swatch {
+		width: 1.5rem;
+		height: 1.5rem;
+		border: 1px solid rgb(156 163 175 / 0.35);
+		border-radius: 624.9375rem;
+		background: transparent;
+		padding: 0.125rem;
+	}
+
+	.ui-scale-range {
+		appearance: none;
+		height: 1rem;
+		background: transparent;
+		cursor: pointer;
+	}
+
+	.ui-scale-range::-webkit-slider-runnable-track {
+		height: 0.125rem;
+		border-radius: 624.9375rem;
+		background: rgb(209 213 219 / 0.7);
+	}
+
+	.ui-scale-range::-webkit-slider-thumb {
+		appearance: none;
+		width: 0.75rem;
+		height: 0.75rem;
+		margin-top: -0.3125rem;
+		border-radius: 624.9375rem;
+		border: 1px solid rgb(156 163 175 / 0.45);
+		background: rgb(255 255 255);
+	}
+
+	.ui-scale-range::-moz-range-track {
+		height: 0.125rem;
+		border-radius: 624.9375rem;
+		background: rgb(209 213 219 / 0.7);
+	}
+
+	.ui-scale-range::-moz-range-thumb {
+		width: 0.75rem;
+		height: 0.75rem;
+		border-radius: 624.9375rem;
+		border: 1px solid rgb(156 163 175 / 0.45);
+		background: rgb(255 255 255);
+	}
+
+	:global(.dark) .ui-scale-range::-webkit-slider-runnable-track,
+	:global(.dark) .ui-scale-range::-moz-range-track {
+		background: rgb(255 255 255 / 0.12);
+	}
+
+	:global(.dark) .ui-scale-range::-webkit-slider-thumb,
+	:global(.dark) .ui-scale-range::-moz-range-thumb {
+		border-color: rgb(255 255 255 / 0.18);
+		background: rgb(229 231 235);
+	}
+</style>
