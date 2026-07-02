@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.5] - 2026-07-02
+
+### Added
+
+- 🎨 **Appearance controls.** Added a new Appearance settings page so you can adjust how Computer looks and feels without leaving the app.
+- 🌳 **Git worktrees.** View, search, open, and create worktrees from the Git panel so you can keep separate branches in separate folders.
+
+### Changed
+
+- 🌍 **More complete language support.** Expanded translations across settings, chat, files, previews, and admin screens so the interface feels more consistent in every supported language.
+- 🧩 **Cleaner everyday interface.** Polished menus, dialogs, chat controls, file previews, terminal views, and setup screens for a more consistent experience across desktop and mobile.
+- 🌐 **Easier web setup.** Search providers and browser tools now show their keys, base URLs, and helper text in a cleaner layout.
+
 ## [0.7.4] - 2026-06-30
 
 ### Added
