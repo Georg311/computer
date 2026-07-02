@@ -17,6 +17,7 @@ from cptr.utils.git import (
     checkout,
     commit,
     create_branch,
+    create_worktree,
     delete_branch,
     diff,
     discard,
@@ -34,6 +35,7 @@ from cptr.utils.git import (
     status,
     uncommit,
     unstage,
+    worktrees,
 )
 
 router = APIRouter(prefix="/api/git", tags=["git"])
@@ -107,6 +109,16 @@ async def git_branches(root: str):
         _handle_git_error(e)
 
 
+@router.get("/worktrees")
+async def git_worktrees(root: str):
+    """List git worktrees for the active repository."""
+    await _require_repo(root)
+    try:
+        return await worktrees(root)
+    except GitError as e:
+        _handle_git_error(e)
+
+
 @router.get("/stashes")
 async def git_stashes(root: str):
     """List stashes."""
@@ -139,6 +151,12 @@ class CreateBranchRequest(BaseModel):
     root: str
     name: str
     from_ref: Optional[str] = None
+
+
+class CreateWorktreeRequest(BaseModel):
+    root: str
+    branch: str
+    path: Optional[str] = None
 
 
 class DeleteBranchRequest(BaseModel):
@@ -238,6 +256,15 @@ async def git_delete_branch(body: DeleteBranchRequest):
     try:
         await delete_branch(body.root, body.name)
         return {"ok": True}
+    except GitError as e:
+        _handle_git_error(e)
+
+
+@router.post("/worktrees")
+async def git_create_worktree(body: CreateWorktreeRequest):
+    """Create a new branch-backed worktree."""
+    try:
+        return await create_worktree(body.root, body.branch, body.path)
     except GitError as e:
         _handle_git_error(e)
 

@@ -45,6 +45,12 @@ export const getGitShow = (root: string, ref: string) =>
 export const getGitBranches = (root: string) =>
 	fetchJSON(`/api/git/branches?root=${encodeURIComponent(root)}`);
 
+export const getGitWorktrees = (root: string) =>
+	fetchJSON(`/api/git/worktrees?root=${encodeURIComponent(root)}`);
+
+export const createGitWorktree = (root: string, branch: string, path?: string) =>
+	fetchJSON('/api/git/worktrees', jsonBody({ root, branch, path }));
+
 export const getGitStashes = (root: string) =>
 	fetchJSON(`/api/git/stashes?root=${encodeURIComponent(root)}`);
 

@@ -138,9 +138,7 @@ async def status(root: str) -> dict[str, Any]:
         upstream = ""
 
     # Get remote URL for "View on GitHub/GitLab" link
-    code, remote_out, _ = await _run(
-        "remote", "get-url", "origin", cwd=root, check=False
-    )
+    code, remote_out, _ = await _run("remote", "get-url", "origin", cwd=root, check=False)
     remote_url = remote_out.strip() if code == 0 else ""
 
     return {
@@ -271,9 +269,9 @@ async def discard(root: str, files: list[str]) -> None:
         check=False,
     )
 
-    to_unstage: list[str] = []   # staged changes that need unstaging first
+    to_unstage: list[str] = []  # staged changes that need unstaging first
     to_checkout: list[str] = []  # working-tree changes to restore from HEAD
-    to_delete: list[str] = []    # untracked / newly-added files to remove
+    to_delete: list[str] = []  # untracked / newly-added files to remove
 
     for line in st_out.splitlines():
         if line.startswith("? "):
@@ -463,6 +461,88 @@ async def branches(root: str) -> dict[str, Any]:
     return {"current": current, "local": local, "remote": remote, "all": all_branches}
 
 
+def _same_path(a: str, b: str) -> bool:
+    return os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
+
+
+def _parse_worktree_list(raw: str, current_root: str = "") -> list[dict[str, Any]]:
+    """Parse `git worktree list --porcelain` output."""
+    worktrees: list[dict[str, Any]] = []
+    current: dict[str, Any] = {}
+
+    def flush() -> None:
+        if not current.get("path"):
+            return
+        item = {
+            "path": current["path"],
+            "branch": current.get("branch", ""),
+            "head": current.get("head", ""),
+            "is_current": bool(current_root and _same_path(current["path"], current_root)),
+            "is_detached": bool(current.get("is_detached")),
+            "is_bare": bool(current.get("is_bare")),
+        }
+        if not item["branch"]:
+            item["is_detached"] = True
+        worktrees.append(item)
+
+    for line in raw.splitlines():
+        if not line:
+            flush()
+            current = {}
+            continue
+        if line.startswith("worktree "):
+            current["path"] = line.removeprefix("worktree ")
+        elif line.startswith("HEAD "):
+            current["head"] = line.removeprefix("HEAD ")
+        elif line.startswith("branch "):
+            branch = line.removeprefix("branch ")
+            current["branch"] = branch.removeprefix("refs/heads/")
+        elif line == "detached":
+            current["is_detached"] = True
+        elif line == "bare":
+            current["is_bare"] = True
+
+    flush()
+    return worktrees
+
+
+async def worktrees(root: str) -> dict[str, Any]:
+    """List worktrees for the current repository."""
+    _, repo_root_out, _ = await _run("rev-parse", "--show-toplevel", cwd=root)
+    repo_root = repo_root_out.strip() or root
+    _, out, _ = await _run("worktree", "list", "--porcelain", cwd=root)
+    items = _parse_worktree_list(out, repo_root)
+
+    relpath = os.path.relpath(os.path.abspath(root), os.path.abspath(repo_root))
+    for item in items:
+        target_path = item["path"]
+        if relpath != "." and not relpath.startswith(".."):
+            candidate = os.path.join(item["path"], relpath)
+            if os.path.isdir(candidate):
+                target_path = candidate
+        item["target_path"] = target_path
+
+    return {"repo_root": repo_root, "current": repo_root, "worktrees": items}
+
+
+def _worktree_path_for_branch(repo_root: str, branch: str) -> str:
+    safe = "".join(c if c.isalnum() or c in "._-" else "-" for c in branch.strip()).strip(".-")
+    return os.path.join(os.path.dirname(repo_root), safe or "worktree")
+
+
+async def create_worktree(
+    root: str,
+    branch: str,
+    path: str | None = None,
+) -> dict[str, str]:
+    """Create a new branch-backed worktree beside the current repository."""
+    _, repo_root_out, _ = await _run("rev-parse", "--show-toplevel", cwd=root)
+    repo_root = repo_root_out.strip() or root
+    target_path = path or _worktree_path_for_branch(repo_root, branch)
+    await _run("worktree", "add", "-b", branch, target_path, cwd=root)
+    return {"path": target_path}
+
+
 async def checkout(root: str, branch: str) -> None:
     """Switch branch."""
     await _run("checkout", branch, cwd=root)
@@ -526,9 +606,7 @@ async def uncommit(root: str) -> dict[str, str]:
     commits (no parent).
     """
     # Grab info about the commit we're about to undo
-    _, log_out, _ = await _run(
-        "log", "-1", "--format=%H%x00%h%x00%s", cwd=root, check=False
-    )
+    _, log_out, _ = await _run("log", "-1", "--format=%H%x00%h%x00%s", cwd=root, check=False)
     parts = log_out.strip().split("\x00")
     undone_hash = parts[1] if len(parts) >= 2 else ""
     undone_msg = parts[2] if len(parts) >= 3 else ""
