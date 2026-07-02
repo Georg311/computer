@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from cptr.utils.config import check_access
-from cptr.utils.terminal import manager, IS_WINDOWS
+from cptr.utils.terminal import TerminalUnavailable, manager, IS_WINDOWS
 from cptr.utils.tools import (
     command_session_bytes_since,
     drain_command_session_input,
@@ -57,7 +57,10 @@ class CommandSessionInfo(BaseModel):
 async def create_session(req: CreateSessionRequest):
     """Create a new terminal session."""
     logger.info(f"Creating terminal session: cwd={req.cwd}, rows={req.rows}, cols={req.cols}")
-    session = manager.create(rows=req.rows, cols=req.cols, cwd=req.cwd)
+    try:
+        session = manager.create(rows=req.rows, cols=req.cols, cwd=req.cwd)
+    except TerminalUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     logger.info(
         f"Created session {session.session_id} at {session.cwd}, fd={session._fd}, alive={session.is_alive()}"
     )
