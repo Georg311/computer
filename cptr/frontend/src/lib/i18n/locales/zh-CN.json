@@ -412,6 +412,7 @@
 	"general.onlyWhenAway": "仅在我离开时",
 	"general.always": "始终",
 	"general.sendTest": "发送测试",
+	"general.makeDefault": "设为默认",
 	"general.platformDestinationId": "平台目标 ID",
 	"general.targetId": "目标 ID",
 	"general.targetIdForNotify": "目标 ID",

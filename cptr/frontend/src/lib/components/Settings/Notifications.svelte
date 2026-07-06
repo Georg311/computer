@@ -10,6 +10,7 @@
 		listNotificationBotOptions,
 		listNotificationEvents,
 		listNotificationTargets,
+		setDefaultNotificationTarget,
 		testNotificationTarget,
 		updateNotificationTarget,
 		type BotOption,
@@ -63,20 +64,22 @@
 
 	async function loadNotificationTargets() {
 		loadingTargets = true;
-		try {
-			const [nextTargets, bots, events] = await Promise.all([
-				listNotificationTargets(),
-				listNotificationBotOptions(),
-				listNotificationEvents()
-			]);
-			targets = nextTargets;
-			botOptions = bots;
-			eventOptions = events.length ? events : fallbackEventOptions;
-		} catch {
+		const [targetResult, botResult, eventResult] = await Promise.allSettled([
+			listNotificationTargets(),
+			listNotificationBotOptions(),
+			listNotificationEvents()
+		]);
+		if (targetResult.status === 'fulfilled') {
+			targets = targetResult.value;
+		} else {
 			toast.error($t('general.notificationTargetsLoadFailed'));
-		} finally {
-			loadingTargets = false;
 		}
+		botOptions = botResult.status === 'fulfilled' ? botResult.value : [];
+		eventOptions =
+			eventResult.status === 'fulfilled' && eventResult.value.length
+				? eventResult.value
+				: fallbackEventOptions;
+		loadingTargets = false;
 	}
 
 	async function toggleNotifications() {
@@ -150,12 +153,12 @@
 					destination_chat_id: form.destination_chat_id.trim()
 				};
 			}
-			const saved = originalId
-				? await updateNotificationTarget(originalId, payload)
-				: await createNotificationTarget(payload);
-			targets = originalId
-				? targets.map((target) => (target.id === originalId ? saved : target))
-				: [...targets, saved];
+			if (originalId) {
+				await updateNotificationTarget(originalId, payload);
+			} else {
+				await createNotificationTarget(payload);
+			}
+			await loadNotificationTargets();
 			formOpen = false;
 			toast.success($t('settings.saved'));
 		} catch (error) {
@@ -167,8 +170,8 @@
 
 	async function patchTarget(target: NotificationTarget, patch: Partial<NotificationTarget>) {
 		try {
-			const saved = await updateNotificationTarget(target.id, patch as any);
-			targets = targets.map((item) => (item.id === saved.id ? saved : item));
+			await updateNotificationTarget(target.id, patch as any);
+			await loadNotificationTargets();
 		} catch (error) {
 			toast.error(error instanceof Error ? error.message : $t('general.notificationTargetSaveFailed'));
 		}
@@ -177,7 +180,16 @@
 	async function removeTarget(target: NotificationTarget) {
 		try {
 			await deleteNotificationTarget(target.id);
-			targets = targets.filter((item) => item.id !== target.id);
+			await loadNotificationTargets();
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : $t('general.notificationTargetSaveFailed'));
+		}
+	}
+
+	async function makeDefault(target: NotificationTarget) {
+		try {
+			await setDefaultNotificationTarget(target.id);
+			await loadNotificationTargets();
 		} catch (error) {
 			toast.error(error instanceof Error ? error.message : $t('general.notificationTargetSaveFailed'));
 		}
@@ -255,6 +267,11 @@
 									<span class="shrink-0 text-[0.625rem] text-gray-400 dark:text-gray-600">
 										{target.type === 'webhook' ? $t('general.webhook') : $t('general.bot')}
 									</span>
+									{#if target.is_default}
+										<span class="shrink-0 text-[0.625rem] text-gray-400 dark:text-gray-600">
+											{$t('general.default')}
+										</span>
+									{/if}
 								</div>
 								<div class="truncate text-[0.625rem] text-gray-400 dark:text-gray-600 leading-tight">
 									{targetDestination}
@@ -274,6 +291,14 @@
 								>
 									{$t('general.sendTest')}
 								</button>
+								{#if !target.is_default}
+									<button
+										class="text-[0.625rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
+										onclick={() => makeDefault(target)}
+									>
+										{$t('general.makeDefault')}
+									</button>
+								{/if}
 								<button
 									class="text-[0.625rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
 									onclick={() => openEditTarget(target)}

@@ -412,6 +412,7 @@
 	"general.onlyWhenAway": "離席中のみ",
 	"general.always": "常に",
 	"general.sendTest": "テスト送信",
+	"general.makeDefault": "既定に設定",
 	"general.platformDestinationId": "プラットフォーム送信先ID",
 	"general.targetId": "通知先ID",
 	"general.targetIdForNotify": "通知先ID",

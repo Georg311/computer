@@ -412,6 +412,7 @@
 	"general.onlyWhenAway": "Только когда меня нет",
 	"general.always": "Всегда",
 	"general.sendTest": "Отправить тест",
+	"general.makeDefault": "Сделать по умолчанию",
 	"general.platformDestinationId": "ID назначения платформы",
 	"general.targetId": "ID цели",
 	"general.targetIdForNotify": "ID цели",

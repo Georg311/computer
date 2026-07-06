@@ -20,6 +20,7 @@ export interface NotificationTarget {
 	id: string;
 	type: NotificationTargetType;
 	enabled: boolean;
+	is_default?: boolean;
 	events: ChatNotificationEvent[];
 	delivery: NotificationDelivery;
 	config: {
@@ -75,6 +76,10 @@ export function deleteNotificationTarget(id: string) {
 
 export function testNotificationTarget(id: string) {
 	return fetchJSON<{ ok: boolean }>(`/api/notifications/targets/${id}/test`, { method: 'POST' });
+}
+
+export function setDefaultNotificationTarget(id: string) {
+	return fetchJSON<NotificationTarget>(`/api/notifications/targets/${id}/default`, { method: 'PUT' });
 }
 
 export async function listNotificationBotOptions(): Promise<BotOption[]> {

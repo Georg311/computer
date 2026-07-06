@@ -1887,11 +1887,11 @@ async def search_chats(
     )
 
 
-async def notify(target: str, message: str, title: str = "", *, __context__: dict) -> str:
-    """Send a notification to a named user notification target.
+async def notify(message: str, target: str = "", title: str = "", *, __context__: dict) -> str:
+    """Send a notification to a user notification target.
 
-    :param target: Notification target name from Settings > Notifications.
     :param message: Message body to send.
+    :param target: Optional notification target ID from Settings > Notifications. Uses the default target when omitted.
     :param title: Optional notification title.
     """
     user_id = __context__.get("user_id")
@@ -1900,7 +1900,7 @@ async def notify(target: str, message: str, title: str = "", *, __context__: dic
     try:
         from cptr.utils.notifications import NotificationError, notify_target
 
-        return await notify_target(user_id, target, message, title or None)
+        return await notify_target(user_id, message, target or None, title or None)
     except NotificationError as exc:
         return f"Error: {exc}"
     except Exception as exc:

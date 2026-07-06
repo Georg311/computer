@@ -12,6 +12,7 @@ from cptr.utils.notifications import (
     get_notification_event_catalog,
     get_bot_options,
     list_targets,
+    set_default_target,
     test_target,
     update_target,
 )
@@ -86,6 +87,14 @@ async def api_delete_target(request: Request, target_id: str):
 async def api_test_target(request: Request, target_id: str):
     try:
         return await test_target(_user_id(request), target_id)
+    except NotificationError as exc:
+        raise _error(exc) from exc
+
+
+@router.put("/targets/{target_id}/default")
+async def api_set_default_target(request: Request, target_id: str):
+    try:
+        return await set_default_target(_user_id(request), target_id)
     except NotificationError as exc:
         raise _error(exc) from exc
 

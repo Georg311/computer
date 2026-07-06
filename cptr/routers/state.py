@@ -111,7 +111,8 @@ async def put_preferences(request: Request):
     if not user_id:
         return {"status": "skipped"}
     body = await request.json()
-    await UserStates.save_data(user_id, body)
+    current = await UserStates.get_data(user_id)
+    await UserStates.save_data(user_id, {**current, **body})
     return {"status": "saved"}
 
 

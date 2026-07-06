@@ -412,6 +412,7 @@
 	"general.onlyWhenAway": "자리 비움일 때만",
 	"general.always": "항상",
 	"general.sendTest": "테스트 보내기",
+	"general.makeDefault": "기본값으로 설정",
 	"general.platformDestinationId": "플랫폼 대상 ID",
 	"general.targetId": "대상 ID",
 	"general.targetIdForNotify": "대상 ID",

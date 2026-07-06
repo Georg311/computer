@@ -412,6 +412,7 @@
 	"general.onlyWhenAway": "Solo cuando estoy ausente",
 	"general.always": "Siempre",
 	"general.sendTest": "Enviar prueba",
+	"general.makeDefault": "Hacer predeterminado",
 	"general.platformDestinationId": "ID de destino de la plataforma",
 	"general.targetId": "ID del destino",
 	"general.targetIdForNotify": "ID del destino",

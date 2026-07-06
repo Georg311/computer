@@ -64,6 +64,10 @@ def _public_target(target: dict) -> dict:
     return public
 
 
+def _default_target_id(data: dict) -> str:
+    return str((data.get("notifications") or {}).get("default_target_id") or "")
+
+
 def _validate_events(events) -> list[str]:
     if events is None:
         return []
@@ -110,13 +114,16 @@ def validate_webhook_url(url: str) -> str:
 async def list_targets(user_id: str) -> list[dict]:
     data = await _state(user_id)
     visible = []
+    default_id = _default_target_id(data)
     for target in _targets(data):
         if target.get("type") == "bot":
             try:
                 await _ensure_user_bot(user_id, str((target.get("config") or {}).get("bot_id") or ""))
             except NotificationError:
                 continue
-        visible.append(_public_target(target))
+        public = _public_target(target)
+        public["is_default"] = target.get("id") == default_id
+        visible.append(public)
     return visible
 
 
@@ -221,8 +228,15 @@ async def create_target(user_id: str, payload: dict) -> dict:
         await _ensure_user_bot(user_id, target["config"]["bot_id"])
     _check_unique_id(targets, target["id"])
     targets.append(target)
+    notifications = data.setdefault("notifications", {})
+    is_default = False
+    if not notifications.get("default_target_id"):
+        notifications["default_target_id"] = target["id"]
+        is_default = True
     await _save_state(user_id, data)
-    return _public_target(target)
+    public = _public_target(target)
+    public["is_default"] = is_default
+    return public
 
 
 async def update_target(user_id: str, target_id: str, payload: dict) -> dict:
@@ -235,8 +249,13 @@ async def update_target(user_id: str, target_id: str, payload: dict) -> dict:
                 await _ensure_user_bot(user_id, target["config"]["bot_id"])
             _check_unique_id(targets, target["id"], target_id)
             targets[idx] = target
+            notifications = data.setdefault("notifications", {})
+            if notifications.get("default_target_id") == target_id:
+                notifications["default_target_id"] = target["id"]
             await _save_state(user_id, data)
-            return _public_target(target)
+            public = _public_target(target)
+            public["is_default"] = notifications.get("default_target_id") == target["id"]
+            return public
     raise NotificationError("notification target not found")
 
 
@@ -247,8 +266,22 @@ async def delete_target(user_id: str, target_id: str) -> bool:
     if len(kept) == len(targets):
         return False
     data["notifications"]["targets"] = kept
+    if data["notifications"].get("default_target_id") == target_id:
+        data["notifications"]["default_target_id"] = kept[0]["id"] if kept else None
     await _save_state(user_id, data)
     return True
+
+
+async def set_default_target(user_id: str, target_id: str) -> dict:
+    data = await _state(user_id)
+    for target in _targets(data):
+        if target.get("id") == target_id:
+            data.setdefault("notifications", {})["default_target_id"] = target_id
+            await _save_state(user_id, data)
+            public = _public_target(target)
+            public["is_default"] = True
+            return public
+    raise NotificationError("notification target not found")
 
 
 async def _find_target(user_id: str, target_id: str) -> dict | None:
@@ -409,10 +442,15 @@ async def dispatch_notification_event(event: Event) -> None:
 
 async def notify_target(
     user_id: str,
-    target_id: str,
     message: str,
+    target_id: str | None = None,
     title: str | None = None,
 ) -> str:
+    if not target_id:
+        data = await _state(user_id)
+        target_id = _default_target_id(data)
+        if not target_id:
+            raise NotificationError("no default notification target is set")
     target = await _find_target(user_id, target_id)
     if not target:
         raise NotificationError(f'notification target "{target_id}" was not found')
