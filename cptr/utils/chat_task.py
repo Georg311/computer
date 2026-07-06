@@ -11,6 +11,7 @@ import logging
 import re
 import uuid
 
+from cptr.events import EVENTS
 from cptr.env import CHAT_MAX_ITERATIONS, CHAT_TOOL_COMMAND_MAX_CHARS, CHAT_TOOL_MAX_CHARS
 from cptr.utils.context import resolve_compact_token_threshold, should_compact
 from cptr.utils.skills import discover_skills, load_skill, format_skill_content
@@ -1182,6 +1183,27 @@ async def run_chat_task(
             workspace_name=ws_name,
         )
 
+    async def _notify_chat(event: str, message: str | None = None):
+        try:
+            from cptr.utils.notifications import EVENT_LABELS, send_chat_event
+
+            ws_name = workspace.rstrip("/").rsplit("/", 1)[-1] if workspace else ""
+            body = message if message is not None else content
+            await send_chat_event(
+                user_id,
+                event,
+                {
+                    "title": EVENT_LABELS.get(event, "Chat"),
+                    "message": body[:300] if body else "",
+                    "chat_id": chat_id,
+                    "workspace": {"id": workspace, "name": ws_name} if workspace else None,
+                },
+            )
+        except Exception:
+            logger.debug(
+                "[notifications] Error sending chat notification for %s", chat_id[:8], exc_info=True
+            )
+
     # Load existing state so continuations don't overwrite previous output
     msg = await ChatMessage.get_by_id(message_id)
     summary_message_id = message_id
@@ -1495,6 +1517,7 @@ async def run_chat_task(
                 )
                 _task_state.pop(message_id, None)
                 await _emit_done()
+                await _notify_chat(EVENTS.CHAT_FINISHED.name)
                 return
 
         flushed_item = _flush_text()
@@ -1503,6 +1526,7 @@ async def run_chat_task(
         await _save_message("agent stream ended", content=content, output=output_items, done=True)
         _task_state.pop(message_id, None)
         await _emit_done()
+        await _notify_chat(EVENTS.CHAT_FINISHED.name)
         return
 
     try:
@@ -1797,6 +1821,7 @@ async def run_chat_task(
                         )
                         _task_state.pop(message_id, None)
                         await _emit_done()
+                        await _notify_chat(EVENTS.CHAT_FINISHED.name)
                         return
 
             # ── Process collected tool calls ────────────────────
@@ -1853,7 +1878,7 @@ async def run_chat_task(
                     )
                     if flushed_item:
                         await emit(output=flushed_item)
-                    await emit(output=item)
+                        await emit(output=item)
                     _task_state.pop(message_id, None)
                     await emit(done=True)
                     return
@@ -2013,6 +2038,7 @@ async def run_chat_task(
                 )
                 _task_state.pop(message_id, None)
                 await _emit_done()
+                await _notify_chat(EVENTS.CHAT_FINISHED.name)
                 return
 
         # Max iterations reached
@@ -2025,6 +2051,7 @@ async def run_chat_task(
         )
         _task_state.pop(message_id, None)
         await _emit_done()
+        await _notify_chat(EVENTS.CHAT_FAILED.name, "Max iterations reached.")
 
     except asyncio.CancelledError:
         _flush_text()
@@ -2066,6 +2093,7 @@ async def run_chat_task(
         )
         _task_state.pop(message_id, None)
         await emit(done=True, error=error_msg)
+        await _notify_chat(EVENTS.CHAT_FAILED.name, error_msg)
     finally:
         # Guarantee the gateway SSE stream terminates.  If emit()
         # already pushed a done/error event the sentinel is harmless
@@ -2109,18 +2137,6 @@ async def run_chat_task(
             logger.debug(
                 "[title] Error in title generation for chat %s", chat_id[:8], exc_info=True
             )
-        # Fire webhook notification if configured
-        try:
-            webhook_url = await Config.get("notifications.webhook_url")
-            if webhook_url:
-                chat_obj = chat_obj or await Chat.get_by_id(chat_id)
-                title = chat_obj.title if chat_obj else "Chat"
-                preview = content[:300] if content else ""
-                from cptr.utils.webhook import post_webhook
-
-                await post_webhook(webhook_url, title, preview)
-        except Exception:
-            logger.debug("[webhook] Error sending webhook for chat %s", chat_id[:8], exc_info=True)
         # Best-effort post-turn memory review. Runs detached and never competes
         # with queued user input processing.
         try:

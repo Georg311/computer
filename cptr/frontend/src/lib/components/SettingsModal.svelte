@@ -3,6 +3,7 @@
 	import Icon from './Icon.svelte';
 	import Modal from './Modal.svelte';
 	import General from './Settings/General.svelte';
+	import Notifications from './Settings/Notifications.svelte';
 	import Appearance from './Settings/Appearance.svelte';
 	import Memory from './Settings/Memory.svelte';
 	import PWA from './Settings/PWA.svelte';
@@ -25,6 +26,7 @@
 
 	type Tab =
 		| 'general'
+		| 'notifications'
 		| 'appearance'
 		| 'memory'
 		| 'pwa'
@@ -76,6 +78,7 @@
 		const tabs: SettingsTab[] = [
 			{ id: 'general', label: $t('settings.general'), icon: 'settings' },
 			{ id: 'appearance', label: $t('settings.appearance'), icon: 'sun-light' },
+			{ id: 'notifications', label: $t('general.notifications'), icon: 'chat-bubble' },
 			{ id: 'keyboard', label: $t('settings.keyboard'), icon: 'terminal' },
 			{ id: 'account', label: $t('settings.account'), icon: 'user' }
 		];
@@ -178,6 +181,8 @@
 	<div class="flex-1 overflow-y-auto scrollbar-none min-h-0 p-4 md:px-5">
 		{#if activeTab === 'general'}
 			<General />
+		{:else if activeTab === 'notifications'}
+			<Notifications />
 		{:else if activeTab === 'appearance'}
 			<Appearance />
 		{:else if activeTab === 'memory'}

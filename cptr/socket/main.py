@@ -55,6 +55,11 @@ async def emit_to_user(user_id: str, data: dict):
         await sio.emit("events:chat", data, to=sid)
 
 
+def is_user_active(user_id: str) -> bool:
+    """Return True when the user has at least one connected app session."""
+    return bool(_user_sids.get(user_id))
+
+
 def get_asgi_app(other_app):
     """Wrap a FastAPI/Starlette app with the Socket.IO ASGI layer."""
     return socketio.ASGIApp(sio, other_asgi_app=other_app)

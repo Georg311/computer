@@ -1,0 +1,379 @@
+"""User-owned chat notification targets."""
+
+from __future__ import annotations
+
+import ipaddress
+import logging
+import socket
+import time
+from urllib.parse import urlparse
+
+import httpx
+
+from cptr.events import CHAT_NOTIFICATION_EVENTS, EVENTS
+from cptr.models import UserStates
+from cptr.socket.main import is_user_active
+
+logger = logging.getLogger(__name__)
+
+VALID_EVENTS = {event.name for event in CHAT_NOTIFICATION_EVENTS}
+VALID_TYPES = {"webhook", "bot"}
+VALID_DELIVERY = {"away", "always"}
+
+EVENT_LABELS = {event.name: event.label for event in CHAT_NOTIFICATION_EVENTS}
+
+
+class NotificationError(ValueError):
+    pass
+
+
+def _now() -> int:
+    return int(time.time())
+
+
+async def _state(user_id: str) -> dict:
+    return dict(await UserStates.get_data(user_id) or {})
+
+
+async def _save_state(user_id: str, data: dict) -> None:
+    await UserStates.save_data(user_id, data)
+
+
+def _targets(data: dict) -> list[dict]:
+    notifications = data.setdefault("notifications", {})
+    targets = notifications.setdefault("targets", [])
+    if not isinstance(targets, list):
+        targets = []
+        notifications["targets"] = targets
+    return targets
+
+
+def _mask_url(url: str) -> str:
+    parsed = urlparse(url)
+    if not parsed.hostname:
+        return "****"
+    path = parsed.path or ""
+    suffix = path[-4:] if len(path) > 4 else path
+    return f"{parsed.scheme}://{parsed.hostname}/...{suffix}"
+
+
+def _public_target(target: dict) -> dict:
+    public = {**target, "config": dict(target.get("config") or {})}
+    if public.get("type") == "webhook":
+        url = str(public["config"].pop("url", "") or "")
+        public["config"]["url_masked"] = _mask_url(url) if url else ""
+    return public
+
+
+def _validate_events(events) -> list[str]:
+    if events is None:
+        return []
+    if not isinstance(events, list):
+        raise NotificationError("events must be a list")
+    cleaned = []
+    for event in events:
+        if event not in VALID_EVENTS:
+            raise NotificationError(f"unsupported notification event: {event}")
+        if event not in cleaned:
+            cleaned.append(event)
+    return cleaned
+
+
+def validate_webhook_url(url: str) -> str:
+    url = (url or "").strip()
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise NotificationError("webhook URL must be http or https")
+
+    host = parsed.hostname.lower()
+    if host in {"metadata.google.internal"} or host.endswith(".internal"):
+        raise NotificationError("webhook URL host is not allowed")
+
+    try:
+        infos = socket.getaddrinfo(host, parsed.port or (443 if parsed.scheme == "https" else 80))
+    except OSError as exc:
+        raise NotificationError("webhook URL hostname could not be resolved") from exc
+
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if (
+            ip.is_loopback
+            or ip.is_private
+            or ip.is_link_local
+            or ip.is_multicast
+            or ip.is_reserved
+            or ip.is_unspecified
+        ):
+            raise NotificationError("webhook URL resolves to a blocked address")
+    return url
+
+
+async def list_targets(user_id: str) -> list[dict]:
+    data = await _state(user_id)
+    visible = []
+    for target in _targets(data):
+        if target.get("type") == "bot":
+            try:
+                await _ensure_user_bot(user_id, str((target.get("config") or {}).get("bot_id") or ""))
+            except NotificationError:
+                continue
+        visible.append(_public_target(target))
+    return visible
+
+
+async def get_bot_options(user_id: str, bot_manager=None) -> list[dict]:
+    from cptr.utils.bridge import get_bot_configs
+
+    status = bot_manager.get_status() if bot_manager else {}
+    bots = []
+    for bot in await get_bot_configs():
+        if bot.get("user_id") != user_id:
+            continue
+        bots.append(
+            {
+                "id": bot.get("id"),
+                "name": bot.get("name"),
+                "platform": bot.get("platform"),
+                "is_active": bool(bot.get("is_active", True)),
+                "is_running": bool(status.get(bot.get("id"), False)),
+            }
+        )
+    return bots
+
+
+async def _ensure_user_bot(user_id: str, bot_id: str) -> None:
+    from cptr.utils.bridge import get_bot_by_id
+
+    bot = await get_bot_by_id(bot_id)
+    if not bot or bot.get("user_id") != user_id:
+        raise NotificationError("bot target is not available")
+
+
+def _validate_config(target_type: str, config: dict) -> dict:
+    if not isinstance(config, dict):
+        raise NotificationError("config must be an object")
+    if target_type == "webhook":
+        return {"url": validate_webhook_url(str(config.get("url") or ""))}
+    if target_type == "bot":
+        bot_id = str(config.get("bot_id") or "").strip()
+        destination = str(config.get("destination_chat_id") or "").strip()
+        if not bot_id:
+            raise NotificationError("bot target requires bot_id")
+        if not destination:
+            raise NotificationError("bot target requires destination_chat_id")
+        return {"bot_id": bot_id, "destination_chat_id": destination}
+    raise NotificationError("unsupported notification target type")
+
+
+def _validate_target(payload: dict, existing: dict | None = None) -> dict:
+    merged = {**(existing or {}), **payload}
+    target_id = str(merged.get("id") or "").strip()
+    target_type = str(merged.get("type") or "").strip()
+    delivery = str(merged.get("delivery") or "away").strip()
+    if not target_id:
+        raise NotificationError("target id is required")
+    if target_type not in VALID_TYPES:
+        raise NotificationError("target type must be webhook or bot")
+    if delivery not in VALID_DELIVERY:
+        raise NotificationError("delivery must be away or always")
+    config = _validate_config(target_type, dict(merged.get("config") or {}))
+    now = _now()
+    return {
+        "id": target_id,
+        "type": target_type,
+        "enabled": bool(merged.get("enabled", True)),
+        "events": _validate_events(merged.get("events", [])),
+        "delivery": delivery,
+        "config": config,
+        "created_at": int(merged.get("created_at") or now),
+        "updated_at": now,
+    }
+
+
+def _check_unique_id(targets: list[dict], new_id: str, old_id: str | None = None) -> None:
+    lowered = new_id.lower()
+    for target in targets:
+        if target.get("id") != old_id and str(target.get("id", "")).lower() == lowered:
+            raise NotificationError("notification target id already exists")
+
+
+async def create_target(user_id: str, payload: dict) -> dict:
+    data = await _state(user_id)
+    targets = _targets(data)
+    target = _validate_target(payload)
+    if target["type"] == "bot":
+        await _ensure_user_bot(user_id, target["config"]["bot_id"])
+    _check_unique_id(targets, target["id"])
+    targets.append(target)
+    await _save_state(user_id, data)
+    return _public_target(target)
+
+
+async def update_target(user_id: str, target_id: str, payload: dict) -> dict:
+    data = await _state(user_id)
+    targets = _targets(data)
+    for idx, current in enumerate(targets):
+        if current.get("id") == target_id:
+            target = _validate_target(payload, existing=current)
+            if target["type"] == "bot":
+                await _ensure_user_bot(user_id, target["config"]["bot_id"])
+            _check_unique_id(targets, target["id"], target_id)
+            targets[idx] = target
+            await _save_state(user_id, data)
+            return _public_target(target)
+    raise NotificationError("notification target not found")
+
+
+async def delete_target(user_id: str, target_id: str) -> bool:
+    data = await _state(user_id)
+    targets = _targets(data)
+    kept = [target for target in targets if target.get("id") != target_id]
+    if len(kept) == len(targets):
+        return False
+    data["notifications"]["targets"] = kept
+    await _save_state(user_id, data)
+    return True
+
+
+async def _find_target(user_id: str, target_id: str) -> dict | None:
+    data = await _state(user_id)
+    needle = target_id.lower()
+    for target in _targets(data):
+        if str(target.get("id", "")).lower() == needle:
+            return target
+    return None
+
+
+def _webhook_payload(event: str, title: str, message: str, context: dict) -> dict:
+    return {
+        "event": event,
+        "title": title,
+        "message": message,
+        "source": "computer",
+        "chat_id": context.get("chat_id"),
+        "workspace": context.get("workspace"),
+        "created_at": _now(),
+    }
+
+
+def _sink_payload(url: str, payload: dict) -> dict:
+    title = payload["title"]
+    message = payload["message"]
+    if "hooks.slack.com" in url or "chat.googleapis.com" in url:
+        return {"text": f"*{title}*\n{message}"}
+    if "discord.com/api/webhooks" in url:
+        content = f"**{title}**\n{message}"
+        return {"content": content[:1997] + "..." if len(content) > 2000 else content}
+    if "webhook.office.com" in url:
+        return {
+            "@type": "MessageCard",
+            "@context": "http://schema.org/extensions",
+            "themeColor": "0076D7",
+            "summary": title,
+            "sections": [
+                {
+                    "activityTitle": title,
+                    "activitySubtitle": "Computer",
+                    "facts": [{"name": "Message", "value": message}],
+                    "markdown": True,
+                }
+            ],
+        }
+    return payload
+
+
+async def _send_webhook(target: dict, event: str, title: str, message: str, context: dict) -> None:
+    url = validate_webhook_url(str((target.get("config") or {}).get("url") or ""))
+    payload = _webhook_payload(event, title, message, context)
+    async with httpx.AsyncClient(timeout=10, follow_redirects=False) as client:
+        response = await client.post(url, json=_sink_payload(url, payload))
+        response.raise_for_status()
+
+
+async def _send_bot(target: dict, title: str, message: str, context: dict) -> None:
+    from cptr.utils.bridge import get_current_bot_manager
+
+    user_id = str(context.get("user_id") or "")
+    if user_id:
+        await _ensure_user_bot(user_id, str((target.get("config") or {}).get("bot_id") or ""))
+
+    manager = get_current_bot_manager()
+    if not manager:
+        raise NotificationError("bot manager is not running")
+    workspace = (context.get("workspace") or {}).get("name") if isinstance(context.get("workspace"), dict) else ""
+    header = f"[{title}] {workspace}".strip()
+    text = f"{header}\n\n{message}".strip()
+    config = target.get("config") or {}
+    await manager.send_notification(config["bot_id"], config["destination_chat_id"], text)
+
+
+async def _deliver(target: dict, event: str, title: str, message: str, context: dict) -> None:
+    if target.get("type") == "webhook":
+        await _send_webhook(target, event, title, message, context)
+    elif target.get("type") == "bot":
+        await _send_bot(target, title, message, context)
+    else:
+        raise NotificationError("unsupported notification target type")
+
+
+async def test_target(user_id: str, target_id: str) -> dict:
+    target = await _find_target(user_id, target_id)
+    if not target:
+        raise NotificationError("notification target not found")
+    await _deliver(
+        target,
+        EVENTS.NOTIFICATION_TEST.name,
+        EVENTS.NOTIFICATION_TEST.label,
+        "Computer can reach this target.",
+        {"chat_id": None, "workspace": None, "user_id": user_id},
+    )
+    return {"ok": True}
+
+
+async def send_chat_event(user_id: str, event: str, context: dict) -> None:
+    if event not in VALID_EVENTS:
+        return
+    data = await _state(user_id)
+    active = is_user_active(user_id)
+    for target in list(_targets(data)):
+        if not target.get("enabled", True):
+            continue
+        if event not in target.get("events", []):
+            continue
+        if target.get("delivery", "away") == "away" and active:
+            continue
+        try:
+            await _deliver(
+                target,
+                event,
+                str(context.get("title") or EVENT_LABELS[event]),
+                str(context.get("message") or ""),
+                {**context, "user_id": user_id},
+            )
+        except Exception:
+            logger.exception(
+                "[notifications] failed to deliver %s to %s",
+                event,
+                target.get("id"),
+            )
+
+
+async def notify_target(
+    user_id: str,
+    target_id: str,
+    message: str,
+    title: str | None = None,
+) -> str:
+    target = await _find_target(user_id, target_id)
+    if not target:
+        raise NotificationError(f'notification target "{target_id}" was not found')
+    if not target.get("enabled", True):
+        raise NotificationError(f'notification target "{target_id}" is disabled')
+    await _deliver(
+        target,
+        EVENTS.NOTIFICATION_MANUAL.name,
+        title or "Notification",
+        message,
+        {"chat_id": None, "workspace": None, "user_id": user_id},
+    )
+    return f"Notification sent to {target.get('id')}."

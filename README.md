@@ -121,7 +121,7 @@ Open WebUI Computer exposes an OpenAI-compatible API (`/v1/chat/completions`). A
 |---|---|
 | 🎙️ **Voice memos** | Record audio, auto-transcribe to markdown. |
 | 💬 **Message queue** | Queue follow-up messages while the AI is responding. |
-| 🔔 **Notifications** | Browser notifications and webhooks (Slack, Discord, Teams) when tasks finish. |
+| 🔔 **Notifications** | Browser notifications plus named webhook or bot targets for chat events. |
 | 📊 **Usage** | Token counts and timing on every response. |
 | 📄 **System prompts** | Per-model, per-workspace, or global. Template variables included. |
 | 📋 **Audit logging** | Structured audit trail of all API mutations with automatic redaction of sensitive data. |

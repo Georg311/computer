@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Optional
 
 logger = logging.getLogger(__name__)
+_current_bot_manager: "BotManager | None" = None
 
 # How often to edit the streaming message (seconds).
 STREAM_EDIT_INTERVAL = 2.0
@@ -193,6 +194,10 @@ async def delete_bot_config(bot_id: str) -> bool:
     return True
 
 
+def get_current_bot_manager() -> "BotManager | None":
+    return _current_bot_manager
+
+
 # ── Thread mapping via chat.meta ─────────────────────────────
 
 
@@ -238,9 +243,11 @@ class BotManager:
     """
 
     def __init__(self) -> None:
+        global _current_bot_manager
         self._adapters: dict[str, BaseAdapter] = {}  # bot_id → adapter
         self._tasks: dict[str, asyncio.Task] = {}  # bot_id → polling task
         self._stream_tasks: dict[str, asyncio.Task] = {}  # key → streaming task
+        _current_bot_manager = self
 
     # ── Lifecycle ──────────────────────────────────────────
 
@@ -316,6 +323,17 @@ class BotManager:
 
     def get_status(self) -> dict[str, bool]:
         return {bid: not t.done() for bid, t in self._tasks.items()}
+
+    async def send_notification(
+        self,
+        bot_id: str,
+        destination_chat_id: str,
+        text: str,
+    ) -> str | None:
+        adapter = self._adapters.get(bot_id)
+        if not adapter or not self.is_running(bot_id):
+            raise RuntimeError("bot is not running")
+        return await adapter.send(destination_chat_id, text)
 
     # ── Adapter factory ────────────────────────────────────
 
