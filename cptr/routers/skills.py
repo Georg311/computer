@@ -18,6 +18,7 @@ class SkillResponse(BaseModel):
     source: str  # "workspace" or "global"
     license: Optional[str] = None
     compatibility: Optional[str] = None
+    managed: bool = False
 
 
 @router.get("", response_model=list[SkillResponse])
@@ -34,6 +35,7 @@ async def list_skills(workspace: str = Query(..., description="Workspace path"))
             source=s.source,
             license=s.license,
             compatibility=s.compatibility,
+            managed=s.managed,
         )
         for s in skills
     ]

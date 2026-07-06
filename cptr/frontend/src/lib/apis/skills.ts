@@ -10,6 +10,7 @@ export interface SkillInfo {
 	source: string; // "workspace" | "global"
 	license?: string;
 	compatibility?: string;
+	managed?: boolean;
 }
 
 export const getSkills = (workspace: string) =>

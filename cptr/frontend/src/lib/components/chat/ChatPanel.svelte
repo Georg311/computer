@@ -53,7 +53,9 @@
 	import AssistantMessage from './AssistantMessage.svelte';
 	import ChatHistory from './ChatHistory.svelte';
 	import StatusModal from './StatusModal.svelte';
+	import SkillsModal from './SkillsModal.svelte';
 	import { listCommandSessions, type CommandSession } from '$lib/apis/terminal';
+	import { getSkills, type SkillInfo } from '$lib/apis/skills';
 	import Spinner from '../common/Spinner.svelte';
 	import Icon from '../Icon.svelte';
 	import { toast } from 'svelte-sonner';
@@ -79,6 +81,8 @@
 	let currentMessageId = $state<string | null>(null);
 	let contextUsage = $state<ContextUsage | null>(null);
 	let showStatusModal = $state(false);
+	let showSkillsModal = $state(false);
+	let skillsModalList = $state<SkillInfo[]>([]);
 	let commandSessions = $state<CommandSession[]>([]);
 	let initialCommandSessionId = $state<string | null>(null);
 	let previousChats = $state<ChatInfo[]>([]);
@@ -686,6 +690,11 @@
 			inputText = '';
 			return;
 		}
+		if (text === '/skills:list') {
+			await handleSkillsListCommand();
+			inputText = '';
+			return;
+		}
 		stopTtsPlayback();
 		if (shouldStreamTts()) void unlockTtsAudioPlayback();
 		sending = true;
@@ -863,6 +872,15 @@
 		initialCommandSessionId = null;
 		showStatusModal = true;
 		refreshCommandSessions();
+	}
+
+	async function handleSkillsListCommand() {
+		try {
+			skillsModalList = await getSkills(workspace);
+			showSkillsModal = true;
+		} catch (err: any) {
+			toast.error(err?.message || 'Failed to load skills');
+		}
 	}
 
 	async function refreshCommandSessions() {
@@ -1576,6 +1594,7 @@
 					oncompact={handleManualCompact}
 					onplan={handlePlanCommand}
 					onstatus={handleStatusCommand}
+					onskillslist={handleSkillsListCommand}
 					oncancel={handleCancel}
 					{queuedMessages}
 					onqueuesendnow={handleQueueSendNow}
@@ -1598,6 +1617,16 @@
 		onclose={() => {
 			showStatusModal = false;
 			initialCommandSessionId = null;
+		}}
+	/>
+{/if}
+
+{#if showSkillsModal}
+	<SkillsModal
+		skills={skillsModalList}
+		onclose={() => {
+			showSkillsModal = false;
+			skillsModalList = [];
 		}}
 	/>
 {/if}

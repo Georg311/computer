@@ -1421,6 +1421,43 @@ async def view_skill(
     return format_skill_content(skill)
 
 
+async def manage_skill(
+    action: Literal["create", "write_file"],
+    name: str,
+    content: Optional[str] = None,
+    scope: Literal["workspace", "global"] = "workspace",
+    file_path: Optional[str] = None,
+    file_content: Optional[str] = None,
+    *,
+    __context__: dict,
+) -> str:
+    """Create Computer-managed skills and supporting bundle files.
+
+    Use this only when the user asks to create a reusable skill. New skills
+    default to the current workspace. For supporting files, write only under
+    references/, templates/, scripts/, or assets/.
+    :param action: "create" to write SKILL.md, or "write_file" to add a bundle file.
+    :param name: Lowercase hyphenated skill name.
+    :param content: Full SKILL.md content for action="create".
+    :param scope: "workspace" for .cptr/skills, or "global" for ~/.cptr/skills.
+    :param file_path: Relative bundle path for action="write_file".
+    :param file_content: File content for action="write_file".
+    """
+    from cptr.utils.skills import create_managed_skill, write_managed_skill_file
+
+    workspace = __context__.get("workspace", "")
+    try:
+        if action == "create":
+            result = create_managed_skill(workspace, name, content or "", scope)
+        elif action == "write_file":
+            result = write_managed_skill_file(workspace, name, file_path or "", file_content)
+        else:
+            result = {"success": False, "error": f"unsupported action '{action}'"}
+    except Exception as e:
+        result = {"success": False, "error": str(e)}
+    return json.dumps(result, ensure_ascii=False)
+
+
 # ── Browser tools ────────────────────────────────────────────
 
 
@@ -1934,6 +1971,7 @@ TOOLS: dict[str, dict] = {
     "delete_automation": {"fn": delete_automation, "auto": False},
     "notify": {"fn": notify, "auto": False},
     "image_generate": {"fn": image_generate, "auto": False},
+    "manage_skill": {"fn": manage_skill, "auto": False},
     "update_memory": {"fn": update_memory, "auto": True},
 }
 

@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
+from typing import Literal
 from pathlib import Path
 
 import yaml
@@ -39,6 +40,10 @@ GLOBAL_SKILL_DIRS = [
     str(Path.home() / ".cptr" / "skills"),
 ]
 
+MANAGED_WORKSPACE_SKILL_DIR = ".cptr/skills"
+MANAGED_GLOBAL_SKILL_DIR = Path.home() / ".cptr" / "skills"
+ALLOWED_BUNDLE_DIRS = {"references", "templates", "scripts", "assets"}
+
 # Directories to skip during scanning
 _SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv"}
 
@@ -53,21 +58,25 @@ _MAX_SCAN_DIRS = 2000
 @dataclass
 class SkillMeta:
     """Tier 1: lightweight metadata for the catalog."""
+
     name: str
     description: str
-    location: str       # absolute path to SKILL.md
-    source: str         # "workspace" or "global"
+    location: str  # absolute path to SKILL.md
+    source: str  # "workspace" or "global"
     # Optional spec fields
     license: str | None = None
     compatibility: str | None = None
     metadata: dict | None = None
     allowed_tools: str | None = None
+    managed: bool = False
 
 
 @dataclass
 class SkillContent(SkillMeta):
     """Tier 2: full instructions + resource listing."""
-    body: str = ""              # markdown body after frontmatter
+
+    content: str = ""  # full SKILL.md, including frontmatter
+    body: str = ""  # markdown body after frontmatter
     resources: list[str] = field(default_factory=list)  # relative paths of bundled files
 
 
@@ -108,7 +117,7 @@ def parse_frontmatter(text: str) -> tuple[dict, str]:
             # If value contains a colon and isn't already quoted
             if ":" in val and not (val.startswith('"') or val.startswith("'")):
                 indent = len(line) - len(line.lstrip())
-                fixed_lines.append(f"{' ' * indent}{key_part.strip()}: \"{val}\"")
+                fixed_lines.append(f'{" " * indent}{key_part.strip()}: "{val}"')
                 continue
         fixed_lines.append(line)
 
@@ -149,7 +158,9 @@ def validate_name(name: str, parent_dir: str) -> list[str]:
         warnings.append(f"name exceeds 64 characters ({len(name)})")
 
     if not _NAME_RE.match(name):
-        warnings.append(f"name '{name}' contains invalid characters (must be lowercase alphanumeric + hyphens)")
+        warnings.append(
+            f"name '{name}' contains invalid characters (must be lowercase alphanumeric + hyphens)"
+        )
 
     if "--" in name:
         warnings.append(f"name '{name}' contains consecutive hyphens")
@@ -163,7 +174,22 @@ def validate_name(name: str, parent_dir: str) -> list[str]:
 # ── Discovery ───────────────────────────────────────────────
 
 
-def _scan_skills_dir(skills_dir: Path, source: str) -> list[SkillMeta]:
+def _is_managed_skill(skill_md: Path, workspace: str = "") -> bool:
+    try:
+        skill_dir = skill_md.parent.resolve()
+        global_root = MANAGED_GLOBAL_SKILL_DIR.expanduser().resolve()
+        if skill_dir.is_relative_to(global_root):
+            return True
+        if workspace:
+            workspace_root = (Path(workspace) / MANAGED_WORKSPACE_SKILL_DIR).resolve()
+            if skill_dir.is_relative_to(workspace_root):
+                return True
+    except OSError:
+        pass
+    return False
+
+
+def _scan_skills_dir(skills_dir: Path, source: str, workspace: str = "") -> list[SkillMeta]:
     """Scan a single skills directory for skill folders containing SKILL.md."""
     results: list[SkillMeta] = []
 
@@ -211,16 +237,19 @@ def _scan_skills_dir(skills_dir: Path, source: str) -> list[SkillMeta]:
             for w in warnings:
                 logger.warning("[skills] %s: %s", skill_md, w)
 
-            results.append(SkillMeta(
-                name=name,
-                description=description[:1024],
-                location=str(skill_md.resolve()),
-                source=source,
-                license=fm.get("license"),
-                compatibility=fm.get("compatibility"),
-                metadata=fm.get("metadata") if isinstance(fm.get("metadata"), dict) else None,
-                allowed_tools=fm.get("allowed-tools"),
-            ))
+            results.append(
+                SkillMeta(
+                    name=name,
+                    description=description[:1024],
+                    location=str(skill_md.resolve()),
+                    source=source,
+                    license=fm.get("license"),
+                    compatibility=fm.get("compatibility"),
+                    metadata=fm.get("metadata") if isinstance(fm.get("metadata"), dict) else None,
+                    allowed_tools=fm.get("allowed-tools"),
+                    managed=_is_managed_skill(skill_md, workspace),
+                )
+            )
 
     except PermissionError:
         logger.debug("[skills] Permission denied scanning %s", skills_dir)
@@ -245,20 +274,21 @@ def discover_skills(workspace: str) -> list[SkillMeta]:
     if ws.is_dir():
         for rel_dir in WORKSPACE_SKILL_DIRS:
             skills_dir = ws / rel_dir
-            for skill in _scan_skills_dir(skills_dir, source="workspace"):
+            for skill in _scan_skills_dir(skills_dir, source="workspace", workspace=workspace):
                 if skill.name not in seen_names:
                     seen_names.add(skill.name)
                     all_skills.append(skill)
                 else:
                     logger.debug(
                         "[skills] Skipping duplicate '%s' from %s (already found)",
-                        skill.name, skill.location,
+                        skill.name,
+                        skill.location,
                     )
 
     # 2. Global skills (user-level, available across all workspaces)
     for dir_path in GLOBAL_SKILL_DIRS:
         skills_dir = Path(dir_path).expanduser()
-        for skill in _scan_skills_dir(skills_dir, source="global"):
+        for skill in _scan_skills_dir(skills_dir, source="global", workspace=workspace):
             if skill.name not in seen_names:
                 seen_names.add(skill.name)
                 all_skills.append(skill)
@@ -337,9 +367,99 @@ def load_skill(workspace: str, skill_name: str) -> SkillContent | None:
         compatibility=meta.compatibility,
         metadata=meta.metadata,
         allowed_tools=meta.allowed_tools,
+        managed=meta.managed,
+        content=text,
         body=body,
         resources=resources,
     )
+
+
+def _managed_root(workspace: str, scope: Literal["workspace", "global"]) -> Path:
+    if scope == "global":
+        return MANAGED_GLOBAL_SKILL_DIR.expanduser()
+    if not workspace:
+        raise ValueError("workspace is required for workspace skills")
+    return Path(workspace).expanduser().resolve() / MANAGED_WORKSPACE_SKILL_DIR
+
+
+def _validate_skill_name(name: str) -> str:
+    normalized = (name or "").strip()
+    warnings = validate_name(normalized, normalized)
+    if warnings:
+        raise ValueError("; ".join(warnings))
+    return normalized
+
+
+def _validate_skill_content(name: str, content: str) -> tuple[dict, str]:
+    if not content or not content.strip():
+        raise ValueError("content is required")
+    fm, body = parse_frontmatter(content)
+    skill_name = str(fm.get("name", "")).strip()
+    description = str(fm.get("description", "")).strip()
+    if skill_name != name:
+        raise ValueError("frontmatter name must match skill name")
+    if not description:
+        raise ValueError("frontmatter description is required")
+    if not body:
+        raise ValueError("skill body is required")
+    return fm, body
+
+
+def _write_text_atomic(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.tmp")
+    tmp.write_text(content, encoding="utf-8")
+    tmp.replace(path)
+
+
+def create_managed_skill(
+    workspace: str,
+    name: str,
+    content: str,
+    scope: Literal["workspace", "global"] = "workspace",
+) -> dict:
+    name = _validate_skill_name(name)
+    _validate_skill_content(name, content)
+    if any(skill.name == name for skill in discover_skills(workspace)):
+        raise ValueError(f"skill '{name}' already exists")
+    skill_dir = _managed_root(workspace, scope) / name
+    skill_md = skill_dir / "SKILL.md"
+    if skill_md.exists():
+        raise ValueError(f"skill '{name}' already exists")
+    _write_text_atomic(skill_md, content.strip() + "\n")
+    return {"success": True, "name": name, "location": str(skill_md.resolve())}
+
+
+def _managed_skill_dir(workspace: str, name: str) -> Path:
+    name = _validate_skill_name(name)
+    skill = next((s for s in discover_skills(workspace) if s.name == name), None)
+    if not skill:
+        raise ValueError(f"skill '{name}' not found")
+    if not skill.managed:
+        raise ValueError(f"skill '{name}' is read-only in Computer")
+    return Path(skill.location).parent.resolve()
+
+
+def write_managed_skill_file(
+    workspace: str, name: str, file_path: str, file_content: str | None
+) -> dict:
+    if file_content is None:
+        raise ValueError("file_content is required")
+    rel = Path(file_path or "")
+    if not rel.parts:
+        raise ValueError("file_path is required")
+    if rel.is_absolute() or ".." in rel.parts:
+        raise ValueError("file_path must stay inside the skill")
+    if rel.parts[0] not in ALLOWED_BUNDLE_DIRS:
+        raise ValueError("file_path must start with references/, templates/, scripts/, or assets/")
+    if any(part.startswith(".") for part in rel.parts):
+        raise ValueError("dot paths are not allowed")
+    skill_dir = _managed_skill_dir(workspace, name)
+    target = (skill_dir / rel).resolve()
+    if not target.is_relative_to(skill_dir):
+        raise ValueError("file_path escapes the skill")
+    _write_text_atomic(target, file_content)
+    return {"success": True, "name": name, "location": str(target)}
 
 
 # ── Catalog & structured output ─────────────────────────────
