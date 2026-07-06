@@ -77,6 +77,7 @@ jobs:
         run: |
           VERSION="${{ steps.pkg.outputs.version }}"
           WHEEL="dist/cptr-${VERSION}-py3-none-any.whl"
+          cp "$WHEEL" .
           mkdir -p wheelhouse
           python -m pip download --dest wheelhouse "${WHEEL}[all]"
           tar -czf "cptr-${VERSION}-linux-wheelhouse.tar.gz" -C wheelhouse .
@@ -84,7 +85,7 @@ jobs:
       - name: Generate checksums
         if: steps.check.outputs.skip != 'true'
         run: |
-          sha256sum dist/*.whl cptr-*-linux-wheelhouse.tar.gz > SHA256SUMS
+          sha256sum cptr-*.whl cptr-*-linux-wheelhouse.tar.gz > SHA256SUMS
 
       - name: Upload dist artifacts
         if: steps.check.outputs.skip != 'true'
@@ -99,7 +100,7 @@ jobs:
         with:
           name: release-assets
           path: |
-            dist/*.whl
+            cptr-*.whl
             cptr-*-linux-wheelhouse.tar.gz
             SHA256SUMS
 
