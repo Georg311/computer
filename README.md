@@ -170,6 +170,38 @@ If you bind-mount a host directory to `/data`, make sure that directory is writa
 
 The `:dev` image is also available and tracks the `main` branch.
 
+## Air-gapped installation
+
+Open WebUI Computer does not need internet access after it is installed. The Python wheel includes the built frontend assets, and the Docker image is self-contained.
+
+On a connected machine:
+
+```bash
+pip download --dest wheelhouse 'cptr[all]'
+docker pull ghcr.io/open-webui/computer:latest
+docker save ghcr.io/open-webui/computer:latest -o cptr-image.tar
+```
+
+Transfer the artifacts, then install or run offline:
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install --no-index --find-links ./wheelhouse 'cptr[all]'
+cptr run --host 0.0.0.0
+
+docker load -i cptr-image.tar
+docker run --rm -it \
+  --network=none \
+  -p 8000:8000 \
+  -v cptr-data:/data \
+  -v "$PWD:/workspace" \
+  -w /workspace \
+  ghcr.io/open-webui/computer:latest
+```
+
+Core local features run from local assets. External services such as hosted model APIs, web search providers, messaging adapters, Git remotes, and MCP/OpenAPI servers still require reachable endpoints.
+
 ## Security model
 
 Open WebUI Computer is designed as **your computer, served to you**. Once authenticated, a user has full access to the host filesystem and shell, equivalent to an SSH session. There is no path sandboxing and no per-user isolation.
