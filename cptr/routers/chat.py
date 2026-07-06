@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from pathlib import Path
 from typing import List, Optional
@@ -690,6 +691,20 @@ async def approve_tool(chat_id: str, message_id: str, body: ApproveRequest, requ
                 user_id,
                 {"chat_id": chat_id, "message_id": message_id, "output": artifact_item},
             )
+
+        if call["name"] == "display_file":
+            try:
+                file_item = json.loads(result)
+            except (json.JSONDecodeError, TypeError):
+                file_item = None
+            if isinstance(file_item, dict) and file_item.get("type") == "file":
+                output.append(file_item)
+                from cptr.socket.main import emit_to_user
+
+                await emit_to_user(
+                    user_id,
+                    {"chat_id": chat_id, "message_id": message_id, "output": file_item},
+                )
 
         image_item = build_image_item(call["name"], result)
         if image_item:

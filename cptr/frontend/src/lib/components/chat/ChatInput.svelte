@@ -39,6 +39,7 @@
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import { t } from '$lib/i18n';
 	import { TAB_DRAG_MIME } from '$lib/constants';
+	import { tooltip } from '$lib/tooltip';
 
 	// Keep screen awake during voice mode conversations
 	let voiceWakeLock: WakeLockSentinel | null = null;
@@ -1029,6 +1030,8 @@
 			{#if slashCommandIds.includes('compact')}
 				<button
 					type="button"
+					aria-label="Compact: shorten older messages so this chat can keep going."
+					use:tooltip={{ content: 'Shorten older messages so this chat can keep going.', placement: 'right' }}
 					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
 						{slashCommandIds[selectedSlashCommandIndex] === 'compact'
 						? 'app-interactive-active'
@@ -1075,6 +1078,11 @@
 			{#if slashCommandIds.includes('plan')}
 				<button
 					type="button"
+					aria-label="Plan: work out a plan first, then wait before changing files."
+					use:tooltip={{
+						content: 'Work out a plan first, then wait before changing files.',
+						placement: 'right'
+					}}
 					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
 						{slashCommandIds[selectedSlashCommandIndex] === 'plan' ? 'app-interactive-active' : ''}"
 					onmousedown={(e) => e.preventDefault()}
@@ -1111,6 +1119,11 @@
 			{#if slashCommandIds.includes('status')}
 				<button
 					type="button"
+					aria-label="Status: check what is running in this chat."
+					use:tooltip={{
+						content: 'Check what is running in this chat.',
+						placement: 'right'
+					}}
 					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
 						{slashCommandIds[selectedSlashCommandIndex] === 'status' ? 'app-interactive-active' : ''}"
 					onmousedown={(e) => e.preventDefault()}
@@ -1145,6 +1158,11 @@
 			{#if slashCommandIds.includes('skills:list')}
 				<button
 					type="button"
+					aria-label="List skills: see the skills available in this workspace."
+					use:tooltip={{
+						content: 'See the skills available in this workspace.',
+						placement: 'right'
+					}}
 					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
 						{slashCommandIds[selectedSlashCommandIndex] === 'skills:list'
 						? 'app-interactive-active'
@@ -1167,6 +1185,11 @@
 			{#if slashCommandIds.includes('skills:create')}
 				<button
 					type="button"
+					aria-label="Create skill: teach Computer a reusable workflow."
+					use:tooltip={{
+						content: 'Teach Computer a reusable workflow.',
+						placement: 'right'
+					}}
 					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
 						{slashCommandIds[selectedSlashCommandIndex] === 'skills:create'
 						? 'app-interactive-active'

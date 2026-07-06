@@ -2058,6 +2058,16 @@ async def run_chat_task(
                         await emit(output=artifact_item)
                         _sync_state()
 
+                    if tc["name"] == "display_file":
+                        try:
+                            file_item = json.loads(result)
+                        except (json.JSONDecodeError, TypeError):
+                            file_item = None
+                        if isinstance(file_item, dict) and file_item.get("type") == "file":
+                            output_items.append(file_item)
+                            await emit(output=file_item)
+                            _sync_state()
+
                     image_item = build_image_item(tc["name"], result)
                     if image_item:
                         output_items.append(image_item)

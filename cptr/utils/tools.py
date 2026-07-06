@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
+import mimetypes
 import os
 import time
 import uuid
@@ -231,6 +232,37 @@ def _human_size(size: int) -> str:
             return f"{size}{unit}" if unit == "B" else f"{size:.1f}{unit}"
         size /= 1024
     return f"{size:.1f}TB"
+
+
+def _file_kind(path: Path, mime_type: str) -> str:
+    ext = path.suffix.lower()
+    if mime_type.startswith("image/"):
+        return "image"
+    if mime_type.startswith("audio/"):
+        return "audio"
+    if mime_type.startswith("video/"):
+        return "video"
+    if mime_type == "application/pdf":
+        return "pdf"
+    if ext in {".md", ".markdown", ".mdx"}:
+        return "markdown"
+    if ext in {".json", ".jsonc", ".json5"}:
+        return "json"
+    if ext in {".csv", ".tsv"}:
+        return "csv"
+    if ext in {".html", ".htm"}:
+        return "html"
+    if ext == ".svg":
+        return "svg"
+    if ext in {".txt", ".log", ".diff", ".patch"} or mime_type.startswith("text/"):
+        return "text"
+    if ext in {".docx", ".xlsx", ".xls", ".pptx"}:
+        return "office"
+    if ext in {".sqlite", ".sqlite3", ".db", ".db3"}:
+        return "sqlite"
+    if ext in {".zip", ".tar", ".gz", ".tgz", ".rar", ".7z"}:
+        return "archive"
+    return "binary"
 
 
 def _truncate_output(text: str, max_chars: int = 80_000) -> str:
@@ -814,6 +846,48 @@ async def write_file(path: str, content: str, *, workspace: str) -> str:
 
     await asyncio.to_thread(_write)
     return f"Wrote {len(content)} bytes to {path}"
+
+
+async def display_file(path: str, *, workspace: str) -> str:
+    """Display an existing real file from the computer in chat.
+    Use only for files you have just created or verified with file tools.
+    :param path: Path relative to workspace root.
+    """
+    if not path:
+        return "Error: path is required."
+
+    try:
+        full = _resolve_path(path, workspace)
+    except ValueError as exc:
+        return f"Error: {exc}"
+
+    if _is_dotenv(full):
+        return _DOTENV_ERROR
+    if not full.exists():
+        return f"Error: file not found: {path}"
+    if not full.is_file():
+        return f"Error: not a file: {path}"
+
+    stat = await asyncio.to_thread(full.stat)
+    mime_type = mimetypes.guess_type(str(full))[0] or "application/octet-stream"
+    ws = Path(workspace).resolve()
+    try:
+        display_path = str(full.relative_to(ws))
+    except ValueError:
+        display_path = str(full)
+    return json.dumps(
+        {
+            "type": "file",
+            "path": display_path,
+            "full_path": str(full),
+            "workspace": str(ws),
+            "name": full.name,
+            "size": stat.st_size,
+            "mime_type": mime_type,
+            "kind": _file_kind(full, mime_type),
+        },
+        ensure_ascii=False,
+    )
 
 
 async def edit_file(
@@ -1959,6 +2033,7 @@ TOOLS: dict[str, dict] = {
     "view_skill": {"fn": view_skill, "auto": True},
     # Write / mutate (require approval unless auto_approve_all)
     "create_file": {"fn": create_file, "auto": False},
+    "display_file": {"fn": display_file, "auto": False},
     "edit_file": {"fn": edit_file, "auto": False},
     "multi_edit_file": {"fn": multi_edit_file, "auto": False},
     "write_file": {"fn": write_file, "auto": False},

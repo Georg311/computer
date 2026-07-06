@@ -3,11 +3,14 @@
 	import { get } from 'svelte/store';
 	import MarkdownRenderer from '$lib/components/markdown/MarkdownRenderer.svelte';
 	import OutputEditView from './OutputEditView.svelte';
+	import ChatFilePreview from './ChatFilePreview.svelte';
 	import ConsecutiveActivityGroup from './ConsecutiveActivityGroup.svelte';
 	import ReasoningCollapsible from './ReasoningCollapsible.svelte';
 	import ToolCallCollapsible from './ToolCallCollapsible.svelte';
 	import { currentWorkspace, openFileTab } from '$lib/stores';
 	import { ttsConfigured, ttsEnabled } from '$lib/stores/audio';
+	import { tooltip } from '$lib/tooltip';
+	import { fileIconName } from '$lib/utils/fileIcon';
 	import Icon from '../Icon.svelte';
 	import { t } from '$lib/i18n';
 
@@ -49,6 +52,7 @@
 	let editedOutput = $state<any[] | null>(null);
 	let copied = $state(false);
 	let showUsageTooltip = $state(false);
+	let collapsedFiles = $state<Record<string, boolean>>({});
 	let textareaEl: HTMLTextAreaElement;
 
 	async function startEdit() {
@@ -138,6 +142,17 @@
 		return parts[parts.length - 1];
 	}
 
+	function resolvedFilePath(file: any): string {
+		const path = String(file?.full_path || file?.path || '');
+		if (!path || path.startsWith('/')) return path;
+		const workspace = file?.workspace || get(currentWorkspace)?.path || '';
+		return workspace ? `${workspace.replace(/\/$/, '')}/${path.replace(/^\/+/, '')}` : path;
+	}
+
+	function toggleFile(key: string) {
+		collapsedFiles = { ...collapsedFiles, [key]: !collapsedFiles[key] };
+	}
+
 	/** Human-readable label for a tool call */
 	function toolLabel(name: string, args: any): string {
 		const _t = $t;
@@ -159,6 +174,8 @@
 				return _t('chat.tool.createFile', { path: shortPath(args.path) });
 			case 'write_file':
 				return _t('chat.tool.writeFile', { path: shortPath(args.path) });
+			case 'display_file':
+				return `Display ${shortPath(args.path)}`;
 			case 'list_directory':
 				return args.recursive
 					? _t('chat.tool.listDirectoryRecursive', { path: shortPath(args.path) })
@@ -234,7 +251,13 @@
 		item: any;
 	}
 
-	type DisplayItem = ActivityGroup | MessageItem | ArtifactItem | ImageItem;
+	interface FileItem {
+		type: 'file_item';
+		item: any;
+		index: number;
+	}
+
+	type DisplayItem = ActivityGroup | MessageItem | ArtifactItem | ImageItem | FileItem;
 
 	const outputText = $derived.by((): string => {
 		return (output || [])
@@ -313,7 +336,7 @@
 			}
 		};
 
-		for (const item of output) {
+		for (const [index, item] of output.entries()) {
 			if (item.type === 'function_call') {
 				ensureGroup();
 				currentGroup!.entries.push(item);
@@ -335,6 +358,9 @@
 			} else if (item.type === 'image') {
 				flushGroup();
 				items.push({ type: 'image_item', item });
+			} else if (item.type === 'file') {
+				flushGroup();
+				items.push({ type: 'file_item', item, index });
 			}
 			// function_call_output items are handled via outputMap, skip standalone render
 		}
@@ -468,6 +494,53 @@
 									/>
 								</a>
 							{/each}
+						</div>
+					{:else if displayItem.type === 'file_item'}
+						{@const file = displayItem.item}
+						{@const filePath = resolvedFilePath(file)}
+						{@const fileKey = filePath || file.path || `file-${displayItem.index}`}
+						{@const collapsed = Boolean(collapsedFiles[fileKey])}
+						<div
+							class="my-2 w-full max-w-2xl overflow-hidden rounded-md border border-gray-200 bg-white dark:border-white/8 dark:bg-gray-950/20"
+						>
+							<div
+								class="flex h-8 items-center {collapsed
+									? ''
+									: 'border-b border-gray-100 dark:border-white/8'}"
+							>
+								<button
+									type="button"
+									class="flex h-full min-w-0 flex-1 items-center gap-2 px-2.5 text-left"
+									onclick={() => toggleFile(fileKey)}
+									aria-expanded={!collapsed}
+								>
+									<div
+										class="flex size-5 shrink-0 items-center justify-center text-gray-500 dark:text-gray-400"
+									>
+										<Icon name={fileIconName(file.name || file.path || '', 'file')} size={14} />
+									</div>
+									<div
+										class="min-w-0 flex-1 truncate text-xs font-medium text-gray-800 dark:text-gray-100"
+									>
+										{file.name || shortPath(file.path)}
+									</div>
+								</button>
+								<button
+									type="button"
+									class="mr-1 flex size-6 shrink-0 items-center justify-center rounded text-gray-400 transition-colors hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200"
+									onclick={(event) => {
+										event.stopPropagation();
+										if (filePath) openFileTab(filePath);
+									}}
+									aria-label={$t('directory.open', { name: file.name || shortPath(file.path) })}
+									use:tooltip={'Open as tab'}
+								>
+									<Icon name="external-link" size={13} />
+								</button>
+							</div>
+							{#if !collapsed}
+								<ChatFilePreview {file} {filePath} />
+							{/if}
 						</div>
 					{:else if displayItem.type === 'activity_group'}
 						{#if displayItem.entries.length === 1}
