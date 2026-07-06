@@ -309,19 +309,19 @@ def _sink_payload(url: str, payload: dict) -> dict:
     title = payload["title"]
     message = payload["message"]
     if "hooks.slack.com" in url or "chat.googleapis.com" in url:
-        return {"text": f"*{title}*\n{message}"}
+        return {"text": f"*{title}*\n{message}" if title else message}
     if "discord.com/api/webhooks" in url:
-        content = f"**{title}**\n{message}"
+        content = f"**{title}**\n{message}" if title else message
         return {"content": content[:1997] + "..." if len(content) > 2000 else content}
     if "webhook.office.com" in url:
         return {
             "@type": "MessageCard",
             "@context": "http://schema.org/extensions",
             "themeColor": "0076D7",
-            "summary": title,
+            "summary": title or "Computer",
             "sections": [
                 {
-                    "activityTitle": title,
+                    "activityTitle": title or "Computer",
                     "activitySubtitle": "Computer",
                     "facts": [{"name": "Message", "value": message}],
                     "markdown": True,
@@ -350,8 +350,8 @@ async def _send_bot(target: dict, title: str, message: str, context: dict) -> No
     if not manager:
         raise NotificationError("bot manager is not running")
     workspace = (context.get("workspace") or {}).get("name") if isinstance(context.get("workspace"), dict) else ""
-    header = f"[{title}] {workspace}".strip()
-    text = f"{header}\n\n{message}".strip()
+    header = f"[{title}] {workspace}".strip() if title else workspace
+    text = f"{header}\n\n{message}".strip() if header else message
     config = target.get("config") or {}
     await manager.send_notification(config["bot_id"], config["destination_chat_id"], text)
 
@@ -459,7 +459,7 @@ async def notify_target(
     await _deliver(
         target,
         EVENTS.NOTIFICATION_MANUAL.name,
-        title or "Notification",
+        title or "",
         message,
         {"chat_id": None, "workspace": None, "user_id": user_id},
     )
