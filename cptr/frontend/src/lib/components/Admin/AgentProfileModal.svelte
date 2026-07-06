@@ -47,7 +47,8 @@
 			claude_code: 'claude',
 			cursor: 'agent',
 			grok: 'grok',
-			opencode: 'opencode'
+			opencode: 'opencode',
+			cline: 'cline'
 		}[agent];
 	}
 
@@ -57,7 +58,8 @@
 			claude_code: 'Claude Code',
 			cursor: 'Cursor',
 			grok: 'Grok',
-			opencode: 'OpenCode'
+			opencode: 'OpenCode',
+			cline: 'Cline'
 		}[agent];
 	}
 </script>
@@ -126,6 +128,7 @@
 					<option value="cursor">Cursor</option>
 					<option value="grok">Grok</option>
 					<option value="opencode">OpenCode</option>
+					<option value="cline">Cline</option>
 				</select>
 			</div>
 		</div>

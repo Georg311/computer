@@ -111,7 +111,8 @@
 			claude_code: 'claude',
 			cursor: 'agent',
 			grok: 'grok',
-			opencode: 'opencode'
+			opencode: 'opencode',
+			cline: 'cline'
 		}[agent];
 	}
 
@@ -121,7 +122,8 @@
 			claude_code: 'Claude Code',
 			cursor: 'Cursor',
 			grok: 'Grok',
-			opencode: 'OpenCode'
+			opencode: 'OpenCode',
+			cline: 'Cline'
 		}[agent];
 	}
 
