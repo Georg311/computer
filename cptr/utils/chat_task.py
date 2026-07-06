@@ -1183,27 +1183,9 @@ async def run_chat_task(
             workspace_name=ws_name,
         )
 
-    async def _publish_chat_event(event, message: str | None = None):
-        try:
-            ws_name = workspace.rstrip("/").rsplit("/", 1)[-1] if workspace else ""
-            body = message if message is not None else content
-            preview = body[:300] if body else ""
-            await publish_event(
-                event,
-                actor={"id": user_id},
-                subject_id=chat_id,
-                subject_type="chat",
-                source="chat_task",
-                data={
-                    "workspace": {"id": workspace, "name": ws_name} if workspace else None,
-                    "preview": preview,
-                },
-                message=preview,
-            )
-        except Exception:
-            logger.debug(
-                "[events] Error publishing chat event for %s", chat_id[:8], exc_info=True
-            )
+    event_workspace = (
+        {"id": workspace, "name": workspace.rstrip("/").rsplit("/", 1)[-1]} if workspace else None
+    )
 
     # Load existing state so continuations don't overwrite previous output
     msg = await ChatMessage.get_by_id(message_id)
@@ -1518,7 +1500,16 @@ async def run_chat_task(
                 )
                 _task_state.pop(message_id, None)
                 await _emit_done()
-                await _publish_chat_event(EVENTS.CHAT_FINISHED)
+                preview = content[:300] if content else ""
+                await publish_event(
+                    EVENTS.CHAT_FINISHED,
+                    actor={"id": user_id},
+                    subject_id=chat_id,
+                    subject_type="chat",
+                    source="chat_task",
+                    data={"workspace": event_workspace, "preview": preview},
+                    message=preview,
+                )
                 return
 
         flushed_item = _flush_text()
@@ -1527,7 +1518,16 @@ async def run_chat_task(
         await _save_message("agent stream ended", content=content, output=output_items, done=True)
         _task_state.pop(message_id, None)
         await _emit_done()
-        await _publish_chat_event(EVENTS.CHAT_FINISHED)
+        preview = content[:300] if content else ""
+        await publish_event(
+            EVENTS.CHAT_FINISHED,
+            actor={"id": user_id},
+            subject_id=chat_id,
+            subject_type="chat",
+            source="chat_task",
+            data={"workspace": event_workspace, "preview": preview},
+            message=preview,
+        )
         return
 
     try:
@@ -1822,7 +1822,16 @@ async def run_chat_task(
                         )
                         _task_state.pop(message_id, None)
                         await _emit_done()
-                        await _publish_chat_event(EVENTS.CHAT_FINISHED)
+                        preview = content[:300] if content else ""
+                        await publish_event(
+                            EVENTS.CHAT_FINISHED,
+                            actor={"id": user_id},
+                            subject_id=chat_id,
+                            subject_type="chat",
+                            source="chat_task",
+                            data={"workspace": event_workspace, "preview": preview},
+                            message=preview,
+                        )
                         return
 
             # ── Process collected tool calls ────────────────────
@@ -2039,7 +2048,16 @@ async def run_chat_task(
                 )
                 _task_state.pop(message_id, None)
                 await _emit_done()
-                await _publish_chat_event(EVENTS.CHAT_FINISHED)
+                preview = content[:300] if content else ""
+                await publish_event(
+                    EVENTS.CHAT_FINISHED,
+                    actor={"id": user_id},
+                    subject_id=chat_id,
+                    subject_type="chat",
+                    source="chat_task",
+                    data={"workspace": event_workspace, "preview": preview},
+                    message=preview,
+                )
                 return
 
         # Max iterations reached
@@ -2052,7 +2070,15 @@ async def run_chat_task(
         )
         _task_state.pop(message_id, None)
         await _emit_done()
-        await _publish_chat_event(EVENTS.CHAT_FAILED, "Max iterations reached.")
+        await publish_event(
+            EVENTS.CHAT_FAILED,
+            actor={"id": user_id},
+            subject_id=chat_id,
+            subject_type="chat",
+            source="chat_task",
+            data={"workspace": event_workspace, "preview": "Max iterations reached."},
+            message="Max iterations reached.",
+        )
 
     except asyncio.CancelledError:
         _flush_text()
@@ -2094,7 +2120,15 @@ async def run_chat_task(
         )
         _task_state.pop(message_id, None)
         await emit(done=True, error=error_msg)
-        await _publish_chat_event(EVENTS.CHAT_FAILED, error_msg)
+        await publish_event(
+            EVENTS.CHAT_FAILED,
+            actor={"id": user_id},
+            subject_id=chat_id,
+            subject_type="chat",
+            source="chat_task",
+            data={"workspace": event_workspace, "preview": error_msg[:300] if error_msg else ""},
+            message=error_msg[:300] if error_msg else "",
+        )
     finally:
         # Guarantee the gateway SSE stream terminates.  If emit()
         # already pushed a done/error event the sentinel is harmless
