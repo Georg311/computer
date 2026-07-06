@@ -849,8 +849,8 @@ async def write_file(path: str, content: str, *, workspace: str) -> str:
 
 
 async def display_file(path: str, *, workspace: str) -> str:
-    """Display an existing real file from the computer in chat.
-    Use only for files you have just created or verified with file tools.
+    """Display a workspace file inline in chat.
+    Use when the user asks to see, preview, render, or display a file you created or found.
     :param path: Path relative to workspace root.
     """
     if not path:

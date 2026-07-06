@@ -168,6 +168,7 @@ def _format_cptr_context(workspace: str, model: str = "") -> str:
             "Tool behavior:",
             f"- {host_control}",
             "- Use the available tools before claiming you cannot inspect or change something.",
+            "- If the user asks to show a file in chat, use display_file.",
             "- For machine-level requests such as volume, brightness, apps, services, packages, "
             "network state, or files, check the runtime and use appropriate shell commands or "
             "configured tools when available.",
