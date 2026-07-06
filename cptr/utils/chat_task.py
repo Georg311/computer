@@ -11,7 +11,7 @@ import logging
 import re
 import uuid
 
-from cptr.events import EVENTS
+from cptr.events import EVENTS, publish_event
 from cptr.env import CHAT_MAX_ITERATIONS, CHAT_TOOL_COMMAND_MAX_CHARS, CHAT_TOOL_MAX_CHARS
 from cptr.utils.context import resolve_compact_token_threshold, should_compact
 from cptr.utils.skills import discover_skills, load_skill, format_skill_content
@@ -1183,25 +1183,26 @@ async def run_chat_task(
             workspace_name=ws_name,
         )
 
-    async def _notify_chat(event: str, message: str | None = None):
+    async def _publish_chat_event(event, message: str | None = None):
         try:
-            from cptr.utils.notifications import EVENT_LABELS, send_chat_event
-
             ws_name = workspace.rstrip("/").rsplit("/", 1)[-1] if workspace else ""
             body = message if message is not None else content
-            await send_chat_event(
-                user_id,
+            preview = body[:300] if body else ""
+            await publish_event(
                 event,
-                {
-                    "title": EVENT_LABELS.get(event, "Chat"),
-                    "message": body[:300] if body else "",
-                    "chat_id": chat_id,
+                actor={"id": user_id},
+                subject_id=chat_id,
+                subject_type="chat",
+                source="chat_task",
+                data={
                     "workspace": {"id": workspace, "name": ws_name} if workspace else None,
+                    "preview": preview,
                 },
+                message=preview,
             )
         except Exception:
             logger.debug(
-                "[notifications] Error sending chat notification for %s", chat_id[:8], exc_info=True
+                "[events] Error publishing chat event for %s", chat_id[:8], exc_info=True
             )
 
     # Load existing state so continuations don't overwrite previous output
@@ -1517,7 +1518,7 @@ async def run_chat_task(
                 )
                 _task_state.pop(message_id, None)
                 await _emit_done()
-                await _notify_chat(EVENTS.CHAT_FINISHED.name)
+                await _publish_chat_event(EVENTS.CHAT_FINISHED)
                 return
 
         flushed_item = _flush_text()
@@ -1526,7 +1527,7 @@ async def run_chat_task(
         await _save_message("agent stream ended", content=content, output=output_items, done=True)
         _task_state.pop(message_id, None)
         await _emit_done()
-        await _notify_chat(EVENTS.CHAT_FINISHED.name)
+        await _publish_chat_event(EVENTS.CHAT_FINISHED)
         return
 
     try:
@@ -1821,7 +1822,7 @@ async def run_chat_task(
                         )
                         _task_state.pop(message_id, None)
                         await _emit_done()
-                        await _notify_chat(EVENTS.CHAT_FINISHED.name)
+                        await _publish_chat_event(EVENTS.CHAT_FINISHED)
                         return
 
             # ── Process collected tool calls ────────────────────
@@ -2038,7 +2039,7 @@ async def run_chat_task(
                 )
                 _task_state.pop(message_id, None)
                 await _emit_done()
-                await _notify_chat(EVENTS.CHAT_FINISHED.name)
+                await _publish_chat_event(EVENTS.CHAT_FINISHED)
                 return
 
         # Max iterations reached
@@ -2051,7 +2052,7 @@ async def run_chat_task(
         )
         _task_state.pop(message_id, None)
         await _emit_done()
-        await _notify_chat(EVENTS.CHAT_FAILED.name, "Max iterations reached.")
+        await _publish_chat_event(EVENTS.CHAT_FAILED, "Max iterations reached.")
 
     except asyncio.CancelledError:
         _flush_text()
@@ -2093,7 +2094,7 @@ async def run_chat_task(
         )
         _task_state.pop(message_id, None)
         await emit(done=True, error=error_msg)
-        await _notify_chat(EVENTS.CHAT_FAILED.name, error_msg)
+        await _publish_chat_event(EVENTS.CHAT_FAILED, error_msg)
     finally:
         # Guarantee the gateway SSE stream terminates.  If emit()
         # already pushed a done/error event the sentinel is harmless

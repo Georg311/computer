@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 
 import httpx
 
-from cptr.events import CHAT_NOTIFICATION_EVENTS, EVENTS
+from cptr.events import CHAT_NOTIFICATION_EVENTS, EVENT_DEFINITIONS_BY_NAME, EVENTS, Event
 from cptr.models import UserStates
 from cptr.socket.main import is_user_active
 
@@ -19,8 +19,6 @@ logger = logging.getLogger(__name__)
 VALID_EVENTS = {event.name for event in CHAT_NOTIFICATION_EVENTS}
 VALID_TYPES = {"webhook", "bot"}
 VALID_DELIVERY = {"away", "always"}
-
-EVENT_LABELS = {event.name: event.label for event in CHAT_NOTIFICATION_EVENTS}
 
 
 class NotificationError(ValueError):
@@ -330,32 +328,65 @@ async def test_target(user_id: str, target_id: str) -> dict:
     return {"ok": True}
 
 
-async def send_chat_event(user_id: str, event: str, context: dict) -> None:
-    if event not in VALID_EVENTS:
+def get_notification_event_catalog() -> list[dict[str, str]]:
+    return [
+        {
+            "event": event.name,
+            "label": event.label,
+            "description": event.description or "",
+        }
+        for event in CHAT_NOTIFICATION_EVENTS
+    ]
+
+
+async def dispatch_notification_event(event: Event) -> None:
+    if event.event not in VALID_EVENTS:
         return
-    data = await _state(user_id)
-    active = is_user_active(user_id)
-    for target in list(_targets(data)):
-        if not target.get("enabled", True):
-            continue
-        if event not in target.get("events", []):
-            continue
-        if target.get("delivery", "away") == "away" and active:
-            continue
-        try:
-            await _deliver(
-                target,
-                event,
-                str(context.get("title") or EVENT_LABELS[event]),
-                str(context.get("message") or ""),
-                {**context, "user_id": user_id},
-            )
-        except Exception:
-            logger.exception(
-                "[notifications] failed to deliver %s to %s",
-                event,
-                target.get("id"),
-            )
+    definition = EVENT_DEFINITIONS_BY_NAME[event.event]
+    actor = event.actor or {}
+    subject = event.subject or {}
+    event_data = event.data or {}
+    user_ids = set()
+    if actor.get("id"):
+        user_ids.add(str(actor["id"]))
+    if subject.get("type") == "user" and subject.get("id"):
+        user_ids.add(str(subject["id"]))
+    if event_data.get("user_id"):
+        user_ids.add(str(event_data["user_id"]))
+    for user_id in event_data.get("user_ids") or []:
+        if user_id:
+            user_ids.add(str(user_id))
+
+    message = str(event.message or event_data.get("preview") or event_data.get("message") or "")
+    chat_id = event_data.get("chat_id") or (
+        subject.get("id") if subject.get("type") == "chat" else None
+    )
+    workspace = event_data.get("workspace")
+
+    for user_id in user_ids:
+        data = await _state(user_id)
+        active = is_user_active(user_id)
+        for target in list(_targets(data)):
+            if not target.get("enabled", True):
+                continue
+            if event.event not in target.get("events", []):
+                continue
+            if target.get("delivery", "away") == "away" and active:
+                continue
+            try:
+                await _deliver(
+                    target,
+                    event.event,
+                    definition.label,
+                    message,
+                    {"chat_id": chat_id, "workspace": workspace, "user_id": user_id},
+                )
+            except Exception:
+                logger.exception(
+                    "[notifications] failed to deliver %s to %s",
+                    event.event,
+                    target.get("id"),
+                )
 
 
 async def notify_target(

@@ -10,6 +10,12 @@ export type ChatNotificationEvent =
 export type NotificationDelivery = 'away' | 'always';
 export type NotificationTargetType = 'webhook' | 'bot';
 
+export interface NotificationEventOption {
+	event: ChatNotificationEvent;
+	label: string;
+	description: string;
+}
+
 export interface NotificationTarget {
 	id: string;
 	type: NotificationTargetType;
@@ -45,6 +51,11 @@ export interface NotificationTargetPayload {
 export async function listNotificationTargets(): Promise<NotificationTarget[]> {
 	const data = await fetchJSON<{ targets: NotificationTarget[] }>('/api/notifications/targets');
 	return data.targets;
+}
+
+export async function listNotificationEvents(): Promise<NotificationEventOption[]> {
+	const data = await fetchJSON<{ events: NotificationEventOption[] }>('/api/notifications/events');
+	return data.events;
 }
 
 export function createNotificationTarget(payload: NotificationTargetPayload) {

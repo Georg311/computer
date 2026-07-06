@@ -8,11 +8,13 @@
 		CHAT_NOTIFICATION_EVENTS,
 		deleteNotificationTarget,
 		listNotificationBotOptions,
+		listNotificationEvents,
 		listNotificationTargets,
 		testNotificationTarget,
 		updateNotificationTarget,
 		type BotOption,
 		type ChatNotificationEvent,
+		type NotificationEventOption,
 		type NotificationDelivery,
 		type NotificationTarget,
 		type NotificationTargetType
@@ -21,12 +23,21 @@
 	import Modal from '../Modal.svelte';
 	import ToggleSwitch from '../common/ToggleSwitch.svelte';
 
-	const eventOptions: { value: ChatNotificationEvent; label: string }[] = [
-		{ value: CHAT_NOTIFICATION_EVENTS.FINISHED, label: 'general.chatFinished' },
-		{ value: CHAT_NOTIFICATION_EVENTS.FAILED, label: 'general.chatFailed' }
+	const fallbackEventOptions: NotificationEventOption[] = [
+		{
+			event: CHAT_NOTIFICATION_EVENTS.FINISHED,
+			label: 'Chat finished',
+			description: 'A chat run finished successfully.'
+		},
+		{
+			event: CHAT_NOTIFICATION_EVENTS.FAILED,
+			label: 'Chat failed',
+			description: 'A chat run failed.'
+		}
 	];
 
 	let targets = $state<NotificationTarget[]>([]);
+	let eventOptions = $state<NotificationEventOption[]>(fallbackEventOptions);
 	let botOptions = $state<BotOption[]>([]);
 	let loadingTargets = $state(false);
 	let savingTarget = $state(false);
@@ -53,12 +64,14 @@
 	async function loadNotificationTargets() {
 		loadingTargets = true;
 		try {
-			const [nextTargets, bots] = await Promise.all([
+			const [nextTargets, bots, events] = await Promise.all([
 				listNotificationTargets(),
-				listNotificationBotOptions()
+				listNotificationBotOptions(),
+				listNotificationEvents()
 			]);
 			targets = nextTargets;
 			botOptions = bots;
+			eventOptions = events.length ? events : fallbackEventOptions;
 		} catch {
 			toast.error($t('general.notificationTargetsLoadFailed'));
 		} finally {
@@ -256,15 +269,15 @@
 								</div>
 								{#if target.events.length}
 									<div class="flex flex-wrap gap-1">
-										{#each eventOptions.filter((event) => target.events.includes(event.value)) as event}
+										{#each eventOptions.filter((event) => target.events.includes(event.event)) as event}
 											<button
 												class="h-6 rounded-md bg-gray-200/60 px-2 text-[0.6875rem] text-gray-900 transition-colors hover:bg-gray-200 dark:bg-white/10 dark:text-white dark:hover:bg-white/15"
 												onclick={() =>
 													patchTarget(target, {
-														events: target.events.filter((item) => item !== event.value)
+														events: target.events.filter((item) => item !== event.event)
 													})}
 											>
-												{$t(event.label)}
+												{event.label}
 											</button>
 										{/each}
 									</div>
@@ -407,12 +420,12 @@
 				{#each eventOptions as event}
 					<button
 						class="h-6 rounded-md px-2 text-[0.6875rem] transition-colors
-						{form.events.includes(event.value)
+						{form.events.includes(event.event)
 							? 'bg-gray-200/60 text-gray-900 dark:bg-white/10 dark:text-white'
 							: 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'}"
-						onclick={() => toggleFormEvent(event.value)}
+						onclick={() => toggleFormEvent(event.event)}
 					>
-						{$t(event.label)}
+						{event.label}
 					</button>
 				{/each}
 			</div>

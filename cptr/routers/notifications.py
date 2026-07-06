@@ -9,6 +9,7 @@ from cptr.utils.notifications import (
     NotificationError,
     create_target,
     delete_target,
+    get_notification_event_catalog,
     get_bot_options,
     list_targets,
     test_target,
@@ -49,6 +50,12 @@ def _error(exc: NotificationError) -> HTTPException:
 @router.get("/targets")
 async def api_list_targets(request: Request):
     return {"targets": await list_targets(_user_id(request))}
+
+
+@router.get("/events")
+async def api_list_events(request: Request):
+    _user_id(request)
+    return {"events": get_notification_event_catalog()}
 
 
 @router.post("/targets")
