@@ -17,7 +17,7 @@ class AcpClient:
         args: list[str],
         cwd: str,
         env: dict[str, str],
-        auth_method_id: str,
+        auth_method_id: str | None,
         client_capabilities: dict[str, Any] | None = None,
         resume_session_id: str | None = None,
         auto_approve_permissions: bool = False,
@@ -37,6 +37,7 @@ class AcpClient:
         self.events: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         self.next_id = 1
         self.session_id: str | None = None
+        self.initialize_result: dict[str, Any] = {}
         self.setup_result: dict[str, Any] = {}
         self.model_config_id: str | None = None
 
@@ -52,7 +53,7 @@ class AcpClient:
         )
         self.reader_task = asyncio.create_task(self._reader_loop())
         self.stderr_task = asyncio.create_task(self._stderr_loop())
-        await self.request(
+        self.initialize_result = await self.request(
             "initialize",
             {
                 "protocolVersion": 1,
@@ -64,7 +65,9 @@ class AcpClient:
                 "clientInfo": {"name": "cptr", "version": "0"},
             },
         )
-        await self.request("authenticate", {"methodId": self.auth_method_id})
+        auth_method_id = self.auth_method_id or _first_auth_method(self.initialize_result)
+        if auth_method_id:
+            await self.request("authenticate", {"methodId": auth_method_id})
         await self._open_session()
 
     async def close(self) -> None:
@@ -267,6 +270,18 @@ def _extract_model_config_id(setup: dict[str, Any]) -> str | None:
             option_id = option.get("id")
             if isinstance(option_id, str) and option_id.strip():
                 return option_id.strip()
+    return None
+
+
+def _first_auth_method(initialize_result: dict[str, Any]) -> str | None:
+    methods = initialize_result.get("authMethods")
+    if not isinstance(methods, list):
+        return None
+    for method in methods:
+        if isinstance(method, dict):
+            method_id = method.get("id")
+            if isinstance(method_id, str) and method_id.strip():
+                return method_id.strip()
     return None
 
 
