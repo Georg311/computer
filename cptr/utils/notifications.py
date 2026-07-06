@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ipaddress
 import logging
+import re
 import socket
 import time
 from urllib.parse import urlparse
@@ -198,6 +199,23 @@ def _check_unique_id(targets: list[dict], new_id: str, old_id: str | None = None
 async def create_target(user_id: str, payload: dict) -> dict:
     data = await _state(user_id)
     targets = _targets(data)
+    payload = dict(payload)
+    if not str(payload.get("id") or "").strip():
+        config = payload.get("config") or {}
+        target_type = str(payload.get("type") or "target").strip() or "target"
+        if target_type == "webhook":
+            base = urlparse(str(config.get("url") or "")).hostname or "webhook"
+        elif target_type == "bot":
+            base = str(config.get("bot_id") or "bot")
+        else:
+            base = target_type
+        base = re.sub(r"[^a-zA-Z0-9_-]+", "-", base).strip("-").lower() or "target"
+        candidate = base
+        suffix = 2
+        while any(str(target.get("id", "")).lower() == candidate.lower() for target in targets):
+            candidate = f"{base}-{suffix}"
+            suffix += 1
+        payload["id"] = candidate
     target = _validate_target(payload)
     if target["type"] == "bot":
         await _ensure_user_bot(user_id, target["config"]["bot_id"])

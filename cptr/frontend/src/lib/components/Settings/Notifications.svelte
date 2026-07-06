@@ -238,100 +238,61 @@
 					{$t('general.noNotificationTargets')}
 				</p>
 			{:else}
-				<div class="flex flex-col gap-2">
+				<div class="flex flex-col">
 					{#each targets as target}
-						<div class="rounded-lg border border-gray-200 dark:border-white/8 p-2">
-							<div class="flex items-start justify-between gap-3">
-								<div class="min-w-0">
-									<div class="flex items-center gap-2">
-										<span class="truncate text-xs font-medium text-gray-800 dark:text-gray-200">
-											{target.id}
-										</span>
-										<span class="text-[0.625rem] uppercase text-gray-400 dark:text-gray-600">
-											{target.type === 'webhook' ? $t('general.webhook') : $t('general.bot')}
-										</span>
-									</div>
-									<p class="truncate text-[0.6875rem] text-gray-400 dark:text-gray-600">
-										{target.type === 'webhook'
-											? target.config.url_masked
-											: target.config.destination_chat_id}
-									</p>
+						{@const targetDestination =
+							target.type === 'webhook' ? target.config.url_masked : target.config.destination_chat_id}
+						{@const alertLabels = eventOptions
+							.filter((event) => target.events.includes(event.event))
+							.map((event) => event.label)
+							.join(', ')}
+						<div class="notification-target-row">
+							<div class="min-w-0 flex-1">
+								<div class="flex items-center gap-2 min-w-0">
+									<span class="truncate text-[0.71875rem] text-gray-700 dark:text-gray-300">
+										{target.id}
+									</span>
+									<span class="shrink-0 text-[0.625rem] text-gray-400 dark:text-gray-600">
+										{target.type === 'webhook' ? $t('general.webhook') : $t('general.bot')}
+									</span>
 								</div>
+								<div class="truncate text-[0.625rem] text-gray-400 dark:text-gray-600 leading-tight">
+									{targetDestination}
+								</div>
+								<div class="truncate text-[0.625rem] text-gray-400 dark:text-gray-600 leading-tight">
+									{alertLabels || $t('general.noChatAlerts')}
+									{#if target.events.length}
+										· {target.delivery === 'away' ? $t('general.onlyWhenAway') : $t('general.always')}
+									{/if}
+								</div>
+							</div>
+
+							<div class="flex items-center gap-2 shrink-0">
+								<button
+									class="text-[0.625rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
+									onclick={() => sendTest(target)}
+								>
+									{$t('general.sendTest')}
+								</button>
+								<button
+									class="text-[0.625rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
+									onclick={() => openEditTarget(target)}
+								>
+									{$t('common.edit')}
+								</button>
+								<button
+									class="text-[0.625rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
+									onclick={() => removeTarget(target)}
+								>
+									{$t('common.remove')}
+								</button>
+							</div>
+
+							<div class="w-9 shrink-0 flex justify-end">
 								<ToggleSwitch
 									value={target.enabled}
 									onchange={(v) => patchTarget(target, { enabled: v })}
 								/>
-							</div>
-
-							<div class="mt-2">
-								<div class="mb-1 text-[0.625rem] font-medium text-gray-400 dark:text-gray-600">
-									{$t('general.automaticEvents')}
-								</div>
-								{#if target.events.length}
-									<div class="flex flex-wrap gap-1">
-										{#each eventOptions.filter((event) => target.events.includes(event.event)) as event}
-											<button
-												class="h-6 rounded-md bg-gray-200/60 px-2 text-[0.6875rem] text-gray-900 transition-colors hover:bg-gray-200 dark:bg-white/10 dark:text-white dark:hover:bg-white/15"
-												onclick={() =>
-													patchTarget(target, {
-														events: target.events.filter((item) => item !== event.event)
-													})}
-											>
-												{event.label}
-											</button>
-										{/each}
-									</div>
-								{:else}
-									<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600">
-											{$t('general.noChatAlerts')}
-									</p>
-								{/if}
-							</div>
-
-							<div class="mt-2 flex items-end justify-between gap-2">
-								{#if target.events.length}
-									<div>
-										<div class="mb-1 text-[0.625rem] font-medium text-gray-400 dark:text-gray-600">
-											{$t('general.automaticDelivery')}
-										</div>
-										<div class="flex gap-1">
-											{#each ['away', 'always'] as mode}
-												<button
-													class="h-6 rounded-md px-2 text-[0.6875rem] transition-colors
-													{target.delivery === mode
-														? 'bg-gray-200/60 text-gray-900 dark:bg-white/10 dark:text-white'
-														: 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300'}"
-													onclick={() =>
-														patchTarget(target, { delivery: mode as NotificationDelivery })}
-												>
-													{mode === 'away' ? $t('general.onlyWhenAway') : $t('general.always')}
-												</button>
-											{/each}
-										</div>
-									</div>
-								{:else}
-									<div></div>
-								{/if}
-								<div class="flex gap-2">
-									<button
-										class="text-[0.6875rem] text-gray-500 hover:text-gray-900 dark:hover:text-white"
-										onclick={() => sendTest(target)}
-									>
-										{$t('general.sendTest')}
-									</button>
-									<button
-										class="text-[0.6875rem] text-gray-500 hover:text-gray-900 dark:hover:text-white"
-										onclick={() => openEditTarget(target)}
-									>
-										{$t('common.edit')}
-									</button>
-									<button
-										class="text-[0.6875rem] text-red-500 hover:text-red-600"
-										onclick={() => removeTarget(target)}
-									>
-										{$t('common.remove')}
-									</button>
-								</div>
 							</div>
 						</div>
 					{/each}
@@ -471,3 +432,16 @@
 		</div>
 	</Modal>
 {/if}
+
+<style>
+	@reference "../../../app.css";
+
+	.notification-target-row {
+		@apply flex items-center gap-3 px-1 py-1.5;
+		border-bottom: 1px solid rgba(128, 128, 128, 0.04);
+	}
+
+	.notification-target-row:last-child {
+		border-bottom: none;
+	}
+</style>
