@@ -115,7 +115,7 @@
 		<audio controls preload="metadata" src={viewUrl}></audio>
 	</div>
 {:else if kind === 'video'}
-	<div class="media-preview">
+	<div class="media-preview video-preview">
 		<!-- svelte-ignore a11y_media_has_caption -->
 		<video controls preload="metadata" src={viewUrl}></video>
 	</div>
@@ -126,9 +126,10 @@
 
 	.preview-box {
 		height: 18rem;
-		max-height: 52vh;
+		max-height: 75vh;
 		min-height: 10rem;
 		overflow: hidden;
+		resize: vertical;
 		background: white;
 	}
 
@@ -145,8 +146,11 @@
 	}
 
 	.text-preview {
-		max-height: 22rem;
+		height: 18rem;
+		max-height: 75vh;
+		min-height: 6rem;
 		overflow: auto;
+		resize: vertical;
 		padding: 0.875rem 1rem;
 		background: white;
 	}
@@ -174,6 +178,14 @@
 		background: white;
 	}
 
+	.video-preview {
+		height: 18rem;
+		max-height: 75vh;
+		min-height: 6rem;
+		overflow: auto;
+		resize: vertical;
+	}
+
 	:global(.dark) .media-preview {
 		background: rgba(0, 0, 0, 0.25);
 	}
@@ -181,7 +193,9 @@
 	.media-preview audio,
 	.media-preview video {
 		width: 100%;
-		max-height: 22rem;
+		height: 100%;
+		max-height: 100%;
+		object-fit: contain;
 	}
 
 	.preview-state {
