@@ -9,8 +9,7 @@
 		gitReviewOpen,
 		setActiveGroup,
 		setSplitRatio,
-		openTabInSplit,
-		setSplitDirection,
+		moveTabToNewSplit,
 		openChatTab,
 		openFileTab,
 		openTerminalTab,
@@ -20,7 +19,7 @@
 		showSearch,
 		pwaPreferences
 	} from '$lib/stores';
-	import type { Tab, EditorGroup, WorkspaceState } from '$lib/stores';
+	import type { Tab, EditorGroup, SplitDirection, WorkspaceState } from '$lib/stores';
 	import { t } from '$lib/i18n';
 	import { get } from 'svelte/store';
 	import { getWelcome, getWorkspaceState } from '$lib/apis/state';
@@ -40,6 +39,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import WorkspacePicker from '$lib/components/WorkspacePicker.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
+	import { TAB_DRAG_MIME } from '$lib/constants';
 	import { isSupportedWorkspacePath } from '$lib/utils/paths';
 
 	let showPicker = $state(false);
@@ -639,27 +639,78 @@
 
 	// ── Drag-to-split ─────────────────────────────────────────────
 
-	let dragOverZone = $state<'right' | 'bottom' | null>(null);
+	const SPLIT_EDGE_FRACTION = 0.3;
+
+	type SplitDropZone = 'left' | 'right' | 'top' | 'bottom';
+	type TabDragPayload = { tabId: string; groupId: string };
+
+	let dragOverZone = $state<SplitDropZone | null>(null);
+
+	function hasTabDrag(dataTransfer: DataTransfer): boolean {
+		return dataTransfer.types.includes(TAB_DRAG_MIME) || dataTransfer.types.includes('text/tab-id');
+	}
+
+	function readTabDragPayload(dataTransfer: DataTransfer): TabDragPayload | null {
+		const raw = dataTransfer.getData(TAB_DRAG_MIME);
+		if (raw) {
+			try {
+				const parsed = JSON.parse(raw) as Partial<TabDragPayload>;
+				if (typeof parsed.tabId === 'string' && typeof parsed.groupId === 'string') {
+					return { tabId: parsed.tabId, groupId: parsed.groupId };
+				}
+			} catch {
+				// Fall through to the legacy payload below.
+			}
+		}
+
+		const tabId = dataTransfer.getData('text/tab-id');
+		const groupId = dataTransfer.getData('text/group-id');
+		return tabId && groupId ? { tabId, groupId } : null;
+	}
+
+	function getSplitDropZone(e: DragEvent): SplitDropZone | null {
+		if (!containerEl || !isWideScreen || hasSplit || !e.dataTransfer) return null;
+		if (e.dataTransfer.types.includes('Files') || !hasTabDrag(e.dataTransfer)) return null;
+
+		const rect = containerEl.getBoundingClientRect();
+		if (
+			e.clientX < rect.left ||
+			e.clientX > rect.right ||
+			e.clientY < rect.top ||
+			e.clientY > rect.bottom
+		) {
+			return null;
+		}
+
+		const horizontalBand = rect.width * SPLIT_EDGE_FRACTION;
+		const verticalBand = rect.height * SPLIT_EDGE_FRACTION;
+		const leftDistance = e.clientX - rect.left;
+		const rightDistance = rect.right - e.clientX;
+		const topDistance = e.clientY - rect.top;
+		const bottomDistance = rect.bottom - e.clientY;
+		const candidates: { zone: SplitDropZone; distance: number }[] = [];
+
+		if (leftDistance <= horizontalBand) candidates.push({ zone: 'left', distance: leftDistance });
+		if (rightDistance <= horizontalBand)
+			candidates.push({ zone: 'right', distance: rightDistance });
+		if (topDistance <= verticalBand) candidates.push({ zone: 'top', distance: topDistance });
+		if (bottomDistance <= verticalBand)
+			candidates.push({ zone: 'bottom', distance: bottomDistance });
+
+		candidates.sort((a, b) => a.distance - b.distance);
+		return candidates[0]?.zone ?? null;
+	}
 
 	function handleContainerDragOver(e: DragEvent) {
-		if (!containerEl || !isWideScreen) return;
-		// Only respond to tab drags, not file uploads
-		if (!e.dataTransfer?.types.includes('text/tab-id')) return;
-		// Only show drop zones when not already split
-		if (hasSplit) return;
+		const zone = getSplitDropZone(e);
+		if (!zone) {
+			dragOverZone = null;
+			return;
+		}
 
 		e.preventDefault();
-		const rect = containerEl.getBoundingClientRect();
-		const xRatio = (e.clientX - rect.left) / rect.width;
-		const yRatio = (e.clientY - rect.top) / rect.height;
-
-		if (xRatio > 0.75) {
-			dragOverZone = 'right';
-		} else if (yRatio > 0.75) {
-			dragOverZone = 'bottom';
-		} else {
-			dragOverZone = null;
-		}
+		e.dataTransfer!.dropEffect = 'move';
+		dragOverZone = zone;
 	}
 
 	function handleContainerDragLeave(e: DragEvent) {
@@ -670,36 +721,24 @@
 	}
 
 	function handleContainerDrop(e: DragEvent) {
-		if (!dragOverZone || !e.dataTransfer) {
-			dragOverZone = null;
-			return;
-		}
-		// Don't intercept file uploads
-		if (e.dataTransfer.types.includes('Files')) {
+		const zone = dragOverZone ?? getSplitDropZone(e);
+
+		if (!zone || !e.dataTransfer) {
 			dragOverZone = null;
 			return;
 		}
 
-		const tabId = e.dataTransfer.getData('text/tab-id');
-		const fromGroupId = e.dataTransfer.getData('text/group-id');
-		if (!tabId || !fromGroupId) {
+		const payload = readTabDragPayload(e.dataTransfer);
+		if (!payload) {
 			dragOverZone = null;
 			return;
 		}
 
 		e.preventDefault();
-		const direction = dragOverZone === 'right' ? 'horizontal' : 'vertical';
-		setSplitDirection(direction as any);
-
-		// Move the dragged tab into a new split pane
-		const ws = $currentWorkspace;
-		if (ws) {
-			const sourceGroup = ws.groups.find((g) => g.id === fromGroupId);
-			const tab = sourceGroup?.tabs.find((t) => t.id === tabId);
-			if (tab) {
-				openTabInSplit(tabId, direction as any);
-			}
-		}
+		const direction: SplitDirection =
+			zone === 'left' || zone === 'right' ? 'horizontal' : 'vertical';
+		const placement = zone === 'left' || zone === 'top' ? 'before' : 'after';
+		moveTabToNewSplit(payload.tabId, payload.groupId, direction, placement);
 		dragOverZone = null;
 	}
 </script>
@@ -883,6 +922,7 @@
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<div
 				class="split-pane"
+				class:split-pane-single={!hasSplit}
 				style={hasSplit
 					? splitDirection === 'horizontal'
 						? `width: ${i === 0 ? splitRatio * 100 : (1 - splitRatio) * 100}%;`
@@ -943,8 +983,14 @@
 		{/each}
 
 		<!-- Drop zone indicators for drag-to-split -->
+		{#if dragOverZone === 'left'}
+			<div class="split-drop-zone split-drop-left"></div>
+		{/if}
 		{#if dragOverZone === 'right'}
 			<div class="split-drop-zone split-drop-right"></div>
+		{/if}
+		{#if dragOverZone === 'top'}
+			<div class="split-drop-zone split-drop-top"></div>
 		{/if}
 		{#if dragOverZone === 'bottom'}
 			<div class="split-drop-zone split-drop-bottom"></div>
@@ -1003,8 +1049,8 @@
 		min-height: 0;
 	}
 
-	/* Single pane takes all space */
-	.split-pane:only-child {
+	/* Single pane takes all space even while preview overlays are mounted. */
+	.split-pane-single {
 		flex: 1;
 		width: 100%;
 		height: 100%;
@@ -1097,24 +1143,43 @@
 	.split-drop-zone {
 		position: absolute;
 		z-index: 15;
-		background: oklch(0.65 0.15 250 / 0.08);
-		border: 0.125rem dashed oklch(0.65 0.15 250 / 0.3);
-		border-radius: 0.5rem;
+		display: block;
+		flex: none;
+		contain: layout paint;
 		pointer-events: none;
+		--split-tabbar-height: 2.25rem;
+		background: color-mix(in oklab, var(--app-fg) 6%, transparent);
+		box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--app-fg) 16%, transparent);
+	}
+
+	.split-drop-left,
+	.split-drop-right {
+		top: var(--split-tabbar-height);
+		bottom: 0;
+		width: 50%;
+	}
+
+	.split-drop-left {
+		left: 0;
 	}
 
 	.split-drop-right {
-		top: 0.5rem;
-		right: 0.5rem;
-		bottom: 0.5rem;
-		width: 45%;
+		right: 0;
+	}
+
+	.split-drop-top,
+	.split-drop-bottom {
+		left: 0;
+		right: 0;
+		height: calc((100% - var(--split-tabbar-height)) / 2);
+	}
+
+	.split-drop-top {
+		top: var(--split-tabbar-height);
 	}
 
 	.split-drop-bottom {
-		left: 0.5rem;
-		right: 0.5rem;
-		bottom: 0.5rem;
-		height: 45%;
+		bottom: 0;
 	}
 
 	/* ── Persisted file editor tabs ────────────────────── */

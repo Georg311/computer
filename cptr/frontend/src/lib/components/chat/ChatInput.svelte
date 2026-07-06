@@ -38,6 +38,7 @@
 	} from '$lib/stores/audio';
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import { t } from '$lib/i18n';
+	import { TAB_DRAG_MIME } from '$lib/constants';
 
 	// Keep screen awake during voice mode conversations
 	let voiceWakeLock: WakeLockSentinel | null = null;
@@ -135,6 +136,12 @@
 	>([]);
 	let isDragging = $state(false);
 
+	function isTabDrag(e: DragEvent): boolean {
+		return Boolean(
+			e.dataTransfer?.types.includes(TAB_DRAG_MIME) || e.dataTransfer?.types.includes('text/tab-id')
+		);
+	}
+
 	async function processFiles(files: File[]) {
 		for (const file of files) {
 			const id = Math.random().toString(36).substring(7);
@@ -161,6 +168,8 @@
 	}
 
 	function handleDrop(e: DragEvent) {
+		if (isTabDrag(e)) return;
+
 		e.preventDefault();
 		isDragging = false;
 		if (e.dataTransfer?.files) {
@@ -962,6 +971,10 @@
 	ondrop={handleDrop}
 	onpaste={handlePaste}
 	ondragover={(e) => {
+		if (isTabDrag(e)) {
+			isDragging = false;
+			return;
+		}
 		e.preventDefault();
 		isDragging = true;
 	}}

@@ -214,50 +214,6 @@ export const splitTab = derived(currentWorkspace, ($ws) => {
 	return secondGroup?.tabs.find((t) => t.id === secondGroup.activeTabId) ?? null;
 });
 
-/** @deprecated Use splitCurrentTab or openInGroup */
-export function openTabInSplit(tabId: string, direction?: SplitDirection): void {
-	const ws = get(currentWorkspace);
-	if (!ws) return;
-
-	// If already split, move tab to the other group
-	if (ws.groups.length > 1) {
-		const otherGroup = ws.groups.find((g) => g.id !== ws.activeGroupId);
-		if (otherGroup) {
-			moveTabToGroup(tabId, ws.activeGroupId, otherGroup.id);
-			return;
-		}
-	}
-
-	// Otherwise, create a new group with this tab
-	const dir = direction ?? ws.splitDirection ?? 'horizontal';
-
-	// Find the tab in any group
-	let sourceTab: Tab | undefined;
-	for (const g of ws.groups) {
-		sourceTab = g.tabs.find((t) => t.id === tabId);
-		if (sourceTab) break;
-	}
-	if (!sourceTab) return;
-
-	const newTab: Tab = { ...sourceTab, id: nextId(), permanent: false };
-	const newGroup: EditorGroup = {
-		id: nextId(),
-		tabs: [newTab],
-		activeTabId: newTab.id
-	};
-
-	currentWorkspace.update((ws) => {
-		if (!ws) return ws;
-		return {
-			...ws,
-			groups: [...ws.groups, newGroup],
-			activeGroupId: newGroup.id,
-			splitDirection: dir,
-			splitRatio: ws.splitRatio ?? 0.5
-		};
-	});
-}
-
 /** @deprecated Use closeGroup */
 export function closeSplitPane(): void {
 	const ws = get(currentWorkspace);
@@ -1088,23 +1044,33 @@ export function closeGroup(groupId: string): void {
 	currentWorkspace.update((ws) => {
 		if (!ws) return ws;
 
-		// Clean up terminal sessions in this group
-		const group = ws.groups.find((g) => g.id === groupId);
-		if (group) {
-			group.tabs.forEach((t) => {
-				if (t.type === 'terminal' && t.sessionId) deleteSession(t.sessionId);
-			});
-		}
+		const closingGroup = ws.groups.find((g) => g.id === groupId);
+		const remainingGroups = ws.groups.filter((g) => g.id !== groupId);
+		const targetGroup =
+			remainingGroups.find((g) => g.id === ws.activeGroupId) ?? remainingGroups[0];
+		if (!closingGroup || !targetGroup) return ws;
 
-		let newGroups = ws.groups.filter((g) => g.id !== groupId);
-		if (newGroups.length === 0) {
-			newGroups = [createDefaultGroup()];
-		}
-		const activeGroupStillExists = newGroups.some((g) => g.id === ws.activeGroupId);
+		const existingTabIds = new Set(targetGroup.tabs.map((t) => t.id));
+		const movedTabs = closingGroup.tabs.filter((t) => !existingTabIds.has(t.id));
+		const tabs = [...targetGroup.tabs, ...movedTabs];
+		const activeTabId =
+			ws.activeGroupId === closingGroup.id && tabs.some((t) => t.id === closingGroup.activeTabId)
+				? closingGroup.activeTabId
+				: targetGroup.activeTabId;
+		const newGroups = remainingGroups.map((g) =>
+			g.id === targetGroup.id
+				? {
+						...g,
+						tabs,
+						activeTabId: tabs.some((t) => t.id === activeTabId) ? activeTabId : (tabs[0]?.id ?? '')
+					}
+				: g
+		);
+
 		return {
 			...ws,
 			groups: newGroups,
-			activeGroupId: activeGroupStillExists ? ws.activeGroupId : newGroups[0].id
+			activeGroupId: targetGroup.id
 		};
 	});
 }
@@ -1134,11 +1100,46 @@ export function moveTabToGroup(tabId: string, fromGroupId: string, toGroupId: st
 		newGroups = newGroups.filter((g) => g.tabs.length > 0);
 		if (newGroups.length === 0) newGroups = [createDefaultGroup()];
 
-		const activeGroupStillExists = newGroups.some((g) => g.id === ws.activeGroupId);
+		const targetGroupStillExists = newGroups.some((g) => g.id === toGroupId);
 		return {
 			...ws,
 			groups: newGroups,
-			activeGroupId: activeGroupStillExists ? ws.activeGroupId : newGroups[0].id
+			activeGroupId: targetGroupStillExists ? toGroupId : newGroups[0].id
+		};
+	});
+}
+
+export function moveTabToNewSplit(
+	tabId: string,
+	fromGroupId: string,
+	direction: SplitDirection,
+	placement: 'before' | 'after' = 'after'
+): void {
+	currentWorkspace.update((ws) => {
+		if (!ws || ws.groups.length > 1) return ws;
+		const fromGroup = ws.groups.find((g) => g.id === fromGroupId);
+		if (!fromGroup) return ws;
+		const tab = fromGroup.tabs.find((t) => t.id === tabId);
+		if (!tab || tab.permanent) return ws;
+
+		const newGroup: EditorGroup = {
+			id: nextId(),
+			tabs: [tab],
+			activeTabId: tab.id
+		};
+		let groups = ws.groups.map((g) => {
+			if (g.id !== fromGroupId) return g;
+			const tabs = g.tabs.filter((t) => t.id !== tabId);
+			return { ...g, tabs, activeTabId: tabs[0]?.id ?? '' };
+		});
+		groups = groups.filter((g) => g.tabs.length > 0);
+
+		return {
+			...ws,
+			groups: placement === 'before' ? [newGroup, ...groups] : [...groups, newGroup],
+			activeGroupId: newGroup.id,
+			splitDirection: direction,
+			splitRatio: ws.splitRatio ?? 0.5
 		};
 	});
 }

@@ -22,6 +22,7 @@
 	import Spinner from './common/Spinner.svelte';
 	import DropdownMenu from './DropdownMenu.svelte';
 	import { t } from '$lib/i18n';
+	import { TAB_DRAG_MIME } from '$lib/constants';
 
 	interface FileEntry {
 		name: string;
@@ -573,6 +574,12 @@
 
 	// ── Drag to move ────────────────────────────────────────────
 
+	function isTabDrag(e: DragEvent): boolean {
+		return Boolean(
+			e.dataTransfer?.types.includes(TAB_DRAG_MIME) || e.dataTransfer?.types.includes('text/tab-id')
+		);
+	}
+
 	/** Collect all paths being dragged: either selected items (if the dragged item is selected) or just the single item */
 	function getDraggedPaths(entry: TreeEntry): string[] {
 		if (selectedPaths.size > 0 && selectedPaths.has(entry.path)) {
@@ -605,6 +612,8 @@
 	}
 
 	function onDragOverDir(e: DragEvent, entry: TreeEntry) {
+		if (isTabDrag(e)) return;
+
 		// Determine the target folder for this entry
 		let targetDir: string | null;
 		if (entry.type === 'directory') {
@@ -665,6 +674,8 @@
 	}
 
 	async function onDropOnDir(e: DragEvent, entry: TreeEntry) {
+		if (isTabDrag(e)) return;
+
 		e.preventDefault();
 		if (dragExpandTimer) {
 			clearTimeout(dragExpandTimer);
@@ -744,6 +755,11 @@
 
 	// ── Drop zone for uploads ───────────────────────────────────
 	function onDropzoneOver(e: DragEvent) {
+		if (isTabDrag(e)) {
+			dropzoneActive = false;
+			return;
+		}
+
 		e.preventDefault();
 		if (draggedItem) {
 			// Internal drag — allow drop to move to current directory
@@ -762,6 +778,8 @@
 	}
 
 	async function onDropzoneDrop(e: DragEvent) {
+		if (isTabDrag(e)) return;
+
 		e.preventDefault();
 		dropzoneActive = false;
 

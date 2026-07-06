@@ -29,6 +29,7 @@
 	import { tooltip } from '$lib/tooltip';
 	import { t } from '$lib/i18n';
 	import VoiceMemoModal from './VoiceMemoModal.svelte';
+	import { TAB_DRAG_MIME } from '$lib/constants';
 
 	interface Props {
 		group: EditorGroup;
@@ -56,6 +57,8 @@
 
 	// Drop target highlight for cross-group drag
 	let dropHighlight = $state(false);
+
+	type TabDragPayload = { tabId: string; groupId: string };
 
 	const displayTabs = $derived((group?.tabs ?? []).filter((t) => t.type !== 'git'));
 
@@ -89,6 +92,11 @@
 		closeTab(tabId, group.id);
 	}
 
+	function handleCloseGroup(e: Event) {
+		e.stopPropagation();
+		closeGroup(group.id);
+	}
+
 	function handleContextMenu(e: MouseEvent, tab: Tab) {
 		if (!isWideScreen) return;
 		e.preventDefault();
@@ -108,11 +116,31 @@
 	// Native drag handlers are NOT needed. Sortable's setData handles it.
 	// We keep the native drop handlers on the bar for cross-group drops.
 
+	function hasTabDrag(dataTransfer: DataTransfer): boolean {
+		return dataTransfer.types.includes(TAB_DRAG_MIME) || dataTransfer.types.includes('text/tab-id');
+	}
+
+	function readTabDragPayload(dataTransfer: DataTransfer): TabDragPayload | null {
+		const raw = dataTransfer.getData(TAB_DRAG_MIME);
+		if (raw) {
+			try {
+				const parsed = JSON.parse(raw) as Partial<TabDragPayload>;
+				if (typeof parsed.tabId === 'string' && typeof parsed.groupId === 'string') {
+					return { tabId: parsed.tabId, groupId: parsed.groupId };
+				}
+			} catch {
+				// Fall through to the legacy payload below.
+			}
+		}
+
+		const tabId = dataTransfer.getData('text/tab-id');
+		const groupId = dataTransfer.getData('text/group-id');
+		return tabId && groupId ? { tabId, groupId } : null;
+	}
+
 	function handleBarDragOver(e: DragEvent) {
 		// Only accept tab drags (not file uploads)
-		if (!e.dataTransfer?.types.includes('text/tab-id')) return;
-		const sourceGroupId = e.dataTransfer.types.includes('text/group-id') ? 'unknown' : null;
-		if (!sourceGroupId) return;
+		if (!e.dataTransfer || !hasTabDrag(e.dataTransfer)) return;
 		e.preventDefault();
 		e.dataTransfer.dropEffect = 'move';
 		dropHighlight = true;
@@ -125,12 +153,11 @@
 	function handleBarDrop(e: DragEvent) {
 		dropHighlight = false;
 		if (!e.dataTransfer) return;
-		const tabId = e.dataTransfer.getData('text/tab-id');
-		const fromGroupId = e.dataTransfer.getData('text/group-id');
-		if (!tabId || !fromGroupId) return;
-		if (fromGroupId === group.id) return; // same group, ignore
+		const payload = readTabDragPayload(e.dataTransfer);
+		if (!payload) return;
+		if (payload.groupId === group.id) return; // same group, ignore
 		e.preventDefault();
-		moveTabToGroup(tabId, fromGroupId, group.id);
+		moveTabToGroup(payload.tabId, payload.groupId, group.id);
 	}
 
 	const plusMenuItems = $derived([
@@ -246,6 +273,7 @@
 				touchStartThreshold: 5,
 				setData: (dataTransfer: DataTransfer, dragEl: HTMLElement) => {
 					const tabId = dragEl.dataset.tabId ?? '';
+					dataTransfer.setData(TAB_DRAG_MIME, JSON.stringify({ tabId, groupId: group.id }));
 					dataTransfer.setData('text/tab-id', tabId);
 					dataTransfer.setData('text/group-id', group.id);
 				},
@@ -370,7 +398,7 @@
 		{#if canClose}
 			<button
 				class="flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 shrink-0"
-				onclick={() => closeGroup(group.id)}
+				onclick={handleCloseGroup}
 				aria-label={$t('a11y.closePane')}
 				use:tooltip={$t('a11y.closePane')}
 			>
