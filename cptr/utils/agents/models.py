@@ -70,10 +70,20 @@ DEFAULT_AGENT_PROFILES: list[dict[str, Any]] = [
         "server_url": "",
         "server_password": "",
     },
+    {
+        "id": "cline",
+        "agent": "cline",
+        "name": "Cline",
+        "mode": "auto",
+        "command": "cline",
+        "home": None,
+        "models": [],
+        "default_model": "",
+    },
 ]
 
 _PROFILE_ID_RE = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
-_VALID_AGENTS = {"codex", "claude_code", "cursor", "grok", "opencode"}
+_VALID_AGENTS = {"codex", "claude_code", "cursor", "grok", "opencode", "cline"}
 _VALID_MODES = {"auto", "enabled", "disabled"}
 _VALID_CODEX_APPROVAL = {"ask", "auto", "full"}
 _VALID_CODEX_SANDBOX = {"read-only", "workspace-write", "danger-full-access"}
@@ -92,6 +102,7 @@ _AGENT_DEFAULTS: dict[str, dict[str, str]] = {
     },
     "grok": {"name": "Grok", "command": "grok", "model": ""},
     "opencode": {"name": "OpenCode", "command": "opencode", "model": ""},
+    "cline": {"name": "Cline", "command": "cline", "model": ""},
 }
 
 
@@ -107,7 +118,9 @@ def normalize_agent_profile(raw: dict[str, Any]) -> dict[str, Any]:
 
     agent = str(profile.get("agent") or "").strip()
     if agent not in _VALID_AGENTS:
-        raise HTTPException(400, "agent must be codex, claude_code, cursor, grok, or opencode")
+        raise HTTPException(
+            400, "agent must be codex, claude_code, cursor, grok, opencode, or cline"
+        )
     defaults = _AGENT_DEFAULTS[agent]
 
     mode = str(profile.get("mode") or "auto").strip()

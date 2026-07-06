@@ -158,6 +158,18 @@ async def detect_profile(profile: dict[str, Any]) -> AgentDetection:
             )
         return AgentDetection("ready", command, version, None, models)
 
+    if profile.get("agent") == "cline":
+        models = await _probe_cline_models(command, profile)
+        if not models:
+            return AgentDetection(
+                "auth_unknown",
+                command,
+                version,
+                "Could not discover Cline models. Check `cline auth` or add models manually.",
+                [],
+            )
+        return AgentDetection("ready", command, version, None, models)
+
     return AgentDetection("error", command, version, "Unknown agent")
 
 
@@ -385,6 +397,28 @@ async def _probe_opencode_models(command: str, profile: dict[str, Any]) -> list[
             if proc.returncode is None:
                 proc.kill()
                 await proc.wait()
+
+
+async def _probe_cline_models(command: str, profile: dict[str, Any]) -> list[str] | None:
+    from cptr.utils.agents.acp import AcpClient, acp_models_from_setup
+
+    env = os.environ.copy()
+    if profile.get("home"):
+        env["HOME"] = os.path.expanduser(str(profile["home"]))
+    client = AcpClient(
+        command=command,
+        args=["--acp"],
+        cwd=os.getcwd(),
+        env=env,
+        auth_method_id=None,
+    )
+    try:
+        await asyncio.wait_for(client.start(), timeout=10)
+        return acp_models_from_setup(client.setup_result) or None
+    except Exception:
+        return None
+    finally:
+        await client.close()
 
 
 def _free_port() -> int:
