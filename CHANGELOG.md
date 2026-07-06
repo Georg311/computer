@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.6] - 2026-07-06
+
+### Added
+
+- 🔔 **Notification targets.** Send chat alerts to a webhook or one of your messaging bots, choose when alerts are sent, and test each destination from Settings.
+- 🤖 **Cline agent support.** Add Cline as a coding agent and use it from chat alongside Codex, Claude Code, Cursor, Grok, and OpenCode.
+- 📦 **Offline install guide.** Added setup steps for installing Computer in places without internet access after download.
+
+### Changed
+
+- 🧭 **Easier workspace start.** Recent workspaces are easier to find, scan, and reopen from the home screen.
+- 🪟 **Better split tabs.** Drag tabs to the left, right, top, or bottom to make split panes, and move tabs between panes without losing them.
+- 🌍 **More complete labels.** Updated labels for new notification and agent settings across supported languages.
+
+### Fixed
+
+- 📎 **Cleaner dragging.** Dragging tabs no longer wakes up file upload areas or chat attachments by mistake.
+- 💬 **Messaging bot setup.** Slack, WhatsApp, and Signal bots can now be created from the same admin flow as Telegram and Discord.
+- ✅ **More reliable chat endings.** Chats now settle more consistently at the end of a run, which keeps final status and alerts in sync.
+
 ## [0.7.5] - 2026-07-02
 
 ### Added
