@@ -1778,30 +1778,8 @@ async def run_chat_task(
                     last_usage = usage
                     new_messages_since = 0
 
-                    if not pending_calls:
-                        # No tool calls — final response, we're done
-                        _flush_text()
-                        if streamed_reasoning_chars and not response_reasoning_items:
-                            logger.warning(
-                                "[task %s] reasoning output streamed (%d chars) but no completed reasoning item arrived before usage; DB output may contain only in-progress reasoning",
-                                message_id[:8],
-                                streamed_reasoning_chars,
-                            )
-                        await _save_message(
-                            "usage",
-                            content=content,
-                            output=output_items,
-                            usage=usage,
-                            done=True,
-                        )
-                        _task_state.pop(message_id, None)
-                        await _emit_done()
-                        return
-
                 elif event["type"] == "done":
-                    # Stream ended — if usage already triggered a save+return, we won't
-                    # reach here. This is the fallback for providers that don't support
-                    # stream_options.include_usage.
+                    # Stream ended. Usage may have arrived earlier, multiple times, or never.
                     if not pending_calls:
                         _flush_text()
                         if streamed_reasoning_chars and not response_reasoning_items:
@@ -1811,7 +1789,7 @@ async def run_chat_task(
                                 streamed_reasoning_chars,
                             )
                         await _save_message(
-                            "done fallback",
+                            "done",
                             content=content,
                             output=output_items,
                             usage=last_usage,
@@ -2030,6 +2008,7 @@ async def run_chat_task(
                     "end",
                     content=content,
                     output=output_items,
+                    usage=last_usage,
                     done=True,
                 )
                 _task_state.pop(message_id, None)
