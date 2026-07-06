@@ -155,6 +155,11 @@
 	color: var(--app-fg);
 }
 
+.app-theme :where(option) {
+	background: var(--app-bg);
+	color: var(--app-fg);
+}
+
 .app-theme:where([class*='border-gray-'], [class*='border-black/'], [class*='border-white/']),
 .app-theme :where([class*='border-gray-'], [class*='border-black/'], [class*='border-white/']) {
 	border-color: var(--app-border);
