@@ -6,7 +6,8 @@ Priority in auto mode:
 3. Tavily     (TAVILY_API_KEY or web.tavily_api_key)
 4. Brave      (BRAVE_API_KEY or web.brave_api_key)
 5. Firecrawl  (FIRECRAWL_API_KEY or web.firecrawl_api_key)
-6. DuckDuckGo (zero-config fallback)
+6. SearXNG    (SEARXNG_BASE_URL or web.searxng_base_url)
+7. DuckDuckGo (zero-config fallback)
 """
 
 from __future__ import annotations
@@ -50,6 +51,7 @@ async def web_search_handler(query: str) -> str:
         duckduckgo,
         chat_completions,
         firecrawl,
+        searxng,
     )
 
     # Check if web access is disabled by admin
@@ -74,6 +76,9 @@ async def web_search_handler(query: str) -> str:
     )
     if not firecrawl_url:
         firecrawl_url = await _get_config("browser.firecrawl_base_url")
+    searxng_url = (await _get_config("web.searxng_base_url")) or os.environ.get(
+        "SEARXNG_BASE_URL", ""
+    )
     cc_key = await _get_key("CHAT_COMPLETIONS_SEARCH_API_KEY", "web.chat_completions_api_key")
     cc_url = (await _get_config("web.chat_completions_base_url")) or os.environ.get(
         "CHAT_COMPLETIONS_SEARCH_BASE_URL", ""
@@ -111,6 +116,10 @@ async def web_search_handler(query: str) -> str:
                 if firecrawl_url:
                     return await firecrawl.search(query, firecrawl_key, base_url=firecrawl_url)
                 return await firecrawl.search(query, firecrawl_key)
+            elif provider == "searxng":
+                if not searxng_url:
+                    return "Error: SearXNG base URL not configured."
+                return await searxng.search(query, searxng_url)
             elif provider == "duckduckgo":
                 return await duckduckgo.search(query)
             elif provider == "chat_completions":
@@ -139,6 +148,8 @@ async def web_search_handler(query: str) -> str:
     if firecrawl_key:
         _fc_kw = {"base_url": firecrawl_url} if firecrawl_url else {}
         providers.append(("firecrawl", lambda: firecrawl.search(query, firecrawl_key, **_fc_kw)))
+    if searxng_url:
+        providers.append(("searxng", lambda: searxng.search(query, searxng_url)))
     providers.append(("duckduckgo", lambda: duckduckgo.search(query)))
 
     for name, fn in providers:

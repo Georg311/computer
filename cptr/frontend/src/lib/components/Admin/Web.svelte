@@ -21,6 +21,7 @@
 	let perplexityBaseUrl = $state('');
 	let firecrawlSearchKey = $state('');
 	let firecrawlSearchBaseUrl = $state('https://api.firecrawl.dev');
+	let searxngBaseUrl = $state('');
 	let ccKey = $state('');
 	let ccBaseUrl = $state('');
 	let ccModel = $state('');
@@ -51,6 +52,7 @@
 			firecrawlSearchKey = (config['web.firecrawl_api_key'] as string) || '';
 			firecrawlSearchBaseUrl =
 				(config['web.firecrawl_base_url'] as string) || 'https://api.firecrawl.dev';
+			searxngBaseUrl = (config['web.searxng_base_url'] as string) || '';
 			ccKey = (config['web.chat_completions_api_key'] as string) || '';
 			ccBaseUrl = (config['web.chat_completions_base_url'] as string) || '';
 			ccModel = (config['web.chat_completions_model'] as string) || '';
@@ -87,6 +89,7 @@
 				'web.perplexity_base_url': perplexityBaseUrl,
 				'web.firecrawl_api_key': firecrawlSearchKey,
 				'web.firecrawl_base_url': firecrawlSearchBaseUrl,
+				'web.searxng_base_url': searxngBaseUrl,
 				'web.chat_completions_api_key': ccKey,
 				'web.chat_completions_base_url': ccBaseUrl,
 				'web.chat_completions_model': ccModel,
@@ -165,6 +168,7 @@
 						<option value="tavily">Tavily</option>
 						<option value="brave">Brave</option>
 						<option value="firecrawl">{$t('admin.browserFirecrawl')}</option>
+						<option value="searxng">SearXNG</option>
 						<option value="perplexity">Perplexity</option>
 						<option value="duckduckgo">DuckDuckGo</option>
 						<option value="chat_completions">{$t('admin.webChatCompletions')}</option>
@@ -255,6 +259,22 @@
 						/>
 						<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-0.5">
 							{$t('admin.browserFirecrawlBaseUrlHint')}
+						</p>
+					</div>
+				{:else if searchProvider === 'searxng'}
+					<div>
+						<label class="text-xs text-gray-600 dark:text-gray-400" for="searxng-base-url"
+							>{$t('admin.webSearxngBaseUrl')}</label
+						>
+						<input
+							id="searxng-base-url"
+							type="text"
+							bind:value={searxngBaseUrl}
+							placeholder="https://search.example.com"
+							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+						/>
+						<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-0.5">
+							{$t('admin.webSearxngHint')}
 						</p>
 					</div>
 				{:else if searchProvider === 'perplexity'}
