@@ -34,8 +34,8 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-	class="flex items-center gap-1.5 w-full h-7 px-2 rounded-md cursor-pointer transition-colors duration-75
-		hover:bg-gray-50 dark:hover:bg-white/3"
+	class="flex items-center gap-1.5 w-full h-7 px-2 rounded-lg cursor-pointer transition-colors duration-75
+		hover:bg-gray-50/50 dark:hover:bg-white/[0.02]"
 	role="button"
 	tabindex="0"
 	{onclick}

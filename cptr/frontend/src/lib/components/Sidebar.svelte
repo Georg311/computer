@@ -367,7 +367,7 @@
 					>
 						<a
 							href="/?workspace={encodeURIComponent(ws.path)}"
-							class="flex items-center gap-1 flex-1 min-w-0 no-underline text-inherit"
+							class="flex items-center gap-1.5 flex-1 min-w-0 no-underline text-inherit"
 							onclick={(e) => handleWorkspaceClick(e, ws.path)}
 						>
 							<!-- Icon: folder by default, chevron on hover (when chat enabled) -->
@@ -661,7 +661,7 @@
 	}
 
 	.ws-chats {
-		padding-left: 0.25rem;
+		margin-top: 0.125rem;
 		padding-bottom: 0.25rem;
 	}
 
