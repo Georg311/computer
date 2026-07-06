@@ -105,7 +105,7 @@ async def create_bot(request: Request, body: BotCreate):
     from cptr.utils.config import _get_jwt_secret
     from cptr.utils.crypto import encrypt_key
 
-    if body.platform not in ("telegram", "discord"):
+    if body.platform not in ("telegram", "discord", "slack", "whatsapp", "signal"):
         raise HTTPException(400, f"Unsupported platform: {body.platform}")
 
     now = int(time.time_ns())
