@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-07-06
+
+### Added
+
+- 🧰 **Create skills from chat.** Use `/skills:create` to turn a workflow into a reusable skill for the current workspace.
+- 📚 **Skill list in chat.** Use `/skills:list` to see available skills, including which ones Computer can manage directly.
+- 📄 **Inline file previews.** Files can now open inside chat, including images, PDFs, documents, text, Markdown, JSON, CSV, HTML, SVG, audio, and video.
+
+### Changed
+
+- 🖼️ **Generated images appear as files.** New images are saved to the workspace and displayed in chat with the same preview controls as other files.
+- 📦 **More reliable release downloads.** Release runs can refill missing download files and checksums without republishing an existing package.
+
 ## [0.7.7] - 2026-07-06
 
 ### Added
