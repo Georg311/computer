@@ -501,7 +501,7 @@
 						{@const fileKey = filePath || file.path || `file-${displayItem.index}`}
 						{@const collapsed = Boolean(collapsedFiles[fileKey])}
 						<div
-							class="my-2 w-full max-w-2xl overflow-hidden rounded-md border border-gray-200 bg-white dark:border-white/8 dark:bg-gray-950/20"
+							class="my-2 w-full max-w-2xl overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/8 dark:bg-gray-950/20"
 						>
 							<div
 								class="flex h-8 items-center {collapsed
