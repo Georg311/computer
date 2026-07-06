@@ -929,8 +929,14 @@
 		if (oncompact && '/compact'.startsWith(slashCommandQuery)) ids.push('compact');
 		if (onplan && '/plan'.startsWith(slashCommandQuery)) ids.push('plan');
 		if (onstatus && '/status'.startsWith(slashCommandQuery)) ids.push('status');
-		if (onskillslist && '/skills:list'.startsWith(slashCommandQuery)) ids.push('skills:list');
-		if ('/skills:create'.startsWith(slashCommandQuery)) ids.push('skills:create');
+		if (
+			onskillslist &&
+			slashCommandQuery !== '/skills:list' &&
+			'/skills:list'.startsWith(slashCommandQuery)
+		)
+			ids.push('skills:list');
+		if (slashCommandQuery !== '/skills:create' && '/skills:create'.startsWith(slashCommandQuery))
+			ids.push('skills:create');
 		return ids;
 	});
 	const showSlashCommands = $derived(slashCommandIds.length > 0);
