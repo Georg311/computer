@@ -876,21 +876,33 @@ def _tool_result_for_model(tool_name: str, result: str) -> str:
     if not isinstance(images, list):
         return result
 
+    image_files = [
+        {
+            "path": image.get("path"),
+            "name": image.get("name"),
+            "content_type": image.get("content_type"),
+        }
+        for image in images
+        if isinstance(image, dict) and image.get("path")
+    ]
+
     return json.dumps(
         {
             "status": meta.get("status", "success"),
-            "displayed_to_user": True,
-            "note": "The generated image is already displayed in the chat. Do not include markdown image links for it.",
-            "images": [
+            "displayed_to_user": False,
+            "must_call": "display_file",
+            "instruction": (
+                "Do not answer the user yet. The image file is saved but not rendered. "
+                "Call display_file once for each path below."
+            ),
+            "display_file_calls": [
                 {
-                    "id": image.get("id"),
-                    "path": image.get("path"),
-                    "name": image.get("name"),
-                    "mime_type": image.get("mime_type"),
+                    "name": "display_file",
+                    "arguments": {"path": image["path"]},
                 }
-                for image in images
-                if isinstance(image, dict)
+                for image in image_files
             ],
+            "images": image_files,
         }
     )
 
@@ -1196,30 +1208,6 @@ def build_artifact_item(tool_name: str, arguments: dict, result: str) -> dict | 
         or artifact_type.replace("_", " ").title(),
         "content": arguments.get("content", ""),
         "path": meta.get("path") or arguments.get("path", ""),
-    }
-
-
-def build_image_item(tool_name: str, result: str) -> dict | None:
-    """Build a renderable image output item for image-generation tools."""
-    if tool_name != "image_generate":
-        return None
-
-    try:
-        meta = json.loads(result)
-    except (json.JSONDecodeError, TypeError):
-        return None
-
-    images = meta.get("images")
-    if not isinstance(images, list) or not images:
-        return None
-
-    return {
-        "type": "image",
-        "images": [
-            image
-            for image in images
-            if isinstance(image, dict) and isinstance(image.get("url"), str)
-        ],
     }
 
 
@@ -2067,12 +2055,6 @@ async def run_chat_task(
                             output_items.append(file_item)
                             await emit(output=file_item)
                             _sync_state()
-
-                    image_item = build_image_item(tc["name"], result)
-                    if image_item:
-                        output_items.append(image_item)
-                        await emit(output=image_item)
-                        _sync_state()
 
                     sequential_results.append((tc, result))
 

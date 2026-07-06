@@ -1700,6 +1700,8 @@ async def image_generate(
     __context__: dict,
 ) -> str:
     """Generate or edit image files from a prompt.
+    Returns saved image file paths. You must call display_file next for each returned path
+    before responding to the user.
     :param prompt: Detailed description of the image to create or the edits to make.
     :param image: Optional source image file id, /api/files/... URL, or workspace path for edit mode.
     :param images: Optional source image file ids, /api/files/... URLs, or workspace paths for edit mode.
