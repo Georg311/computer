@@ -172,8 +172,6 @@ def _build_skill_create_prompt(user_request: str) -> str:
 
 def _message_has_real_content(message: dict) -> bool:
     text = _plain_message_text(message.get("content")).strip()
-    if message.get("role") == "user" and text.startswith("/"):
-        return False
     return bool(
         text or message.get("tool_calls") or message.get("reasoning_items") or message.get("output")
     )

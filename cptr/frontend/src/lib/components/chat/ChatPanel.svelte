@@ -299,9 +299,7 @@
 	const streaming = $derived(allMessages.some((m) => m.role === 'assistant' && !m.done));
 	const isLanding = $derived(allMessages.length === 0 && !chatId);
 	const hasChatContent = $derived(
-		activePath.some(
-			({ msg }) => msg.role === 'user' && msg.content.trim() && !msg.content.trim().startsWith('/')
-		)
+		activePath.some(({ msg }) => msg.role === 'user' && msg.content.trim())
 	);
 	const workspaceDisplayName = $derived(getPathDisplayName(workspace, 'workspace'));
 	const displayChatTitle = $derived(chatTitle || firstUserMessageTitle() || workspaceDisplayName);
@@ -722,10 +720,6 @@
 		let text = inputText.trim();
 		if (!text || !selectedModel) return;
 		if (sending) return;
-		if (!hasChatContent && text.startsWith('/') && text !== '/plan') {
-			toast.error('Only /plan is available before this chat has content');
-			return;
-		}
 		if (hasChatContent && text === '/compact') {
 			await handleManualCompact();
 			return;

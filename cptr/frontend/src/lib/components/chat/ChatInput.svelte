@@ -939,7 +939,7 @@
 		}
 	});
 
-	const slashCommandQuery = $derived(inputText.trim().toLowerCase());
+	const slashCommandQuery = $derived(inputText.trimStart().toLowerCase());
 	const slashCommandIds = $derived.by(() => {
 		if (!slashCommandQuery.startsWith('/')) return [];
 		const ids: string[] = [];
@@ -979,7 +979,7 @@
 	$effect(() => {
 		const query = slashCommandQuery;
 		const requestId = ++slashSkillsRequestId;
-		if (!query.startsWith('/') || !workspace) {
+		if (!query.startsWith('/') || /\s/.test(query.slice(1)) || !workspace) {
 			slashSkillSuggestions = [];
 			return;
 		}
