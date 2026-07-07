@@ -2318,8 +2318,20 @@ async def delegate_task(
             }
         )
 
+    if config["max_concurrent"] == -1:
+        return await _run_subagent_chat(
+            task=task,
+            context=context,
+            workspace=__context__["workspace"],
+            connection=__context__["connection"],
+            model=__context__["model_id"],
+            user_id=__context__["user_id"],
+            parent_chat_id=__context__["chat_id"],
+            config=config,
+        )
+
     if _subagent_semaphore is None:
-        _subagent_semaphore = asyncio.Semaphore(config["max_concurrent"])
+        _subagent_semaphore = asyncio.Semaphore(max(1, config["max_concurrent"]))
 
     async with _subagent_semaphore:
         return await _run_subagent_chat(

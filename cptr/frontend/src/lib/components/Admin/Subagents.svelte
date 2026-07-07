@@ -86,8 +86,7 @@
 							id="sa-concurrent"
 							type="number"
 							bind:value={maxConcurrent}
-							min="1"
-							max="100"
+							min="-1"
 							class="w-16 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
 						/>
 						<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600"
@@ -123,8 +122,7 @@
 								id="sa-async"
 								type="number"
 								bind:value={maxAsync}
-								min="1"
-								max="100"
+								min="-1"
 								class="w-16 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
 							/>
 							<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600"

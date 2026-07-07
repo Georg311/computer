@@ -39,10 +39,12 @@ async def active_count() -> int:
 
 async def reserve_async_subagent(max_async: int, **record: Any) -> dict[str, Any]:
     """Reserve capacity for a background subagent before creating its chat."""
-    max_async = max(1, int(max_async or 20))
+    max_async = int(max_async or 20)
+    if max_async != -1:
+        max_async = max(1, max_async)
     async with _lock:
         running = sum(1 for r in _records.values() if r.get("status") in {"starting", "running"})
-        if running >= max_async:
+        if max_async != -1 and running >= max_async:
             return {
                 "status": "rejected",
                 "error": (
