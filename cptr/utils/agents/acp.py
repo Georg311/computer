@@ -33,7 +33,7 @@ class AcpClient:
         self.proc: asyncio.subprocess.Process | None = None
         self.reader_task: asyncio.Task | None = None
         self.stderr_task: asyncio.Task | None = None
-        self.pending: dict[int, asyncio.Future[dict[str, Any]]] = {}
+        self.pending: dict[Any, asyncio.Future[dict[str, Any]]] = {}
         self.events: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         self.next_id = 1
         self.session_id: str | None = None
@@ -197,7 +197,7 @@ class AcpClient:
             and ("result" in message or "error" in message)
             and "method" not in message
         ):
-            future = self.pending.pop(int(message["id"]), None)
+            future = self.pending.pop(message["id"], None)
             if future and not future.done():
                 future.set_result(message)
             return
@@ -205,11 +205,11 @@ class AcpClient:
         method = message.get("method")
         params = message.get("params") if isinstance(message.get("params"), dict) else {}
         if "id" in message and method == "session/request_permission":
-            await self._reply_permission(int(message["id"]), params)
+            await self._reply_permission(message["id"], params)
             return
         await self.events.put(message)
 
-    async def _reply_permission(self, request_id: int, params: dict[str, Any]) -> None:
+    async def _reply_permission(self, request_id: Any, params: dict[str, Any]) -> None:
         option_id = None
         if self.auto_approve_permissions:
             option_id = _select_permission_option(
