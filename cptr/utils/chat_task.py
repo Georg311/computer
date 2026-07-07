@@ -49,6 +49,7 @@ from cptr.utils.agents.events import (
     AgentDone,
     AgentError,
     AgentReasoningDelta,
+    AgentReasoningDone,
     AgentTextDelta,
     AgentToolOutputDelta,
     AgentToolUpdate,
@@ -1522,13 +1523,17 @@ async def run_chat_task(
         if runner is None:
             raise RuntimeError(f"Unsupported agent type: {agent_target.agent}")
         reasoning_buffer = ""
+        reasoning_item_id = f"reasoning-{message_id}"
 
         async def _finish_reasoning_item():
-            if not reasoning_buffer:
+            existing = next(
+                (item for item in output_items if item.get("id") == reasoning_item_id), None
+            )
+            if not existing or existing.get("status") == "completed":
                 return
             item = {
                 "type": "reasoning",
-                "id": f"reasoning-{message_id}",
+                "id": reasoning_item_id,
                 "status": "completed",
                 "content": [{"type": "reasoning_text", "text": reasoning_buffer}],
             }
@@ -1555,13 +1560,15 @@ async def run_chat_task(
                 reasoning_buffer += event.text
                 item = {
                     "type": "reasoning",
-                    "id": f"reasoning-{message_id}",
+                    "id": reasoning_item_id,
                     "status": "in_progress",
                     "content": [{"type": "reasoning_text", "text": reasoning_buffer}],
                 }
                 _upsert_output_item(output_items, item)
                 await emit(output=item)
                 _sync_state()
+            elif isinstance(event, AgentReasoningDone):
+                await _finish_reasoning_item()
             elif isinstance(event, AgentToolUpdate):
                 flushed_item = _flush_text()
                 if flushed_item:

@@ -13,6 +13,7 @@ from cptr.utils.agents.events import (
     AgentDone,
     AgentError,
     AgentEvent,
+    AgentReasoningDone,
     AgentReasoningDelta,
     AgentTextDelta,
     AgentToolUpdate,
@@ -160,7 +161,9 @@ async def run_claude_code_agent(
             usage: dict[str, Any] | None = None
             observed_session_id = session_id
             tool_calls: dict[int, AgentToolUpdate] = {}
-            received_content_delta = False
+            thinking_blocks: set[int] = set()
+            received_text_delta = False
+            received_thinking_delta = False
 
             async for message in stream:
                 event = getattr(message, "event", None)
@@ -174,23 +177,33 @@ async def run_claude_code_agent(
                             ):
                                 text = delta["text"]
                                 if text:
-                                    received_content_delta = True
+                                    received_text_delta = True
                                     yield AgentTextDelta(text)
                             elif delta.get("type") == "thinking_delta" and isinstance(
                                 delta.get("thinking"), str
                             ):
+                                index = event.get("index")
+                                if isinstance(index, int):
+                                    thinking_blocks.add(index)
                                 thinking = delta["thinking"]
+                                yield AgentReasoningDelta(thinking)
                                 if thinking:
-                                    received_content_delta = True
-                                    yield AgentReasoningDelta(thinking)
+                                    received_thinking_delta = True
                     elif event_type == "content_block_start":
                         index, tool = _tool_update_from_claude_start(event)
                         if tool:
                             if index is not None:
                                 tool_calls[index] = tool
                             yield tool
+                        elif isinstance(index, int):
+                            block = event.get("content_block")
+                            if isinstance(block, dict) and block.get("type") == "thinking":
+                                thinking_blocks.add(index)
                     elif event_type == "content_block_stop":
                         index = event.get("index")
+                        if isinstance(index, int) and index in thinking_blocks:
+                            thinking_blocks.discard(index)
+                            yield AgentReasoningDone()
                         tool = tool_calls.get(index) if isinstance(index, int) else None
                         if tool:
                             yield AgentToolUpdate(
@@ -204,14 +217,16 @@ async def run_claude_code_agent(
 
                 class_name = message.__class__.__name__
                 if class_name == "AssistantMessage":
-                    if received_content_delta:
-                        continue
                     for block in getattr(message, "content", []) or []:
                         if block.__class__.__name__ == "TextBlock":
+                            if received_text_delta:
+                                continue
                             text = getattr(block, "text", "")
                             if text:
                                 yield AgentTextDelta(text)
                         elif block.__class__.__name__ == "ThinkingBlock":
+                            if received_thinking_delta:
+                                continue
                             text = getattr(block, "thinking", "")
                             if text:
                                 yield AgentReasoningDelta(text)
