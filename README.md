@@ -14,9 +14,9 @@
 
 <sub>See more at [cptr.sh](https://cptr.sh/)</sub>
 
-Open WebUI Computer (`cptr`) runs on your machine and serves your whole computer (files, terminal, editor, git) to any browser. It literally is your computer.
+Open WebUI Computer (`cptr`) runs on your machine and serves your whole computer to any browser: files, terminal, editor, git, running sessions, AI agents, and tools. It literally is your computer.
 
-Use it from your phone, tablet, laptop, another computer, or the machine it's running on. Designed to feel native on every screen. Connect your own AI via API key, or plug in a coding agent you already subscribe to and skip the key entirely. Terminal multiplexer, parallel AI agents, full workstation, one tool, your computer, any device.
+Use it from your phone, tablet, laptop, another computer, or the machine it's running on. Designed to feel native on every screen. Connect your own AI via API key, plug in a coding agent you already subscribe to, or work directly in the terminal. One tool, full workstation, any device.
 
 ## Install
 
