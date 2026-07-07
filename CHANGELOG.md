@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2026-07-06
+
+### Added
+
+- ✅ **Visible task progress.** Chats can now show a live checklist so long-running work is easier to follow.
+- 🕒 **Message timestamps.** Hover over message controls to see when a message was sent.
+
+### Changed
+
+- 🧰 **Better model tool control.** Admins can choose which built-in tool groups each model can use, from files and terminal access to web, memory, images, and sub-agents.
+- 🚀 **More flexible sub-agents.** Sub-agent limits now support higher defaults and unlimited mode for teams that want more parallel work.
+
+### Fixed
+
+- 💬 **More reliable chat lists.** Chat history stays in the right order more consistently, even when a saved chat needs extra cleanup.
+- ✨ **Cleaner skill suggestions.** Skill matches in chat now use a simpler, more consistent icon.
+
 ## [0.8.0] - 2026-07-06
 
 ### Added
