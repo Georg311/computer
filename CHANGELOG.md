@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3] - 2026-07-07
+
+### Fixed
+
+- 💬 **Cleaner chat suggestions.** Slash commands, file matches, skill matches, and model choices now have a little more room and clearer hover hints, so longer names are easier to understand.
+- 🧭 **Better menu hints.** Menus can now show helpful hover hints only when there is something useful to show, keeping empty tooltips out of the way.
+
 ## [0.8.2] - 2026-07-07
 
 ### Added
