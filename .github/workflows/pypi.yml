@@ -62,6 +62,7 @@ jobs:
         id: release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           VERSION: ${{ steps.pkg.outputs.version }}
         run: |
           set -euo pipefail
@@ -202,6 +203,7 @@ jobs:
       - name: Attach GitHub release artifacts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           VERSION: ${{ needs.preflight.outputs.version }}
         run: |
           set -euo pipefail
