@@ -20,7 +20,6 @@ def _env_int(name: str, default: int) -> int:
     except ValueError:
         return default
 
-
 # ── Data directory ──────────────────────────────────────────
 # Where cptr stores its database, config, and user data.
 # Default: ~/.cptr
@@ -33,7 +32,9 @@ LOG_LEVEL = os.environ.get("CPTR_LOG_LEVEL", "INFO").upper()
 LOG_FORMAT = os.environ.get("CPTR_LOG_FORMAT", "text").lower()
 
 AUDIT_LOG_LEVEL = os.environ.get("CPTR_AUDIT_LOG_LEVEL", "NONE").upper()
-AUDIT_LOG_PATH = Path(os.environ.get("CPTR_AUDIT_LOG_PATH", str(DATA_DIR / "logs" / "audit.jsonl")))
+AUDIT_LOG_PATH = Path(
+    os.environ.get("CPTR_AUDIT_LOG_PATH", str(DATA_DIR / "logs" / "audit.jsonl"))
+)
 AUDIT_LOG_ROTATION = os.environ.get("CPTR_AUDIT_LOG_ROTATION", "10 MB")
 AUDIT_MAX_BODY_SIZE = _env_int("CPTR_AUDIT_MAX_BODY_SIZE", 2048)
 AUDIT_EXCLUDED_PATHS = [
