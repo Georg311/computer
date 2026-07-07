@@ -5,6 +5,7 @@
 
 	interface MenuItem {
 		label: string;
+		title?: string;
 		icon?: string;
 		onclick: () => void;
 		active?: boolean;
@@ -374,6 +375,7 @@
 					>
 						<button
 							class="flex items-center gap-2 min-w-0 flex-1 h-full px-2 text-inherit"
+							title={item.title}
 							onclick={() => {
 								item.onclick();
 								onclose();
