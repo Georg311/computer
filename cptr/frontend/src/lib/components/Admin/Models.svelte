@@ -15,8 +15,10 @@
 	import Icon from '../Icon.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import ModelSelector from '$lib/components/common/ModelSelector.svelte';
+	import ToggleSwitch from '$lib/components/common/ToggleSwitch.svelte';
 
 	type ParamRow = { key: string; value: string };
+	type BuiltinToolsConfig = Record<string, boolean>;
 	type ModelEntry = {
 		id: string;
 		name: string;
@@ -25,6 +27,7 @@
 		rows: ParamRow[];
 		systemPrompt: string;
 		compactTokenThreshold: number | null;
+		builtinTools: BuiltinToolsConfig;
 		dirty: boolean;
 	};
 
@@ -37,6 +40,7 @@
 	let globalRows = $state<ParamRow[]>([]);
 	let globalSystemPrompt = $state('');
 	let globalCompactTokenThreshold = $state<number | null>(null);
+	let globalBuiltinTools = $state<BuiltinToolsConfig>({});
 	let globalDirty = $state(false);
 	let globalExpanded = $state(false);
 	let showVariables = $state(false);
@@ -64,6 +68,40 @@
 		{ name: 'CPTR_VERSION', desc: 'Computer version' },
 		{ name: 'DATE', desc: 'Current date (ISO format)' },
 		{ name: 'MODEL', desc: 'Model ID being used' }
+	];
+
+	const BUILTIN_TOOL_GROUPS = [
+		{ id: 'files', label: 'models.builtinTools.files', desc: 'models.builtinTools.filesDesc' },
+		{
+			id: 'terminal',
+			label: 'models.builtinTools.terminal',
+			desc: 'models.builtinTools.terminalDesc'
+		},
+		{ id: 'web', label: 'models.builtinTools.web', desc: 'models.builtinTools.webDesc' },
+		{
+			id: 'browser',
+			label: 'models.builtinTools.browser',
+			desc: 'models.builtinTools.browserDesc'
+		},
+		{ id: 'memory', label: 'models.builtinTools.memory', desc: 'models.builtinTools.memoryDesc' },
+		{ id: 'chats', label: 'models.builtinTools.chats', desc: 'models.builtinTools.chatsDesc' },
+		{ id: 'skills', label: 'models.builtinTools.skills', desc: 'models.builtinTools.skillsDesc' },
+		{
+			id: 'automations',
+			label: 'models.builtinTools.automations',
+			desc: 'models.builtinTools.automationsDesc'
+		},
+		{ id: 'images', label: 'models.builtinTools.images', desc: 'models.builtinTools.imagesDesc' },
+		{
+			id: 'subagents',
+			label: 'models.builtinTools.subagents',
+			desc: 'models.builtinTools.subagentsDesc'
+		},
+		{
+			id: 'notifications',
+			label: 'models.builtinTools.notifications',
+			desc: 'models.builtinTools.notificationsDesc'
+		}
 	];
 
 	const DEFAULT_PROMPT_PLACEHOLDER = `You are Computer, a helpful assistant running inside the user's computer interface. You have access to tools to read, search, and modify files in the workspace, run commands, and use configured tools. Use them to help the user directly. Approach hard requests with initiative and persistence: make the best possible attempt, adapt as needed, and keep going unless a real constraint prevents progress.
@@ -95,6 +133,60 @@ Files:
 		return Number.isFinite(threshold) && threshold > 0 ? Math.floor(threshold) : null;
 	}
 
+	function parseBuiltinTools(config: ModelConfigEntry | undefined): BuiltinToolsConfig {
+		const value = config?.params?.builtin_tools;
+		if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+		return Object.fromEntries(
+			Object.entries(value).filter(([, enabled]) => typeof enabled === 'boolean')
+		);
+	}
+
+	function builtinEnabled(
+		tools: BuiltinToolsConfig,
+		group: string,
+		inherited: BuiltinToolsConfig | null = null
+	): boolean {
+		if (tools[group] !== undefined) return tools[group] !== false;
+		if (inherited?.[group] !== undefined) return inherited[group] !== false;
+		return true;
+	}
+
+	function setBuiltinEnabled(
+		tools: BuiltinToolsConfig,
+		group: string,
+		enabled: boolean,
+		inherited: BuiltinToolsConfig | null = null
+	): BuiltinToolsConfig {
+		const next = { ...tools };
+		const inheritedEnabled = inherited?.[group] !== undefined ? inherited[group] !== false : true;
+		if (enabled === inheritedEnabled) {
+			delete next[group];
+		} else {
+			next[group] = enabled;
+		}
+		return next;
+	}
+
+	function serializeBuiltinTools(
+		tools: BuiltinToolsConfig,
+		inherited: BuiltinToolsConfig | null = null
+	): BuiltinToolsConfig | null {
+		const result: BuiltinToolsConfig = {};
+		for (const group of BUILTIN_TOOL_GROUPS) {
+			if (tools[group.id] === undefined) continue;
+			const inheritedEnabled =
+				inherited?.[group.id] !== undefined ? inherited[group.id] !== false : true;
+			if (tools[group.id] !== inheritedEnabled) {
+				result[group.id] = tools[group.id];
+			}
+		}
+		return Object.keys(result).length ? result : null;
+	}
+
+	function configuredRowCount(rows: ParamRow[]): number {
+		return rows.filter((row) => row.key.trim()).length;
+	}
+
 	function rowsToRequestParams(rows: ParamRow[]): Record<string, unknown> {
 		const result: Record<string, unknown> = {};
 		for (const { key, value } of rows) {
@@ -119,8 +211,12 @@ Files:
 			globalRows = parseRows(config['*']);
 			globalSystemPrompt = config['*']?.params?.system_prompt || '';
 			globalCompactTokenThreshold = parseCompactTokenThreshold(config['*']);
+			globalBuiltinTools = parseBuiltinTools(config['*']);
 			globalExpanded =
-				globalRows.length > 0 || !!globalSystemPrompt || globalCompactTokenThreshold !== null;
+				globalRows.length > 0 ||
+				!!globalSystemPrompt ||
+				globalCompactTokenThreshold !== null ||
+				Object.keys(globalBuiltinTools).length > 0;
 		}
 
 		models = data.models.map((m) => {
@@ -136,6 +232,7 @@ Files:
 				rows: parseRows(mc),
 				systemPrompt: (mc?.params as any)?.system_prompt || '',
 				compactTokenThreshold: parseCompactTokenThreshold(mc),
+				builtinTools: parseBuiltinTools(mc),
 				dirty: false
 			};
 		});
@@ -204,13 +301,17 @@ Files:
 	function buildParams(
 		rows: ParamRow[],
 		systemPrompt: string,
-		compactThreshold: number | null
+		compactThreshold: number | null,
+		builtinTools: BuiltinToolsConfig,
+		inheritedBuiltinTools: BuiltinToolsConfig | null = null
 	): Record<string, unknown> {
 		const params: Record<string, unknown> = {};
 		const rp = rowsToRequestParams(rows);
+		const bt = serializeBuiltinTools(builtinTools, inheritedBuiltinTools);
 		if (Object.keys(rp).length) params.request_params = rp;
 		if (systemPrompt.trim()) params.system_prompt = systemPrompt.trim();
 		if (compactThreshold && compactThreshold > 0) params.compact_token_threshold = compactThreshold;
+		if (bt) params.builtin_tools = bt;
 		return params;
 	}
 
@@ -221,7 +322,12 @@ Files:
 			if (globalDirty) {
 				promises.push(
 					updateModelConfig('*', {
-						params: buildParams(globalRows, globalSystemPrompt, globalCompactTokenThreshold)
+						params: buildParams(
+							globalRows,
+							globalSystemPrompt,
+							globalCompactTokenThreshold,
+							globalBuiltinTools
+						)
 					})
 				);
 			}
@@ -229,7 +335,13 @@ Files:
 				if (model.dirty) {
 					promises.push(
 						updateModelConfig(model.id, {
-							params: buildParams(model.rows, model.systemPrompt, model.compactTokenThreshold)
+							params: buildParams(
+								model.rows,
+								model.systemPrompt,
+								model.compactTokenThreshold,
+								model.builtinTools,
+								globalBuiltinTools
+							)
 						})
 					);
 				}
@@ -380,6 +492,47 @@ Files:
 	</div>
 {/snippet}
 
+{#snippet builtinToolsField(
+	tools: BuiltinToolsConfig,
+	inherited: BuiltinToolsConfig | null,
+	onChange: (tools: BuiltinToolsConfig) => void,
+	resetLabel: string
+)}
+	<div class="mb-2">
+		<div class="flex items-center justify-between mb-1">
+			<span class="text-[0.625rem] text-gray-400 dark:text-gray-600 uppercase tracking-wide"
+				>{$t('models.builtinTools')}</span
+			>
+			{#if Object.keys(tools).length > 0}
+				<button
+					class="text-[0.625rem] text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-75"
+					onclick={() => onChange({})}
+				>
+					{resetLabel}
+				</button>
+			{/if}
+		</div>
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1">
+			{#each BUILTIN_TOOL_GROUPS as group}
+				<div class="flex items-center justify-between gap-2 min-h-7">
+					<div class="min-w-0">
+						<div class="text-[0.75rem] text-gray-600 dark:text-gray-400 truncate">
+							{$t(group.label)}
+						</div>
+						<div class="text-[0.625rem] text-gray-400 dark:text-gray-600 truncate">
+							{$t(group.desc)}
+						</div>
+					</div>
+					<ToggleSwitch
+						value={builtinEnabled(tools, group.id, inherited)}
+						onchange={(enabled) => onChange(setBuiltinEnabled(tools, group.id, enabled, inherited))}
+					/>
+				</div>
+			{/each}
+		</div>
+	</div>
+{/snippet}
+
 <div class="flex flex-col h-full">
 	{#if loading}
 		<div class="flex justify-center py-8"><Spinner size={16} /></div>
@@ -448,11 +601,11 @@ Files:
 				<span class="flex-1 text-[0.8125rem] text-gray-500 dark:text-gray-400"
 					>{$t('models.defaults')}</span
 				>
-				{#if globalRows.filter((r) => r.key.trim()).length > 0 || globalSystemPrompt.trim()}
+				{#if configuredRowCount(globalRows) > 0 || globalSystemPrompt.trim()}
 					<span class="text-[0.625rem] text-gray-400 dark:text-gray-600">
 						{#if globalSystemPrompt.trim()}prompt{/if}
-						{#if globalRows.filter((r) => r.key.trim()).length > 0}
-							{globalRows.filter((r) => r.key.trim()).length} params
+						{#if configuredRowCount(globalRows) > 0}
+							{configuredRowCount(globalRows)} params
 						{/if}
 					</span>
 				{/if}
@@ -479,6 +632,15 @@ Files:
 						globalDirty = true;
 					},
 					DEFAULT_PROMPT_PLACEHOLDER
+				)}
+				{@render builtinToolsField(
+					globalBuiltinTools,
+					null,
+					(tools) => {
+						globalBuiltinTools = tools;
+						globalDirty = true;
+					},
+					$t('models.resetToDefault')
 				)}
 				{@render paramRows(
 					globalRows,
@@ -545,6 +707,16 @@ Files:
 							model.dirty = true;
 						},
 						$t('models.systemPromptInherited')
+					)}
+					{@render builtinToolsField(
+						model.builtinTools,
+						globalBuiltinTools,
+						(tools) => {
+							model.builtinTools = tools;
+							model.dirty = true;
+							models = [...models];
+						},
+						$t('models.resetToDefault')
 					)}
 					{@render paramRows(
 						model.rows,

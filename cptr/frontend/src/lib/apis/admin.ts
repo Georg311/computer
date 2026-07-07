@@ -170,6 +170,7 @@ export interface ModelConfigEntry {
 		request_params?: Record<string, unknown>;
 		system_prompt?: string;
 		compact_token_threshold?: number;
+		builtin_tools?: Record<string, boolean> | null;
 	};
 }
 

@@ -2330,6 +2330,57 @@ SUBAGENT_TOOLS: dict[str, dict] = {
 # Combined lookup for execution and approval (always available regardless of config)
 ALL_TOOLS: dict[str, dict] = {**TOOLS, **BROWSER_TOOLS, **SUBAGENT_TOOLS}
 
+BUILTIN_TOOL_GROUPS: dict[str, tuple[str, ...]] = {
+    "files": (
+        "read_file",
+        "list_directory",
+        "search_files",
+        "create_file",
+        "display_file",
+        "edit_file",
+        "multi_edit_file",
+        "write_file",
+    ),
+    "terminal": ("run_command", "send_input", "check_task", "kill_task"),
+    "web": ("web_search", "read_url"),
+    "browser": (
+        "browser_navigate",
+        "browser_snapshot",
+        "browser_click",
+        "browser_type",
+        "browser_screenshot",
+        "browser_evaluate",
+    ),
+    "memory": ("update_memory",),
+    "chats": ("search_chats",),
+    "skills": ("view_skill", "manage_skill"),
+    "automations": (
+        "list_automations",
+        "create_automation",
+        "update_automation",
+        "toggle_automation",
+        "delete_automation",
+    ),
+    "images": ("image_generate",),
+    "subagents": ("delegate_task",),
+    "notifications": ("notify",),
+}
+
+
+def disabled_builtin_tool_names(builtin_tools: dict | None) -> set[str]:
+    """Return builtin tool names disabled by group config."""
+    if not isinstance(builtin_tools, dict):
+        return set()
+    disabled: set[str] = set()
+    for group, enabled in builtin_tools.items():
+        if enabled is False:
+            disabled.update(BUILTIN_TOOL_GROUPS.get(group, ()))
+    return disabled
+
+
+def is_builtin_tool_enabled(name: str, builtin_tools: dict | None) -> bool:
+    return name not in disabled_builtin_tool_names(builtin_tools)
+
 
 # ── External tool servers ───────────────────────────────────
 
@@ -2633,7 +2684,7 @@ def _without_background_param(schema: dict) -> dict:
     return schema
 
 
-async def get_tool_list() -> list[dict]:
+async def get_tool_list(builtin_tools: dict | None = None) -> list[dict]:
     """Return tool schemas for the LLM.
 
     Automatically includes browser tools when browser.enabled is true,
@@ -2668,6 +2719,10 @@ async def get_tool_list() -> list[dict]:
         tools.pop("image_generate", None)
         pass
 
+    disabled_tools = disabled_builtin_tool_names(builtin_tools)
+    if disabled_tools:
+        tools = {name: tool for name, tool in tools.items() if name not in disabled_tools}
+
     schemas = [_fn_to_schema(name, t["fn"]) for name, t in tools.items()]
     if not background_subagents_enabled:
         schemas = [_without_background_param(s) for s in schemas]
@@ -2687,6 +2742,8 @@ async def execute_tool(name: str, args: dict, __context__: dict) -> str:
     """Execute a tool by name, injecting execution context."""
     info = ALL_TOOLS.get(name)
     if info:
+        if not is_builtin_tool_enabled(name, __context__.get("builtin_tools")):
+            return f"Error: tool disabled: {name}"
         fn = info["fn"]
         try:
             sig = inspect.signature(fn)
