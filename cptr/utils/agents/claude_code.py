@@ -7,6 +7,7 @@ import os
 import shlex
 from typing import Any, AsyncIterator
 
+from cptr.env import CLAUDE_CODE_MAX_BUFFER_SIZE
 from cptr.utils.agents.attachments import PreparedAgentAttachments
 from cptr.utils.agents.events import (
     AgentDone,
@@ -128,6 +129,7 @@ async def run_claude_code_agent(
             "permission_mode": permission_mode,
             "env": env,
             "include_partial_messages": True,
+            "max_buffer_size": CLAUDE_CODE_MAX_BUFFER_SIZE,
         }
         if workspace:
             options_kwargs["cwd"] = workspace

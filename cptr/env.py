@@ -64,6 +64,9 @@ ENABLE_CHAT_RECONCILE_ON_STARTUP: bool = os.environ.get(
 CHAT_TOOL_MAX_CHARS = int(os.environ.get("CHAT_TOOL_MAX_CHARS", "50000"))
 CHAT_TOOL_COMMAND_MAX_CHARS = int(os.environ.get("CHAT_TOOL_COMMAND_MAX_CHARS", "8000"))
 CHAT_COMPACT_TOKEN_THRESHOLD = int(os.environ.get("CHAT_COMPACT_TOKEN_THRESHOLD", "80000"))
+# Claude SDK stdout JSON buffer; chat/tool output caps apply later after parsing.
+CLAUDE_CODE_MAX_BUFFER_SIZE = _env_int("CPTR_CLAUDE_CODE_MAX_BUFFER_SIZE", 128 * 1024 * 1024)
+CLAUDE_CODE_MAX_BUFFER_SIZE = _env_int("CPTR_CLAUDE_CODE_MAX_BUFFER_SIZE", 128 * 1024 * 1024)
 
 # ── Execute timeout ─────────────────────────────────────────
 # Default wait (seconds) for run_command / check_task when the caller
