@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.4] - 2026-07-07
+
+### Fixed
+
+- 💬 **Slash commands at the start.** New chats no longer block slash commands before the first regular message.
+- 📱 **Better mobile typing.** Pressing Enter on phones and tablets now behaves like normal typing instead of choosing a suggestion or sending too soon.
+- 🤖 **Larger Claude Code replies.** Claude Code can now handle bigger answers before chat display limits are applied.
+
 ## [0.8.3] - 2026-07-07
 
 ### Fixed
