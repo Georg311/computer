@@ -57,6 +57,7 @@
 	"files.deleteItemConfirm_other": "{{count}} Elemente löschen?",
 	"files.deleteEntryConfirm": "{{type}} \"{{name}}\" löschen?",
 	"files.moreActions": "Weitere Aktionen",
+	"files.copyPath": "Pfad kopieren",
 	"files.rename": "Umbenennen",
 	"files.download": "Herunterladen",
 	"files.delete": "Löschen",

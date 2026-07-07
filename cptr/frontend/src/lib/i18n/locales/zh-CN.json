@@ -57,6 +57,7 @@
 	"files.deleteItemConfirm_other": "确定删除 {{count}} 个项目？",
 	"files.deleteEntryConfirm": "确定删除{{type}}「{{name}}」？",
 	"files.moreActions": "更多操作",
+	"files.copyPath": "复制路径",
 	"files.rename": "重命名",
 	"files.download": "下载",
 	"files.delete": "删除",

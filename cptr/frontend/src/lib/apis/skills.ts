@@ -11,6 +11,14 @@ export interface SkillInfo {
 	license?: string;
 	compatibility?: string;
 	managed?: boolean;
+	created_by?: string | null;
+	created_from?: string | null;
+	view_count?: number;
+	use_count?: number;
+	update_count?: number;
+	last_viewed_at?: string | null;
+	last_used_at?: string | null;
+	last_updated_at?: string | null;
 }
 
 export const getSkills = (workspace: string) =>

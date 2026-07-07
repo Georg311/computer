@@ -57,6 +57,7 @@
 	"files.deleteItemConfirm_other": "{{count}}개 항목을 삭제하시겠습니까?",
 	"files.deleteEntryConfirm": "{{type}} \"{{name}}\"을(를) 삭제하시겠습니까?",
 	"files.moreActions": "추가 작업",
+	"files.copyPath": "경로 복사",
 	"files.rename": "이름 변경",
 	"files.download": "다운로드",
 	"files.delete": "삭제",

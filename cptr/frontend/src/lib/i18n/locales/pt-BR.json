@@ -57,6 +57,7 @@
 	"files.deleteItemConfirm_other": "Excluir {{count}} itens?",
 	"files.deleteEntryConfirm": "Excluir {{type}} \"{{name}}\"?",
 	"files.moreActions": "Mais ações",
+	"files.copyPath": "Copiar caminho",
 	"files.rename": "Renomear",
 	"files.download": "Baixar",
 	"files.delete": "Excluir",

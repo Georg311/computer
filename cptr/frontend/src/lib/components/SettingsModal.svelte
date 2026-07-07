@@ -14,6 +14,7 @@
 	import Connections from './Admin/Connections.svelte';
 	import Agents from './Admin/Agents.svelte';
 	import Models from './Admin/Models.svelte';
+	import Skills from './Admin/Skills.svelte';
 	import Messaging from './Admin/Messaging.svelte';
 	import Gateway from './Admin/Gateway.svelte';
 	import AudioSettings from './Admin/AudioSettings.svelte';
@@ -37,6 +38,7 @@
 		| 'connections'
 		| 'agents'
 		| 'models'
+		| 'skills'
 		| 'messaging'
 		| 'gateway'
 		| 'audio'
@@ -64,6 +66,7 @@
 		'connections',
 		'agents',
 		'models',
+		'skills',
 		'messaging',
 		'gateway',
 		'audio',
@@ -92,6 +95,7 @@
 		{ id: 'connections', label: $t('admin.connections'), icon: 'plug' },
 		{ id: 'agents', label: $t('admin.agents'), icon: 'terminal' },
 		{ id: 'models', label: $t('admin.models'), icon: 'cube' },
+		{ id: 'skills', label: 'Skills', icon: 'spark' },
 		{ id: 'messaging', label: $t('admin.messaging'), icon: 'chat-bubble' },
 		{ id: 'gateway', label: $t('admin.gateway.tab'), icon: 'gateway' },
 		{ id: 'audio', label: $t('admin.audio.title'), icon: 'microphone' },
@@ -203,6 +207,8 @@
 			<Agents />
 		{:else if activeTab === 'models'}
 			<Models />
+		{:else if activeTab === 'skills'}
+			<Skills />
 		{:else if activeTab === 'messaging'}
 			<Messaging />
 		{:else if activeTab === 'gateway'}

@@ -1,4 +1,4 @@
-"""Skills API: lightweight read-only endpoint for the $ mention picker."""
+"""Skills API: lightweight endpoint for the $ mention picker."""
 
 from __future__ import annotations
 
@@ -19,6 +19,14 @@ class SkillResponse(BaseModel):
     license: Optional[str] = None
     compatibility: Optional[str] = None
     managed: bool = False
+    created_by: Optional[str] = None
+    created_from: Optional[str] = None
+    view_count: int = 0
+    use_count: int = 0
+    update_count: int = 0
+    last_viewed_at: Optional[str] = None
+    last_used_at: Optional[str] = None
+    last_updated_at: Optional[str] = None
 
 
 @router.get("", response_model=list[SkillResponse])
@@ -36,6 +44,14 @@ async def list_skills(workspace: str = Query(..., description="Workspace path"))
             license=s.license,
             compatibility=s.compatibility,
             managed=s.managed,
+            created_by=s.created_by,
+            created_from=s.created_from,
+            view_count=s.view_count,
+            use_count=s.use_count,
+            update_count=s.update_count,
+            last_viewed_at=s.last_viewed_at,
+            last_used_at=s.last_used_at,
+            last_updated_at=s.last_updated_at,
         )
         for s in skills
     ]

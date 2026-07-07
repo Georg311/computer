@@ -3,6 +3,7 @@
 		getChat,
 		getChats,
 		deleteChat as apiDeleteChat,
+		forkChat as apiForkChat,
 		sendMessage as apiSendMessage,
 		approveToolCall,
 		cancelTask,
@@ -30,6 +31,7 @@
 	import { get } from 'svelte/store';
 	import {
 		currentWorkspace,
+		openChatTab,
 		toolApprovalMode,
 		planMode,
 		streamingBehavior,
@@ -728,6 +730,10 @@
 			await handleManualCompact();
 			return;
 		}
+		if (hasChatContent && text === '/fork') {
+			await handleForkChat();
+			return;
+		}
 		if (text === '/plan') {
 			handlePlanCommand();
 			inputText = '';
@@ -900,6 +906,23 @@
 			await loadChat(chatId);
 		} catch (err: any) {
 			toast.error(err?.message || $t('chat.compactFailed'), { id: toastId });
+		} finally {
+			sending = false;
+			chatInputEl?.focus();
+		}
+	}
+
+	async function handleForkChat(messageId?: string | null) {
+		if (!chatId || sending || streaming) return;
+		sending = true;
+		inputText = '';
+		const toastId = toast.loading($t('chat.forking'));
+		try {
+			const result = await apiForkChat(chatId, messageId ?? currentMessageId);
+			openChatTab(result.chat_id);
+			toast.success($t('chat.forkDone'), { id: toastId });
+		} catch (err: any) {
+			toast.error(err?.message || $t('chat.forkFailed'), { id: toastId });
 		} finally {
 			sending = false;
 			chatInputEl?.focus();
@@ -1592,6 +1615,7 @@
 								siblingTotal={siblingIds.length}
 								speaking={speakingMessageId === msg.id}
 								onnavigate={(dir) => handleNavigate(msg.id, dir)}
+								onfork={sending || streaming ? undefined : () => handleForkChat(msg.id)}
 								onregenerate={() => handleRegenerate(msg.id)}
 								onedit={(c, o, submit) => handleEditMessage(msg.id, c, o, submit)}
 								onspeak={() => speakMessage(msg.id)}
@@ -1645,6 +1669,7 @@
 					tasks={chatTasks}
 					onsend={send}
 					oncompact={handleManualCompact}
+					onfork={handleForkChat}
 					onplan={handlePlanCommand}
 					onstatus={handleStatusCommand}
 					onskillslist={handleSkillsListCommand}

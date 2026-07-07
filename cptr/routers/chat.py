@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from copy import deepcopy
 import json
 import logging
 from pathlib import Path
@@ -512,6 +513,79 @@ async def delete_chat(chat_id: str, request: Request):
 
     await Chat.delete(chat_id)
     return {"ok": True}
+
+
+class ForkChatRequest(BaseModel):
+    message_id: Optional[str] = None
+
+
+@router.post("/{chat_id}/fork")
+async def fork_chat(chat_id: str, request: Request, body: ForkChatRequest | None = None):
+    """Clone a completed chat branch through the selected message."""
+    user_id = _get_user(request)
+    chat = await Chat.get_by_id(chat_id)
+    if not chat or chat.user_id != user_id:
+        raise HTTPException(404, "chat not found")
+    if await _chat_has_active_generation(chat_id):
+        raise HTTPException(409, "wait for the current response to finish before forking")
+
+    messages = await ChatMessage.get_all_by_chat(chat_id)
+    if not messages:
+        raise HTTPException(400, "chat has no messages to fork")
+    message_by_id = {message.id: message for message in messages}
+    source_message_id = (body.message_id if body else None) or chat.current_message_id or messages[-1].id
+    source_message = message_by_id.get(source_message_id)
+    if not source_message:
+        raise HTTPException(404, "message not found")
+
+    branch: list[ChatMessage] = []
+    seen: set[str] = set()
+    current: ChatMessage | None = source_message
+    while current:
+        if current.id in seen:
+            raise HTTPException(400, "message branch contains a cycle")
+        seen.add(current.id)
+        branch.append(current)
+        current = message_by_id.get(current.parent_id) if current.parent_id else None
+    branch.reverse()
+
+    meta = deepcopy(chat.meta or {})
+    meta["forked_from"] = chat.id
+    meta["forked_from_message_id"] = source_message.id
+    now = now_ms()
+    fork = await Chat.create(
+        user_id=user_id,
+        title=f"{chat.title} (fork)",
+        meta=meta,
+        created_at=now,
+    )
+    if chat.summary:
+        await Chat.update_summary(fork.id, chat.summary, now)
+
+    id_map: dict[str, str] = {}
+    for message in branch:
+        copied = await ChatMessage.create(
+            chat_id=fork.id,
+            role=message.role,
+            content=message.content,
+            parent_id=id_map.get(message.parent_id) if message.parent_id else None,
+            model=message.model,
+            done=message.done,
+            output=deepcopy(message.output),
+            usage=deepcopy(message.usage),
+            meta=deepcopy(message.meta),
+            created_at=message.created_at,
+        )
+        id_map[message.id] = copied.id
+        if message.chat_summary:
+            await ChatMessage.update(copied.id, chat_summary=message.chat_summary)
+
+    await Chat.update_current_message(fork.id, id_map[source_message.id], now)
+
+    from cptr.utils.chat_export import export_chat_to_file
+
+    await export_chat_to_file(fork.id)
+    return {"ok": True, "chat_id": fork.id}
 
 
 # ── Send a message ──────────────────────────────────────────

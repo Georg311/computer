@@ -57,6 +57,7 @@
 	"files.deleteItemConfirm_other": "Удалить {{count}} элементов?",
 	"files.deleteEntryConfirm": "Удалить {{type}} \"{{name}}\"?",
 	"files.moreActions": "Ещё действия",
+	"files.copyPath": "Копировать путь",
 	"files.rename": "Переименовать",
 	"files.download": "Скачать",
 	"files.delete": "Удалить",

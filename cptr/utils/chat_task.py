@@ -14,7 +14,7 @@ import uuid
 from cptr.events import EVENTS, publish_event
 from cptr.env import CHAT_MAX_ITERATIONS, CHAT_TOOL_COMMAND_MAX_CHARS, CHAT_TOOL_MAX_CHARS
 from cptr.utils.context import resolve_compact_token_threshold, should_compact
-from cptr.utils.skills import discover_skills, load_skill, format_skill_content
+from cptr.utils.skills import bump_skill_view, discover_skills, load_skill, format_skill_content
 from cptr.utils.summarize import summarize_messages
 from cptr.models import Chat, ChatMessage, Config
 from cptr.socket.main import emit_to_user
@@ -31,6 +31,7 @@ from cptr.utils.tools import (
     ALL_TOOLS,
     clear_active_tasks,
     create_artifact,
+    disabled_builtin_tool_names,
     execute_tool,
     get_tool_list,
     _fn_to_schema,
@@ -163,7 +164,38 @@ def _build_skill_create_prompt(user_request: str) -> str:
     )
 
 
-def _apply_skills_create_prompt(messages: list[dict]) -> bool:
+def _message_has_real_content(message: dict) -> bool:
+    text = _plain_message_text(message.get("content")).strip()
+    if message.get("role") == "user" and text.startswith("/"):
+        return False
+    return bool(
+        text or message.get("tool_calls") or message.get("reasoning_items") or message.get("output")
+    )
+
+
+def _has_prior_real_chat_content(messages: list[dict], loaded_summary: str | None = None) -> bool:
+    if loaded_summary and loaded_summary.strip():
+        return True
+    last_user_idx = next(
+        (idx for idx in range(len(messages) - 1, -1, -1) if messages[idx].get("role") == "user"),
+        len(messages),
+    )
+    return any(
+        message.get("role") == "user" and _message_has_real_content(message)
+        for message in messages[:last_user_idx]
+    )
+
+
+def _build_skill_create_gate_prompt() -> str:
+    return (
+        "[/skills:create] The user tried to create a skill before this chat had "
+        "any prior real content. Explain briefly that skill creation needs an "
+        "existing chat with the workflow or source material already in it, then "
+        "ask them to continue in a chat with content first."
+    )
+
+
+def _apply_skills_create_prompt(messages: list[dict], *, allowed: bool) -> bool:
     for message in reversed(messages):
         if message.get("role") != "user":
             continue
@@ -171,7 +203,11 @@ def _apply_skills_create_prompt(messages: list[dict]) -> bool:
         match = SKILLS_CREATE_RE.match(text.strip())
         if not match:
             return False
-        message["content"] = _build_skill_create_prompt(match.group(1) or "")
+        message["content"] = (
+            _build_skill_create_prompt(match.group(1) or "")
+            if allowed
+            else _build_skill_create_gate_prompt()
+        )
         return True
     return False
 
@@ -1315,6 +1351,16 @@ async def run_chat_task(
     content = (msg.content or "") if msg else ""
     output_items: list[dict] = list(msg.output or []) if msg else []
     text_buffer = ""  # Accumulates text between tool calls
+    task_completed_success = False
+    review_messages: list[dict] = []
+    review_model_connection: dict | None = None
+    review_model_name = ""
+    review_chat_params: dict = {}
+    review_builtin_tools: dict | None = None
+    loaded_skill_names: set[str] = set()
+    tool_names_used: set[str] = set()
+    skill_create_requested = False
+    skill_authoring_allowed = False
 
     logger.info(
         "[task %s] start: existing content=%d chars, output=%d items",
@@ -1391,7 +1437,8 @@ async def run_chat_task(
         await Chat.update_meta(chat_id, meta, now_ms())
 
     async def _run_agent_target(agent_target: AgentModelTarget):
-        nonlocal content, text_buffer
+        nonlocal content, text_buffer, task_completed_success, skill_authoring_allowed
+        nonlocal skill_create_requested
         from cptr.utils.agents.claude_code import run_claude_code_agent
         from cptr.utils.agents.cline import run_cline_agent
         from cptr.utils.agents.codex import run_codex_agent
@@ -1402,7 +1449,10 @@ async def run_chat_task(
         chat_obj = await Chat.get_by_id(chat_id)
         chat_params = (chat_obj.meta or {}).get("params", {}) if chat_obj else {}
         messages, loaded_summary = await _load_message_history(chat_id, message_id)
-        _apply_skills_create_prompt(messages)
+        skill_authoring_allowed = _has_prior_real_chat_content(messages, loaded_summary)
+        skill_create_requested = _apply_skills_create_prompt(
+            messages, allowed=skill_authoring_allowed
+        )
         memory_message, memory_files = _memory_recall_inputs(messages, regeneration_prompt)
         system = await _load_system_prompt(
             workspace,
@@ -1629,6 +1679,7 @@ async def run_chat_task(
                     data={"workspace": event_workspace, "preview": preview},
                     message=preview,
                 )
+                task_completed_success = True
                 return
 
         flushed_item = _flush_text()
@@ -1669,7 +1720,10 @@ async def run_chat_task(
             chat_models_config = {}
         builtin_tools = resolve_builtin_tools_config(chat_models_config, model, configured_model)
         messages, loaded_summary = await _load_message_history(chat_id, message_id)
-        _apply_skills_create_prompt(messages)
+        skill_authoring_allowed = _has_prior_real_chat_content(messages, loaded_summary)
+        skill_create_requested = _apply_skills_create_prompt(
+            messages, allowed=skill_authoring_allowed
+        )
         memory_message, memory_files = _memory_recall_inputs(messages, regeneration_prompt)
         system = await _load_system_prompt(
             workspace,
@@ -1684,6 +1738,8 @@ async def run_chat_task(
         if regeneration_prompt:
             messages.append({"role": "user", "content": regeneration_prompt})
         tools = await get_tool_list(builtin_tools=builtin_tools)
+        if not skill_authoring_allowed:
+            tools = [t for t in tools if t["name"] != "manage_skill"]
 
         # Remove view_skill tool if no skills are available
         skills = discover_skills(workspace)
@@ -1717,6 +1773,8 @@ async def run_chat_task(
                 if skill:
                     skill_blocks.append(format_skill_content(skill))
                     _activated_skills.add(sid)  # mark as activated for dedup
+                    loaded_skill_names.add(sid)
+                    bump_skill_view(workspace, sid, skill.source)
             if skill_blocks:
                 system += "\n\n" + "\n\n".join(skill_blocks)
 
@@ -1733,6 +1791,14 @@ async def run_chat_task(
             logger.info(
                 "[task %s] plan mode active, %d tools available", message_id[:8], len(tools)
             )
+        review_messages = messages
+        review_model_connection = connection
+        review_model_name = model
+        review_chat_params = {
+            **chat_params,
+            "subagent": bool(chat_obj and (chat_obj.meta or {}).get("subagent")),
+        }
+        review_builtin_tools = builtin_tools
 
         # Tool approval mode: 'ask' | 'auto' | 'full'
         #   ask  = require approval for ALL tools (including reads)
@@ -1959,6 +2025,7 @@ async def run_chat_task(
                             data={"workspace": event_workspace, "preview": preview},
                             message=preview,
                         )
+                        task_completed_success = True
                         return
 
             # ── Process collected tool calls ────────────────────
@@ -1987,6 +2054,11 @@ async def run_chat_task(
                 needs_approval = None
                 for tc in pending_calls:
                     name = tc["name"]
+                    tool_names_used.add(name)
+                    if name == "view_skill":
+                        skill_name = str(tc.get("arguments", {}).get("skill_name") or "").strip()
+                        if skill_name:
+                            loaded_skill_names.add(skill_name)
                     tool = ALL_TOOLS.get(name)
                     should_auto = approval_mode == "full" or (
                         approval_mode == "auto" and tool and tool["auto"]
@@ -2190,6 +2262,7 @@ async def run_chat_task(
                     data={"workspace": event_workspace, "preview": preview},
                     message=preview,
                 )
+                task_completed_success = True
                 return
 
         # Max iterations reached
@@ -2320,6 +2393,26 @@ async def run_chat_task(
             )
         except Exception:
             logger.debug("[memory] Failed to review conversation", exc_info=True)
+        try:
+            from cptr.utils.skills import review_skills_after_turn
+
+            await review_skills_after_turn(
+                workspace=workspace,
+                conversation_messages=review_messages,
+                assistant_reply=content,
+                model_connection=review_model_connection,
+                model=review_model_name,
+                loaded_skill_names=loaded_skill_names,
+                tool_names=tool_names_used,
+                skill_create_requested=skill_create_requested,
+                plan_mode=bool(review_chat_params.get("plan_mode")),
+                subagent=bool(review_chat_params.get("subagent")),
+                skills_enabled=task_completed_success
+                and skill_authoring_allowed
+                and "manage_skill" not in disabled_builtin_tool_names(review_builtin_tools),
+            )
+        except Exception:
+            logger.debug("[skills] Failed to review conversation", exc_info=True)
         # Process any pending user prompts or internal subagent results.
         try:
             await process_pending_chat_inputs(chat_id, user_id, workspace)

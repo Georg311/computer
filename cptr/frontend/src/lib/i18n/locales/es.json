@@ -57,6 +57,7 @@
 	"files.deleteItemConfirm_other": "¿Eliminar {{count}} elementos?",
 	"files.deleteEntryConfirm": "¿Eliminar {{type}} \"{{name}}\"?",
 	"files.moreActions": "Más acciones",
+	"files.copyPath": "Copiar ruta",
 	"files.rename": "Renombrar",
 	"files.download": "Descargar",
 	"files.delete": "Eliminar",

@@ -97,6 +97,12 @@ export const getChat = (chatId: string, modelId?: string) => {
 export const deleteChat = (chatId: string) =>
 	fetchJSON<{ ok: boolean }>(`/api/chats/${chatId}`, { method: 'DELETE' });
 
+export const forkChat = (chatId: string, messageId?: string | null) =>
+	fetchJSON<{ ok: boolean; chat_id: string }>(
+		`/api/chats/${chatId}/fork`,
+		jsonBody({ message_id: messageId ?? null })
+	);
+
 // ── Mutations ───────────────────────────────────────────────
 
 export const sendMessage = (

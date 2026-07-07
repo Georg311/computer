@@ -57,6 +57,7 @@
 	"files.deleteItemConfirm_other": "{{count}} 件のアイテムを削除しますか？",
 	"files.deleteEntryConfirm": "{{type}}「{{name}}」を削除しますか？",
 	"files.moreActions": "その他の操作",
+	"files.copyPath": "パスをコピー",
 	"files.rename": "名前変更",
 	"files.download": "ダウンロード",
 	"files.delete": "削除",

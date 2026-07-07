@@ -882,6 +882,11 @@
 		closeMenu();
 	}
 
+	function copyPath(entry: TreeEntry) {
+		navigator.clipboard.writeText(entry.path);
+		closeMenu();
+	}
+
 	async function confirmRename(entryPath: string) {
 		const oldName = entryPath.split('/').pop() ?? '';
 		if (!renameValue.trim() || renameValue === oldName) {
@@ -1347,6 +1352,7 @@
 						{ label: '', divider: true, onclick: () => {} }
 					]
 				: []),
+			{ label: $t('files.copyPath'), icon: 'copy', onclick: () => copyPath(contextMenu!.entry) },
 			{ label: $t('files.rename'), icon: 'pencil', onclick: () => startRename(contextMenu!.entry) },
 			...(contextMenu.entry.type !== 'directory'
 				? [
