@@ -1124,7 +1124,7 @@
 
 	{#if showSlashCommands}
 		<div
-			class="app-theme app-surface absolute left-2 bottom-full mb-1 z-50 w-60 max-h-40 overflow-y-auto rounded-xl border shadow-xl p-0.5"
+			class="app-theme app-surface absolute left-2 bottom-full mb-1 z-50 w-64 max-h-40 overflow-y-auto rounded-xl border shadow-xl p-0.5"
 		>
 			{#if slashCommandIds.length > 0}
 				<div class="app-muted mb-0.5 px-2 pt-1 pb-0.5 text-[0.625rem] leading-none">
@@ -1137,7 +1137,7 @@
 					aria-label="Compact: shorten older messages so this chat can keep going."
 					use:tooltip={{
 						content: 'Shorten older messages so this chat can keep going.',
-						placement: 'right'
+						placement: 'top'
 					}}
 					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
 						{selectedSlashCommand('compact') ? 'app-interactive-active' : ''} disabled:opacity-50"
@@ -1186,7 +1186,7 @@
 					aria-label="Plan: work out a plan first, then wait before changing files."
 					use:tooltip={{
 						content: 'Work out a plan first, then wait before changing files.',
-						placement: 'right'
+						placement: 'top'
 					}}
 					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
 						{selectedSlashCommand('plan') ? 'app-interactive-active' : ''}"
@@ -1227,7 +1227,7 @@
 					aria-label="Fork: clone this chat into a new copy."
 					use:tooltip={{
 						content: 'Clone this chat into a new copy.',
-						placement: 'right'
+						placement: 'top'
 					}}
 					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
 						{selectedSlashCommand('fork') ? 'app-interactive-active' : ''} disabled:opacity-50"
@@ -1255,7 +1255,7 @@
 					aria-label="Status: check what is running in this chat."
 					use:tooltip={{
 						content: 'Check what is running in this chat.',
-						placement: 'right'
+						placement: 'top'
 					}}
 					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
 						{selectedSlashCommand('status') ? 'app-interactive-active' : ''}"
@@ -1294,7 +1294,7 @@
 					aria-label="List skills: see the skills available in this workspace."
 					use:tooltip={{
 						content: 'See the skills available in this workspace.',
-						placement: 'right'
+						placement: 'top'
 					}}
 					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
 						{selectedSlashCommand('skills:list') ? 'app-interactive-active' : ''}"
@@ -1319,7 +1319,7 @@
 					aria-label="Create skill: teach Computer a reusable workflow."
 					use:tooltip={{
 						content: 'Teach Computer a reusable workflow.',
-						placement: 'right'
+						placement: 'top'
 					}}
 					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
 						{selectedSlashCommand('skills:create') ? 'app-interactive-active' : ''}"
@@ -1345,8 +1345,8 @@
 						type="button"
 						aria-label={`Use skill: ${skill.label}`}
 						use:tooltip={{
-							content: skill.description || 'Use this skill in the message.',
-							placement: 'right'
+							content: skill.label,
+							placement: 'top'
 						}}
 						class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
 							{selectedSlashSkill(skill.id) ? 'app-interactive-active' : ''}"

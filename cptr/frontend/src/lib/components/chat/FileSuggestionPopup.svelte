@@ -2,6 +2,7 @@
 	import Icon from '../Icon.svelte';
 	import { fileIconName } from '$lib/utils/fileIcon';
 	import { t } from '$lib/i18n';
+	import { tooltip } from '$lib/tooltip';
 
 	interface SuggestionItem {
 		id: string;
@@ -35,7 +36,7 @@
 </script>
 
 <div
-	class="app-theme app-surface fixed z-50 w-60 max-h-40 overflow-y-auto rounded-xl border shadow-xl p-0.5"
+	class="app-theme app-surface fixed z-50 w-64 max-h-40 overflow-y-auto rounded-xl border shadow-xl p-0.5"
 >
 	{#if items.length === 0}
 		<div class="app-muted flex items-center h-6 px-2 text-xs">{$t('quickOpen.noFiles')}</div>
@@ -54,6 +55,7 @@
 						onselect(i);
 					}}
 					onmouseenter={() => (selectedIndex = i)}
+					use:tooltip={{ content: item.id, placement: 'top' }}
 				>
 					<span class="app-icon-muted flex items-center justify-center w-4 shrink-0">
 						<Icon name={fileIconName(item.label, item.type)} size={14} />

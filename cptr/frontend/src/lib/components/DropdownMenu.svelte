@@ -376,7 +376,7 @@
 					>
 						<button
 							class="flex items-center gap-2 min-w-0 flex-1 h-full px-2 text-inherit"
-							use:tooltip={item.tooltip ? { content: item.tooltip, placement: 'right' } : null}
+							use:tooltip={item.tooltip ? { content: item.tooltip, placement: 'top' } : null}
 							onclick={() => {
 								item.onclick();
 								onclose();

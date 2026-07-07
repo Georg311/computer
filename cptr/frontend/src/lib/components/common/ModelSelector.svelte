@@ -101,7 +101,7 @@
 			{preferAbove}
 			forceAbove={preferAbove}
 			maxHeight={selectorMaxHeight}
-			className="w-48"
+			className="w-52"
 			{align}
 		>
 			{#snippet header()}
