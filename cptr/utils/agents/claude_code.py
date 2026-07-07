@@ -13,7 +13,6 @@ from cptr.utils.agents.events import (
     AgentDone,
     AgentError,
     AgentEvent,
-    AgentReasoningDone,
     AgentReasoningDelta,
     AgentTextDelta,
     AgentToolUpdate,
@@ -161,7 +160,6 @@ async def run_claude_code_agent(
             usage: dict[str, Any] | None = None
             observed_session_id = session_id
             tool_calls: dict[int, AgentToolUpdate] = {}
-            thinking_blocks: set[int] = set()
             received_text_delta = False
             received_thinking_delta = False
 
@@ -182,9 +180,6 @@ async def run_claude_code_agent(
                             elif delta.get("type") == "thinking_delta" and isinstance(
                                 delta.get("thinking"), str
                             ):
-                                index = event.get("index")
-                                if isinstance(index, int):
-                                    thinking_blocks.add(index)
                                 thinking = delta["thinking"]
                                 yield AgentReasoningDelta(thinking)
                                 if thinking:
@@ -195,15 +190,8 @@ async def run_claude_code_agent(
                             if index is not None:
                                 tool_calls[index] = tool
                             yield tool
-                        elif isinstance(index, int):
-                            block = event.get("content_block")
-                            if isinstance(block, dict) and block.get("type") == "thinking":
-                                thinking_blocks.add(index)
                     elif event_type == "content_block_stop":
                         index = event.get("index")
-                        if isinstance(index, int) and index in thinking_blocks:
-                            thinking_blocks.discard(index)
-                            yield AgentReasoningDone()
                         tool = tool_calls.get(index) if isinstance(index, int) else None
                         if tool:
                             yield AgentToolUpdate(

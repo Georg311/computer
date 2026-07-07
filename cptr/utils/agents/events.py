@@ -17,11 +17,6 @@ class AgentReasoningDelta:
 
 
 @dataclass
-class AgentReasoningDone:
-    pass
-
-
-@dataclass
 class AgentToolUpdate:
     call_id: str
     status: str
@@ -51,7 +46,6 @@ class AgentError:
 AgentEvent = (
     AgentTextDelta
     | AgentReasoningDelta
-    | AgentReasoningDone
     | AgentToolUpdate
     | AgentToolOutputDelta
     | AgentDone

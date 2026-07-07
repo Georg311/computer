@@ -49,7 +49,6 @@ from cptr.utils.agents.events import (
     AgentDone,
     AgentError,
     AgentReasoningDelta,
-    AgentReasoningDone,
     AgentTextDelta,
     AgentToolOutputDelta,
     AgentToolUpdate,
@@ -1552,6 +1551,7 @@ async def run_chat_task(
             attachments=agent_attachments,
         ):
             if isinstance(event, AgentTextDelta):
+                await _finish_reasoning_item()
                 content += event.text
                 text_buffer += event.text
                 await emit(delta=event.text)
@@ -1567,9 +1567,8 @@ async def run_chat_task(
                 _upsert_output_item(output_items, item)
                 await emit(output=item)
                 _sync_state()
-            elif isinstance(event, AgentReasoningDone):
-                await _finish_reasoning_item()
             elif isinstance(event, AgentToolUpdate):
+                await _finish_reasoning_item()
                 flushed_item = _flush_text()
                 if flushed_item:
                     await emit(output=flushed_item)
@@ -1630,6 +1629,7 @@ async def run_chat_task(
                     await emit(output=output_item)
                 _sync_state()
             elif isinstance(event, AgentToolOutputDelta):
+                await _finish_reasoning_item()
                 flushed_item = _flush_text()
                 if flushed_item:
                     await emit(output=flushed_item)
