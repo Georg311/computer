@@ -36,9 +36,18 @@ export interface ContextUsage {
 	source: 'estimated';
 }
 
+export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
+
+export interface ChatTask {
+	id: string;
+	content: string;
+	status: TaskStatus;
+}
+
 export interface ChatDetail {
 	chat: ChatInfo;
 	messages: ChatMessageRow[];
+	tasks?: ChatTask[];
 	context_usage?: ContextUsage | null;
 }
 

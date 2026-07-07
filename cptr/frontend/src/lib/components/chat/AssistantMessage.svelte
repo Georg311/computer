@@ -5,6 +5,7 @@
 	import OutputEditView from './OutputEditView.svelte';
 	import ChatFilePreview from './ChatFilePreview.svelte';
 	import ConsecutiveActivityGroup from './ConsecutiveActivityGroup.svelte';
+	import MessageTimestamp from './MessageTimestamp.svelte';
 	import ReasoningCollapsible from './ReasoningCollapsible.svelte';
 	import ToolCallCollapsible from './ToolCallCollapsible.svelte';
 	import { currentWorkspace, openFileTab } from '$lib/stores';
@@ -21,6 +22,7 @@
 		usage: Record<string, number> | null;
 		chatId: string | null;
 		messageId: string;
+		createdAt?: number | null;
 		siblingIndex?: number;
 		siblingTotal?: number;
 		speaking?: boolean;
@@ -37,6 +39,7 @@
 		usage,
 		chatId,
 		messageId,
+		createdAt = null,
 		siblingIndex = 0,
 		siblingTotal = 1,
 		speaking = false,
@@ -593,7 +596,7 @@
 
 		<!-- Controls toolbar -->
 		{#if done || siblingTotal > 1}
-			<div class="flex items-center gap-1 mt-1 -ml-0.5">
+			<div class="group/timestamp-toolbar flex items-center gap-1 mt-1 -ml-0.5">
 				{#if siblingTotal > 1}
 					<button
 						class="p-0.5 rounded text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-30 disabled:cursor-default transition-colors duration-100"
@@ -784,6 +787,7 @@
 						>
 					</button>
 				{/if}
+				<MessageTimestamp {createdAt} />
 			</div>
 		{/if}
 	{/if}

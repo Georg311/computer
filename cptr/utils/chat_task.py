@@ -27,7 +27,14 @@ from cptr.utils.ai import (
 )
 from cptr.utils.config import _get_jwt_secret, now_ms
 from cptr.utils.crypto import decrypt_key
-from cptr.utils.tools import ALL_TOOLS, execute_tool, get_tool_list, _fn_to_schema, create_artifact
+from cptr.utils.tools import (
+    ALL_TOOLS,
+    clear_active_tasks,
+    create_artifact,
+    execute_tool,
+    get_tool_list,
+    _fn_to_schema,
+)
 from cptr.utils.chat_export import export_chat_to_file
 from cptr.utils.json_parser import extract_json
 from cptr.utils.prompt_templates import load_system_prompt as _load_system_prompt
@@ -1282,6 +1289,10 @@ async def run_chat_task(
             title = "Chat"
         preview = content[:300] if content else ""
         ws_name = workspace.rstrip("/").rsplit("/", 1)[-1] if workspace else ""
+        try:
+            await clear_active_tasks(chat_id, user_id, message_id)
+        except Exception:
+            logger.debug("[task %s] clear_active_tasks failed", message_id[:8], exc_info=True)
         await emit(
             done=True,
             title=title,

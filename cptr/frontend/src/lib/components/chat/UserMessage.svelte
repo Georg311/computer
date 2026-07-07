@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import Icon from '../Icon.svelte';
+	import MessageTimestamp from './MessageTimestamp.svelte';
 	import { fileIconName } from '$lib/utils/fileIcon';
 	import { openFileTab, setFileBrowserCwd, setActiveTab } from '$lib/stores';
 	import { t } from '$lib/i18n';
@@ -8,6 +9,7 @@
 	interface Props {
 		content: string;
 		meta?: Record<string, any> | null;
+		createdAt?: number | null;
 		siblingIndex?: number;
 		siblingTotal?: number;
 		onedit?: (content: string, submit: boolean) => void;
@@ -16,6 +18,7 @@
 	let {
 		content,
 		meta = null,
+		createdAt = null,
 		siblingIndex = 0,
 		siblingTotal = 1,
 		onedit,
@@ -240,7 +243,10 @@
 			</div>
 		</div>
 		{#if siblingTotal > 1 || onedit}
-			<div class="flex justify-end items-center gap-1 mt-0.5 invisible group-hover:visible">
+			<div
+				class="group/timestamp-toolbar flex w-full justify-end items-center gap-1 mt-1 invisible group-hover:visible"
+			>
+				<MessageTimestamp {createdAt} side="left" />
 				{#if siblingTotal > 1}
 					<button
 						class="p-0.5 rounded text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-30 disabled:cursor-default transition-colors duration-100"

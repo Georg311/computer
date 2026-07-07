@@ -11,8 +11,8 @@
 
 	let enabled = $state(false);
 	let backgroundEnabled = $state(false);
-	let maxConcurrent = $state(3);
-	let maxAsync = $state(3);
+	let maxConcurrent = $state(20);
+	let maxAsync = $state(20);
 	let maxIterations = $state(30);
 	let maxOutput = $state(30000);
 	let systemPrompt = $state('');
@@ -24,8 +24,8 @@
 			backgroundEnabled =
 				config['subagents.background_enabled'] === true ||
 				config['subagents.background_enabled'] === 'true';
-			maxConcurrent = Number(config['subagents.max_concurrent']) || 3;
-			maxAsync = Number(config['subagents.max_async']) || 3;
+			maxConcurrent = Number(config['subagents.max_concurrent']) || 20;
+			maxAsync = Number(config['subagents.max_async']) || 20;
 			maxIterations = Number(config['subagents.max_iterations']) || 30;
 			maxOutput = Number(config['subagents.max_output']) || 30000;
 			systemPrompt = (config['subagents.system_prompt'] as string) || '';
@@ -87,7 +87,7 @@
 							type="number"
 							bind:value={maxConcurrent}
 							min="1"
-							max="10"
+							max="100"
 							class="w-16 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
 						/>
 						<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600"
@@ -124,7 +124,7 @@
 								type="number"
 								bind:value={maxAsync}
 								min="1"
-								max="10"
+								max="100"
 								class="w-16 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
 							/>
 							<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600"

@@ -20,12 +20,13 @@
 	import { searchFiles } from '$lib/apis/files';
 	import { getSkills } from '$lib/apis/skills';
 	import { uploadFile } from '$lib/apis/files';
-	import type { ContextUsage } from '$lib/apis/chat';
+	import type { ChatTask, ContextUsage } from '$lib/apis/chat';
 	import ModelSelector from '../common/ModelSelector.svelte';
 	import SendButton from './SendButton.svelte';
 	import PlusMenu from './PlusMenu.svelte';
 	import DictateButton from './DictateButton.svelte';
 	import QueuedMessageItem from './QueuedMessageItem.svelte';
+	import Tasks from './Tasks.svelte';
 	import Icon from '../Icon.svelte';
 	import { planMode } from '$lib/stores';
 	import {
@@ -69,6 +70,7 @@
 		workspace?: string;
 		placeholder?: string;
 		contextUsage?: ContextUsage | null;
+		tasks?: ChatTask[];
 		queuedMessages?: { id: string; content: string }[];
 		onsend: () => void;
 		oncompact?: () => void;
@@ -88,6 +90,7 @@
 		workspace = '',
 		placeholder = 'Message...',
 		contextUsage = null,
+		tasks = [],
 		queuedMessages = [],
 		onsend,
 		oncompact,
@@ -1003,6 +1006,12 @@
 	}}
 	role="presentation"
 >
+	{#if tasks.length > 0}
+		<div class="mx-1">
+			<Tasks {tasks} />
+		</div>
+	{/if}
+
 	<!-- Queued messages (above input, matching open-webui layout) -->
 	{#if queuedMessages.length > 0}
 		<div
@@ -1031,7 +1040,10 @@
 				<button
 					type="button"
 					aria-label="Compact: shorten older messages so this chat can keep going."
-					use:tooltip={{ content: 'Shorten older messages so this chat can keep going.', placement: 'right' }}
+					use:tooltip={{
+						content: 'Shorten older messages so this chat can keep going.',
+						placement: 'right'
+					}}
 					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
 						{slashCommandIds[selectedSlashCommandIndex] === 'compact'
 						? 'app-interactive-active'
@@ -1164,9 +1176,7 @@
 						placement: 'right'
 					}}
 					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
-						{slashCommandIds[selectedSlashCommandIndex] === 'skills:list'
-						? 'app-interactive-active'
-						: ''}"
+						{slashCommandIds[selectedSlashCommandIndex] === 'skills:list' ? 'app-interactive-active' : ''}"
 					onmousedown={(e) => e.preventDefault()}
 					onclick={() => {
 						runSlashCommand('skills:list');
@@ -1191,14 +1201,13 @@
 						placement: 'right'
 					}}
 					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
-						{slashCommandIds[selectedSlashCommandIndex] === 'skills:create'
-						? 'app-interactive-active'
-						: ''}"
+						{slashCommandIds[selectedSlashCommandIndex] === 'skills:create' ? 'app-interactive-active' : ''}"
 					onmousedown={(e) => e.preventDefault()}
 					onclick={() => {
 						runSlashCommand('skills:create');
 					}}
-					onmouseenter={() => (selectedSlashCommandIndex = slashCommandIds.indexOf('skills:create'))}
+					onmouseenter={() =>
+						(selectedSlashCommandIndex = slashCommandIds.indexOf('skills:create'))}
 				>
 					<span class="app-icon-muted flex items-center justify-center w-4 shrink-0">
 						<Icon name="plus" size={14} />

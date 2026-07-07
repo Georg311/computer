@@ -271,6 +271,9 @@ async def get_chat(
 
     messages = await ChatMessage.get_all_by_chat(chat_id)
     context_usage = await _get_chat_context_usage(chat, model_id)
+    from cptr.utils.tools import _normalize_tasks
+
+    tasks = _normalize_tasks((chat.meta or {}).get("tasks"))
     return {
         "chat": {
             "id": chat.id,
@@ -282,6 +285,7 @@ async def get_chat(
             "updated_at": chat.updated_at,
         },
         "messages": [_message_dict(m) for m in messages],
+        "tasks": tasks,
         "context_usage": context_usage,
     }
 
@@ -577,7 +581,11 @@ async def compact_chat(chat_id: str, body: CompactRequest, request: Request):
         usage = await _get_chat_context_usage(chat, body.model_id)
         return {"ok": True, "compacted": False, "reason": "too_short", "context_usage": usage}
 
-    from cptr.utils.model_targets import ApiModelTarget, first_api_model_target, resolve_model_target
+    from cptr.utils.model_targets import (
+        ApiModelTarget,
+        first_api_model_target,
+        resolve_model_target,
+    )
 
     target = await resolve_model_target(body.model_id, request.app.state)
     if not isinstance(target, ApiModelTarget):
