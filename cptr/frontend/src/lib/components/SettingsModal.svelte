@@ -66,7 +66,6 @@
 		'connections',
 		'agents',
 		'models',
-		'skills',
 		'messaging',
 		'gateway',
 		'audio',
@@ -74,7 +73,8 @@
 		'web',
 		'toolservers',
 		'subagents',
-		'memory'
+		'memory',
+		'skills'
 	];
 
 	const personalTabs: SettingsTab[] = $derived.by(() => {
@@ -95,7 +95,6 @@
 		{ id: 'connections', label: $t('admin.connections'), icon: 'plug' },
 		{ id: 'agents', label: $t('admin.agents'), icon: 'terminal' },
 		{ id: 'models', label: $t('admin.models'), icon: 'cube' },
-		{ id: 'skills', label: 'Skills', icon: 'spark' },
 		{ id: 'messaging', label: $t('admin.messaging'), icon: 'chat-bubble' },
 		{ id: 'gateway', label: $t('admin.gateway.tab'), icon: 'gateway' },
 		{ id: 'audio', label: $t('admin.audio.title'), icon: 'microphone' },
@@ -103,7 +102,8 @@
 		{ id: 'web', label: $t('admin.web'), icon: 'globe' },
 		{ id: 'toolservers', label: $t('admin.toolServers'), icon: 'plug' },
 		{ id: 'subagents', label: $t('admin.subagents'), icon: 'user' },
-		{ id: 'memory', label: $t('settings.memory'), icon: 'brain' }
+		{ id: 'memory', label: $t('settings.memory'), icon: 'brain' },
+		{ id: 'skills', label: 'Skills', icon: 'spark' }
 	]);
 
 	onMount(() => {

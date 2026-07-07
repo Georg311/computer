@@ -50,6 +50,8 @@ MANAGED_WORKSPACE_SKILL_DIR = ".cptr/skills"
 MANAGED_GLOBAL_SKILL_DIR = Path.home() / ".cptr" / "skills"
 ALLOWED_BUNDLE_DIRS = {"references", "templates", "scripts", "assets"}
 DEFAULT_SKILL_SETTINGS: dict[str, Any] = {
+    "enabled": True,
+    "tool_enabled": True,
     "background_review_enabled": True,
     "review_interval_turns": 10,
 }
@@ -712,6 +714,8 @@ async def get_skill_settings() -> dict[str, Any]:
         settings["review_interval_turns"] = max(1, int(settings["review_interval_turns"]))
     except (TypeError, ValueError):
         settings["review_interval_turns"] = DEFAULT_SKILL_SETTINGS["review_interval_turns"]
+    settings["enabled"] = settings.get("enabled") not in (False, "false", "0")
+    settings["tool_enabled"] = settings.get("tool_enabled") not in (False, "false", "0")
     settings["background_review_enabled"] = settings.get("background_review_enabled") not in (
         False,
         "false",
@@ -744,7 +748,11 @@ async def review_skills_after_turn(
     ):
         return
     settings = await get_skill_settings()
-    if not settings["background_review_enabled"]:
+    if (
+        not settings["enabled"]
+        or not settings["tool_enabled"]
+        or not settings["background_review_enabled"]
+    ):
         return
     if not tool_names and not skill_create_requested and not loaded_skill_names:
         return

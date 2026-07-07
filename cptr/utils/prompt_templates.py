@@ -208,7 +208,12 @@ def _render_system_template(template: str, variables: dict[str, str]) -> str:
     return re.sub(r"\n{3,}", "\n\n", rendered).strip()
 
 
-def _build_template_variables(workspace: str, model: str = "", memory: str = "") -> dict[str, str]:
+def _build_template_variables(
+    workspace: str,
+    model: str = "",
+    memory: str = "",
+    skills_enabled: bool = True,
+) -> dict[str, str]:
     """Build the dict of template variable values for the current context."""
     ws_path = Path(workspace)
     os_name = platform.system().replace("Darwin", "macOS")
@@ -225,8 +230,7 @@ def _build_template_variables(workspace: str, model: str = "", memory: str = "")
     else:
         instructions_block = ""
 
-    skills = discover_skills(workspace)
-    skills_block = build_catalog_xml(skills)
+    skills_block = build_catalog_xml(discover_skills(workspace)) if skills_enabled else ""
 
     return {
         "WORKSPACE_NAME": ws_path.name if ws_path.is_dir() else "",
@@ -310,5 +314,10 @@ async def load_system_prompt(
     if memory and "{{MEMORY}}" not in template:
         template = template.rstrip() + "\n\n{{MEMORY}}"
 
-    variables = _build_template_variables(workspace, model, memory)
+    try:
+        skills_enabled = (await Config.get("skills.enabled")) not in (False, "false", "0")
+    except Exception:
+        skills_enabled = True
+
+    variables = _build_template_variables(workspace, model, memory, skills_enabled)
     return _render_system_template(template, variables)

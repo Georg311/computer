@@ -14,7 +14,13 @@ import uuid
 from cptr.events import EVENTS, publish_event
 from cptr.env import CHAT_MAX_ITERATIONS, CHAT_TOOL_COMMAND_MAX_CHARS, CHAT_TOOL_MAX_CHARS
 from cptr.utils.context import resolve_compact_token_threshold, should_compact
-from cptr.utils.skills import bump_skill_view, discover_skills, load_skill, format_skill_content
+from cptr.utils.skills import (
+    bump_skill_view,
+    discover_skills,
+    format_skill_content,
+    get_skill_settings,
+    load_skill,
+)
 from cptr.utils.summarize import summarize_messages
 from cptr.models import Chat, ChatMessage, Config
 from cptr.socket.main import emit_to_user
@@ -186,7 +192,12 @@ def _has_prior_real_chat_content(messages: list[dict], loaded_summary: str | Non
     )
 
 
-def _build_skill_create_gate_prompt() -> str:
+def _build_skill_create_gate_prompt(reason: str = "empty_chat") -> str:
+    if reason == "disabled":
+        return (
+            "[/skills:create] Skill creation is disabled in admin settings. "
+            "Explain this briefly and do not try to create or update a skill."
+        )
     return (
         "[/skills:create] The user tried to create a skill before this chat had "
         "any prior real content. Explain briefly that skill creation needs an "
@@ -195,7 +206,12 @@ def _build_skill_create_gate_prompt() -> str:
     )
 
 
-def _apply_skills_create_prompt(messages: list[dict], *, allowed: bool) -> bool:
+def _apply_skills_create_prompt(
+    messages: list[dict],
+    *,
+    allowed: bool,
+    denial_reason: str = "empty_chat",
+) -> bool:
     for message in reversed(messages):
         if message.get("role") != "user":
             continue
@@ -206,7 +222,7 @@ def _apply_skills_create_prompt(messages: list[dict], *, allowed: bool) -> bool:
         message["content"] = (
             _build_skill_create_prompt(match.group(1) or "")
             if allowed
-            else _build_skill_create_gate_prompt()
+            else _build_skill_create_gate_prompt(denial_reason)
         )
         return True
     return False
@@ -1449,9 +1465,14 @@ async def run_chat_task(
         chat_obj = await Chat.get_by_id(chat_id)
         chat_params = (chat_obj.meta or {}).get("params", {}) if chat_obj else {}
         messages, loaded_summary = await _load_message_history(chat_id, message_id)
+        skill_settings = await get_skill_settings()
         skill_authoring_allowed = _has_prior_real_chat_content(messages, loaded_summary)
+        skill_create_denial_reason = "empty_chat"
+        if not skill_settings["enabled"] or not skill_settings["tool_enabled"]:
+            skill_authoring_allowed = False
+            skill_create_denial_reason = "disabled"
         skill_create_requested = _apply_skills_create_prompt(
-            messages, allowed=skill_authoring_allowed
+            messages, allowed=skill_authoring_allowed, denial_reason=skill_create_denial_reason
         )
         memory_message, memory_files = _memory_recall_inputs(messages, regeneration_prompt)
         system = await _load_system_prompt(
@@ -1720,9 +1741,14 @@ async def run_chat_task(
             chat_models_config = {}
         builtin_tools = resolve_builtin_tools_config(chat_models_config, model, configured_model)
         messages, loaded_summary = await _load_message_history(chat_id, message_id)
+        skill_settings = await get_skill_settings()
         skill_authoring_allowed = _has_prior_real_chat_content(messages, loaded_summary)
+        skill_create_denial_reason = "empty_chat"
+        if not skill_settings["enabled"] or not skill_settings["tool_enabled"]:
+            skill_authoring_allowed = False
+            skill_create_denial_reason = "disabled"
         skill_create_requested = _apply_skills_create_prompt(
-            messages, allowed=skill_authoring_allowed
+            messages, allowed=skill_authoring_allowed, denial_reason=skill_create_denial_reason
         )
         memory_message, memory_files = _memory_recall_inputs(messages, regeneration_prompt)
         system = await _load_system_prompt(
@@ -1742,7 +1768,7 @@ async def run_chat_task(
             tools = [t for t in tools if t["name"] != "manage_skill"]
 
         # Remove view_skill tool if no skills are available
-        skills = discover_skills(workspace)
+        skills = discover_skills(workspace) if skill_settings["enabled"] else []
         if not skills:
             tools = [t for t in tools if t["name"] != "view_skill"]
 

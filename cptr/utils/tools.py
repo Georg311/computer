@@ -1611,7 +1611,11 @@ async def view_skill(
     """Load the full instructions and resource listing for an available skill.
     :param skill_name: The name of the skill to load (from the <available_skills> catalog).
     """
+    from cptr.models import Config
     from cptr.utils.skills import bump_skill_view, load_skill, format_skill_content
+
+    if (await Config.get("skills.enabled")) in (False, "false", "0"):
+        return "Error: skills are disabled by the administrator."
 
     # Deduplication: if already activated, return short notice
     if skill_name in _activated_skills:
@@ -1654,6 +1658,15 @@ async def manage_skill(
         update_managed_skill,
         write_managed_skill_file,
     )
+    from cptr.models import Config
+
+    if (await Config.get("skills.enabled")) in (False, "false", "0"):
+        return json.dumps({"success": False, "error": "skills are disabled"}, ensure_ascii=False)
+    if (await Config.get("skills.tool_enabled")) in (False, "false", "0"):
+        return json.dumps(
+            {"success": False, "error": "skill management is disabled"},
+            ensure_ascii=False,
+        )
 
     workspace = __context__.get("workspace", "")
     try:
@@ -2852,6 +2865,17 @@ async def get_tool_list(builtin_tools: dict | None = None) -> list[dict]:
         memory_enabled = (await Config.get("memory.enabled")) not in (False, "false", "0")
         if not memory_enabled:
             tools.pop("update_memory", None)
+        skills_enabled = (await Config.get("skills.enabled")) not in (False, "false", "0")
+        skills_tool_enabled = (await Config.get("skills.tool_enabled")) not in (
+            False,
+            "false",
+            "0",
+        )
+        if not skills_enabled:
+            tools.pop("view_skill", None)
+            tools.pop("manage_skill", None)
+        elif not skills_tool_enabled:
+            tools.pop("manage_skill", None)
         if (await Config.get("browser.enabled")) in (True, "true", "1"):
             tools.update(BROWSER_TOOLS)
         if (await Config.get("subagents.enabled")) in (True, "true", "1"):

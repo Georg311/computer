@@ -32,7 +32,11 @@ class SkillResponse(BaseModel):
 @router.get("", response_model=list[SkillResponse])
 async def list_skills(workspace: str = Query(..., description="Workspace path")):
     """List available skills (frontmatter only) for the $ mention picker."""
+    from cptr.models import Config
     from cptr.utils.skills import discover_skills
+
+    if (await Config.get("skills.enabled")) in (False, "false", "0"):
+        return []
 
     skills = await asyncio.to_thread(discover_skills, workspace)
     return [
