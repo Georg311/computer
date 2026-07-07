@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2] - 2026-07-07
+
+### Added
+
+- 🌿 **Fork chats from any response.** Start a fresh copy of a conversation from the current response or with `/fork`, so you can try a different direction without changing the original chat.
+- ✨ **Easier skill access.** Type `/` to find skills alongside chat commands, and admins can control skill behavior from a new Skills page.
+
+### Changed
+
+- 🧠 **Smarter skill upkeep.** Computer can help keep managed skills up to date after real chats, while admins can turn skill features on or off.
+- ⚙️ **Tidier settings.** About, sharing, update, license, and PWA reset controls now live in General, with Skills under Admin.
+
+### Fixed
+
+- 💬 **Clearer chat controls.** Message actions now show helpful tooltips, and commands that need an existing chat stay hidden until they can be used.
+- 📦 **More dependable release downloads.** Release runs now attach download files to the right repository more reliably.
+
 ## [0.8.1] - 2026-07-06
 
 ### Added
