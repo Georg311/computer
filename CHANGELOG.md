@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.5] - 2026-07-07
+
+### Added
+
+- ✨ **Better shared skill discovery.** Computer now finds skills saved in the common agents skill folder, so more reusable workflows show up without extra setup.
+
+### Fixed
+
+- 🤖 **Smoother agent replies.** Coding agents no longer repeat final answers or thinking notes that already appeared while the chat was running.
+- ✅ **Cleaner chat endings.** Thinking notes now close before answers, tool use, or the final saved message, keeping the chat display and completion state tidier.
+- 🔐 **More reliable agent approvals.** Agent approval prompts now handle request IDs more flexibly, so approvals are less likely to get stuck.
+
 ## [0.8.4] - 2026-07-07
 
 ### Fixed
