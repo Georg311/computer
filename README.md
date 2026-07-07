@@ -127,7 +127,7 @@ Open WebUI Computer exposes an OpenAI-compatible API (`/v1/chat/completions`). A
 | 📋 **Audit logging** | Structured audit trail of all API mutations with automatic redaction of sensitive data. |
 | 🪵 **Diagnostic logging** | Configurable structured logs (text or JSON) with optional upstream request capture. |
 | ⌨️ **Keyboard shortcuts** | Customisable keybindings with a settings panel. |
-| 🌍 **10 languages** | EN, DE, ES, FR, JA, KO, PT-BR, RU, ZH-CN, ZH-TW. |
+| 🌍 **10 languages** | English, Deutsch, Español, Français, Português (Brasil), Русский, 日本語, 한국어, 简体中文, 繁體中文. |
 | 🔐 **Auth** | Username/password with JWT sessions. Signup toggle for admins. |
 
 ## Design principles
