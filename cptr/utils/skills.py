@@ -41,9 +41,10 @@ WORKSPACE_SKILL_DIRS = [
     ".codex/skills",
 ]
 
-# Global (user-level): only our own directory
+# Global (user-level): scan our own directory plus the cross-agent convention.
 GLOBAL_SKILL_DIRS = [
     str(Path.home() / ".cptr" / "skills"),
+    str(Path.home() / ".agents" / "skills"),
 ]
 
 MANAGED_WORKSPACE_SKILL_DIR = ".cptr/skills"
