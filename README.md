@@ -55,23 +55,27 @@ Most tunnels forward to `localhost`, so the default `cptr run` works. If your tu
 
 Or skip networking entirely and connect a [messaging bot](#messaging-bots) instead.
 
-## What you get
+## The Whole Machine
+
+Open WebUI Computer is the real workstation surface: files, shell, git state, workspaces, chats, tools, and sessions stay together wherever you open it.
 
 | | |
 |---|---|
-| 📁 **File browser** | Navigate, create, rename, upload, drag and drop. Icons by type, sizes at a glance. |
-| ⌨️ **Terminal** | Full shell in the browser. Run your tools, your scripts, or your favourite coding agent. |
-| 🔀 **Git** | Stage, commit, diff, branch, push. Visual changes view. No command line required. |
+| 📁 **Real files** | Navigate, create, rename, upload, drag and drop. Icons by type, sizes at a glance. |
 | ✏️ **Editor** | Syntax-highlighted editing with tabs. Open multiple files side by side. |
+| 🔀 **Git** | Stage, commit, diff, branch, push. Visual changes view. No command line required. |
+| ⌨️ **Terminal** | Full shell in the browser. Run your tools, your scripts, or your favourite coding agent. |
+| 🔄 **Sessions persist** | Terminal keeps running when you close the tab. Come back on any device. |
 | 🗂️ **Tabs** | Open terminals, files, chats, and tools in separate tabs. Rearrange or split your layout. |
 | 📂 **Workspaces** | Multiple projects, one instance. Switch without losing your place. |
 | 🔍 **Search** | Find files by name, search across file contents and chat history. ⌘K to find anything. |
 | 📱 **Mobile-first** | Not a desktop UI made smaller. Built for the screen in your pocket. |
-| 🔄 **Sessions persist** | Terminal keeps running when you close the tab. Come back on any device. |
 
 ## AI agent
 
-Bring your own API key (OpenAI, Anthropic, Ollama, or any OpenAI-compatible endpoint), or connect a coding agent you already subscribe to.
+AI that works where your work actually lives.
+
+Bring your own API key (OpenAI, Anthropic, Ollama, or any OpenAI-compatible endpoint), or connect a coding agent you already subscribe to. It can read the workspace, edit files, run commands, browse the web, use tools, automate recurring work, and spin up parallel sub-agents on the same machine.
 
 | | |
 |---|---|
@@ -95,7 +99,7 @@ Bring your own API key (OpenAI, Anthropic, Ollama, or any OpenAI-compatible endp
 
 ## Coding agents
 
-Connect a coding agent as a native backend and use the subscription you already pay for. No separate API key needed.
+Use the subscriptions you already pay for as native backends on your own machine. No separate API key needed.
 
 **Codex** · **Claude Code** · **Cursor** · **Grok** · **OpenCode** · **Cline**
 
@@ -105,15 +109,15 @@ Prefer to run agents yourself? Any terminal agent (Gemini CLI, Kilo Code, Pi, an
 
 ## Messaging bots
 
-Connect the AI to your chat apps. Full tool access, streaming responses, conversations synced back to the web UI.
+Message your computer from wherever you are. Connect the AI to your chat apps with full tool access, streaming responses, and conversations synced back to the web UI.
 
 **Telegram** · **Discord** · **Slack** · **WhatsApp** · **Signal**
 
-Message your computer from wherever you are. Ask it to check a build, push a fix, or explain a file. Switch workspaces with `/workspace`, start fresh with `/new`.
+Ask it to check a build, push a fix, or explain a file. Switch workspaces with `/workspace`, start fresh with `/new`.
 
 ## Gateway API
 
-Open WebUI Computer exposes an OpenAI-compatible API (`/v1/chat/completions`). Any client that speaks OpenAI, including [Open WebUI](https://github.com/open-webui/open-webui), can use each Open WebUI Computer workspace as a model with full agent capabilities: file access, terminal, web search, tools.
+Turn each workspace into an OpenAI-compatible agent model with real machine access. Open WebUI Computer exposes `/v1/chat/completions`, so any client that speaks OpenAI, including [Open WebUI](https://github.com/open-webui/open-webui), can use a workspace with full agent capabilities: file access, terminal, web search, tools.
 
 ## More
 

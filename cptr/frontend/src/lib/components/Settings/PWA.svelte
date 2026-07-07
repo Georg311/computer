@@ -22,28 +22,6 @@
 			(e.currentTarget as HTMLSelectElement).value as PwaPreferences['importDestination']
 		);
 	}
-
-	let resetting = $state(false);
-
-	async function resetPwa() {
-		resetting = true;
-
-		try {
-			if ('serviceWorker' in navigator) {
-				const registrations = await navigator.serviceWorker.getRegistrations();
-				await Promise.all(registrations.map((registration) => registration.unregister()));
-			}
-
-			if ('caches' in window) {
-				const keys = await caches.keys();
-				await Promise.all(
-					keys.filter((key) => key.startsWith('cptr-')).map((key) => caches.delete(key))
-				);
-			}
-		} finally {
-			location.reload();
-		}
-	}
 </script>
 
 <div class="flex flex-col h-full">
@@ -80,17 +58,5 @@
 					updatePref('importFolder', (e.currentTarget as HTMLInputElement).value || undefined)}
 			/>
 		{/if}
-
-		<h3 class="text-xs text-gray-400 dark:text-gray-600 mb-2 mt-5">{tr('pwa.resetTitle')}</h3>
-		<button
-			class="text-[0.8125rem] text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors disabled:opacity-40 disabled:pointer-events-none"
-			onclick={resetPwa}
-			disabled={resetting}
-		>
-			{resetting ? tr('pwa.resetting') : tr('pwa.reset')}
-		</button>
-		<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-1">
-			{tr('pwa.resetDesc')}
-		</p>
 	</div>
 </div>

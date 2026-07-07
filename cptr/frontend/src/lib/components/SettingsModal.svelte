@@ -9,7 +9,6 @@
 	import PWA from './Settings/PWA.svelte';
 	import Account from './Settings/Account.svelte';
 	import Keyboard from './Settings/Keyboard.svelte';
-	import About from './Settings/About.svelte';
 	import Users from './Admin/Users.svelte';
 	import Connections from './Admin/Connections.svelte';
 	import Agents from './Admin/Agents.svelte';
@@ -33,7 +32,6 @@
 		| 'pwa'
 		| 'keyboard'
 		| 'account'
-		| 'about'
 		| 'users'
 		| 'connections'
 		| 'agents'
@@ -86,7 +84,6 @@
 			{ id: 'account', label: $t('settings.account'), icon: 'user' }
 		];
 		if (showPwaSettings) tabs.push({ id: 'pwa', label: 'PWA', icon: 'phone' });
-		tabs.push({ id: 'about', label: $t('settings.about'), icon: 'info' });
 		return tabs;
 	});
 
@@ -184,7 +181,7 @@
 
 	<div class="flex-1 overflow-y-auto scrollbar-none min-h-0 p-4 md:px-5">
 		{#if activeTab === 'general'}
-			<General />
+			<General {showPwaSettings} />
 		{:else if activeTab === 'notifications'}
 			<Notifications />
 		{:else if activeTab === 'appearance'}
@@ -197,8 +194,6 @@
 			<Keyboard />
 		{:else if activeTab === 'account'}
 			<Account />
-		{:else if activeTab === 'about'}
-			<About />
 		{:else if activeTab === 'users'}
 			<Users />
 		{:else if activeTab === 'connections'}
