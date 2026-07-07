@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { onMount, type Snippet } from 'svelte';
+	import { tooltip } from '$lib/tooltip';
 	import Icon from './Icon.svelte';
 	import KeyPill from './KeyPill.svelte';
 
 	interface MenuItem {
 		label: string;
-		title?: string;
+		tooltip?: string;
 		icon?: string;
 		onclick: () => void;
 		active?: boolean;
@@ -375,7 +376,7 @@
 					>
 						<button
 							class="flex items-center gap-2 min-w-0 flex-1 h-full px-2 text-inherit"
-							title={item.title}
+							use:tooltip={item.tooltip ? { content: item.tooltip, placement: 'right' } : null}
 							onclick={() => {
 								item.onclick();
 								onclose();

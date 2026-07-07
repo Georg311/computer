@@ -28,7 +28,7 @@
 	const menuItems = $derived(
 		filtered.map((m) => ({
 			label: m.name,
-			title: m.name,
+			tooltip: m.name,
 			active: m.id === selectedModel,
 			check: true,
 			onclick: () => {
