@@ -296,6 +296,11 @@
 
 	const streaming = $derived(allMessages.some((m) => m.role === 'assistant' && !m.done));
 	const isLanding = $derived(allMessages.length === 0 && !chatId);
+	const hasChatContent = $derived(
+		activePath.some(
+			({ msg }) => msg.role === 'user' && msg.content.trim() && !msg.content.trim().startsWith('/')
+		)
+	);
 	const workspaceDisplayName = $derived(getPathDisplayName(workspace, 'workspace'));
 	const displayChatTitle = $derived(chatTitle || firstUserMessageTitle() || workspaceDisplayName);
 	const runningCommandSessions = $derived(commandSessions.filter((session) => !session.done));
@@ -715,7 +720,11 @@
 		let text = inputText.trim();
 		if (!text || !selectedModel) return;
 		if (sending) return;
-		if (text === '/compact') {
+		if (!hasChatContent && text.startsWith('/') && text !== '/plan') {
+			toast.error('Only /plan is available before this chat has content');
+			return;
+		}
+		if (hasChatContent && text === '/compact') {
 			await handleManualCompact();
 			return;
 		}
@@ -724,12 +733,12 @@
 			inputText = '';
 			return;
 		}
-		if (text === '/status') {
+		if (hasChatContent && text === '/status') {
 			handleStatusCommand();
 			inputText = '';
 			return;
 		}
-		if (text === '/skills:list') {
+		if (hasChatContent && text === '/skills:list') {
 			await handleSkillsListCommand();
 			inputText = '';
 			return;
@@ -1522,7 +1531,7 @@
 					placeholder={$t('chat.placeholder', { name: workspaceDisplayName })}
 					tasks={chatTasks}
 					onsend={send}
-					onstatus={handleStatusCommand}
+					onplan={handlePlanCommand}
 					{queuedMessages}
 					onqueuesendnow={handleQueueSendNow}
 					onqueueedit={handleQueueEdit}
@@ -1632,6 +1641,7 @@
 					{streaming}
 					{workspace}
 					{contextUsage}
+					{hasChatContent}
 					tasks={chatTasks}
 					onsend={send}
 					oncompact={handleManualCompact}

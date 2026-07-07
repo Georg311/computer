@@ -72,6 +72,7 @@
 		contextUsage?: ContextUsage | null;
 		tasks?: ChatTask[];
 		queuedMessages?: { id: string; content: string }[];
+		hasChatContent?: boolean;
 		onsend: () => void;
 		oncompact?: () => void;
 		onplan?: () => void;
@@ -92,6 +93,7 @@
 		contextUsage = null,
 		tasks = [],
 		queuedMessages = [],
+		hasChatContent = false,
 		onsend,
 		oncompact,
 		onplan,
@@ -930,16 +932,22 @@
 	const slashCommandIds = $derived.by(() => {
 		if (!slashCommandQuery.startsWith('/')) return [];
 		const ids: string[] = [];
-		if (oncompact && '/compact'.startsWith(slashCommandQuery)) ids.push('compact');
+		if (hasChatContent && oncompact && '/compact'.startsWith(slashCommandQuery))
+			ids.push('compact');
 		if (onplan && '/plan'.startsWith(slashCommandQuery)) ids.push('plan');
-		if (onstatus && '/status'.startsWith(slashCommandQuery)) ids.push('status');
+		if (hasChatContent && onstatus && '/status'.startsWith(slashCommandQuery)) ids.push('status');
 		if (
+			hasChatContent &&
 			onskillslist &&
 			slashCommandQuery !== '/skills:list' &&
 			'/skills:list'.startsWith(slashCommandQuery)
 		)
 			ids.push('skills:list');
-		if (slashCommandQuery !== '/skills:create' && '/skills:create'.startsWith(slashCommandQuery))
+		if (
+			hasChatContent &&
+			slashCommandQuery !== '/skills:create' &&
+			'/skills:create'.startsWith(slashCommandQuery)
+		)
 			ids.push('skills:create');
 		return ids;
 	});
