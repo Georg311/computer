@@ -1522,6 +1522,20 @@ async def run_chat_task(
         if runner is None:
             raise RuntimeError(f"Unsupported agent type: {agent_target.agent}")
         reasoning_buffer = ""
+
+        async def _finish_reasoning_item():
+            if not reasoning_buffer:
+                return
+            item = {
+                "type": "reasoning",
+                "id": f"reasoning-{message_id}",
+                "status": "completed",
+                "content": [{"type": "reasoning_text", "text": reasoning_buffer}],
+            }
+            _upsert_output_item(output_items, item)
+            await emit(output=item)
+            _sync_state()
+
         async for event in runner(
             profile=agent_target.config,
             model=agent_target.model,
@@ -1665,16 +1679,7 @@ async def run_chat_task(
             elif isinstance(event, AgentError):
                 raise RuntimeError(event.message)
             elif isinstance(event, AgentDone):
-                if reasoning_buffer:
-                    _upsert_output_item(
-                        output_items,
-                        {
-                            "type": "reasoning",
-                            "id": f"reasoning-{message_id}",
-                            "status": "completed",
-                            "content": [{"type": "reasoning_text", "text": reasoning_buffer}],
-                        },
-                    )
+                await _finish_reasoning_item()
                 flushed_item = _flush_text()
                 if flushed_item:
                     await emit(output=flushed_item)
@@ -1704,6 +1709,7 @@ async def run_chat_task(
         flushed_item = _flush_text()
         if flushed_item:
             await emit(output=flushed_item)
+        await _finish_reasoning_item()
         await _save_message("agent stream ended", content=content, output=output_items, done=True)
         _task_state.pop(message_id, None)
         await _emit_done()
