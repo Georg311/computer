@@ -394,6 +394,8 @@
 		return status.files?.find((f) => f.path === relPath);
 	}
 
+	let currentFileStatus = $derived(fileData ? gitFileStatus(fileData.path) : undefined);
+
 	function applyGitLineChanges() {
 		gitLineChanges = normalizeGitLineChanges(gitLineChanges);
 		view?.dispatch({ effects: setGitLineChangesEffect.of(gitLineChanges) });
@@ -1030,7 +1032,15 @@
 		<!-- Universal toolbar (hidden for untitled files with no content yet) -->
 		<div class="toolbar">
 			<div class="toolbar-left">
-				<span class="file-name scrollbar-none">{fileData.name}</span>
+				<span class="file-title">
+					<span class="file-name scrollbar-none">{fileData.name}</span>
+					{#if currentFileStatus}
+						<span class="file-git-stats">
+							<span class="file-git-additions">+{currentFileStatus.additions ?? 0}</span>
+							<span class="file-git-deletions">-{currentFileStatus.deletions ?? 0}</span>
+						</span>
+					{/if}
+				</span>
 				<span class="file-size">{formatSize(fileData.size)}</span>
 			</div>
 			<div class="toolbar-right">
@@ -1268,10 +1278,20 @@
 		gap: 0.125rem;
 	}
 
+	.file-title {
+		display: flex;
+		align-items: center;
+		flex: 1 1 auto;
+		gap: 0.375rem;
+		min-width: 0;
+		overflow: hidden;
+	}
+
 	.file-name {
 		display: block;
-		flex: 1 1 auto;
+		flex: 0 1 auto;
 		min-width: 0;
+		max-width: 100%;
 		overflow-x: auto;
 		overflow-y: hidden;
 		white-space: nowrap;
@@ -1286,6 +1306,34 @@
 
 	:global(.dark) .file-name {
 		color: var(--color-gray-300);
+	}
+
+	.file-git-stats {
+		display: flex;
+		align-items: center;
+		flex: 0 0 auto;
+		gap: 0.25rem;
+		font-family:
+			ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+		font-size: 0.6875rem;
+		font-weight: 500;
+		white-space: nowrap;
+	}
+
+	.file-git-additions {
+		color: #16a34a;
+	}
+
+	.file-git-deletions {
+		color: #ef4444;
+	}
+
+	:global(.dark) .file-git-additions {
+		color: #4ade80;
+	}
+
+	:global(.dark) .file-git-deletions {
+		color: #f87171;
 	}
 
 	.file-size {

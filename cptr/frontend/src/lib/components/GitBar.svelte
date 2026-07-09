@@ -34,7 +34,7 @@
 	import { t } from '$lib/i18n';
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import DiffSettingsMenu from './DiffSettingsMenu.svelte';
-	import type { DiffFile } from '$lib/utils/diff';
+	import { countDiffStats, type DiffFile } from '$lib/utils/diff';
 	import DiffHunkRows from './DiffHunkRows.svelte';
 
 	type GitFile = {
@@ -44,6 +44,8 @@
 		unstaged?: boolean;
 		staged_status?: string;
 		unstaged_status?: string;
+		additions?: number;
+		deletions?: number;
 	};
 	type Commit = { hash: string; short_hash: string; author: string; date: string; message: string };
 	type BranchItem = {
@@ -116,6 +118,13 @@
 	const stagedFiles = $derived((gitStatus?.files ?? []).filter((f) => f.staged));
 	const unstagedFiles = $derived((gitStatus?.files ?? []).filter((f) => !f.staged));
 	const totalChanges = $derived((gitStatus?.files ?? []).length);
+	const totalAdditions = $derived(
+		(gitStatus?.files ?? []).reduce((sum, file) => sum + (file.additions ?? 0), 0)
+	);
+	const totalDeletions = $derived(
+		(gitStatus?.files ?? []).reduce((sum, file) => sum + (file.deletions ?? 0), 0)
+	);
+	const selectedDiffStats = $derived(countDiffStats(fileDiff));
 	const allStaged = $derived(totalChanges > 0 && unstagedFiles.length === 0);
 	const someStaged = $derived(stagedFiles.length > 0 && unstagedFiles.length > 0);
 
@@ -664,25 +673,6 @@
 		return `${Math.floor(s / 86400)}d`;
 	}
 
-	function statusChar(s: string): { char: string; color: string } {
-		switch (s) {
-			case 'added':
-				return { char: 'A', color: 'text-green-500' };
-			case 'untracked':
-				return { char: 'U', color: 'text-green-500' };
-			case 'modified':
-				return { char: 'M', color: 'text-amber-500' };
-			case 'deleted':
-				return { char: 'D', color: 'text-red-400' };
-			case 'renamed':
-				return { char: 'R', color: 'text-blue-400' };
-			case 'conflict':
-				return { char: '!', color: 'text-orange-500' };
-			default:
-				return { char: '?', color: 'text-gray-400' };
-		}
-	}
-
 	const syncAction = $derived.by(() => {
 		if (!gitStatus) return { label: $t('git.fetch'), icon: 'refresh', action: doFetch };
 		if (gitStatus.behind > 0)
@@ -762,7 +752,7 @@
 		<!-- Collapsed bar (entire bar is clickable to expand) -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
-			class="flex items-center h-7 px-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/3 transition-colors duration-75"
+			class="flex min-w-0 items-center h-7 px-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/3 transition-colors duration-75"
 			onclick={() => {
 				expanded = !expanded;
 				if (expanded) {
@@ -774,11 +764,12 @@
 			<!-- Branch button (opens branch picker, stops expand) -->
 			<button
 				bind:this={branchBtnEl}
-				class="flex items-center gap-1.5 h-6 px-1.5 -ml-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/6 transition-colors duration-75"
+				class="flex min-w-0 max-w-32 shrink items-center gap-1.5 h-6 px-1.5 -ml-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/6 transition-colors duration-75"
 				onclick={toggleBranches}
 			>
 				<Icon name="git-branch" size={12} class="text-gray-400 dark:text-gray-600 shrink-0" />
-				<span class="text-[0.6875rem] text-gray-600 dark:text-gray-400 font-mono"
+				<span
+					class="min-w-0 truncate whitespace-nowrap text-[0.6875rem] text-gray-600 dark:text-gray-400 font-mono"
 					>{gitStatus.branch}</span
 				>
 				<Icon name="chevron-down" size={9} class="text-gray-400 dark:text-gray-600" />
@@ -786,18 +777,19 @@
 
 			<button
 				bind:this={worktreeBtnEl}
-				class="flex items-center gap-1.5 h-6 px-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/6 transition-colors duration-75"
+				class="flex min-w-0 max-w-32 shrink items-center gap-1.5 h-6 px-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/6 transition-colors duration-75"
 				onclick={toggleWorktrees}
 			>
 				<Icon name="folder" size={12} class="text-gray-400 dark:text-gray-600 shrink-0" />
-				<span class="text-[0.6875rem] text-gray-500 dark:text-gray-500 font-mono"
+				<span
+					class="min-w-0 truncate whitespace-nowrap text-[0.6875rem] text-gray-500 dark:text-gray-500 font-mono"
 					>{pathTail(workspacePath)}</span
 				>
 				<Icon name="chevron-down" size={9} class="text-gray-400 dark:text-gray-600" />
 			</button>
 
 			{#if gitStatus.ahead > 0}<span
-					class="text-[0.625rem] font-mono text-gray-400 dark:text-gray-600 ml-1.5"
+					class="ml-1.5 shrink-0 whitespace-nowrap text-[0.625rem] font-mono text-gray-400 dark:text-gray-600"
 					>↑{gitStatus.ahead}</span
 				>{/if}
 			{#if gitStatus.behind > 0}<span
@@ -805,11 +797,15 @@
 					>↓{gitStatus.behind}</span
 				>{/if}
 			{#if totalChanges > 0}<span
-					class="text-[0.625rem] font-mono text-gray-400 dark:text-gray-600 ml-1.5"
+					class="ml-1.5 block min-w-0 max-w-20 shrink truncate whitespace-nowrap text-[0.625rem] font-mono text-gray-400 dark:text-gray-600"
 					>{$t('git.changedCount', { count: totalChanges })}</span
+				><span class="text-[0.625rem] font-mono text-green-600 dark:text-green-400 ml-2"
+					>+{totalAdditions}</span
+				><span class="text-[0.625rem] font-mono text-red-500 dark:text-red-400 ml-1"
+					>-{totalDeletions}</span
 				>{/if}
 			{#if actionMsg}<span
-					class="text-[0.625rem] font-mono text-gray-400 dark:text-gray-600 ml-auto"
+					class="ml-auto min-w-0 max-w-32 truncate whitespace-nowrap text-[0.625rem] font-mono text-gray-400 dark:text-gray-600"
 					>{actionMsg}</span
 				>{/if}
 
@@ -817,7 +813,7 @@
 
 			<!-- Sync button (stops expand) -->
 			<button
-				class="flex items-center gap-1 h-6 px-2 rounded-md text-[0.6875rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/6 transition-colors duration-75"
+				class="flex shrink-0 items-center gap-1 h-6 px-2 rounded-md text-[0.6875rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/6 transition-colors duration-75"
 				onclick={(e) => {
 					e.stopPropagation();
 					syncAction.action();
@@ -825,7 +821,7 @@
 				disabled={loading}
 			>
 				<Icon name={syncAction.icon} size={12} />
-				<span>{syncAction.label}</span>
+				<span class="whitespace-nowrap">{syncAction.label}</span>
 			</button>
 
 			<!-- Chevron indicator -->
@@ -1240,7 +1236,6 @@
 							<div class="flex-1 overflow-y-auto">
 								{#each gitStatus?.files ?? [] as file (file.path)}
 									{@const fp = fPath(file.path)}
-									{@const sc = statusChar(file.status)}
 									<button
 										class="group flex items-center gap-1.5 w-full h-7 px-2.5 text-left transition-colors duration-75
 											{selectedFile === file.path
@@ -1277,9 +1272,12 @@
 												openFileTab(workspacePath.replace(/\/$/, '') + '/' + file.path);
 											}}>{fp.name}</span
 										>
-										<span class="ml-auto text-[0.625rem] font-mono font-bold shrink-0 {sc.color}"
-											>{sc.char}</span
+										<span
+											class="ml-auto flex shrink-0 items-center gap-1 text-[0.625rem] font-mono font-medium"
 										>
+											<span class="text-green-600 dark:text-green-400">+{file.additions ?? 0}</span>
+											<span class="text-red-500 dark:text-red-400">-{file.deletions ?? 0}</span>
+										</span>
 										<!-- svelte-ignore a11y_no_static_element_interactions -->
 										<span
 											class="flex items-center justify-center w-5 h-5 rounded shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-all duration-75"
@@ -1404,13 +1402,21 @@
 							<div
 								class="hidden md:flex items-center h-6 px-2 border-b border-gray-100 dark:border-white/4 shrink-0"
 							>
-								<span class="text-[0.625rem] text-gray-400 dark:text-gray-600 font-mono truncate">
+								<span
+									class="min-w-0 flex-1 text-[0.625rem] text-gray-400 dark:text-gray-600 font-mono truncate"
+								>
 									{#if selectedCommit}
 										{selectedCommit.short_hash} · {selectedCommit.message}
 									{:else}
 										{selectedFile}
 									{/if}
 								</span>
+								<span class="ml-2 text-[0.625rem] font-mono text-green-600 dark:text-green-400"
+									>+{selectedDiffStats.additions}</span
+								>
+								<span class="text-[0.625rem] font-mono text-red-500 dark:text-red-400"
+									>-{selectedDiffStats.deletions}</span
+								>
 							</div>
 							<div class="flex-1 overflow-auto">
 								<div class="diff-content" class:diff-content-split={$diffDisplayMode === 'split'}>

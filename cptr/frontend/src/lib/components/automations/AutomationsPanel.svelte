@@ -97,7 +97,7 @@
 		try {
 			await deleteAutomation(a.id);
 			items = items.filter((i) => i.id !== a.id);
-			if (detail?.id === a.id) goto('/automations');
+			if (detail?.id === a.id) goto('/scheduled');
 			toast.success($t('automations.deleted'));
 		} catch (e: any) {
 			toast.error(e.message || $t('automations.failedToDelete'));
@@ -211,7 +211,7 @@
 				{/if}
 				<button
 					class="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-75"
-					onclick={() => goto('/automations')}
+					onclick={() => goto('/scheduled')}
 				>
 					<Icon name="chevron-left" size={12} />
 					<span>{$t('automations.title')}</span>
@@ -509,7 +509,7 @@
 						></span>
 						<button
 							class="text-xs text-gray-700 dark:text-gray-300 truncate flex-1 text-left hover:underline cursor-pointer transition-colors duration-75"
-							onclick={() => goto(`/automations/${a.id}`)}
+							onclick={() => goto(`/scheduled/${a.id}`)}
 						>
 							{a.name}
 						</button>

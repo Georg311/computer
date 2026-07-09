@@ -6,7 +6,7 @@
 
 	import { tooltip } from '$lib/tooltip';
 	import { t } from '$lib/i18n';
-	import type { DiffFile } from '$lib/utils/diff';
+	import { countDiffStats, type DiffFile } from '$lib/utils/diff';
 	import Icon from './Icon.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import DiffSettingsMenu from './DiffSettingsMenu.svelte';
@@ -34,6 +34,8 @@
 
 	const workspacePath = $derived($activeWorkspace?.path ?? '');
 	const totalChanges = $derived(reviewFiles.length);
+	const totalAdditions = $derived(reviewFiles.reduce((sum, file) => sum + file.additions, 0));
+	const totalDeletions = $derived(reviewFiles.reduce((sum, file) => sum + file.deletions, 0));
 	const anyExpanded = $derived(reviewFiles.some((file) => file.expanded));
 
 	// React to git status changes from centralized store
@@ -89,7 +91,7 @@
 						diffFiles = [];
 					}
 
-					const counts = countDiff(diffFiles);
+					const counts = countDiffStats(diffFiles);
 					const key = fileKey(file);
 					return {
 						key,
@@ -126,20 +128,6 @@
 		return `${file.staged ? 'staged' : 'unstaged'}:${file.status}:${file.path}`;
 	}
 
-	function countDiff(files: DiffFile[]): { additions: number; deletions: number } {
-		let additions = 0;
-		let deletions = 0;
-		for (const file of files) {
-			for (const hunk of file.hunks) {
-				for (const line of hunk.lines) {
-					if (line.type === 'added') additions += 1;
-					if (line.type === 'removed') deletions += 1;
-				}
-			}
-		}
-		return { additions, deletions };
-	}
-
 	function toggleFile(key: string) {
 		reviewFiles = reviewFiles.map((file) =>
 			file.key === key ? { ...file, expanded: !file.expanded } : file
@@ -161,27 +149,6 @@
 		const slash = path.lastIndexOf('/');
 		if (slash < 0) return { dir: '', name: path };
 		return { dir: path.slice(0, slash + 1), name: path.slice(slash + 1) };
-	}
-
-	function statusMeta(status: string): { char: string; label: string; className: string } {
-		switch (status) {
-			case 'added':
-				return { char: 'A', label: 'Added', className: 'text-green-600 dark:text-green-400' };
-			case 'untracked':
-				return { char: 'U', label: 'Untracked', className: 'text-green-600 dark:text-green-400' };
-			case 'modified':
-				return { char: 'M', label: 'Modified', className: 'text-amber-500 dark:text-amber-400' };
-			case 'deleted':
-				return { char: 'D', label: 'Deleted', className: 'text-red-500 dark:text-red-400' };
-			case 'renamed':
-				return { char: 'R', label: 'Renamed', className: 'text-blue-500 dark:text-blue-400' };
-			case 'copied':
-				return { char: 'C', label: 'Copied', className: 'text-blue-500 dark:text-blue-400' };
-			case 'conflict':
-				return { char: '!', label: 'Conflict', className: 'text-orange-500 dark:text-orange-400' };
-			default:
-				return { char: '?', label: status, className: 'text-gray-400 dark:text-gray-500' };
-		}
 	}
 </script>
 
@@ -234,6 +201,12 @@
 					<span class="ml-1 font-mono text-[0.625rem] text-gray-400 dark:text-gray-600"
 						>{$t('git.changedCount', { count: totalChanges })}</span
 					>
+					<span class="ml-2 font-mono text-[0.625rem] text-green-600 dark:text-green-400"
+						>+{totalAdditions}</span
+					>
+					<span class="font-mono text-[0.625rem] text-red-500 dark:text-red-400"
+						>-{totalDeletions}</span
+					>
 				{/if}
 			</div>
 
@@ -279,6 +252,12 @@
 				<span class="ml-auto text-[0.6875rem] text-gray-400 dark:text-gray-600"
 					>{$t('git.change', { count: totalChanges })}</span
 				>
+				<span class="ml-2 font-mono text-[0.6875rem] text-green-600 dark:text-green-400"
+					>+{totalAdditions}</span
+				>
+				<span class="font-mono text-[0.6875rem] text-red-500 dark:text-red-400"
+					>-{totalDeletions}</span
+				>
 			</div>
 		{/if}
 
@@ -304,7 +283,6 @@
 				<div class="p-1">
 					{#each reviewFiles as file (file.key)}
 						{@const parts = pathParts(file.path)}
-						{@const meta = statusMeta(file.status)}
 						<section class="overflow-hidden rounded-lg">
 							<button
 								class="flex h-8 w-full min-w-0 items-center gap-1.5 rounded-lg px-2 text-left transition-colors hover:bg-gray-100 dark:hover:bg-white/4"
@@ -317,10 +295,6 @@
 										? 'rotate-90'
 										: ''}"
 								/>
-								<span
-									class="w-4 shrink-0 text-center font-mono text-[0.6875rem] font-bold {meta.className}"
-									title={meta.label}>{meta.char}</span
-								>
 								<Icon name="git-diff" size={13} class="shrink-0 text-gray-400 dark:text-gray-600" />
 								<div class="flex min-w-0 flex-1 items-baseline gap-2">
 									<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -338,18 +312,14 @@
 										>
 									{/if}
 								</div>
-								{#if file.additions > 0}
-									<span
-										class="shrink-0 font-mono text-[0.6875rem] font-medium text-green-600 dark:text-green-400"
-										>+{file.additions}</span
-									>
-								{/if}
-								{#if file.deletions > 0}
-									<span
-										class="shrink-0 font-mono text-[0.6875rem] font-medium text-red-500 dark:text-red-400"
-										>-{file.deletions}</span
-									>
-								{/if}
+								<span
+									class="shrink-0 font-mono text-[0.6875rem] font-medium text-green-600 dark:text-green-400"
+									>+{file.additions}</span
+								>
+								<span
+									class="shrink-0 font-mono text-[0.6875rem] font-medium text-red-500 dark:text-red-400"
+									>-{file.deletions}</span
+								>
 
 								<span
 									class="shrink-0 rounded px-1.5 py-0.5 text-[0.625rem] font-medium text-rose-500 bg-rose-50 dark:bg-rose-500/10 dark:text-rose-300"

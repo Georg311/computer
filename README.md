@@ -92,7 +92,7 @@ Bring your own API key (OpenAI, Anthropic, Ollama, or any OpenAI-compatible endp
 | ✏️ **Output editing** | Review and edit AI-generated changes before applying. |
 | 📎 **File mentions** | Type `@` to give the AI context about specific files. |
 | 🧩 **Skills** | Reusable instruction sets (SKILL.md files). Type `$` to mention one. |
-| ⏱️ **Automations** | Schedule recurring AI tasks. "Run tests every morning." "Deploy every Friday." |
+| ⏱️ **Scheduled** | Schedule recurring AI tasks. "Run tests every morning." "Deploy every Friday." |
 | 🤖 **Sub-agents** | AI spins up parallel workers for complex tasks. Each gets full tool access. |
 | 🔌 **Tool servers** | Connect external tools via MCP or OpenAPI. |
 | 🧠 **Context compaction** | Long conversations are automatically summarised to stay fast. |

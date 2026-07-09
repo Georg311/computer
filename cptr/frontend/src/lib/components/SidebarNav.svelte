@@ -11,7 +11,7 @@
 
 	function openAutomations(e: MouseEvent) {
 		e.preventDefault();
-		goto('/automations');
+		goto('/scheduled');
 		if (typeof window !== 'undefined' && window.innerWidth < 768) sidebarOpen.set(false);
 	}
 </script>
@@ -35,7 +35,7 @@
 {#if $chatEnabled}
 	<div class="px-1.5 shrink-0">
 		<a
-			href="/automations"
+			href="/scheduled"
 			class="flex items-center gap-1.5 w-full h-7 px-2 rounded-lg text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-100 no-underline"
 			onclick={openAutomations}
 		>

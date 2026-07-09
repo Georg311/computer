@@ -17,6 +17,8 @@ export interface GitFile {
 	unstaged?: boolean;
 	staged_status?: string;
 	unstaged_status?: string;
+	additions?: number;
+	deletions?: number;
 }
 
 export interface GitStatus {

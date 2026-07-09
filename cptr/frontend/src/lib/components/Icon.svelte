@@ -136,6 +136,249 @@
 		<path d="M13.5 6L10 18.5" />
 		<path d="M6.5 8.5L3 12L6.5 15.5" />
 		<path d="M17.5 8.5L21 12L17.5 15.5" />
+	{:else if name === 'python'}
+		<path
+			d="M8 10H16C17.1046 10 18 9.10457 18 8V5.5C18 4.11929 16.8807 3 15.5 3H10C8.89543 3 8 3.89543 8 5V10Z"
+		/>
+		<path
+			d="M16 14H8C6.89543 14 6 14.8954 6 16V18.5C6 19.8807 7.11929 21 8.5 21H14C15.1046 21 16 20.1046 16 19V14Z"
+		/>
+		<path d="M8 7H6.5C5.11929 7 4 8.11929 4 9.5V12C4 13.1046 4.89543 14 6 14H8" />
+		<path d="M16 10H18C19.1046 10 20 10.8954 20 12V14.5C20 15.8807 18.8807 17 17.5 17H16" />
+		<circle cx="11" cy="6.5" r="0.8" fill="currentColor" stroke="none" />
+		<circle cx="13" cy="17.5" r="0.8" fill="currentColor" stroke="none" />
+	{:else if name === 'javascript-logo'}
+		<rect x="4" y="4" width="16" height="16" rx="2" />
+		<text
+			x="12"
+			y="15"
+			text-anchor="middle"
+			font-size="7"
+			font-weight="700"
+			fill="currentColor"
+			stroke="none">JS</text
+		>
+	{:else if name === 'typescript-logo'}
+		<rect x="4" y="4" width="16" height="16" rx="2" />
+		<text
+			x="12"
+			y="15"
+			text-anchor="middle"
+			font-size="7"
+			font-weight="700"
+			fill="currentColor"
+			stroke="none">TS</text
+		>
+	{:else if name === 'react'}
+		<ellipse cx="12" cy="12" rx="9" ry="3.5" />
+		<ellipse cx="12" cy="12" rx="9" ry="3.5" transform="rotate(60 12 12)" />
+		<ellipse cx="12" cy="12" rx="9" ry="3.5" transform="rotate(120 12 12)" />
+		<circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+	{:else if name === 'rust'}
+		<circle cx="12" cy="12" r="6" />
+		<path
+			d="M12 3V5M12 19V21M3 12H5M19 12H21M5.6 5.6L7 7M17 17L18.4 18.4M18.4 5.6L17 7M7 17L5.6 18.4"
+		/>
+		<text
+			x="12"
+			y="14.4"
+			text-anchor="middle"
+			font-size="7"
+			font-weight="700"
+			fill="currentColor"
+			stroke="none">R</text
+		>
+	{:else if name === 'go-logo'}
+		<path d="M3 9H10" />
+		<path d="M2 12H9" />
+		<path d="M3 15H10" />
+		<text
+			x="15"
+			y="15"
+			text-anchor="middle"
+			font-size="8"
+			font-weight="700"
+			fill="currentColor"
+			stroke="none">GO</text
+		>
+	{:else if name === 'java-logo'}
+		<path d="M9 18H17" />
+		<path d="M8 14H18L17 18C16.6667 19.3333 15.5 20 12.5 20C9.5 20 8.33333 19.3333 8 18L7 14H8Z" />
+		<path d="M11 11C9 9 13 8 11 6" />
+		<path d="M14 11C12 9 16 8 14 5" />
+		<path d="M9 22H17" />
+	{:else if name === 'c-logo'}
+		<path d="M12 3L20 7.5V16.5L12 21L4 16.5V7.5L12 3Z" />
+		<text
+			x="12"
+			y="15"
+			text-anchor="middle"
+			font-size="8"
+			font-weight="700"
+			fill="currentColor"
+			stroke="none">C</text
+		>
+	{:else if name === 'cpp-logo'}
+		<path d="M12 3L20 7.5V16.5L12 21L4 16.5V7.5L12 3Z" />
+		<text
+			x="10"
+			y="15"
+			text-anchor="middle"
+			font-size="8"
+			font-weight="700"
+			fill="currentColor"
+			stroke="none">C</text
+		>
+		<path d="M14.5 10V14M12.5 12H16.5M19 10V14M17 12H21" />
+	{:else if name === 'c-sharp-logo'}
+		<path d="M12 3L20 7.5V16.5L12 21L4 16.5V7.5L12 3Z" />
+		<text
+			x="12"
+			y="15"
+			text-anchor="middle"
+			font-size="7"
+			font-weight="700"
+			fill="currentColor"
+			stroke="none">C#</text
+		>
+	{:else if name === 'ruby-logo'}
+		<path d="M12 3L20 8L17 18L12 21L7 18L4 8L12 3Z" />
+		<path d="M4 8H20L12 21L4 8Z" />
+		<path d="M8 8L12 3L16 8L12 21L8 8Z" />
+	{:else if name === 'php-logo'}
+		<ellipse cx="12" cy="12" rx="9" ry="5.5" />
+		<text
+			x="12"
+			y="14.2"
+			text-anchor="middle"
+			font-size="6"
+			font-weight="700"
+			fill="currentColor"
+			stroke="none">PHP</text
+		>
+	{:else if name === 'kotlin-logo'}
+		<path d="M5 4H19L5 18V4Z" />
+		<path d="M5 20L12 13L19 20H5Z" />
+		<path d="M5 4V20" />
+	{:else if name === 'svelte-logo'}
+		<path
+			d="M15.5 4.5C13.7 3.4 11.4 3.7 9.9 5.2L6.3 8.8C5 10.1 5 12.2 6.3 13.5C7.2 14.4 8.5 14.7 9.7 14.3"
+		/>
+		<path
+			d="M8.5 19.5C10.3 20.6 12.6 20.3 14.1 18.8L17.7 15.2C19 13.9 19 11.8 17.7 10.5C16.8 9.6 15.5 9.3 14.3 9.7"
+		/>
+		<path d="M9 12H15" />
+	{:else if name === 'vue-js'}
+		<path d="M12 20.5L22.5 4H18.5L12 14L5.5 4H1.5L12 20.5Z" />
+		<path d="M18.5 4H14.5L12 7.5L9.5 4H5.5" />
+	{:else if name === 'apple-swift'}
+		<path
+			d="M20.457 14.5892C20.9032 13.1527 21.9081 7.84019 14.5261 3.10086C14.2661 2.9345 13.9248 2.97821 13.7186 3.20043C13.5111 3.42264 13.5024 3.75778 13.6974 3.99092C13.7274 4.02614 16.4472 7.33991 15.4798 11.1248C13.8074 9.97369 7.1565 4.70249 7.1565 4.70249L11 11L3.8617 6.40006C3.8617 6.40006 8.90765 12.5953 11.9962 14.9255C10.5013 15.4622 7.25274 16.0305 2.963 13.364C2.72052 13.2122 2.40179 13.2413 2.1918 13.438C1.98431 13.6311 1.93931 13.9395 2.08555 14.1812C2.2293 14.4192 5.66784 20 12.9387 20C14.9335 20 16.0997 19.4317 17.0372 18.9764C17.6134 18.6971 18.0683 18.4749 18.5646 18.4749C19.8007 18.4749 20.6119 19.7025 20.6194 19.7134C20.7344 19.8919 20.9357 20 21.1507 20C21.1669 20 21.1844 19.9988 21.2019 19.9976C21.4356 19.9794 21.6381 19.8373 21.7281 19.6272C22.6206 17.5544 21.0832 15.359 20.457 14.5892Z"
+		/>
+	{:else if name === 'markdown-logo'}
+		<rect x="3" y="6" width="18" height="12" rx="1.5" />
+		<path d="M6 15V9L9 12L12 9V15" />
+		<path d="M16 9V15M14 13L16 15L18 13" />
+	{:else if name === 'json-logo'}
+		<path
+			d="M9 6H8C6.89543 6 6 6.89543 6 8V10C6 11.1046 5.10457 12 4 12C5.10457 12 6 12.8954 6 14V16C6 17.1046 6.89543 18 8 18H9"
+		/>
+		<path
+			d="M15 6H16C17.1046 6 18 6.89543 18 8V10C18 11.1046 18.8954 12 20 12C18.8954 12 18 12.8954 18 14V16C18 17.1046 17.1046 18 16 18H15"
+		/>
+		<path d="M11 9L13 15" />
+	{:else if name === 'yaml-logo'}
+		<path d="M5 5L9 12V19" />
+		<path d="M13 5L9 12" />
+		<path d="M14 9H20" />
+		<path d="M14 13H19" />
+		<path d="M14 17H18" />
+	{:else if name === 'xml-logo'}
+		<path d="M8 8L4 12L8 16" />
+		<path d="M16 8L20 12L16 16" />
+		<path d="M13.5 6L10.5 18" />
+	{:else if name === 'shell-logo'}
+		<path
+			d="M4 5.6C4 5.26863 4.26863 5 4.6 5H19.4C19.7314 5 20 5.26863 20 5.6V18.4C20 18.7314 19.7314 19 19.4 19H4.6C4.26863 19 4 18.7314 4 18.4V5.6Z"
+		/>
+		<path d="M7 9L10 12L7 15" />
+		<path d="M12 15H17" />
+	{:else if name === 'html5'}
+		<path d="M4 3L5.77778 20.0899L12 22L18.2222 20.0899L20 3H4Z" />
+		<path d="M17 7H7.5L8 11.5H16L15.5 17L12 18L8.5 17L8.25 14.5" />
+	{:else if name === 'css3'}
+		<path d="M4 3L5.77778 20.0899L12 22L18.2222 20.0899L20 3H4Z" />
+		<path d="M7 7H16.5L15.5 17L12 18L8.5 17L8.25 14.5" />
+		<path d="M16 11.5H7.5" />
+	{:else if name === 'svg-format'}
+		<path
+			d="M4.5 15H6.5C7.32843 15 8 14.3284 8 13.5C8 12.6716 7.32843 12 6.5 12H6C5.17157 12 4.5 11.3284 4.5 10.5C4.5 9.67157 5.17157 9 6 9H7.5"
+		/>
+		<path d="M10.5 9L12 15L13.5 9" />
+		<path d="M19.5 9H16.5V15L19.5 15V12.6" />
+		<path d="M4 6V3.6C4 3.26863 4.26863 3 4.6 3H19.4C19.7314 3 20 3.26863 20 3.6V6" />
+		<path d="M4 18V20.4C4 20.7314 4.26863 21 4.6 21H19.4C19.7314 21 20 20.7314 20 20.4V18" />
+	{:else if name === 'database-script'}
+		<path d="M22 14V6C22 4.34315 20.6569 3 19 3H9C7.34315 3 6 4.34315 6 6V13" />
+		<path
+			d="M12 21H6C3.79086 21 2 19.2091 2 17C2 14.7909 3.79086 13 6 13H18C15.7909 13 14 14.7909 14 17C14 19.2091 15.7909 21 18 21C20.2091 21 22 19.2091 22 17V14"
+		/>
+	{:else if name === 'csv-logo'}
+		<path
+			d="M4 5.6C4 5.26863 4.26863 5 4.6 5H19.4C19.7314 5 20 5.26863 20 5.6V18.4C20 18.7314 19.7314 19 19.4 19H4.6C4.26863 19 4 18.7314 4 18.4V5.6Z"
+		/>
+		<path d="M4 10H20M4 14H20M10 5V19M15 5V19" />
+		<text
+			x="12"
+			y="13.5"
+			text-anchor="middle"
+			font-size="5"
+			font-weight="700"
+			fill="currentColor"
+			stroke="none">CSV</text
+		>
+	{:else if name === 'pdf-logo'}
+		<path
+			d="M4 21.4V2.6C4 2.26863 4.26863 2 4.6 2H16.2515C16.4106 2 16.5632 2.06321 16.6757 2.17574L19.8243 5.32426C19.9368 5.43679 20 5.5894 20 5.74853V21.4C20 21.7314 19.7314 22 19.4 22H4.6C4.26863 22 4 21.7314 4 21.4Z"
+		/>
+		<path d="M16 2V5.4C16 5.73137 16.2686 6 16.6 6H20" />
+		<text
+			x="12"
+			y="15.2"
+			text-anchor="middle"
+			font-size="5.5"
+			font-weight="700"
+			fill="currentColor"
+			stroke="none">PDF</text
+		>
+	{:else if name === 'npm'}
+		<path d="M1 8L23 8V15L11 15V17L7.5 17V15L1 15V8Z" />
+		<path d="M7.5 8L7.5 15" />
+		<path d="M13.5 8V15" />
+		<path d="M18 11V15" />
+		<path d="M5 11V15" />
+		<path d="M11 11V12" />
+		<path d="M20.5 11V15" />
+	{:else if name === 'archive'}
+		<path d="M7 6L17 6" />
+		<path d="M7 9L17 9" />
+		<path d="M9 17H15" />
+		<path
+			d="M3 12H2.6C2.26863 12 2 12.2686 2 12.6V21.4C2 21.7314 2.26863 22 2.6 22H21.4C21.7314 22 22 21.7314 22 21.4V12.6C22 12.2686 21.7314 12 21.4 12H21M3 12V2.6C3 2.26863 3.26863 2 3.6 2H20.4C20.7314 2 21 2.26863 21 2.6V12M3 12H21"
+		/>
+	{:else if name === 'package'}
+		<path
+			d="M20 5.99999L20 18C20 19.1046 19.1046 20 18 20H6C4.89543 20 4 19.1046 4 18V6C4 4.89543 4.89543 4 6 4H18C19.1045 4 19.9999 4.89543 20 5.99999Z"
+		/>
+		<path d="M12 9V4" />
+	{:else if name === 'package-lock'}
+		<path
+			d="M14 20H6C4.89543 20 4 19.1046 4 18V6C4 4.89543 4.89543 4 6 4H18C19.1045 4 19.9999 4.89543 20 5.99999L20 12"
+		/>
+		<path d="M12 9V4" />
+		<path
+			d="M21.1667 18.5H21.4C21.7314 18.5 22 18.7686 22 19.1V21.4C22 21.7314 21.7314 22 21.4 22H17.6C17.2686 22 17 21.7314 17 21.4V19.1C17 18.7686 17.2686 18.5 17.6 18.5H17.8333M21.1667 18.5V16.75C21.1667 16.1667 20.8333 15 19.5 15C18.1667 15 17.8333 16.1667 17.8333 16.75V18.5M21.1667 18.5H17.8333"
+		/>
 	{:else if name === 'list'}
 		<path d="M8 6H20" />
 		<path d="M4 6.01L4.01 5.99889" />

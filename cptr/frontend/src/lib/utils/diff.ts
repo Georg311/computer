@@ -7,6 +7,21 @@ export type InlineDiffSegment = { text: string; changed: boolean };
 export type InlineDiffLine = NumberedDiffLine & { segments: InlineDiffSegment[] };
 export type DiffLineGroup<T extends { type: string }> = { type: T['type']; lines: T[] };
 export type SplitDiffRow = { oldLine: InlineDiffLine | null; newLine: InlineDiffLine | null };
+export type DiffStats = { additions: number; deletions: number };
+
+export function countDiffStats(files: DiffFile[]): DiffStats {
+	let additions = 0;
+	let deletions = 0;
+	for (const file of files) {
+		for (const hunk of file.hunks) {
+			for (const line of hunk.lines) {
+				if (line.type === 'added') additions += 1;
+				if (line.type === 'removed') deletions += 1;
+			}
+		}
+	}
+	return { additions, deletions };
+}
 
 export function languageForPath(path: string): string {
 	const ext = path.slice(path.lastIndexOf('.')).toLowerCase();
