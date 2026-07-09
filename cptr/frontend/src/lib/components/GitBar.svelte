@@ -32,6 +32,15 @@
 	import { tooltip } from '$lib/tooltip';
 	import { t } from '$lib/i18n';
 	import Spinner from '$lib/components/common/Spinner.svelte';
+	import {
+		groupDiffLines,
+		languageForPath,
+		numberDiffLines,
+		withInlineDiffSegments,
+		type DiffFile,
+		type DiffLine
+	} from '$lib/utils/diff';
+	import SyntaxDiffLine from './SyntaxDiffLine.svelte';
 
 	type GitFile = {
 		path: string;
@@ -41,8 +50,6 @@
 		staged_status?: string;
 		unstaged_status?: string;
 	};
-	type DiffHunk = { header: string; lines: { type: string; content: string }[] };
-	type DiffFile = { path: string; hunks: DiffHunk[] };
 	type Commit = { hash: string; short_hash: string; author: string; date: string; message: string };
 	type BranchItem = {
 		name: string;
@@ -710,22 +717,7 @@
 		}
 	}
 
-	type LineGroup = { type: string; lines: { type: string; content: string }[] };
-
-	function groupLines(lines: { type: string; content: string }[]): LineGroup[] {
-		const groups: LineGroup[] = [];
-		for (const line of lines) {
-			const last = groups[groups.length - 1];
-			if (last && last.type === line.type) {
-				last.lines.push(line);
-			} else {
-				groups.push({ type: line.type, lines: [line] });
-			}
-		}
-		return groups;
-	}
-
-	function blockClass(type: string): string {
+	function blockClass(type: DiffLine['type']): string {
 		switch (type) {
 			case 'added':
 				return 'bg-green-100 border-l-[0.1875rem] border-l-green-500 dark:bg-green-500/15 dark:border-l-green-400';
@@ -734,6 +726,24 @@
 			default:
 				return '';
 		}
+	}
+
+	function textClass(type: DiffLine['type']): string {
+		if (type === 'added') return 'text-green-900 dark:text-green-300';
+		if (type === 'removed') return 'text-red-900 dark:text-red-300';
+		return 'text-gray-600 dark:text-gray-400';
+	}
+
+	function prefixClass(type: DiffLine['type']): string {
+		if (type === 'added') return 'text-green-600 dark:text-green-400';
+		if (type === 'removed') return 'text-red-500 dark:text-red-400';
+		return 'text-gray-400 dark:text-gray-600';
+	}
+
+	function linePrefix(type: DiffLine['type']): string {
+		if (type === 'added') return '+';
+		if (type === 'removed') return '-';
+		return ' ';
 	}
 
 	$effect(() => {
@@ -1412,28 +1422,20 @@
 											>
 												{hunk.header}
 											</div>
-											{#each groupLines(hunk.lines) as group}
+											{#each groupDiffLines(withInlineDiffSegments(numberDiffLines(hunk))) as group}
 												<div class="w-full {blockClass(group.type)}">
 													{#each group.lines as line}
-														<div class="px-2 whitespace-pre-wrap break-all">
-															<span
-																class={line.type === 'added'
-																	? 'text-green-600 dark:text-green-400'
-																	: line.type === 'removed'
-																		? 'text-red-500 dark:text-red-400'
-																		: 'text-gray-400 dark:text-gray-600'}
-																>{line.type === 'added'
-																	? '+'
-																	: line.type === 'removed'
-																		? '-'
-																		: ' '}</span
-															><span
-																class={line.type === 'added'
-																	? 'text-green-900 dark:text-green-300'
-																	: line.type === 'removed'
-																		? 'text-red-900 dark:text-red-300'
-																		: 'text-gray-600 dark:text-gray-400'}>{line.content}</span
+														<div class="flex min-w-max">
+															<span class="select-none px-2 text-center {prefixClass(line.type)}"
+																>{linePrefix(line.type)}</span
 															>
+															<SyntaxDiffLine
+																type={line.type}
+																content={line.content || ' '}
+																segments={line.segments}
+																language={languageForPath(df.path)}
+																class={textClass(line.type)}
+															/>
 														</div>
 													{/each}
 												</div>

@@ -5,12 +5,18 @@
 
 	import { tooltip } from '$lib/tooltip';
 	import { t } from '$lib/i18n';
+	import {
+		groupDiffLines,
+		languageForPath,
+		numberDiffLines,
+		withInlineDiffSegments,
+		type DiffFile,
+		type DiffLine
+	} from '$lib/utils/diff';
 	import Icon from './Icon.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
+	import SyntaxDiffLine from './SyntaxDiffLine.svelte';
 
-	type DiffLine = { type: 'added' | 'removed' | 'context'; content: string };
-	type DiffHunk = { header: string; lines: DiffLine[] };
-	type DiffFile = { path: string; hunks: DiffHunk[] };
 	type ReviewFile = {
 		key: string;
 		path: string;
@@ -21,7 +27,6 @@
 		deletions: number;
 		expanded: boolean;
 	};
-	type NumberedLine = DiffLine & { oldNumber: number | null; newNumber: number | null };
 
 	let gitStatus = $derived(gitStatusStore.status);
 	let reviewFiles = $state<ReviewFile[]>([]);
@@ -178,28 +183,6 @@
 		}
 	}
 
-	function hunkStart(header: string): { oldStart: number; newStart: number } {
-		const match = header.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
-		return {
-			oldStart: match ? Number(match[1]) : 0,
-			newStart: match ? Number(match[2]) : 0
-		};
-	}
-
-	function numberedLines(hunk: DiffHunk): NumberedLine[] {
-		let { oldStart, newStart } = hunkStart(hunk.header);
-
-		return hunk.lines.map((line) => {
-			if (line.type === 'added') {
-				return { ...line, oldNumber: null, newNumber: newStart++ };
-			}
-			if (line.type === 'removed') {
-				return { ...line, oldNumber: oldStart++, newNumber: null };
-			}
-			return { ...line, oldNumber: oldStart++, newNumber: newStart++ };
-		});
-	}
-
 	function blockClass(type: DiffLine['type']): string {
 		switch (type) {
 			case 'added':
@@ -237,21 +220,6 @@
 		if (type === 'added') return '+';
 		if (type === 'removed') return '-';
 		return ' ';
-	}
-
-	type LineGroup = { type: DiffLine['type']; lines: NumberedLine[] };
-
-	function groupLines(lines: NumberedLine[]): LineGroup[] {
-		const groups: LineGroup[] = [];
-		for (const line of lines) {
-			const last = groups[groups.length - 1];
-			if (last && last.type === line.type) {
-				last.lines.push(line);
-			} else {
-				groups.push({ type: line.type, lines: [line] });
-			}
-		}
-		return groups;
 	}
 </script>
 
@@ -437,7 +405,7 @@
 														<span></span>
 														<code class="whitespace-pre px-2 py-0.5">{hunk.header}</code>
 													</div>
-													{#each groupLines(numberedLines(hunk)) as group}
+													{#each groupDiffLines(withInlineDiffSegments(numberDiffLines(hunk))) as group}
 														<div class="w-full {blockClass(group.type)}">
 															{#each group.lines as line}
 																<div class="grid w-full grid-cols-[2.75rem_2.75rem_1.25rem_auto]">
@@ -453,9 +421,13 @@
 																		class="select-none px-1 text-center {prefixClass(line.type)}"
 																		>{linePrefix(line.type)}</span
 																	>
-																	<code class="whitespace-pre px-2 {textClass(line.type)}"
-																		>{line.content || ' '}</code
-																	>
+																	<SyntaxDiffLine
+																		type={line.type}
+																		content={line.content || ' '}
+																		segments={line.segments}
+																		language={languageForPath(diffFile.path)}
+																		class={textClass(line.type)}
+																	/>
 																</div>
 															{/each}
 														</div>

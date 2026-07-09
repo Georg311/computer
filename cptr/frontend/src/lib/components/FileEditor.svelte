@@ -20,6 +20,8 @@
 	import SvgPreview from './preview/SvgPreview.svelte';
 	import OfficePreview from './preview/OfficePreview.svelte';
 	import Spinner from './common/Spinner.svelte';
+	import { groupDiffLines, languageForPath, withInlineDiffSegments } from '$lib/utils/diff';
+	import SyntaxDiffLine from './SyntaxDiffLine.svelte';
 	import {
 		EditorState,
 		StateEffect,
@@ -158,7 +160,6 @@
 	type DiffHunk = { header: string; lines: DiffLine[] };
 	type DiffFileEntry = { path: string; hunks: DiffHunk[] };
 	type NumberedLine = DiffLine & { oldNumber: number | null; newNumber: number | null };
-	type LineGroup = { type: DiffLine['type']; lines: NumberedLine[] };
 	type GitLineChange = { line: number; type: 'added' | 'modified' };
 	let diffMode = $state(false);
 	let diffFiles = $state<DiffFileEntry[]>([]);
@@ -263,16 +264,6 @@
 			if (line.type === 'removed') return { ...line, oldNumber: oldStart++, newNumber: null };
 			return { ...line, oldNumber: oldStart++, newNumber: newStart++ };
 		});
-	}
-
-	function diffGroupLines(lines: NumberedLine[]): LineGroup[] {
-		const groups: LineGroup[] = [];
-		for (const line of lines) {
-			const last = groups[groups.length - 1];
-			if (last && last.type === line.type) last.lines.push(line);
-			else groups.push({ type: line.type, lines: [line] });
-		}
-		return groups;
 	}
 
 	function splitLines(text: string): string[] {
@@ -1235,7 +1226,7 @@
 								<span></span>
 								<code class="whitespace-pre px-2 py-0.5">{hunk.header}</code>
 							</div>
-							{#each diffGroupLines(diffNumberedLines(hunk)) as group}
+							{#each groupDiffLines(withInlineDiffSegments(diffNumberedLines(hunk))) as group}
 								<div class="w-full {diffBlockClass(group.type)}">
 									{#each group.lines as line}
 										<div
@@ -1252,9 +1243,13 @@
 											<span class="select-none px-1 text-center {diffPrefixClass(line.type)}"
 												>{diffPrefix(line.type)}</span
 											>
-											<code class="whitespace-pre px-2 {diffTextClass(line.type)}"
-												>{line.content || ' '}</code
-											>
+											<SyntaxDiffLine
+												type={line.type}
+												content={line.content || ' '}
+												segments={line.segments}
+												language={languageForPath(df.path)}
+												class={diffTextClass(line.type)}
+											/>
 										</div>
 									{/each}
 								</div>
