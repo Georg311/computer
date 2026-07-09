@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.6] - 2026-07-09
+
+### Added
+
+- ✨ **Sharper diff reviews.** Review changes in split or unified view, hide whitespace-only edits, and spot changed words inside a line.
+- 📊 **Git change counts.** Git panels and file lists now show added and removed lines at a glance.
+
+### Changed
+
+- 🗂️ **Cleaner file browsing.** Files use more recognizable icons, and folder background menus make common actions easier to reach.
+- 🧭 **Sidebar chat cleanup.** Recent chats can now be deleted from the sidebar.
+- 📅 **Clearer scheduled-task naming.** Automations are now labeled Scheduled in the app and README.
+
+### Fixed
+
+- 🌐 **More reliable browser control.** Browser sessions recover more gracefully when a page connection closes.
+- 🧰 **More dependable tool use.** Tool calls and artifact creation are less likely to fail when workspace details are included.
+- 🧠 **Per-model chat cleanup.** Long chats now use the cleanup setting for the selected model.
+
 ## [0.8.5] - 2026-07-07
 
 ### Added
