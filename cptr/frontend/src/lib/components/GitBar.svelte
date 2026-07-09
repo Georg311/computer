@@ -797,7 +797,7 @@
 					>↓{gitStatus.behind}</span
 				>{/if}
 			{#if totalChanges > 0}<span
-					class="ml-1.5 block min-w-0 max-w-20 shrink truncate whitespace-nowrap text-[0.625rem] font-mono text-gray-400 dark:text-gray-600"
+					class="mx-1.5 block min-w-0 max-w-20 shrink truncate whitespace-nowrap text-[0.625rem] font-mono text-gray-400 dark:text-gray-600"
 					>{$t('git.changedCount', { count: totalChanges })}</span
 				><span class="text-[0.625rem] font-mono text-green-600 dark:text-green-400 ml-2"
 					>+{totalAdditions}</span

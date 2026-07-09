@@ -764,11 +764,13 @@
 				!fileData.binary &&
 				!isBinaryPreview &&
 				!isCsv &&
-				!isMarkdown &&
+				!(isMarkdown && markdownMode !== 'raw') &&
 				!(isHtml || isSvg) &&
 				!(isJson && !jsonParseError)
 			) {
-				requestAnimationFrame(() => initEditor(fileData!.content!, fileData!.language));
+				requestAnimationFrame(() =>
+					initEditor(fileData!.content!, isMarkdown ? 'markdown' : fileData!.language)
+				);
 			}
 			return;
 		}
@@ -1132,6 +1134,33 @@
 		{:else if error}
 			<div class="state error">{error}</div>
 
+			<!-- Diff view -->
+		{:else if diffMode}
+			{#if diffLoading}
+				<div class="state"><Spinner size={20} /></div>
+			{:else if diffFiles.length === 0}
+				<div class="state">
+					<p class="state-title">{$t('editor.noChanges')}</p>
+					<p class="state-sub">{$t('editor.noUncommittedModifications')}</p>
+				</div>
+			{:else}
+				<div class="diff-scroll">
+					{#each diffFiles as df}
+						{#each df.hunks as hunk}
+							<div
+								class="grid w-full grid-cols-[2.75rem_2.75rem_1.25rem_auto] border-b border-gray-100 bg-gray-50 text-gray-400 dark:border-white/4 dark:bg-white/3 dark:text-gray-600 font-mono text-[0.6875rem]"
+							>
+								<span></span>
+								<span></span>
+								<span></span>
+								<code class="whitespace-pre px-2 py-0.5">{hunk.header}</code>
+							</div>
+							<DiffHunkRows {hunk} path={df.path} />
+						{/each}
+					{/each}
+				</div>
+			{/if}
+
 			<!-- ── Binary previews ─────────────────────────────── -->
 		{:else if isImage && binaryUrl}
 			<ImagePreview src={binaryUrl} alt={fileData?.name ?? ''} />
@@ -1191,35 +1220,8 @@
 				<p class="state-title">{$t('editor.binaryFile')}</p>
 				<p class="state-sub">{fileData.name} ({formatSize(fileData.size)})</p>
 			</div>
-		{:else if diffMode}
-			<!-- Diff view -->
-			{#if diffLoading}
-				<div class="state"><Spinner size={20} /></div>
-			{:else if diffFiles.length === 0}
-				<div class="state">
-					<p class="state-title">{$t('editor.noChanges')}</p>
-					<p class="state-sub">{$t('editor.noUncommittedModifications')}</p>
-				</div>
-			{:else}
-				<div class="diff-scroll">
-					{#each diffFiles as df}
-						{#each df.hunks as hunk}
-							<div
-								class="grid w-full grid-cols-[2.75rem_2.75rem_1.25rem_auto] border-b border-gray-100 bg-gray-50 text-gray-400 dark:border-white/4 dark:bg-white/3 dark:text-gray-600 font-mono text-[0.6875rem]"
-							>
-								<span></span>
-								<span></span>
-								<span></span>
-								<code class="whitespace-pre px-2 py-0.5">{hunk.header}</code>
-							</div>
-							<DiffHunkRows {hunk} path={df.path} />
-						{/each}
-					{/each}
-				</div>
-			{/if}
-
-			<!-- ┌ Code editor (default) ───────────────────── -->
 		{:else}
+			<!-- ┌ Code editor (default) ───────────────────── -->
 			<div bind:this={editorEl} class="editor-el"></div>
 		{/if}
 
