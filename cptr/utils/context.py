@@ -93,14 +93,13 @@ def resolve_compact_token_threshold(
     model: str | None = None,
     *,
     chat_models_config: dict | None = None,
-    global_cap: int | None = None,
+    global_threshold: int | None = None,
 ) -> int:
     """Return the effective compaction threshold for a model.
 
-    The existing global threshold is the cap. Model-level values can lower it
-    for smaller context windows, but never raise it.
+    Model-level values override the global default.
     """
-    cap = global_cap or _get_threshold()
+    default_threshold = global_threshold or _get_threshold()
     model_threshold = None
 
     if chat_models_config:
@@ -117,7 +116,7 @@ def resolve_compact_token_threshold(
             if model_threshold:
                 break
 
-    return min(model_threshold, cap) if model_threshold else cap
+    return model_threshold or default_threshold
 
 
 async def load_compact_token_threshold(model: str | None = None) -> int:
