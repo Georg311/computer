@@ -24,70 +24,62 @@
 	{preferAbove}
 	{forceAbove}
 	align="end"
-	className="w-56"
+	className="w-48"
 	headerDivider={false}
 	footerDivider={false}
 >
-	<div class="px-1 pb-1 text-xs">
-		<div
-			class="px-2 pb-0.5 pt-1 text-[0.625rem] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600"
-		>
-			Whitespace
-		</div>
-
+	<div class="py-0.5 text-xs font-normal">
 		<button
 			type="button"
-			class="app-interactive app-muted flex h-7 w-full items-center gap-2 rounded-xl px-2 text-left text-xs transition-colors duration-75"
+			class="app-interactive app-muted flex h-6 w-full items-center gap-2 rounded-xl px-2 text-left text-xs font-normal transition-colors duration-75"
 			onclick={toggleWhitespace}
 			aria-pressed={$hideWhitespaceChanges}
 		>
-			<Icon name="code" size={14} class="app-icon-muted shrink-0" />
+			<Icon name="code" size={13} class="app-icon-muted shrink-0" />
 			<span class="min-w-0 flex-1 truncate">Hide whitespace</span>
 			<span
-				class="relative h-4 w-7 shrink-0 rounded-full transition-colors duration-150 {$hideWhitespaceChanges
+				class="relative h-3.5 w-6 shrink-0 rounded-full transition-colors duration-150 {$hideWhitespaceChanges
 					? 'bg-gray-900 dark:bg-white'
 					: 'bg-gray-300 dark:bg-gray-700'}"
 			>
 				<span
-					class="absolute top-[0.125rem] h-3 w-3 rounded-full transition-all duration-150 {$hideWhitespaceChanges
-						? 'left-[0.875rem] bg-white dark:bg-black'
+					class="absolute top-[0.125rem] h-2.5 w-2.5 rounded-full transition-all duration-150 {$hideWhitespaceChanges
+						? 'left-[0.75rem] bg-white dark:bg-black'
 						: 'left-[0.125rem] bg-white dark:bg-gray-500'}"
 				></span>
 			</span>
 		</button>
 
-		<div
-			class="px-2 pb-0.5 pt-1.5 text-[0.625rem] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600"
-		>
+		<div class="app-muted px-2 pb-0.5 pt-1 text-[0.625rem] leading-none uppercase">
 			Diff Display
 		</div>
 
 		<button
 			type="button"
-			class="flex h-7 w-full items-center gap-2 rounded-xl px-2 text-left text-xs transition-colors duration-75 {$diffDisplayMode ===
+			class="flex h-6 w-full items-center gap-2 rounded-xl px-2 text-left text-xs font-normal transition-colors duration-75 {$diffDisplayMode ===
 			'unified'
 				? 'app-interactive-active'
 				: 'app-interactive app-muted'}"
 			onclick={() => diffDisplayMode.set('unified')}
 		>
-			<Icon name="list" size={14} class="app-icon-muted shrink-0" />
+			<Icon name="list" size={13} class="app-icon-muted shrink-0" />
 			<span class="min-w-0 flex-1 truncate text-left">Unified</span>
 			{#if $diffDisplayMode === 'unified'}
-				<Icon name="check" size={12} class="app-icon-muted shrink-0" />
+				<Icon name="check" size={11} class="app-icon-muted shrink-0" />
 			{/if}
 		</button>
 		<button
 			type="button"
-			class="flex h-7 w-full items-center gap-2 rounded-xl px-2 text-left text-xs transition-colors duration-75 {$diffDisplayMode ===
+			class="flex h-6 w-full items-center gap-2 rounded-xl px-2 text-left text-xs font-normal transition-colors duration-75 {$diffDisplayMode ===
 			'split'
 				? 'app-interactive-active'
 				: 'app-interactive app-muted'}"
 			onclick={() => diffDisplayMode.set('split')}
 		>
-			<Icon name="split-view" size={14} class="app-icon-muted shrink-0" />
+			<Icon name="split-view" size={13} class="app-icon-muted shrink-0" />
 			<span class="min-w-0 flex-1 truncate">Split</span>
 			{#if $diffDisplayMode === 'split'}
-				<Icon name="check" size={12} class="app-icon-muted shrink-0" />
+				<Icon name="check" size={11} class="app-icon-muted shrink-0" />
 			{/if}
 		</button>
 	</div>

@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import { clearTabEdit, markTabUnsaved, updateTabFilePath, activeWorkspace } from '$lib/stores';
 	import { get } from 'svelte/store';
 	import { t } from '$lib/i18n';
 	import { tooltip } from '$lib/tooltip';
 	import { readFile, writeFile } from '$lib/apis/files';
 	import { getGitDiff } from '$lib/apis/git';
-	import { hideWhitespaceChanges } from '$lib/stores/gitDiffSettings';
+	import { diffDisplayMode, hideWhitespaceChanges } from '$lib/stores/gitDiffSettings';
 	import { gitStatusStore, type GitFile } from '$lib/stores/gitStatus.svelte';
 	import Icon from './Icon.svelte';
 	import SaveDialog from './SaveDialog.svelte';
@@ -21,7 +21,7 @@
 	import SvgPreview from './preview/SvgPreview.svelte';
 	import OfficePreview from './preview/OfficePreview.svelte';
 	import Spinner from './common/Spinner.svelte';
-	import DiffHunkRows from './DiffHunkRows.svelte';
+	import DiffHunkList from './DiffHunkList.svelte';
 	import {
 		EditorState,
 		StateEffect,
@@ -164,6 +164,7 @@
 	let diffMode = $state(false);
 	let diffFiles = $state<DiffFileEntry[]>([]);
 	let diffLoading = $state(false);
+	let diffScrollEl: HTMLDivElement | undefined;
 	let hasGitChanges = $state(false);
 	let gitLineChanges: GitLineChange[] = [];
 	let gitBaseContent: string | null = null;
@@ -799,6 +800,8 @@
 			diffFiles = [];
 		} finally {
 			diffLoading = false;
+			await tick();
+			if (diffScrollEl) diffScrollEl.scrollLeft = 0;
 		}
 	}
 
@@ -1144,20 +1147,12 @@
 					<p class="state-sub">{$t('editor.noUncommittedModifications')}</p>
 				</div>
 			{:else}
-				<div class="diff-scroll">
-					{#each diffFiles as df}
-						{#each df.hunks as hunk}
-							<div
-								class="grid w-full grid-cols-[2.75rem_2.75rem_1.25rem_auto] border-b border-gray-100 bg-gray-50 text-gray-400 dark:border-white/4 dark:bg-white/3 dark:text-gray-600 font-mono text-[0.6875rem]"
-							>
-								<span></span>
-								<span></span>
-								<span></span>
-								<code class="whitespace-pre px-2 py-0.5">{hunk.header}</code>
-							</div>
-							<DiffHunkRows {hunk} path={df.path} />
+				<div class="diff-scroll" bind:this={diffScrollEl}>
+					<div class="diff-content" class:diff-content-split={$diffDisplayMode === 'split'}>
+						{#each diffFiles as df}
+							<DiffHunkList hunks={df.hunks} path={df.path} />
 						{/each}
-					{/each}
+					</div>
 				</div>
 			{/if}
 
@@ -1471,7 +1466,16 @@
 		height: 100%;
 		overflow: auto;
 		font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
-		font-size: 0.75rem;
+		font-size: 0.6875rem;
 		line-height: 1.125rem;
+	}
+
+	.diff-content {
+		width: max-content;
+		min-width: 100%;
+	}
+
+	.diff-content-split {
+		width: 100%;
 	}
 </style>

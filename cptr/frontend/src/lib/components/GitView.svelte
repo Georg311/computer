@@ -10,7 +10,7 @@
 	import Icon from './Icon.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import DiffSettingsMenu from './DiffSettingsMenu.svelte';
-	import DiffHunkRows from './DiffHunkRows.svelte';
+	import DiffHunkList from './DiffHunkList.svelte';
 
 	type ReviewFile = {
 		key: string;
@@ -342,17 +342,7 @@
 														{diffFile.path}
 													</div>
 												{/if}
-												{#each diffFile.hunks as hunk}
-													<div
-														class="grid w-full grid-cols-[2.75rem_2.75rem_1.25rem_auto] border-b border-gray-100 bg-gray-50 text-gray-400 dark:border-white/4 dark:bg-white/3 dark:text-gray-600"
-													>
-														<span></span>
-														<span></span>
-														<span></span>
-														<code class="whitespace-pre px-2 py-0.5">{hunk.header}</code>
-													</div>
-													<DiffHunkRows {hunk} path={diffFile.path} />
-												{/each}
+												<DiffHunkList hunks={diffFile.hunks} path={diffFile.path} showNumbers />
 											{/each}
 										{:else}
 											<div

@@ -35,7 +35,7 @@
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import DiffSettingsMenu from './DiffSettingsMenu.svelte';
 	import { countDiffStats, type DiffFile } from '$lib/utils/diff';
-	import DiffHunkRows from './DiffHunkRows.svelte';
+	import DiffHunkList from './DiffHunkList.svelte';
 
 	type GitFile = {
 		path: string;
@@ -799,10 +799,9 @@
 			{#if totalChanges > 0}<span
 					class="mx-1.5 block min-w-0 max-w-20 shrink truncate whitespace-nowrap text-[0.625rem] font-mono text-gray-400 dark:text-gray-600"
 					>{$t('git.changedCount', { count: totalChanges })}</span
-				><span class="text-[0.625rem] font-mono text-green-600 dark:text-green-400 ml-2"
-					>+{totalAdditions}</span
-				><span class="text-[0.625rem] font-mono text-red-500 dark:text-red-400 ml-1"
-					>-{totalDeletions}</span
+				><span class="mx-1.5 flex shrink-0 items-center gap-1 text-[0.625rem] font-mono"
+					><span class="text-green-600 dark:text-green-400">+{totalAdditions}</span>
+					<span class="text-red-500 dark:text-red-400">-{totalDeletions}</span></span
 				>{/if}
 			{#if actionMsg}<span
 					class="ml-auto min-w-0 max-w-32 truncate whitespace-nowrap text-[0.625rem] font-mono text-gray-400 dark:text-gray-600"
@@ -1258,22 +1257,24 @@
 												<Icon name="check" size={7} class="text-white dark:text-black" />
 											{/if}
 										</span>
-										{#if fp.dir}
+										<span class="flex min-w-0 flex-1 items-baseline gap-1.5">
+											{#if fp.dir}
+												<span
+													class="min-w-0 truncate text-[0.625rem] text-gray-400 dark:text-gray-600"
+													>{fp.dir}</span
+												>
+											{/if}
+											<!-- svelte-ignore a11y_no_static_element_interactions -->
 											<span
-												class="min-w-0 flex-1 truncate text-[0.625rem] text-gray-400 dark:text-gray-600"
-												>{fp.dir}</span
+												class="min-w-0 max-w-[55%] shrink-0 truncate text-[0.6875rem] text-gray-800 dark:text-gray-200 hover:underline cursor-pointer"
+												onclick={(e) => {
+													e.stopPropagation();
+													openFileTab(workspacePath.replace(/\/$/, '') + '/' + file.path);
+												}}>{fp.name}</span
 											>
-										{/if}
-										<!-- svelte-ignore a11y_no_static_element_interactions -->
+										</span>
 										<span
-											class="min-w-0 max-w-1/2 shrink-0 truncate text-[0.6875rem] text-gray-800 dark:text-gray-200 hover:underline cursor-pointer"
-											onclick={(e) => {
-												e.stopPropagation();
-												openFileTab(workspacePath.replace(/\/$/, '') + '/' + file.path);
-											}}>{fp.name}</span
-										>
-										<span
-											class="ml-auto flex shrink-0 items-center gap-1 text-[0.625rem] font-mono font-medium"
+											class="flex shrink-0 items-center gap-1 text-[0.625rem] font-mono font-medium"
 										>
 											<span class="text-green-600 dark:text-green-400">+{file.additions ?? 0}</span>
 											<span class="text-red-500 dark:text-red-400">-{file.deletions ?? 0}</span>
@@ -1428,14 +1429,7 @@
 												{df.path}
 											</div>
 										{/if}
-										{#each df.hunks as hunk}
-											<div
-												class="px-2 py-0.5 text-gray-400 dark:text-gray-600 bg-gray-50 dark:bg-white/3 border-b border-gray-100 dark:border-white/4 w-full"
-											>
-												{hunk.header}
-											</div>
-											<DiffHunkRows {hunk} path={df.path} showNumbers={false} />
-										{/each}
+										<DiffHunkList hunks={df.hunks} path={df.path} />
 									{/each}
 								</div>
 							</div>
