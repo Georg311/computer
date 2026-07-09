@@ -1197,17 +1197,17 @@
 				{/if}
 
 				<!-- Content -->
-				<div class="flex min-h-36" style="height: {panelHeight}px;">
+				<div class="flex min-h-36 min-w-0" style="height: {panelHeight}px;">
 					<!-- Left pane: file list or commit list -->
 					<div
-						class="w-full md:w-60 lg:w-72 shrink-0 md:border-r md:border-gray-100 md:dark:border-white/4 flex flex-col overflow-hidden
+						class="w-full min-w-0 md:w-60 lg:w-72 shrink-0 md:border-r md:border-gray-100 md:dark:border-white/4 flex flex-col overflow-hidden
 						{showDiff ? 'hidden md:flex' : 'flex'}"
 					>
 						{#if view === 'changes'}
 							<!-- Global checkbox -->
 							{#if totalChanges > 0}
 								<button
-									class="flex items-center gap-1.5 h-7 px-2.5 border-b border-gray-100 dark:border-white/4 hover:bg-gray-50 dark:hover:bg-white/3 transition-colors duration-75 shrink-0"
+									class="flex min-w-0 items-center gap-1.5 h-7 px-2.5 border-b border-gray-100 dark:border-white/4 hover:bg-gray-50 dark:hover:bg-white/3 transition-colors duration-75 shrink-0"
 									onclick={toggleAll}
 								>
 									<span
@@ -1226,18 +1226,18 @@
 											/>
 										{/if}
 									</span>
-									<span class="text-[0.6875rem] text-gray-600 dark:text-gray-400"
+									<span class="min-w-0 truncate text-[0.6875rem] text-gray-600 dark:text-gray-400"
 										>{$t('git.changedFile', { count: totalChanges })}</span
 									>
 								</button>
 							{/if}
 
 							<!-- File list -->
-							<div class="flex-1 overflow-y-auto">
+							<div class="min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
 								{#each gitStatus?.files ?? [] as file (file.path)}
 									{@const fp = fPath(file.path)}
 									<button
-										class="group flex items-center gap-1.5 w-full h-7 px-2.5 text-left transition-colors duration-75
+										class="group flex min-w-0 items-center gap-1.5 w-full h-7 px-2.5 text-left transition-colors duration-75
 											{selectedFile === file.path
 											? 'bg-gray-100 dark:bg-white/8'
 											: 'hover:bg-gray-50 dark:hover:bg-white/3'}"
@@ -1260,13 +1260,13 @@
 										</span>
 										{#if fp.dir}
 											<span
-												class="text-[0.625rem] text-gray-400 dark:text-gray-600 truncate shrink min-w-0"
+												class="min-w-0 flex-1 truncate text-[0.625rem] text-gray-400 dark:text-gray-600"
 												>{fp.dir}</span
 											>
 										{/if}
 										<!-- svelte-ignore a11y_no_static_element_interactions -->
 										<span
-											class="text-[0.6875rem] text-gray-800 dark:text-gray-200 truncate shrink-0 hover:underline cursor-pointer"
+											class="min-w-0 max-w-1/2 shrink-0 truncate text-[0.6875rem] text-gray-800 dark:text-gray-200 hover:underline cursor-pointer"
 											onclick={(e) => {
 												e.stopPropagation();
 												openFileTab(workspacePath.replace(/\/$/, '') + '/' + file.path);
@@ -1333,7 +1333,7 @@
 							</div>
 						{:else}
 							<!-- History: commit list -->
-							<div class="flex-1 overflow-y-auto">
+							<div class="min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
 								{#each commits as c, i}
 									{#if i === unpushedCount && unpushedCount > 0}
 										<div
@@ -1395,7 +1395,7 @@
 
 					<!-- Right pane: diff viewer -->
 					<div
-						class="flex-1 overflow-hidden font-mono text-[0.6875rem] leading-[1.125rem]
+						class="min-w-0 flex-1 overflow-hidden font-mono text-[0.6875rem] leading-[1.125rem]
 						{showDiff ? 'flex flex-col' : 'hidden md:flex md:flex-col'}"
 					>
 						{#if fileDiff.length}
