@@ -6,6 +6,7 @@ export type NumberedDiffLine = DiffLine & { oldNumber: number | null; newNumber:
 export type InlineDiffSegment = { text: string; changed: boolean };
 export type InlineDiffLine = NumberedDiffLine & { segments: InlineDiffSegment[] };
 export type DiffLineGroup<T extends { type: string }> = { type: T['type']; lines: T[] };
+export type SplitDiffRow = { oldLine: InlineDiffLine | null; newLine: InlineDiffLine | null };
 
 export function languageForPath(path: string): string {
 	const ext = path.slice(path.lastIndexOf('.')).toLowerCase();
@@ -114,6 +115,35 @@ export function withInlineDiffSegments(lines: NumberedDiffLine[]): InlineDiffLin
 	}
 
 	return result;
+}
+
+export function splitDiffRows(lines: InlineDiffLine[]): SplitDiffRow[] {
+	const rows: SplitDiffRow[] = [];
+	let i = 0;
+
+	while (i < lines.length) {
+		const line = lines[i];
+		if (line.type === 'context') {
+			rows.push({ oldLine: line, newLine: line });
+			i += 1;
+			continue;
+		}
+
+		const block: InlineDiffLine[] = [];
+		while (i < lines.length && lines[i].type !== 'context') {
+			block.push(lines[i]);
+			i += 1;
+		}
+
+		const removed = block.filter((item) => item.type === 'removed');
+		const added = block.filter((item) => item.type === 'added');
+		const count = Math.max(removed.length, added.length);
+		for (let index = 0; index < count; index += 1) {
+			rows.push({ oldLine: removed[index] ?? null, newLine: added[index] ?? null });
+		}
+	}
+
+	return rows;
 }
 
 function segmentsForPair(

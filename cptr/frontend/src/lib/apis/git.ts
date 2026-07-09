@@ -39,8 +39,10 @@ export const getGitLog = (root: string, limit = 30) =>
 
 export const getGitDiff = (params: string) => fetchJSON(`/api/git/diff?${params}`);
 
-export const getGitShow = (root: string, ref: string) =>
-	fetchJSON(`/api/git/show?root=${encodeURIComponent(root)}&ref=${encodeURIComponent(ref)}`);
+export const getGitShow = (root: string, ref: string, ignoreWhitespace = false) =>
+	fetchJSON(
+		`/api/git/show?root=${encodeURIComponent(root)}&ref=${encodeURIComponent(ref)}&ignore_whitespace=${ignoreWhitespace}`
+	);
 
 export const getGitBranches = (root: string) =>
 	fetchJSON(`/api/git/branches?root=${encodeURIComponent(root)}`);

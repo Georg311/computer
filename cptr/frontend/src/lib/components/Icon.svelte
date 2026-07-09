@@ -143,6 +143,11 @@
 		<path d="M4 18.01L4.01 17.9989" />
 		<path d="M8 12H20" />
 		<path d="M8 18H20" />
+	{:else if name === 'split-view'}
+		<path
+			d="M4 5.6C4 5.26863 4.26863 5 4.6 5H19.4C19.7314 5 20 5.26863 20 5.6V18.4C20 18.7314 19.7314 19 19.4 19H4.6C4.26863 19 4 18.7314 4 18.4V5.6Z"
+		/>
+		<path d="M12 5V19" />
 	{:else if name === 'chevron-right'}
 		<path d="M9 6L15 12L9 18" />
 	{:else if name === 'arrow-left'}

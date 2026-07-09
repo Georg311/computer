@@ -68,6 +68,7 @@
 		content: string;
 		segments: InlineDiffSegment[];
 		language: string;
+		wrap?: boolean;
 		class?: string;
 	}
 
@@ -76,7 +77,7 @@
 		dark?: string;
 	};
 
-	let { type, content, segments, language, class: className = '' }: Props = $props();
+	let { type, content, segments, language, wrap = false, class: className = '' }: Props = $props();
 	let renderedSegments = $state<RenderSegment[] | null>(null);
 
 	$effect(() => {
@@ -187,7 +188,11 @@
 	const html = $derived(htmlForSegments(type, fallbackSegments));
 </script>
 
-<code class="syntax-diff-line whitespace-pre px-2 {className}">{@html html}</code>
+<code
+	class="syntax-diff-line block px-2 {wrap
+		? 'whitespace-pre-wrap break-words'
+		: 'whitespace-pre'} {className}">{@html html}</code
+>
 
 <style>
 	.syntax-diff-line :global(span) {

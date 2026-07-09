@@ -69,12 +69,16 @@ async def git_status(root: str):
 
 @router.get("/diff")
 async def git_diff(
-    root: str, file: Optional[str] = None, staged: bool = False, untracked: bool = False
+    root: str,
+    file: Optional[str] = None,
+    staged: bool = False,
+    untracked: bool = False,
+    ignore_whitespace: bool = False,
 ):
     """Get diff for working tree or staged changes."""
     await _require_repo(root)
     try:
-        return await diff(root, file, staged, untracked)
+        return await diff(root, file, staged, untracked, ignore_whitespace)
     except GitError as e:
         _handle_git_error(e)
 
@@ -90,11 +94,11 @@ async def git_log(root: str, limit: int = 50, offset: int = 0):
 
 
 @router.get("/show")
-async def git_show(root: str, ref: str):
+async def git_show(root: str, ref: str, ignore_whitespace: bool = False):
     """Show a single commit with its diff."""
     await _require_repo(root)
     try:
-        return await show(root, ref)
+        return await show(root, ref, ignore_whitespace)
     except GitError as e:
         _handle_git_error(e)
 

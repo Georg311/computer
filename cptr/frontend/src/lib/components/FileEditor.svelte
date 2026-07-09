@@ -6,6 +6,7 @@
 	import { tooltip } from '$lib/tooltip';
 	import { readFile, writeFile } from '$lib/apis/files';
 	import { getGitDiff } from '$lib/apis/git';
+	import { hideWhitespaceChanges } from '$lib/stores/gitDiffSettings';
 	import { gitStatusStore, type GitFile } from '$lib/stores/gitStatus.svelte';
 	import Icon from './Icon.svelte';
 	import SaveDialog from './SaveDialog.svelte';
@@ -20,8 +21,7 @@
 	import SvgPreview from './preview/SvgPreview.svelte';
 	import OfficePreview from './preview/OfficePreview.svelte';
 	import Spinner from './common/Spinner.svelte';
-	import { groupDiffLines, languageForPath, withInlineDiffSegments } from '$lib/utils/diff';
-	import SyntaxDiffLine from './SyntaxDiffLine.svelte';
+	import DiffHunkRows from './DiffHunkRows.svelte';
 	import {
 		EditorState,
 		StateEffect,
@@ -526,31 +526,6 @@
 		applyGitLineChanges();
 	}
 
-	function diffBlockClass(type: DiffLine['type']): string {
-		if (type === 'added')
-			return 'bg-green-100 border-l-[0.1875rem] border-l-green-500 dark:bg-green-500/15 dark:border-l-green-400';
-		if (type === 'removed') return 'bg-red-100 diff-gutter-removed dark:bg-red-500/15';
-		return '';
-	}
-
-	function diffTextClass(type: DiffLine['type']): string {
-		if (type === 'added') return 'text-green-900 dark:text-green-300';
-		if (type === 'removed') return 'text-red-900 dark:text-red-300';
-		return 'text-gray-600 dark:text-gray-400';
-	}
-
-	function diffPrefixClass(type: DiffLine['type']): string {
-		if (type === 'added') return 'text-green-600 dark:text-green-400';
-		if (type === 'removed') return 'text-red-500 dark:text-red-400';
-		return 'text-gray-400 dark:text-gray-600';
-	}
-
-	function diffPrefix(type: DiffLine['type']): string {
-		if (type === 'added') return '+';
-		if (type === 'removed') return '-';
-		return ' ';
-	}
-
 	// Editing state: true when the code editor should be active
 	let isEditing = $derived(
 		fileData &&
@@ -811,7 +786,8 @@
 				root: ws.path,
 				file: relPath,
 				staged: 'false',
-				untracked: String(fileStatus?.status === 'untracked')
+				untracked: String(fileStatus?.status === 'untracked'),
+				ignore_whitespace: String($hideWhitespaceChanges)
 			});
 			const d = (await getGitDiff(params.toString())) as { files?: DiffFileEntry[] };
 			diffFiles = d.files ?? [];
@@ -1226,34 +1202,7 @@
 								<span></span>
 								<code class="whitespace-pre px-2 py-0.5">{hunk.header}</code>
 							</div>
-							{#each groupDiffLines(withInlineDiffSegments(diffNumberedLines(hunk))) as group}
-								<div class="w-full {diffBlockClass(group.type)}">
-									{#each group.lines as line}
-										<div
-											class="grid w-full grid-cols-[2.75rem_2.75rem_1.25rem_auto] font-mono text-[0.6875rem] leading-[1.125rem]"
-										>
-											<span
-												class="select-none border-r border-black/5 px-2 text-right text-gray-400 dark:border-white/4 dark:text-gray-600"
-												>{line.oldNumber ?? ''}</span
-											>
-											<span
-												class="select-none border-r border-black/5 px-2 text-right text-gray-400 dark:border-white/4 dark:text-gray-600"
-												>{line.newNumber ?? ''}</span
-											>
-											<span class="select-none px-1 text-center {diffPrefixClass(line.type)}"
-												>{diffPrefix(line.type)}</span
-											>
-											<SyntaxDiffLine
-												type={line.type}
-												content={line.content || ' '}
-												segments={line.segments}
-												language={languageForPath(df.path)}
-												class={diffTextClass(line.type)}
-											/>
-										</div>
-									{/each}
-								</div>
-							{/each}
+							<DiffHunkRows {hunk} path={df.path} />
 						{/each}
 					{/each}
 				</div>
@@ -1474,90 +1423,5 @@
 		font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 		font-size: 0.75rem;
 		line-height: 1.125rem;
-	}
-
-	.diff-hunk-header {
-		padding: 0.125rem 0.5rem;
-		color: var(--color-gray-400);
-		background: var(--color-gray-50);
-	}
-
-	:global(.dark) .diff-hunk-header {
-		background: rgba(255, 255, 255, 0.03);
-		color: var(--color-gray-600);
-	}
-
-	.diff-line {
-		padding: 0 0.5rem;
-		white-space: pre-wrap;
-		word-break: break-all;
-	}
-
-	.diff-prefix {
-		display: inline-block;
-		width: 1rem;
-		user-select: none;
-	}
-
-	.diff-added {
-		background: #dcfce7;
-		color: #14532d;
-	}
-
-	:global(.dark) .diff-added {
-		background: rgba(34, 197, 94, 0.12);
-		color: #86efac;
-	}
-
-	.diff-added .diff-prefix {
-		color: #16a34a;
-	}
-	:global(.dark) .diff-added .diff-prefix {
-		color: #4ade80;
-	}
-
-	.diff-removed {
-		background: #fee2e2;
-		color: #7f1d1d;
-	}
-
-	:global(.dark) .diff-removed {
-		background: rgba(239, 68, 68, 0.12);
-		color: #fca5a5;
-	}
-
-	.diff-removed .diff-prefix {
-		color: #ef4444;
-	}
-	:global(.dark) .diff-removed .diff-prefix {
-		color: #f87171;
-	}
-
-	.diff-ctx {
-		color: var(--color-gray-600);
-	}
-
-	:global(.dark) .diff-ctx {
-		color: var(--color-gray-400);
-	}
-
-	.diff-ctx .diff-prefix {
-		color: var(--color-gray-400);
-	}
-
-	:global(.dark) .diff-ctx .diff-prefix {
-		color: var(--color-gray-600);
-	}
-
-	.diff-gutter-removed {
-		border-left: 0.1875rem solid transparent;
-		border-image: repeating-linear-gradient(
-				-45deg,
-				#ef4444 0,
-				#ef4444 1px,
-				transparent 1px,
-				transparent 0.1875rem
-			)
-			3;
 	}
 </style>

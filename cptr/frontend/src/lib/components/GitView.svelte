@@ -1,21 +1,16 @@
 <script lang="ts">
 	import { activeWorkspace, openFileTab, gitReviewOpen } from '$lib/stores';
 	import { getGitDiff } from '$lib/apis/git';
+	import { diffDisplayMode, hideWhitespaceChanges } from '$lib/stores/gitDiffSettings';
 	import { gitStatusStore, type GitStatus, type GitFile } from '$lib/stores/gitStatus.svelte';
 
 	import { tooltip } from '$lib/tooltip';
 	import { t } from '$lib/i18n';
-	import {
-		groupDiffLines,
-		languageForPath,
-		numberDiffLines,
-		withInlineDiffSegments,
-		type DiffFile,
-		type DiffLine
-	} from '$lib/utils/diff';
+	import type { DiffFile } from '$lib/utils/diff';
 	import Icon from './Icon.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
-	import SyntaxDiffLine from './SyntaxDiffLine.svelte';
+	import DiffSettingsMenu from './DiffSettingsMenu.svelte';
+	import DiffHunkRows from './DiffHunkRows.svelte';
 
 	type ReviewFile = {
 		key: string;
@@ -33,6 +28,8 @@
 	let loading = $state(false);
 	let refreshing = $state(false);
 	let error = $state('');
+	let showDiffSettings = $state(false);
+	let diffSettingsButtonEl = $state<HTMLButtonElement | undefined>();
 	let loadSeq = 0;
 
 	const workspacePath = $derived($activeWorkspace?.path ?? '');
@@ -41,16 +38,19 @@
 
 	// React to git status changes from centralized store
 	let _prevStatusRef: GitStatus | null = null;
+	let _prevHideWhitespace = false;
 	$effect(() => {
 		const status = gitStatus;
+		const hideWhitespace = $hideWhitespaceChanges;
 		if (!workspacePath || !status) {
 			reviewFiles = [];
 			return;
 		}
 		// Only re-fetch diffs when status actually changes
-		if (status !== _prevStatusRef) {
+		if (status !== _prevStatusRef || hideWhitespace !== _prevHideWhitespace) {
 			const isInitial = _prevStatusRef === null;
 			_prevStatusRef = status;
+			_prevHideWhitespace = hideWhitespace;
 			fetchDiffs(status, isInitial);
 		}
 	});
@@ -76,7 +76,8 @@
 					const params = new URLSearchParams({
 						root,
 						file: file.path,
-						staged: String(file.staged)
+						staged: String(file.staged),
+						ignore_whitespace: String($hideWhitespaceChanges)
 					});
 					if (file.status === 'untracked') params.set('untracked', 'true');
 
@@ -182,45 +183,6 @@
 				return { char: '?', label: status, className: 'text-gray-400 dark:text-gray-500' };
 		}
 	}
-
-	function blockClass(type: DiffLine['type']): string {
-		switch (type) {
-			case 'added':
-				return 'bg-green-100 border-l-[0.1875rem] border-l-green-500 dark:bg-green-500/15 dark:border-l-green-400';
-			case 'removed':
-				return 'bg-red-100 diff-gutter-removed dark:bg-red-500/15';
-			default:
-				return '';
-		}
-	}
-
-	function textClass(type: DiffLine['type']): string {
-		switch (type) {
-			case 'added':
-				return 'text-green-900 dark:text-green-300';
-			case 'removed':
-				return 'text-red-900 dark:text-red-300';
-			default:
-				return 'text-gray-600 dark:text-gray-400';
-		}
-	}
-
-	function prefixClass(type: DiffLine['type']): string {
-		switch (type) {
-			case 'added':
-				return 'text-green-600 dark:text-green-400';
-			case 'removed':
-				return 'text-red-500 dark:text-red-400';
-			default:
-				return 'text-gray-400 dark:text-gray-600';
-		}
-	}
-
-	function linePrefix(type: DiffLine['type']): string {
-		if (type === 'added') return '+';
-		if (type === 'removed') return '-';
-		return ' ';
-	}
 </script>
 
 <div
@@ -276,6 +238,16 @@
 			</div>
 
 			<button
+				bind:this={diffSettingsButtonEl}
+				class="flex h-6 w-6 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-white/6 dark:hover:text-gray-300"
+				onclick={() => (showDiffSettings = true)}
+				aria-label="Diff settings"
+				use:tooltip={'Diff settings'}
+			>
+				<Icon name="settings" size={13} />
+			</button>
+
+			<button
 				class="flex h-6 w-6 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-white/6 dark:hover:text-gray-300"
 				onclick={() => refreshReview(false)}
 				disabled={refreshing}
@@ -285,6 +257,10 @@
 				<Icon name="refresh" size={12} class={refreshing ? 'animate-spin' : ''} />
 			</button>
 		</header>
+
+		{#if showDiffSettings && diffSettingsButtonEl}
+			<DiffSettingsMenu anchor={diffSettingsButtonEl} onclose={() => (showDiffSettings = false)} />
+		{/if}
 
 		{#if totalChanges > 0}
 			<div
@@ -386,7 +362,7 @@
 								<div
 									class="mb-1 overflow-x-auto border-y border-gray-100 bg-white font-mono text-[0.6875rem] leading-[1.125rem] dark:border-white/4 dark:bg-black"
 								>
-									<div class="diff-content">
+									<div class="diff-content" class:diff-content-split={$diffDisplayMode === 'split'}>
 										{#if file.diffFiles.some((diffFile) => diffFile.hunks.length > 0)}
 											{#each file.diffFiles as diffFile}
 												{#if file.diffFiles.length > 1}
@@ -405,33 +381,7 @@
 														<span></span>
 														<code class="whitespace-pre px-2 py-0.5">{hunk.header}</code>
 													</div>
-													{#each groupDiffLines(withInlineDiffSegments(numberDiffLines(hunk))) as group}
-														<div class="w-full {blockClass(group.type)}">
-															{#each group.lines as line}
-																<div class="grid w-full grid-cols-[2.75rem_2.75rem_1.25rem_auto]">
-																	<span
-																		class="select-none border-r border-black/5 px-2 text-right text-gray-400 dark:border-white/4 dark:text-gray-600"
-																		>{line.oldNumber ?? ''}</span
-																	>
-																	<span
-																		class="select-none border-r border-black/5 px-2 text-right text-gray-400 dark:border-white/4 dark:text-gray-600"
-																		>{line.newNumber ?? ''}</span
-																	>
-																	<span
-																		class="select-none px-1 text-center {prefixClass(line.type)}"
-																		>{linePrefix(line.type)}</span
-																	>
-																	<SyntaxDiffLine
-																		type={line.type}
-																		content={line.content || ' '}
-																		segments={line.segments}
-																		language={languageForPath(diffFile.path)}
-																		class={textClass(line.type)}
-																	/>
-																</div>
-															{/each}
-														</div>
-													{/each}
+													<DiffHunkRows {hunk} path={diffFile.path} />
 												{/each}
 											{/each}
 										{:else}
@@ -458,15 +408,7 @@
 		min-width: 100%;
 	}
 
-	.diff-gutter-removed {
-		border-left: 0.1875rem solid transparent;
-		border-image: repeating-linear-gradient(
-				-45deg,
-				#ef4444 0,
-				#ef4444 1px,
-				transparent 1px,
-				transparent 0.1875rem
-			)
-			3;
+	.diff-content-split {
+		width: 100%;
 	}
 </style>

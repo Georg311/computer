@@ -168,24 +168,22 @@ async def diff(
     file: str | None = None,
     staged: bool = False,
     untracked: bool = False,
+    ignore_whitespace: bool = False,
 ) -> dict[str, Any]:
     """Get diff output as structured data."""
     if untracked and file:
         # Untracked files: use --no-index to diff against empty
         null_device = "NUL" if sys.platform == "win32" else "/dev/null"
-        _, out, _ = await _run(
-            "diff",
-            "--no-index",
-            "--unified=3",
-            "--",
-            null_device,
-            file,
-            cwd=root,
-            check=False,
-        )
+        args = ["diff", "--no-index", "--unified=3"]
+        if ignore_whitespace:
+            args.append("--ignore-all-space")
+        args.extend(["--", null_device, file])
+        _, out, _ = await _run(*args, cwd=root, check=False)
         return _parse_diff(out)
 
     args = ["diff", "--unified=3"]
+    if ignore_whitespace:
+        args.append("--ignore-all-space")
     if staged:
         args.append("--staged")
     if file:
@@ -365,16 +363,13 @@ async def log(
     return commits
 
 
-async def show(root: str, ref: str) -> dict[str, Any]:
+async def show(root: str, ref: str, ignore_whitespace: bool = False) -> dict[str, Any]:
     """Show a commit's diff."""
     fmt = "%H%x00%h%x00%an%x00%aI%x00%s"
-    _, out, _ = await _run(
-        "show",
-        ref,
-        f"--format={fmt}",
-        "--patch",
-        cwd=root,
-    )
+    args = ["show", ref, f"--format={fmt}", "--patch"]
+    if ignore_whitespace:
+        args.append("--ignore-all-space")
+    _, out, _ = await _run(*args, cwd=root)
 
     # First line is the formatted header, rest is diff
     lines = out.split("\n", 1)
