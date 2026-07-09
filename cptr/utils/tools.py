@@ -2923,6 +2923,8 @@ async def execute_tool(name: str, args: dict, __context__: dict) -> str:
         if not is_builtin_tool_enabled(name, __context__.get("builtin_tools")):
             return f"Error: tool disabled: {name}"
         fn = info["fn"]
+        args = dict(args)
+        args.pop("workspace", None)
         try:
             sig = inspect.signature(fn)
             if "__context__" in sig.parameters:
