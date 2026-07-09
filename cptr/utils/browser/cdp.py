@@ -14,6 +14,7 @@ import logging
 from typing import Any
 
 import websockets
+from websockets.exceptions import ConnectionClosed
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +66,11 @@ class CDPClient:
         ws_url = page_target["webSocketDebuggerUrl"]
         target_id = page_target["id"]
 
-        ws = await websockets.connect(ws_url, max_size=50 * 1024 * 1024)
+        ws = await websockets.connect(
+            ws_url,
+            max_size=50 * 1024 * 1024,
+            ping_interval=None,
+        )
 
         client = cls(ws, target_id)
 
@@ -87,17 +92,46 @@ class CDPClient:
         if params:
             payload["params"] = params
 
-        await self._ws.send(json.dumps(payload))
+        try:
+            await self._ws.send(json.dumps(payload))
 
-        # Wait for matching response (skip events)
-        while True:
+            # Wait for matching response (skip events)
+            while True:
+                data = await self._recv_json()
+                if data.get("id") == msg_id:
+                    if "error" in data:
+                        raise RuntimeError(
+                            f"CDP error: {data['error'].get('message', data['error'])}"
+                        )
+                    return data.get("result", {})
+                # Ignore events (no "id" field)
+        except ConnectionClosed:
+            self._closed = True
+            raise
+
+    async def _recv_json(self) -> dict:
+        try:
             raw = await asyncio.wait_for(self._ws.recv(), timeout=30)
-            data = json.loads(raw)
-            if data.get("id") == msg_id:
-                if "error" in data:
-                    raise RuntimeError(f"CDP error: {data['error'].get('message', data['error'])}")
-                return data.get("result", {})
-            # Ignore events (no "id" field)
+        except ConnectionClosed:
+            self._closed = True
+            raise
+        return json.loads(raw)
+
+    def is_closed(self) -> bool:
+        """Return whether this client or its underlying socket is closed."""
+        if self._closed:
+            return True
+
+        if getattr(self._ws, "closed", False):
+            self._closed = True
+            return True
+
+        state_name = getattr(getattr(self._ws, "state", None), "name", None)
+        if state_name in {"CLOSING", "CLOSED"}:
+            self._closed = True
+            return True
+
+        return False
 
     # ── Navigation ─────────────────────────────────────────
 
@@ -107,8 +141,7 @@ class CDPClient:
 
         # Wait for load event
         while True:
-            raw = await asyncio.wait_for(self._ws.recv(), timeout=30)
-            data = json.loads(raw)
+            data = await self._recv_json()
             if data.get("method") == "Page.loadEventFired":
                 break
 

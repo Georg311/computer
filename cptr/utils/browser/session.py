@@ -34,7 +34,7 @@ class BrowserSessionManager:
         """Get an existing session for this chat, or create a new one."""
         if chat_id in self._sessions:
             client = self._sessions[chat_id]
-            if not client._closed:
+            if not client.is_closed():
                 self._last_used[chat_id] = time.monotonic()
                 return client
             # Session was closed externally, remove it
