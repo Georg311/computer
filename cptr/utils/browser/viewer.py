@@ -9,6 +9,7 @@ import os
 import secrets
 import shutil
 import socket
+import sys
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -25,6 +26,23 @@ FRAME_HEADER_SIZE = 14
 MAX_FRAME_SIZE = 8 * 1024 * 1024
 CAPTURE_TITLE = "cptr Chrome capture source"
 EventHandler = Callable[[dict[str, Any]], Awaitable[None]]
+
+
+def _target_modifiers(modifiers: int, primary: bool) -> int:
+    if not primary:
+        return modifiers
+    return (modifiers & ~6) | (4 if sys.platform == "darwin" else 2)
+
+
+def _target_key(
+    key: str, code: str, virtual_key: int, location: int, primary: bool
+) -> tuple[str, str, int]:
+    if not primary:
+        return key, code, virtual_key
+    target = "Meta" if sys.platform == "darwin" else "Control"
+    side = "Right" if location == 2 else "Left"
+    virtual_key = (92 if side == "Right" else 91) if target == "Meta" else 17
+    return target, f"{target}{side}", virtual_key
 
 
 def browser_name(path: str) -> str:
@@ -573,21 +591,35 @@ class ChromeViewerManager:
             if event not in {"keyDown", "keyUp", "char"}:
                 return
             text = str(data.get("text", ""))
+            key = str(data.get("key", ""))
+            code = str(data.get("code", ""))
+            location = max(0, min(3, int(data.get("location", 0))))
+            virtual_key = max(0, min(65535, int(data.get("windows_virtual_key_code", 0))))
+            key, code, virtual_key = _target_key(
+                key,
+                code,
+                virtual_key,
+                location,
+                bool(data.get("primary_modifier_key", False)),
+            )
+            modifiers = _target_modifiers(
+                int(data.get("modifiers", 0)), bool(data.get("primary_modifier", False))
+            )
+            params: dict[str, Any] = {
+                "type": "rawKeyDown" if event == "keyDown" and not text else event,
+                "key": key,
+                "code": code,
+                "text": text,
+                "unmodifiedText": str(data.get("unmodified_text", "")),
+                "modifiers": modifiers,
+                "autoRepeat": bool(data.get("auto_repeat", False)),
+                "location": location,
+                "isKeypad": bool(data.get("is_keypad", False)),
+                "windowsVirtualKeyCode": virtual_key,
+            }
             await viewer.target_cdp.send(
                 "Input.dispatchKeyEvent",
-                {
-                    "type": "rawKeyDown" if event == "keyDown" and not text else event,
-                    "key": str(data.get("key", "")),
-                    "code": str(data.get("code", "")),
-                    "text": text,
-                    "modifiers": int(data.get("modifiers", 0)),
-                    "autoRepeat": bool(data.get("auto_repeat", False)),
-                    "location": max(0, min(3, int(data.get("location", 0)))),
-                    "isKeypad": bool(data.get("is_keypad", False)),
-                    "windowsVirtualKeyCode": max(
-                        0, min(65535, int(data.get("windows_virtual_key_code", 0)))
-                    ),
-                },
+                params,
             )
         elif kind == "paste":
             await viewer.target_cdp.send("Input.insertText", {"text": str(data.get("text", ""))})

@@ -15,7 +15,13 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 
 from cptr.routers.auth import COOKIE_NAME
 from cptr.models import Config
-from cptr.utils.browser.proxy import manager, rewrite_css, rewrite_html, rewrite_javascript, target_url
+from cptr.utils.browser.proxy import (
+    manager,
+    rewrite_css,
+    rewrite_html,
+    rewrite_javascript,
+    target_url,
+)
 from cptr.utils.browser.viewer import local_origin, manager as chrome_viewer_manager
 from cptr.utils.config import AuthResult, check_access
 
@@ -79,7 +85,9 @@ def _headers(request: Request, upstream_url: str) -> dict[str, str]:
 
 def _response_headers(upstream: httpx.Response) -> dict[str, str]:
     headers = {
-        key: value for key, value in upstream.headers.items() if key.lower() not in _SKIP_RESPONSE_HEADERS
+        key: value
+        for key, value in upstream.headers.items()
+        if key.lower() not in _SKIP_RESPONSE_HEADERS
     }
     headers["x-cptr-browser-url"] = str(upstream.url)
     return headers
@@ -107,7 +115,9 @@ async def _stream_response(upstream: httpx.Response) -> AsyncIterator[bytes]:
         await upstream.aclose()
 
 
-async def proxy_browser_request(request: Request, session_id: str, url: str, owner: str) -> Response:
+async def proxy_browser_request(
+    request: Request, session_id: str, url: str, owner: str
+) -> Response:
     client = manager.client(session_id, owner)
     if client is None:
         raise HTTPException(status_code=404, detail="Browser tab expired")
@@ -122,11 +132,15 @@ async def proxy_browser_request(request: Request, session_id: str, url: str, own
     parsed = urlsplit(upstream_url)
     if parsed.hostname == "127.0.0.1":
         port = f":{parsed.port}" if parsed.port else ""
-        candidates.append(urlunsplit((parsed.scheme, f"[::1]{port}", parsed.path, parsed.query, "")))
+        candidates.append(
+            urlunsplit((parsed.scheme, f"[::1]{port}", parsed.path, parsed.query, ""))
+        )
     for candidate in candidates:
         try:
             upstream = await client.send(
-                client.build_request(request.method, candidate, headers=_headers(request, candidate), content=body),
+                client.build_request(
+                    request.method, candidate, headers=_headers(request, candidate), content=body
+                ),
                 stream=True,
             )
             break
@@ -151,7 +165,9 @@ async def proxy_browser_request(request: Request, session_id: str, url: str, own
         final_url = str(upstream.url)
         if parsed.hostname == "127.0.0.1" and urlsplit(final_url).hostname == "::1":
             redirected = urlsplit(final_url)
-            final_url = urlunsplit((parsed.scheme, parsed.netloc, redirected.path, redirected.query, ""))
+            final_url = urlunsplit(
+                (parsed.scheme, parsed.netloc, redirected.path, redirected.query, "")
+            )
         if f"/api/browser/frame/{session_id}/" not in urlsplit(final_url).path:
             await manager.update(session_id, owner, url=final_url)
         text = content.decode(upstream.encoding or "utf-8", errors="replace")
@@ -170,7 +186,9 @@ async def proxy_browser_request(request: Request, session_id: str, url: str, own
         content = rewrite_javascript(text, upstream_url, session_id).encode("utf-8")
         headers.pop("content-type", None)
         content_type = "text/javascript; charset=utf-8"
-    return Response(content=content, status_code=upstream.status_code, headers=headers, media_type=content_type)
+    return Response(
+        content=content, status_code=upstream.status_code, headers=headers, media_type=content_type
+    )
 
 
 async def _proxy(request: Request, session_id: str, url: str) -> Response:
@@ -181,6 +199,16 @@ async def _proxy(request: Request, session_id: str, url: str) -> Response:
 async def browser_availability(request: Request):
     _auth(request)
     return chrome_viewer_manager.availability()
+
+
+def _initial_url(value: object) -> str:
+    url = str(value or "").strip()
+    if not url:
+        return ""
+    parsed = urlsplit(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise HTTPException(status_code=400, detail="Invalid Browser URL")
+    return url
 
 
 @router.post("/sessions")
@@ -197,7 +225,10 @@ async def create_session(request: Request):
     )
     if mode not in {"proxy", "chrome"}:
         raise HTTPException(status_code=400, detail="Invalid Browser mode")
+    initial_url = _initial_url(payload.get("url") if isinstance(payload, dict) else None)
     session = await manager.create(_owner(_auth(request)))
+    if initial_url:
+        await manager.update(session.session_id, session.owner, url=initial_url)
     if mode == "chrome":
         try:
             await chrome_viewer_manager.start(session, local_origin(str(request.base_url)))
@@ -281,7 +312,8 @@ async def blank(session_id: str, request: Request):
 
 
 @router.api_route(
-    "/resources/{session_id}/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+    "/resources/{session_id}/{path:path}",
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
 )
 async def proxy_resource(session_id: str, path: str, request: Request):
     owner = _owner(_auth(request))
@@ -294,7 +326,9 @@ async def proxy_resource(session_id: str, path: str, request: Request):
     return await proxy_browser_request(request, session_id, url, owner)
 
 
-@router.api_route("/frame/{session_id}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])
+@router.api_route(
+    "/frame/{session_id}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+)
 async def proxy_frame(session_id: str, url: str, request: Request):
     return await _proxy(request, session_id, url)
 
@@ -304,11 +338,16 @@ async def proxy_frame(session_id: str, url: str, request: Request):
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
 )
 async def legacy_proxy_frame(session_id: str, scheme: str, host: str, path: str, request: Request):
-    return await _proxy(request, session_id, urlunsplit((scheme, host, "/" + path.lstrip("/"), request.url.query, "")))
+    return await _proxy(
+        request,
+        session_id,
+        urlunsplit((scheme, host, "/" + path.lstrip("/"), request.url.query, "")),
+    )
 
 
 @router.api_route(
-    "/frame/{session_id}/{scheme}/{host}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+    "/frame/{session_id}/{scheme}/{host}",
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
 )
 async def legacy_proxy_frame_root(session_id: str, scheme: str, host: str, request: Request):
     return await _proxy(request, session_id, urlunsplit((scheme, host, "/", request.url.query, "")))
@@ -332,7 +371,9 @@ async def proxy_websocket(websocket: WebSocket, session_id: str):
             return
         client = manager.client(session_id, owner)
         assert client is not None
-        prepared = client.build_request("GET", target.replace("ws:", "http:", 1).replace("wss:", "https:", 1))
+        prepared = client.build_request(
+            "GET", target.replace("ws:", "http:", 1).replace("wss:", "https:", 1)
+        )
         headers = {"cookie": prepared.headers["cookie"]} if "cookie" in prepared.headers else None
         upstream = await websockets.connect(target, additional_headers=headers)
         await websocket.send_json({"type": "open", "protocol": upstream.subprotocol or ""})

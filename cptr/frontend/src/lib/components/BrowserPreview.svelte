@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import { tooltip } from '$lib/tooltip';
 	import {
 		browserBlankUrl,
@@ -28,7 +28,6 @@
 	let frameSrc = $state(browserBlankUrl(sessionId));
 	let urlInput = $state(initialUrl ?? '');
 	let title = $state('');
-	let loading = $state(false);
 	let error = $state('');
 	let modeError = $state('');
 	let mode = $state<'proxy' | 'chrome'>('proxy');
@@ -61,7 +60,6 @@
 			).href;
 			if (mode === 'chrome') chromeEl?.navigate(urlInput);
 			else frameSrc = browserFrameUrl(sessionId, urlInput);
-			loading = true;
 			error = '';
 			void updateBrowserSession(sessionId, urlInput, title).catch(() => {});
 		} catch {
@@ -81,13 +79,11 @@
 	}
 
 	function refresh() {
-		loading = true;
 		if (mode === 'chrome') chromeEl?.reload();
 		else iframeEl?.contentWindow?.location.reload();
 	}
 
 	function frameLoaded() {
-		loading = false;
 		try {
 			const current = new URL(iframeEl?.contentWindow?.location.href || '');
 			const framePrefix = `/api/browser/frame/${sessionId}`;
@@ -102,7 +98,6 @@
 			const upstream = new URL(`${current.pathname}${current.search}${current.hash}`, urlInput)
 				.href;
 			urlInput = upstream;
-			loading = true;
 			void updateBrowserSession(sessionId, upstream, title).catch(() => {});
 			iframeEl?.contentWindow?.location.replace(browserFrameUrl(sessionId, upstream));
 		} catch {
@@ -117,7 +112,6 @@
 			urlInput = publicUrl(data.url || urlInput);
 			title = data.title || '';
 			updateTabLabel(tabId, title);
-			loading = false;
 			void updateBrowserSession(sessionId, urlInput, title).catch(() => {});
 		}
 		if (data?.type === 'cptr-browser-popup' && data.url) openBrowserTab(groupId, data.url);
@@ -134,7 +128,6 @@
 				mode = session.mode || 'proxy';
 				if (mode === 'chrome') {
 					chromeStatus = 'connecting';
-					loading = true;
 					const supported =
 						'VideoDecoder' in window &&
 						(await VideoDecoder.isConfigSupported({ codec: 'avc1.42E028' })).supported;
@@ -145,6 +138,10 @@
 					}
 				}
 				if (url && mode === 'proxy') navigate(url);
+				else if (url && mode === 'chrome' && !session.url) {
+					await tick();
+					chromeEl?.navigate(url);
+				}
 			})
 			.catch(() => {});
 	});
@@ -199,7 +196,6 @@
 		</div>
 	</div>
 	{#if modeError}<div class="mode-error" title={modeError}>{modeError}</div>{/if}
-	{#if loading}<div class="loading-track"><div class="loading-bar"></div></div>{/if}
 	<div class="preview-content">
 		{#if error}
 			<div class="preview-error">
@@ -220,7 +216,6 @@
 				}}
 				onstatus={(status, message, nextMode) => {
 					chromeStatus = status;
-					loading = status === 'connecting';
 					if (message) modeError = message;
 					else if (status === 'playing' || status === 'view_only') modeError = '';
 					if (nextMode === 'proxy') {
@@ -247,7 +242,6 @@
 				onload={frameLoaded}
 				onerror={() => {
 					error = $t('port.cannotConnect');
-					loading = false;
 				}}
 			></iframe>
 		{/if}
@@ -287,17 +281,6 @@
 		display: block;
 		background: white;
 	}
-	.loading-track {
-		height: 2px;
-		overflow: hidden;
-		background: var(--color-gray-100);
-	}
-	.loading-bar {
-		height: 100%;
-		width: 35%;
-		background: var(--color-brand-500);
-		animation: browser-loading 1s ease-in-out infinite;
-	}
 	.preview-error {
 		height: 100%;
 		display: grid;
@@ -307,13 +290,5 @@
 	}
 	.error-retry {
 		color: var(--color-brand-600);
-	}
-	@keyframes browser-loading {
-		from {
-			transform: translateX(-120%);
-		}
-		to {
-			transform: translateX(320%);
-		}
 	}
 </style>

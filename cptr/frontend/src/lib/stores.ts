@@ -560,7 +560,8 @@ export async function loadWorkspace(path: string): Promise<void> {
 							group.tabs.map(async (tab) => {
 								if (tab.type !== 'preview' || !tab.port) return tab;
 								try {
-									const session = await createBrowserSession();
+									const previewUrl = `http://localhost:${tab.port}/`;
+									const session = await createBrowserSession(previewUrl);
 									aliveBrowserSessions.add(session.session_id);
 									const { port, ...browserTab } = tab;
 									return {
@@ -568,7 +569,7 @@ export async function loadWorkspace(path: string): Promise<void> {
 										type: 'browser' as const,
 										label: `localhost:${port}`,
 										browserSessionId: session.session_id,
-										path: `http://127.0.0.1:${port}/`
+										path: previewUrl
 									};
 								} catch {
 									return null;
@@ -937,7 +938,7 @@ export async function openPreviewTab(port: number, targetGroupId?: string): Prom
 	if (!group) return;
 
 	// Reuse existing tab within this group
-	const url = `http://127.0.0.1:${port}/`;
+	const url = `http://localhost:${port}/`;
 	const existing = group.tabs.find((t) => t.type === 'browser' && t.path === url);
 	if (existing) {
 		setActiveTab(existing.id, gid);
@@ -960,7 +961,7 @@ export async function openBrowserTab(
 	const pendingTab: Tab = { id: tabId, type: 'browser', label, path: url };
 	updateGroupTabs(gid, (tabs) => ({ tabs: [...tabs, pendingTab], activeTabId: tabId }));
 	try {
-		const session = await createBrowserSession();
+		const session = await createBrowserSession(url);
 		let attached = false;
 		updateGroupTabs(gid, (tabs) => ({
 			tabs: tabs.map((tab) => {

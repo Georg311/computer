@@ -30,6 +30,7 @@
 	let controller = false;
 	let hasFrame = false;
 	const pressedKeys = new Map<string, Record<string, unknown>>();
+	const macClient = /Mac|iPhone|iPad/.test(navigator.userAgent);
 
 	function send(message: Record<string, unknown>) {
 		if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
@@ -179,6 +180,7 @@
 			event: type,
 			key: event.key,
 			code: event.code,
+			unmodified_text: event.key.length === 1 ? event.key : '',
 			text:
 				type === 'keyDown' &&
 				event.key.length === 1 &&
@@ -191,7 +193,9 @@
 			auto_repeat: event.repeat,
 			location: event.location,
 			is_keypad: event.location === KeyboardEvent.DOM_KEY_LOCATION_NUMPAD,
-			windows_virtual_key_code: event.keyCode
+			windows_virtual_key_code: event.keyCode,
+			primary_modifier: macClient ? event.metaKey : event.ctrlKey,
+			primary_modifier_key: event.key === (macClient ? 'Meta' : 'Control')
 		};
 		if (type === 'keyDown') pressedKeys.set(event.code, message);
 		else pressedKeys.delete(event.code);

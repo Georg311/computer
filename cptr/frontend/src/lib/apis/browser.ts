@@ -22,8 +22,12 @@ let availabilityPromise: Promise<BrowserAvailability> | undefined;
 export const getBrowserAvailability = () =>
 	(availabilityPromise ??= fetchJSON<BrowserAvailability>('/api/browser/availability'));
 
-export const createBrowserSession = () =>
-	fetchJSON<BrowserSession>('/api/browser/sessions', { method: 'POST' });
+export const createBrowserSession = (url?: string) =>
+	fetchJSON<BrowserSession>('/api/browser/sessions', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ url })
+	});
 
 export const listBrowserSessions = async () => {
 	const data = await fetchJSON<{ session_ids: string[] }>('/api/browser/sessions');
