@@ -497,6 +497,29 @@ async def _get_latest_usage_checkpoint(
 # ── Delete a chat ───────────────────────────────────────────
 
 
+class UpdateChatRequest(BaseModel):
+    title: str
+
+
+@router.patch("/{chat_id}")
+async def update_chat(chat_id: str, body: UpdateChatRequest, request: Request):
+    """Rename a chat."""
+    user_id = _get_user(request)
+    chat = await Chat.get_by_id(chat_id)
+    if not chat or chat.user_id != user_id:
+        raise HTTPException(404, "chat not found")
+
+    title = body.title.strip()
+    if not title:
+        raise HTTPException(422, "title cannot be empty")
+
+    await Chat.update_title(chat_id, title, now_ms())
+    from cptr.socket.main import emit_to_user
+
+    await emit_to_user(user_id, {"chat_id": chat_id, "title": title})
+    return {"ok": True, "title": title}
+
+
 @router.delete("/{chat_id}")
 async def delete_chat(chat_id: str, request: Request):
     """Delete a chat and all its messages."""
@@ -533,7 +556,9 @@ async def fork_chat(chat_id: str, request: Request, body: ForkChatRequest | None
     if not messages:
         raise HTTPException(400, "chat has no messages to fork")
     message_by_id = {message.id: message for message in messages}
-    source_message_id = (body.message_id if body else None) or chat.current_message_id or messages[-1].id
+    source_message_id = (
+        (body.message_id if body else None) or chat.current_message_id or messages[-1].id
+    )
     source_message = message_by_id.get(source_message_id)
     if not source_message:
         raise HTTPException(404, "message not found")
