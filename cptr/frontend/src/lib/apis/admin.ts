@@ -60,7 +60,7 @@ export const updateConfig = (config: Record<string, unknown>) =>
 
 // ── Agents ─────────────────────────────────────────────────
 
-export type AgentType = 'codex' | 'claude_code' | 'cursor' | 'grok' | 'opencode' | 'cline';
+export type AgentType = 'codex' | 'claude_code' | 'cursor' | 'grok' | 'opencode' | 'cline' | 'pi';
 export type AgentMode = 'auto' | 'enabled' | 'disabled';
 export type AgentStatus = 'ready' | 'not_found' | 'missing_dependency' | 'auth_unknown' | 'error';
 

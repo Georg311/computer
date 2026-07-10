@@ -30,6 +30,7 @@ class AgentToolOutputDelta:
     call_id: str
     delta: str
     stream_kind: str = "tool_output"
+    replace: bool = False
 
 
 @dataclass

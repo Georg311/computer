@@ -170,6 +170,18 @@ async def detect_profile(profile: dict[str, Any]) -> AgentDetection:
             )
         return AgentDetection("ready", command, version, None, models)
 
+    if profile.get("agent") == "pi":
+        models = await _probe_pi_models(command, profile)
+        if not models:
+            return AgentDetection(
+                "auth_unknown",
+                command,
+                version,
+                "Could not discover Pi models. Check Pi provider configuration.",
+                [],
+            )
+        return AgentDetection("ready", command, version, None, models)
+
     return AgentDetection("error", command, version, "Unknown agent")
 
 
@@ -228,6 +240,31 @@ async def _probe_codex_models(command: str, profile: dict[str, Any]) -> list[str
             cursor = next_cursor if isinstance(next_cursor, str) and next_cursor else None
             if not cursor:
                 break
+        return models or None
+    except Exception:
+        return None
+    finally:
+        await client.close()
+
+
+async def _probe_pi_models(command: str, profile: dict[str, Any]) -> list[str] | None:
+    from cptr.utils.agents.pi import PiRpcClient
+
+    env = os.environ.copy()
+    if profile.get("home"):
+        env["HOME"] = os.path.expanduser(str(profile["home"]))
+    client = PiRpcClient(command, os.getcwd(), env)
+    try:
+        await asyncio.wait_for(client.start(), timeout=5)
+        response = await asyncio.wait_for(client.request("get_available_models"), timeout=5)
+        data = response.get("data") if isinstance(response.get("data"), dict) else {}
+        models = []
+        for item in data.get("models", []):
+            if not isinstance(item, dict):
+                continue
+            provider, model = item.get("provider"), item.get("id")
+            if isinstance(provider, str) and provider and isinstance(model, str) and model:
+                models.append(f"{provider}/{model}")
         return models or None
     except Exception:
         return None

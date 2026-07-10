@@ -112,7 +112,8 @@
 			cursor: 'agent',
 			grok: 'grok',
 			opencode: 'opencode',
-			cline: 'cline'
+			cline: 'cline',
+			pi: 'pi'
 		}[agent];
 	}
 
@@ -123,7 +124,8 @@
 			cursor: 'Cursor',
 			grok: 'Grok',
 			opencode: 'OpenCode',
-			cline: 'Cline'
+			cline: 'Cline',
+			pi: 'Pi'
 		}[agent];
 	}
 

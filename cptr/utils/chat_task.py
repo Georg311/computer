@@ -1459,6 +1459,7 @@ async def run_chat_task(
         from cptr.utils.agents.cursor import run_cursor_agent
         from cptr.utils.agents.grok import run_grok_agent
         from cptr.utils.agents.opencode import run_opencode_agent
+        from cptr.utils.agents.pi import run_pi_agent
 
         chat_obj = await Chat.get_by_id(chat_id)
         chat_params = (chat_obj.meta or {}).get("params", {}) if chat_obj else {}
@@ -1517,6 +1518,7 @@ async def run_chat_task(
             "grok": run_grok_agent,
             "opencode": run_opencode_agent,
             "cline": run_cline_agent,
+            "pi": run_pi_agent,
         }
         runner = runners.get(agent_target.agent)
         if runner is None:
@@ -1692,7 +1694,7 @@ async def run_chat_task(
                     "call_id": event.call_id,
                     "native_agent": True,
                     "output": _append_capped_output(
-                        str(existing_output.get("output") or ""),
+                        "" if event.replace else str(existing_output.get("output") or ""),
                         event.delta,
                         max_chars,
                     ),

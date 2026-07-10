@@ -101,7 +101,7 @@ Bring your own API key (OpenAI, Anthropic, Ollama, or any OpenAI-compatible endp
 
 Use the subscriptions you already pay for as native backends on your own machine. No separate API key needed.
 
-**Codex** · **Claude Code** · **Cursor** · **Grok** · **OpenCode** · **Cline**
+**Codex** · **Claude Code** · **Cursor** · **Grok** · **OpenCode** · **Cline** · **Pi**
 
 Add an agent profile from Settings, pick your models, and it shows up in the model selector like any other provider. Conversations run inside your workspace with full tool access and resume where you left off.
 
