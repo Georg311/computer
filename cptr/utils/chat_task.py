@@ -626,6 +626,12 @@ async def generate_chat_title(
         if not title:
             return
 
+        # Do not overwrite a title manually set while this request was running.
+        chat = await Chat.get_by_id(chat_id)
+        fallback = user_content[:50].strip() or "New Chat"
+        if not chat or chat.title != fallback:
+            return
+
         # Persist and notify
         await Chat.update_title(chat_id, title, now_ms())
         await emit_to_user(user_id, {"chat_id": chat_id, "title": title})
