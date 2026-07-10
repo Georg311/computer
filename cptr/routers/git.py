@@ -185,6 +185,10 @@ class RootRequest(BaseModel):
     root: str
 
 
+class CommitMessageRequest(RootRequest):
+    model_id: Optional[str] = None
+
+
 class PushRequest(BaseModel):
     root: str
     force: bool = False
@@ -242,7 +246,7 @@ async def git_commit(body: CommitRequest):
 
 
 @router.post("/message")
-async def generate_commit_message(body: RootRequest, request: Request):
+async def generate_commit_message(body: CommitMessageRequest, request: Request):
     """Generate a commit summary and description from the staged diff."""
     await _require_repo(body.root)
     try:
@@ -257,9 +261,15 @@ async def generate_commit_message(body: RootRequest, request: Request):
     from cptr.utils.config import _get_jwt_secret
     from cptr.utils.crypto import decrypt_key
     from cptr.utils.json_parser import extract_json
-    from cptr.utils.model_targets import first_api_model_target
+    from cptr.utils.model_targets import ApiModelTarget, resolve_model_target
+    from cptr.models import Config
 
-    target = await first_api_model_target(request.app.state)
+    model_id = (body.model_id or await Config.get("chat.default_model") or "").strip()
+    if not model_id:
+        raise HTTPException(status_code=400, detail="No default chat model configured")
+    target = await resolve_model_target(model_id, request.app.state)
+    if not isinstance(target, ApiModelTarget):
+        raise HTTPException(status_code=400, detail="Commit messages require an API model")
     connection = target.connection
     try:
         text = await chat_completion(
@@ -271,6 +281,7 @@ async def generate_commit_message(body: RootRequest, request: Request):
             system=COMMIT_MESSAGE_PROMPT,
             max_tokens=180,
             api_type=connection.get("api_type", "chat_completions"),
+            request_params={"store": False},
         )
     except Exception as e:
         raise HTTPException(status_code=502, detail="Could not generate a commit message") from e

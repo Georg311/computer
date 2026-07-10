@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { activeWorkspace, addWorkspace, openFileTab } from '$lib/stores';
+	import { activeWorkspace, addWorkspace, openFileTab, selectedModelId } from '$lib/stores';
 	import {
 		getGitLog,
 		getGitDiff,
@@ -382,7 +382,7 @@
 		if (!stagedFiles.length || generatingCommitMessage) return;
 		generatingCommitMessage = true;
 		try {
-			const message = await generateGitCommitMessage(workspacePath);
+			const message = await generateGitCommitMessage(workspacePath, $selectedModelId || undefined);
 			commitSummary = message.summary;
 			commitDescription = message.description;
 		} catch (e) {

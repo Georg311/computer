@@ -68,10 +68,10 @@ export const discardChanges = (root: string, files: string[]) =>
 export const gitCommit = (root: string, message: string) =>
 	fetchJSON('/api/git/commit', jsonBody({ root, message }));
 
-export const generateGitCommitMessage = (root: string) =>
+export const generateGitCommitMessage = (root: string, modelId?: string) =>
 	fetchJSON<{ summary: string; description: string }>(
 		'/api/git/message',
-		jsonBody({ root })
+		jsonBody({ root, model_id: modelId || undefined })
 	);
 
 export const gitPull = (root: string) => fetchJSON('/api/git/pull', jsonBody({ root }));
