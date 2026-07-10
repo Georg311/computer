@@ -949,7 +949,14 @@
 		ondragleave={(event) => handlePaneDragLeave(event, group.id)}
 		ondrop={(event) => handlePaneDrop(event, group.id)}
 	>
-		<GroupTabBar {group} canClose={allGroups.length > 1} isPrimary={group.id === allGroups[0]?.id} />
+		<GroupTabBar
+			{group}
+			canClose={allGroups.length > 1}
+			isPrimary={group.id === allGroups[0]?.id}
+			onTabDragOver={() => {
+				if (dragOverZone?.groupId === group.id) dragOverZone = null;
+			}}
+		/>
 		<div class="pane-content">
 			{#if $gitReviewOpen && group.id === allGroups[0]?.id}
 				<GitView />

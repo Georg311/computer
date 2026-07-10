@@ -32,12 +32,13 @@
 	import { TAB_DRAG_MIME } from '$lib/constants';
 
 	interface Props {
-		group: EditorGroup;
-		canClose?: boolean;
-		isPrimary?: boolean;
-	}
+	group: EditorGroup;
+	canClose?: boolean;
+	isPrimary?: boolean;
+	onTabDragOver?: () => void;
+}
 
-	let { group, canClose = false, isPrimary = false }: Props = $props();
+	let { group, canClose = false, isPrimary = false, onTabDragOver }: Props = $props();
 
 	let tabsEl: HTMLDivElement | undefined = $state();
 	let sortable: Sortable | null = null;
@@ -143,6 +144,7 @@
 		if (!e.dataTransfer || !hasTabDrag(e.dataTransfer)) return;
 		e.preventDefault();
 		e.stopPropagation();
+		onTabDragOver?.();
 		e.dataTransfer.dropEffect = 'move';
 		dropHighlight = true;
 	}
