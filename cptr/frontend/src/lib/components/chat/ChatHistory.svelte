@@ -9,6 +9,8 @@
 		chats: ChatInfo[];
 		onopen: (id: string) => void;
 		ondelete: (id: string) => void;
+		onrename: (id: string) => void;
+		oncopy: (id: string) => void;
 		page?: number;
 		totalPages?: number;
 		perPage?: number;
@@ -21,6 +23,8 @@
 		chats,
 		onopen,
 		ondelete,
+		onrename,
+		oncopy,
 		page = 1,
 		totalPages = 1,
 		perPage = 10,
@@ -144,6 +148,20 @@
 		anchor={menuAnchor}
 		align="end"
 		items={[
+			{
+				label: $t('files.copyPath'),
+				icon: 'copy',
+				onclick: () => {
+					if (menuChatId) oncopy(menuChatId);
+				}
+			},
+			{
+				label: $t('files.rename'),
+				icon: 'pencil',
+				onclick: () => {
+					if (menuChatId) onrename(menuChatId);
+				}
+			},
 			{
 				label: $t('chat.history.delete'),
 				icon: 'trash',

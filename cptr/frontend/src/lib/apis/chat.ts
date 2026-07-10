@@ -97,6 +97,13 @@ export const getChat = (chatId: string, modelId?: string) => {
 export const deleteChat = (chatId: string) =>
 	fetchJSON<{ ok: boolean }>(`/api/chats/${chatId}`, { method: 'DELETE' });
 
+export const updateChatTitle = (chatId: string, title: string) =>
+	fetchJSON<{ ok: boolean; title: string }>(`/api/chats/${chatId}`, {
+		method: 'PATCH',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ title })
+	});
+
 export const forkChat = (chatId: string, messageId?: string | null) =>
 	fetchJSON<{ ok: boolean; chat_id: string }>(
 		`/api/chats/${chatId}/fork`,
