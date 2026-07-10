@@ -4,7 +4,12 @@
 	import { workspaceList, removeWorkspace, reorderWorkspaces, sidebarOpen } from '$lib/stores';
 	import { chatEnabled } from '$lib/stores/chat';
 	import { socketStore } from '$lib/stores/socket.svelte';
-	import { deleteChat as apiDeleteChat, getChats, type ChatInfo } from '$lib/apis/chat';
+	import {
+		deleteChat as apiDeleteChat,
+		getChats,
+		updateChatTitle,
+		type ChatInfo
+	} from '$lib/apis/chat';
 	import { t } from '$lib/i18n';
 	import { tooltip } from '$lib/tooltip';
 	import Sortable from 'sortablejs';
@@ -121,6 +126,30 @@
 		if (currentPath === wsPath && $page.url.searchParams.get('chatId') === chatId) {
 			goto(`/?workspace=${encodeURIComponent(wsPath)}`);
 		}
+	}
+
+	async function handleRenameChat() {
+		if (!chatMenu) return;
+		const { chatId, wsPath } = chatMenu;
+		const chat = (wsChatsCache.get(wsPath) ?? []).find((item) => item.id === chatId);
+		const title = window.prompt($t('files.rename'), chat?.title)?.trim();
+		if (!title || title === chat?.title) return;
+		await updateChatTitle(chatId, title);
+		const chats = wsChatsCache.get(wsPath) ?? [];
+		wsChatsCache = new Map([
+			...wsChatsCache,
+			[wsPath, chats.map((item) => (item.id === chatId ? { ...item, title } : item))]
+		]);
+	}
+
+	function copyChatPath() {
+		if (!chatMenu) return;
+		const { chatId, wsPath } = chatMenu;
+		const chat = (wsChatsCache.get(wsPath) ?? []).find((item) => item.id === chatId);
+		if (!chat) return;
+		navigator.clipboard.writeText(
+			`${wsPath.replace(/\/$/, '')}/.cptr/chats/${chat.folder ? `${chat.folder}/` : ''}${chat.id}.json`
+		);
 	}
 
 	const seenChatIds = new Set<string>();
@@ -301,6 +330,16 @@
 		anchor={chatMenu.anchor}
 		align="end"
 		items={[
+			{
+				label: $t('files.copyPath'),
+				icon: 'copy',
+				onclick: copyChatPath
+			},
+			{
+				label: $t('files.rename'),
+				icon: 'pencil',
+				onclick: handleRenameChat
+			},
 			{
 				label: $t('chat.history.delete'),
 				icon: 'trash',
