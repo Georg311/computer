@@ -1026,6 +1026,17 @@
 		return `${(bytes / 1048576).toFixed(1)} MB`;
 	}
 
+	function gitStatusChar(status: string): string {
+		const chars: Record<string, string> = {
+			added: 'A',
+			untracked: 'U',
+			modified: 'M',
+			deleted: 'D',
+			renamed: 'R'
+		};
+		return chars[status] ?? '?';
+	}
+
 	onDestroy(() => {
 		destroyEditor();
 		revokeBinaryUrl();
@@ -1041,8 +1052,12 @@
 					<span class="file-name scrollbar-none">{fileData.name}</span>
 					{#if currentFileStatus}
 						<span class="file-git-stats">
-							<span class="file-git-additions">+{currentFileStatus.additions ?? 0}</span>
-							<span class="file-git-deletions">-{currentFileStatus.deletions ?? 0}</span>
+							{#if currentFileStatus.binary}
+								<span class="file-git-status">{gitStatusChar(currentFileStatus.status)}</span>
+							{:else}
+								<span class="file-git-additions">+{currentFileStatus.additions ?? 0}</span>
+								<span class="file-git-deletions">-{currentFileStatus.deletions ?? 0}</span>
+							{/if}
 						</span>
 					{/if}
 				</span>
@@ -1323,6 +1338,10 @@
 
 	.file-git-deletions {
 		color: #ef4444;
+	}
+
+	.file-git-status {
+		color: var(--color-gray-500);
 	}
 
 	:global(.dark) .file-git-additions {

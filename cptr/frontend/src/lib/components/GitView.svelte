@@ -17,6 +17,7 @@
 		path: string;
 		status: string;
 		staged: boolean;
+		binary: boolean;
 		diffFiles: DiffFile[];
 		additions: number;
 		deletions: number;
@@ -98,6 +99,7 @@
 						path: file.path,
 						status: file.status,
 						staged: file.staged,
+						binary: file.binary ?? false,
 						diffFiles,
 						additions: counts.additions,
 						deletions: counts.deletions,
@@ -150,6 +152,17 @@
 		if (slash < 0) return { dir: '', name: path };
 		return { dir: path.slice(0, slash + 1), name: path.slice(slash + 1) };
 	}
+
+	function statusChar(status: string): string {
+		const chars: Record<string, string> = {
+			added: 'A',
+			untracked: 'U',
+			modified: 'M',
+			deleted: 'D',
+			renamed: 'R'
+		};
+		return chars[status] ?? '?';
+	}
 </script>
 
 <div
@@ -201,12 +214,14 @@
 					<span class="ml-1 font-mono text-[0.625rem] text-gray-400 dark:text-gray-600"
 						>{$t('git.changedCount', { count: totalChanges })}</span
 					>
-					<span class="ml-2 font-mono text-[0.625rem] text-green-600 dark:text-green-400"
-						>+{totalAdditions}</span
-					>
-					<span class="font-mono text-[0.625rem] text-red-500 dark:text-red-400"
-						>-{totalDeletions}</span
-					>
+					{#if totalAdditions || totalDeletions}
+						<span class="ml-2 font-mono text-[0.625rem] text-green-600 dark:text-green-400"
+							>+{totalAdditions}</span
+						>
+						<span class="font-mono text-[0.625rem] text-red-500 dark:text-red-400"
+							>-{totalDeletions}</span
+						>
+					{/if}
 				{/if}
 			</div>
 
@@ -252,12 +267,14 @@
 				<span class="ml-auto text-[0.6875rem] text-gray-400 dark:text-gray-600"
 					>{$t('git.change', { count: totalChanges })}</span
 				>
-				<span class="ml-2 font-mono text-[0.6875rem] text-green-600 dark:text-green-400"
-					>+{totalAdditions}</span
-				>
-				<span class="font-mono text-[0.6875rem] text-red-500 dark:text-red-400"
-					>-{totalDeletions}</span
-				>
+				{#if totalAdditions || totalDeletions}
+					<span class="ml-2 font-mono text-[0.6875rem] text-green-600 dark:text-green-400"
+						>+{totalAdditions}</span
+					>
+					<span class="font-mono text-[0.6875rem] text-red-500 dark:text-red-400"
+						>-{totalDeletions}</span
+					>
+				{/if}
 			</div>
 		{/if}
 
@@ -312,14 +329,21 @@
 										>
 									{/if}
 								</div>
-								<span
-									class="shrink-0 font-mono text-[0.6875rem] font-medium text-green-600 dark:text-green-400"
-									>+{file.additions}</span
-								>
-								<span
-									class="shrink-0 font-mono text-[0.6875rem] font-medium text-red-500 dark:text-red-400"
-									>-{file.deletions}</span
-								>
+								{#if file.binary}
+									<span
+										class="shrink-0 font-mono text-[0.6875rem] font-medium text-gray-500 dark:text-gray-400"
+										>{statusChar(file.status)}</span
+									>
+								{:else}
+									<span
+										class="shrink-0 font-mono text-[0.6875rem] font-medium text-green-600 dark:text-green-400"
+										>+{file.additions}</span
+									>
+									<span
+										class="shrink-0 font-mono text-[0.6875rem] font-medium text-red-500 dark:text-red-400"
+										>-{file.deletions}</span
+									>
+								{/if}
 
 								<span
 									class="shrink-0 rounded px-1.5 py-0.5 text-[0.625rem] font-medium text-rose-500 bg-rose-50 dark:bg-rose-500/10 dark:text-rose-300"

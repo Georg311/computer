@@ -1231,10 +1231,15 @@
 								class="flex shrink-0 items-center gap-1 text-[0.625rem] font-mono font-medium"
 								use:tooltip={gitStatusTooltip(fileGitStatus, entry)}
 							>
-								<span class="text-green-600 dark:text-green-400"
-									>+{fileGitStatus.additions ?? 0}</span
-								>
-								<span class="text-red-500 dark:text-red-400">-{fileGitStatus.deletions ?? 0}</span>
+								{#if fileGitStatus.binary}
+									<span class={entryGitDecoration.badgeColor}>{entryGitDecoration.char}</span>
+								{:else}
+									<span class="text-green-600 dark:text-green-400"
+										>+{fileGitStatus.additions ?? 0}</span
+									>
+									<span class="text-red-500 dark:text-red-400">-{fileGitStatus.deletions ?? 0}</span
+									>
+								{/if}
 							</span>
 						{/if}
 						{#if entry.type !== 'directory' && entry.size !== null}

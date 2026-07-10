@@ -105,7 +105,10 @@ async def status(root: str) -> dict[str, Any]:
                 continue
             added, deleted, path = parts[0], parts[1], parts[2]
             entry = files_by_path.get(path)
-            if not entry or added == "-" or deleted == "-":
+            if not entry:
+                continue
+            if added == "-" or deleted == "-":
+                entry["binary"] = True
                 continue
             entry["additions"] = entry.get("additions", 0) + int(added)
             entry["deletions"] = entry.get("deletions", 0) + int(deleted)
@@ -142,8 +145,12 @@ async def status(root: str) -> dict[str, Any]:
             path = line[2:]
             add_file(path, "untracked", unstaged=True)
             entry = files_by_path[path]
-            entry["additions"] = _count_text_lines(os.path.join(root, path))
-            entry["deletions"] = 0
+            line_count = _count_text_lines(os.path.join(root, path))
+            if line_count is None:
+                entry["binary"] = True
+            else:
+                entry["additions"] = line_count
+                entry["deletions"] = 0
         elif line.startswith("u "):
             # Unmerged
             parts = line.split(" ", 10)
@@ -184,14 +191,14 @@ def _status_char(c: str) -> str:
     }.get(c, c)
 
 
-def _count_text_lines(path: str) -> int:
+def _count_text_lines(path: str) -> int | None:
     try:
         with open(path, "rb") as f:
             data = f.read()
     except OSError:
-        return 0
+        return None
     if b"\0" in data:
-        return 0
+        return None
     if not data:
         return 0
     return data.count(b"\n") + (0 if data.endswith(b"\n") else 1)
