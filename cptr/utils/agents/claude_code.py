@@ -35,7 +35,9 @@ def _prompt_from_messages(messages: list[dict[str, Any]]) -> str:
     return "\n\n".join(parts)
 
 
-def _claude_query_input(prompt: str, attachments: PreparedAgentAttachments) -> Any:
+def _claude_query_input(
+    prompt: str, attachments: PreparedAgentAttachments
+) -> str | AsyncIterator[dict[str, Any]]:
     if not attachments.images:
         return prompt
     content: list[dict[str, Any]] = []
@@ -52,7 +54,15 @@ def _claude_query_input(prompt: str, attachments: PreparedAgentAttachments) -> A
                 },
             }
         )
-    return content
+
+    async def messages() -> AsyncIterator[dict[str, Any]]:
+        yield {
+            "type": "user",
+            "message": {"role": "user", "content": content},
+            "parent_tool_use_id": None,
+        }
+
+    return messages()
 
 
 def _chat_approval_mode(chat_params: dict[str, Any]) -> str:
