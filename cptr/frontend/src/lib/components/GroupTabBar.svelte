@@ -33,11 +33,11 @@
 	import { TAB_DRAG_MIME } from '$lib/constants';
 
 	interface Props {
-	group: EditorGroup;
-	canClose?: boolean;
-	isPrimary?: boolean;
-	onTabDragOver?: () => void;
-}
+		group: EditorGroup;
+		canClose?: boolean;
+		isPrimary?: boolean;
+		onTabDragOver?: () => void;
+	}
 
 	let { group, canClose = false, isPrimary = false, onTabDragOver }: Props = $props();
 
@@ -199,6 +199,7 @@
 		{
 			label: $t('bar.newBrowser'),
 			icon: 'browser',
+			shortcut: formatChord($keybindings.newBrowser),
 			onclick: () => openBrowserTab(group.id)
 		},
 		...($voiceMemosEnabled
@@ -308,9 +309,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="flex items-center h-9 px-1.5 gap-1 shrink-0 select-none border-b transition-colors duration-100
-		{dropHighlight
-		? 'tab-reorder-drop-preview'
-		: 'border-gray-200 dark:border-white/6'}
+		{dropHighlight ? 'tab-reorder-drop-preview' : 'border-gray-200 dark:border-white/6'}
 		{isActiveGroup ? '' : 'opacity-50'}"
 	onclick={handlePaneClick}
 	ondragover={handleBarDragOver}

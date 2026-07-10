@@ -14,6 +14,7 @@ import { writable, get } from 'svelte/store';
 import {
 	openUntitledFileTab,
 	openTerminalTab,
+	openBrowserTab,
 	closeTab,
 	setActiveTab,
 	activeGroup,
@@ -31,6 +32,7 @@ export const ACTION_IDS = [
 	'newFile',
 	'newTerminal',
 	'newChat',
+	'newBrowser',
 	'closeTab',
 	'nextTab',
 	'prevTab',
@@ -50,6 +52,7 @@ export const ACTION_LABELS: Record<ActionId, string> = {
 	newFile: 'New File',
 	newTerminal: 'New Terminal',
 	newChat: 'New Chat',
+	newBrowser: 'New Browser',
 	closeTab: 'Close Tab',
 	nextTab: 'Next Tab',
 	prevTab: 'Previous Tab',
@@ -67,6 +70,7 @@ export const DEFAULT_KEYBINDINGS: Record<ActionId, string> = {
 	newFile: 'Cmd+N',
 	newTerminal: 'Ctrl+`',
 	newChat: 'Cmd+Shift+O',
+	newBrowser: 'Cmd+Shift+B',
 	closeTab: 'Cmd+W',
 	nextTab: 'Cmd+Shift+]',
 	prevTab: 'Cmd+Shift+[',
@@ -252,6 +256,10 @@ export function executeAction(
 
 		case 'newChat':
 			openChatTab();
+			return true;
+
+		case 'newBrowser':
+			void openBrowserTab();
 			return true;
 
 		case 'closeTab': {

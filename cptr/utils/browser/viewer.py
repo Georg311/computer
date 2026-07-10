@@ -45,6 +45,25 @@ def _target_key(
     return target, f"{target}{side}", virtual_key
 
 
+def _editing_commands(key: str, modifiers: int, primary: bool) -> list[str]:
+    if not primary or modifiers & 1:
+        return []
+    key = key.lower()
+    if key == "z":
+        return ["Redo" if modifiers & 8 else "Undo"]
+    if key == "y":
+        return ["Redo"]
+    command = {
+        "a": "SelectAll",
+        "b": "ToggleBold",
+        "c": "Copy",
+        "i": "ToggleItalic",
+        "u": "ToggleUnderline",
+        "x": "Cut",
+    }.get(key)
+    return [command] if command else []
+
+
 def browser_name(path: str) -> str:
     name = Path(path).name.lower()
     if "brave" in name:
@@ -617,6 +636,11 @@ class ChromeViewerManager:
                 "isKeypad": bool(data.get("is_keypad", False)),
                 "windowsVirtualKeyCode": virtual_key,
             }
+            commands = _editing_commands(
+                key, int(data.get("modifiers", 0)), bool(data.get("primary_modifier", False))
+            )
+            if event == "keyDown" and commands:
+                params["commands"] = commands
             await viewer.target_cdp.send(
                 "Input.dispatchKeyEvent",
                 params,
