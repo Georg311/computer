@@ -33,6 +33,8 @@
 	"sidebar.showMore": "Afficher plus",
 	"bar.newFile": "Nouveau fichier",
 	"bar.newTerminal": "Nouveau terminal",
+	"bar.newBrowser": "Navigateur",
+	"browser.invalidUrl": "URL non valide",
 	"bar.closeTab": "Fermer l'onglet",
 	"bar.new": "Nouveau...",
 	"bar.sidebar": "Barre latérale",

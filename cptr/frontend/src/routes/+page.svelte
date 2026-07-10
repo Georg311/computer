@@ -32,7 +32,7 @@
 	import FileEditor from '$lib/components/FileEditor.svelte';
 	import GitView from '$lib/components/GitView.svelte';
 	import Terminal from '$lib/components/Terminal.svelte';
-	import PortPreview from '$lib/components/PortPreview.svelte';
+	import BrowserPreview from '$lib/components/BrowserPreview.svelte';
 	import ChatPanel from '$lib/components/chat/ChatPanel.svelte';
 	import DirectoryPicker from '$lib/components/DirectoryPicker.svelte';
 	import GroupTabBar from '$lib/components/GroupTabBar.svelte';
@@ -465,11 +465,11 @@
 	): WorkspaceResume {
 		const tabs = (state.groups ?? []).flatMap((group) => group.tabs ?? []);
 		const previewPorts = tabs
-			.filter((tab) => tab.type === 'preview' && tab.port)
-			.map((tab) => tab.port!)
+			.filter((tab) => tab.type === 'browser' && /^localhost:\d+$/.test(tab.label))
+			.map((tab) => Number(tab.label.slice('localhost:'.length)))
 			.filter((port, index, all) => all.indexOf(port) === index);
 		const activeLabels = tabs
-			.filter((tab) => !tab.permanent && ['terminal', 'chat', 'preview', 'file'].includes(tab.type))
+			.filter((tab) => !tab.permanent && ['terminal', 'chat', 'browser', 'file'].includes(tab.type))
 			.slice(0, 3)
 			.map((tab) => tab.label);
 
@@ -976,9 +976,9 @@
 						<Terminal sessionId={tab.sessionId!} />
 					</div>
 				{/each}
-				{#each group.tabs.filter((tab) => tab.type === 'preview' && tab.port) as tab (tab.id)}
+				{#each group.tabs.filter((tab) => tab.type === 'browser' && tab.browserSessionId) as tab (tab.id)}
 					<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
-						<PortPreview port={tab.port!} />
+						<BrowserPreview sessionId={tab.browserSessionId!} groupId={group.id} initialUrl={tab.path} />
 					</div>
 				{/each}
 				{#if !groupTab || groupTab.type === 'files'}

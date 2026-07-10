@@ -33,6 +33,8 @@
 	"sidebar.showMore": "더 보기",
 	"bar.newFile": "새 파일",
 	"bar.newTerminal": "새 터미널",
+	"bar.newBrowser": "브라우저",
+	"browser.invalidUrl": "잘못된 URL",
 	"bar.closeTab": "탭 닫기",
 	"bar.new": "새로 만들기...",
 	"bar.sidebar": "사이드바",

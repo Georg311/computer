@@ -33,6 +33,8 @@
 	"sidebar.showMore": "Показать ещё",
 	"bar.newFile": "Новый файл",
 	"bar.newTerminal": "Новый терминал",
+	"bar.newBrowser": "Браузер",
+	"browser.invalidUrl": "Недопустимый URL",
 	"bar.closeTab": "Закрыть вкладку",
 	"bar.new": "Создать...",
 	"bar.sidebar": "Боковая панель",

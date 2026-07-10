@@ -33,6 +33,8 @@
 	"sidebar.showMore": "显示更多",
 	"bar.newFile": "新建文件",
 	"bar.newTerminal": "新建终端",
+	"bar.newBrowser": "浏览器",
+	"browser.invalidUrl": "无效网址",
 	"bar.closeTab": "关闭标签",
 	"bar.new": "新建...",
 	"bar.sidebar": "侧边栏",

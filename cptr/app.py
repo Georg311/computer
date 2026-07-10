@@ -11,6 +11,7 @@ from cptr.routers import (
     auth_router,
     automations_router,
     bridge_router,
+    browser_router,
     webhook_router,
     chat_router,
     events_router,
@@ -20,7 +21,6 @@ from cptr.routers import (
     images_router,
     memory_router,
     notifications_router,
-    proxy_router,
     search_router,
     skills_router,
     state_router,
@@ -84,11 +84,13 @@ async def shutdown():
         await cancel_all_async_subagents(reason="shutdown")
     except Exception:
         pass
-    # Clean up browser sessions and launched Chrome
+    # Clean up browser sessions and launched Chrome used by agent tools.
     try:
         from cptr.utils.browser.session import session_manager
         from cptr.utils.browser.launcher import shutdown_browser
+        from cptr.utils.browser.proxy import manager as browser_proxy_manager
 
+        await browser_proxy_manager.close_all()
         await session_manager.close_all()
         await shutdown_browser()
     except Exception:
@@ -152,14 +154,6 @@ if audit_level != AuditLevel.NONE:
         max_body_size=AUDIT_MAX_BODY_SIZE,
     )
 
-
-# Proxy fallback middleware: intercepts sub-resource requests for proxied
-# dev servers (JS modules, CSS, etc.) based on the Referer header chain.
-# Added after auth middleware so it wraps outermost (runs before auth),
-# since proxied sub-resources don't need cptr auth.
-from cptr.utils.proxy_middleware import ProxyFallbackMiddleware
-
-app.add_middleware(ProxyFallbackMiddleware)
 
 # CORS middleware: uses CPTR_CORS_ALLOWED_ORIGINS env var (default "*").
 from fastapi.middleware.cors import CORSMiddleware
@@ -260,6 +254,7 @@ app.include_router(audio_router)
 app.include_router(auth_router)
 app.include_router(automations_router)
 app.include_router(bridge_router)
+app.include_router(browser_router)
 app.include_router(webhook_router)
 app.include_router(chat_router)
 app.include_router(events_router)
@@ -269,7 +264,6 @@ app.include_router(git_router)
 app.include_router(images_router)
 app.include_router(memory_router)
 app.include_router(notifications_router)
-app.include_router(proxy_router)
 app.include_router(search_router)
 app.include_router(skills_router)
 app.include_router(state_router)

@@ -9,6 +9,7 @@
 		reorderTabs,
 		openUntitledFileTab,
 		openTerminalTab,
+		openBrowserTab,
 		openInSplit,
 		closeGroup,
 		moveTabToGroup,
@@ -79,6 +80,8 @@
 				return 'chat-bubble';
 			case 'preview':
 				return 'monitor';
+			case 'browser':
+				return 'browser';
 			default:
 				return 'page';
 		}
@@ -192,6 +195,11 @@
 			onclick: () => {
 				openTerminalTab(group.id);
 			}
+		},
+		{
+			label: $t('bar.newBrowser'),
+			icon: 'browser',
+			onclick: () => openBrowserTab(group.id)
 		},
 		...($voiceMemosEnabled
 			? [

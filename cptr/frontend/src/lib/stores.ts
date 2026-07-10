@@ -25,6 +25,7 @@ import {
 	saveWorkspaceState
 } from '$lib/apis/state';
 import { listSessions, createSession, deleteSession } from '$lib/apis/terminal';
+import { createBrowserSession, deleteBrowserSession, listBrowserSessions } from '$lib/apis/browser';
 import { changeLocale, i18next } from '$lib/i18n';
 import { streamingChatTabs } from '$lib/stores/chat';
 import { keybindings, loadKeybindings } from '$lib/stores/keybindings';
@@ -44,13 +45,14 @@ export type { AppearancePreferences, Theme, ThemeConfig };
 
 export interface Tab {
 	id: string;
-	type: 'files' | 'terminal' | 'file' | 'git' | 'chat' | 'preview';
+	type: 'files' | 'terminal' | 'file' | 'git' | 'chat' | 'preview' | 'browser'; // preview is migrated on load
 	label: string;
 	filePath?: string;
 	edit?: boolean;
 	path?: string; // generic path (e.g. for chat)
 	sessionId?: string;
-	port?: number;
+	port?: number; // legacy preview port, migrated on load
+	browserSessionId?: string;
 	unsaved?: boolean;
 	permanent?: boolean;
 	badge?: number;
@@ -532,18 +534,54 @@ export async function loadWorkspace(path: string): Promise<void> {
 		if (wsData && wsData.groups && (wsData.groups as EditorGroup[]).length > 0) {
 			// Validate terminal sessions are still alive
 			let aliveSessions: Set<string> = new Set();
+			let aliveBrowserSessions: Set<string> = new Set();
 			try {
 				const sessions = await listSessions();
 				aliveSessions = new Set(sessions.map((s) => s.session_id));
 			} catch {}
+			try {
+				aliveBrowserSessions = new Set(await listBrowserSessions());
+			} catch {}
 
 			const ws = wsData as unknown as WorkspaceState;
+			ws.groups = await Promise.all(
+				ws.groups.map(async (group) => ({
+					...group,
+					tabs: (
+						await Promise.all(
+							group.tabs.map(async (tab) => {
+								if (tab.type !== 'preview' || !tab.port) return tab;
+								try {
+									const session = await createBrowserSession();
+									aliveBrowserSessions.add(session.session_id);
+									const { port, ...browserTab } = tab;
+									return {
+										...browserTab,
+										type: 'browser' as const,
+										label: `localhost:${port}`,
+										browserSessionId: session.session_id,
+										path: `http://127.0.0.1:${port}/`
+									};
+								} catch {
+									return null;
+								}
+							})
+						)
+					).filter((tab): tab is Tab => tab !== null)
+				}))
+			);
 
 			// Remove dead terminal tabs from all groups
 			const cleanedGroups = ws.groups
 				.map((g) => {
 					const filteredTabs = g.tabs.filter((t: Tab) => {
 						if (t.type === 'terminal' && t.sessionId && !aliveSessions.has(t.sessionId)) {
+							return false;
+						}
+						if (
+							t.type === 'browser' &&
+							(!t.browserSessionId || !aliveBrowserSessions.has(t.browserSessionId))
+						) {
 							return false;
 						}
 						return true;
@@ -861,7 +899,7 @@ export async function openTerminalTab(targetGroupId?: string): Promise<void> {
 	}
 }
 
-export function openPreviewTab(port: number, targetGroupId?: string): void {
+export async function openPreviewTab(port: number, targetGroupId?: string): Promise<void> {
 	const ws = get(currentWorkspace);
 	if (!ws) return;
 
@@ -870,23 +908,34 @@ export function openPreviewTab(port: number, targetGroupId?: string): void {
 	if (!group) return;
 
 	// Reuse existing tab within this group
-	const existing = group.tabs.find((t) => t.type === 'preview' && t.port === port);
+	const url = `http://127.0.0.1:${port}/`;
+	const existing = group.tabs.find((t) => t.type === 'browser' && t.path === url);
 	if (existing) {
 		setActiveTab(existing.id, gid);
 		return;
 	}
 
-	const newTab: Tab = {
-		id: nextId(),
-		type: 'preview',
-		label: `localhost:${port}`,
-		port
-	};
+	await openBrowserTab(gid, url, `localhost:${port}`);
+}
 
-	updateGroupTabs(gid, (tabs) => ({
-		tabs: [...tabs, newTab],
-		activeTabId: newTab.id
-	}));
+export async function openBrowserTab(targetGroupId?: string, url?: string, label = 'Browser'): Promise<void> {
+	const ws = get(currentWorkspace);
+	if (!ws) return;
+	const gid = targetGroupId ?? ws.activeGroupId;
+	if (!ws.groups.some((group) => group.id === gid)) return;
+	try {
+		const session = await createBrowserSession();
+		const newTab: Tab = {
+			id: nextId(),
+			type: 'browser',
+			label,
+			browserSessionId: session.session_id,
+			path: url
+		};
+		updateGroupTabs(gid, (tabs) => ({ tabs: [...tabs, newTab], activeTabId: newTab.id }));
+	} catch (error) {
+		console.error('Failed to create browser session:', error);
+	}
 }
 
 export function openChatTab(chatId?: string, targetGroupId?: string): void {
@@ -943,6 +992,9 @@ export function closeTab(tabId: string, groupId?: string): void {
 
 	if (tab.type === 'terminal' && tab.sessionId) {
 		deleteSession(tab.sessionId);
+	}
+	if (tab.type === 'browser' && tab.browserSessionId) {
+		deleteBrowserSession(tab.browserSessionId);
 	}
 
 	// Clean up streaming indicator for closed chat tabs

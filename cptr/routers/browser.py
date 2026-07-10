@@ -1,0 +1,291 @@
+"""Same-origin HTTP/WebSocket proxy backing Browser editor tabs."""
+
+from __future__ import annotations
+
+import asyncio
+import json
+from collections.abc import AsyncIterator
+from urllib.parse import urljoin, urlsplit, urlunsplit
+
+import httpx
+import websockets
+from fastapi import APIRouter, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse, StreamingResponse
+
+from cptr.routers.auth import COOKIE_NAME
+from cptr.utils.browser.proxy import manager, rewrite_css, rewrite_html, target_url
+from cptr.utils.config import AuthResult, check_access
+
+router = APIRouter(prefix="/api/browser", tags=["browser"])
+
+_HOP_BY_HOP = {
+    "connection",
+    "keep-alive",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "te",
+    "trailers",
+    "transfer-encoding",
+    "upgrade",
+}
+_SKIP_REQUEST_HEADERS = _HOP_BY_HOP | {
+    "accept-encoding",
+    "host",
+    "cookie",
+    "authorization",
+    "content-length",
+}
+_SKIP_RESPONSE_HEADERS = _HOP_BY_HOP | {
+    "content-encoding",
+    "content-length",
+    "content-security-policy",
+    "set-cookie",
+    "x-frame-options",
+}
+
+
+def _owner(auth: AuthResult) -> str:
+    return auth.user_id or auth.username or "default"
+
+
+def _auth(request: Request) -> AuthResult:
+    auth = getattr(request.state, "auth", None)
+    if auth is None:
+        raise HTTPException(status_code=401, detail="not authenticated")
+    return auth
+
+
+def _headers(request: Request, upstream_url: str) -> dict[str, str]:
+    headers = {
+        key: value
+        for key, value in request.headers.items()
+        if key.lower() not in _SKIP_REQUEST_HEADERS and not key.lower().startswith("x-cptr-")
+    }
+    parsed = urlsplit(upstream_url)
+    headers["host"] = parsed.netloc
+    # The proxy rewrites HTML and CSS after httpx has decoded it. Do not negotiate
+    # encodings a downstream browser supports but this process may not decode.
+    headers["accept-encoding"] = "gzip, deflate"
+    referer = request.headers.get("referer")
+    if referer and "/api/browser/frame/" in referer:
+        headers["referer"] = upstream_url
+    if request.headers.get("origin"):
+        headers["origin"] = f"{parsed.scheme}://{parsed.netloc}"
+    return headers
+
+
+def _response_headers(upstream: httpx.Response) -> dict[str, str]:
+    headers = {
+        key: value for key, value in upstream.headers.items() if key.lower() not in _SKIP_RESPONSE_HEADERS
+    }
+    headers["x-cptr-browser-url"] = str(upstream.url)
+    return headers
+
+
+def _session_payload(session) -> dict[str, str]:
+    return {"session_id": session.session_id, "url": session.url, "title": session.title}
+
+
+async def _stream_response(upstream: httpx.Response) -> AsyncIterator[bytes]:
+    try:
+        async for chunk in upstream.aiter_bytes():
+            yield chunk
+    finally:
+        await upstream.aclose()
+
+
+async def proxy_browser_request(request: Request, session_id: str, url: str, owner: str) -> Response:
+    client = manager.client(session_id, owner)
+    if client is None:
+        raise HTTPException(status_code=404, detail="Browser tab expired")
+    try:
+        upstream_url = target_url(url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    body = await request.body() if request.method not in {"GET", "HEAD"} else None
+    upstream = None
+    candidates = [upstream_url]
+    parsed = urlsplit(upstream_url)
+    if parsed.hostname == "127.0.0.1":
+        port = f":{parsed.port}" if parsed.port else ""
+        candidates.append(urlunsplit((parsed.scheme, f"[::1]{port}", parsed.path, parsed.query, "")))
+    for candidate in candidates:
+        try:
+            upstream = await client.send(
+                client.build_request(request.method, candidate, headers=_headers(request, candidate), content=body),
+                stream=True,
+            )
+            break
+        except httpx.ConnectError:
+            continue
+    if upstream is None:
+        raise HTTPException(status_code=502, detail=f"Cannot connect to {parsed.netloc}")
+    content_type = upstream.headers.get("content-type", "")
+    headers = _response_headers(upstream)
+
+    if content_type.startswith("text/event-stream"):
+        return StreamingResponse(
+            _stream_response(upstream),
+            status_code=upstream.status_code,
+            headers=headers,
+            media_type=content_type,
+        )
+
+    content = await upstream.aread()
+    await upstream.aclose()
+    if "text/html" in content_type or "application/xhtml" in content_type:
+        final_url = upstream_url if parsed.hostname == "127.0.0.1" else str(upstream.url)
+        if f"/api/browser/frame/{session_id}/" not in urlsplit(final_url).path:
+            await manager.update(session_id, owner, url=final_url)
+        text = content.decode(upstream.encoding or "utf-8", errors="replace")
+        content = rewrite_html(text, upstream_url, session_id, final_url).encode("utf-8")
+        headers.pop("content-type", None)
+        content_type = "text/html; charset=utf-8"
+    elif "text/css" in content_type:
+        text = content.decode(upstream.encoding or "utf-8", errors="replace")
+        content = rewrite_css(text, upstream_url, session_id).encode("utf-8")
+        headers.pop("content-type", None)
+        content_type = "text/css; charset=utf-8"
+    return Response(content=content, status_code=upstream.status_code, headers=headers, media_type=content_type)
+
+
+async def _proxy(request: Request, session_id: str, url: str) -> Response:
+    return await proxy_browser_request(request, session_id, url, _owner(_auth(request)))
+
+
+@router.post("/sessions")
+async def create_session(request: Request):
+    session = await manager.create(_owner(_auth(request)))
+    return _session_payload(session)
+
+
+@router.get("/sessions")
+async def list_sessions(request: Request):
+    return {"session_ids": manager.ids(_owner(_auth(request)))}
+
+
+@router.delete("/sessions/{session_id}")
+async def close_session(session_id: str, request: Request):
+    if not await manager.close(session_id, _owner(_auth(request))):
+        raise HTTPException(status_code=404, detail="Browser tab not found")
+    return {"status": "closed"}
+
+
+@router.get("/sessions/{session_id}")
+async def get_session(session_id: str, request: Request):
+    session = manager.session(session_id, _owner(_auth(request)))
+    if session is None:
+        raise HTTPException(status_code=404, detail="Browser tab expired")
+    return _session_payload(session)
+
+
+@router.patch("/sessions/{session_id}")
+async def update_session(session_id: str, request: Request):
+    payload = await request.json()
+    url = str(payload.get("url", ""))
+    title = str(payload.get("title", ""))[:512]
+    if url:
+        parsed = urlsplit(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise HTTPException(status_code=400, detail="Invalid Browser URL")
+    session = await manager.update(session_id, _owner(_auth(request)), url=url, title=title)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Browser tab expired")
+    return _session_payload(session)
+
+
+@router.get("/sessions/{session_id}/blank")
+async def blank(session_id: str, request: Request):
+    if manager.session(session_id, _owner(_auth(request))) is None:
+        raise HTTPException(status_code=404, detail="Browser tab expired")
+    return HTMLResponse("<!doctype html><title>Browser</title>")
+
+
+@router.api_route(
+    "/resources/{session_id}/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+)
+async def proxy_resource(session_id: str, path: str, request: Request):
+    owner = _owner(_auth(request))
+    session = manager.session(session_id, owner)
+    if session is None or not session.origin:
+        raise HTTPException(status_code=404, detail="Browser tab expired")
+    url = urljoin(session.origin + "/", path.lstrip("/"))
+    if request.url.query:
+        url += f"?{request.url.query}"
+    return await proxy_browser_request(request, session_id, url, owner)
+
+
+@router.api_route("/frame/{session_id}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])
+async def proxy_frame(session_id: str, url: str, request: Request):
+    return await _proxy(request, session_id, url)
+
+
+@router.api_route(
+    "/frame/{session_id}/{scheme}/{host}/{path:path}",
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
+)
+async def legacy_proxy_frame(session_id: str, scheme: str, host: str, path: str, request: Request):
+    return await _proxy(request, session_id, urlunsplit((scheme, host, "/" + path.lstrip("/"), request.url.query, "")))
+
+
+@router.api_route(
+    "/frame/{session_id}/{scheme}/{host}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+)
+async def legacy_proxy_frame_root(session_id: str, scheme: str, host: str, request: Request):
+    return await _proxy(request, session_id, urlunsplit((scheme, host, "/", request.url.query, "")))
+
+
+@router.websocket("/sessions/{session_id}/ws")
+async def proxy_websocket(websocket: WebSocket, session_id: str):
+    client_host = websocket.client.host if websocket.client else "127.0.0.1"
+    auth = check_access(client_host, websocket.cookies.get(COOKIE_NAME))
+    owner = _owner(auth) if auth else ""
+    if not auth or manager.session(session_id, owner) is None:
+        await websocket.close(code=4001, reason="unauthorized")
+        return
+    await websocket.accept()
+    try:
+        open_message = await asyncio.wait_for(websocket.receive_json(), timeout=10)
+        target = str(open_message.get("url", ""))
+        parsed = urlsplit(target)
+        if parsed.scheme not in {"ws", "wss"}:
+            await websocket.close(code=4000, reason="invalid websocket URL")
+            return
+        client = manager.client(session_id, owner)
+        assert client is not None
+        prepared = client.build_request("GET", target.replace("ws:", "http:", 1).replace("wss:", "https:", 1))
+        headers = {"cookie": prepared.headers["cookie"]} if "cookie" in prepared.headers else None
+        upstream = await websockets.connect(target, additional_headers=headers)
+        await websocket.send_json({"type": "open", "protocol": upstream.subprotocol or ""})
+
+        async def to_upstream() -> None:
+            while True:
+                message = await websocket.receive()
+                if message.get("text") is not None:
+                    await upstream.send(message["text"])
+                elif message.get("bytes") is not None:
+                    await upstream.send(message["bytes"])
+                else:
+                    break
+
+        async def to_client() -> None:
+            async for message in upstream:
+                if isinstance(message, bytes):
+                    await websocket.send_bytes(message)
+                else:
+                    await websocket.send_text(message)
+
+        done, pending = await asyncio.wait(
+            (asyncio.create_task(to_upstream()), asyncio.create_task(to_client())),
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        for task in pending:
+            task.cancel()
+        for task in done:
+            task.result()
+        await upstream.close()
+    except (WebSocketDisconnect, asyncio.TimeoutError, json.JSONDecodeError):
+        pass
+    except Exception:
+        await websocket.close(code=1011, reason="Browser WebSocket failed")

@@ -33,6 +33,8 @@
 	"sidebar.showMore": "顯示更多",
 	"bar.newFile": "新增檔案",
 	"bar.newTerminal": "新增終端機",
+	"bar.newBrowser": "瀏覽器",
+	"browser.invalidUrl": "無效網址",
 	"bar.closeTab": "關閉分頁",
 	"bar.new": "新增...",
 	"bar.sidebar": "側邊欄",
