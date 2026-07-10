@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from cptr.utils.git import (
@@ -32,6 +32,7 @@ from cptr.utils.git import (
     stash_list,
     stash_pop,
     stash_save,
+    staged_diff,
     status,
     uncommit,
     unstage,
@@ -146,6 +147,12 @@ class CommitRequest(BaseModel):
     message: str
 
 
+COMMIT_MESSAGE_PROMPT = """Write a conventional, concise Git commit message for this staged diff.
+Respond with ONLY JSON in this shape: {"summary":"...","description":"..."}.
+The summary must be imperative, under 72 characters, and have no trailing period.
+The description should be one short paragraph explaining the meaningful change. Do not invent details."""
+
+
 class CheckoutRequest(BaseModel):
     root: str
     branch: str
@@ -232,6 +239,47 @@ async def git_commit(body: CommitRequest):
         return await commit(body.root, body.message)
     except GitError as e:
         _handle_git_error(e)
+
+
+@router.post("/message")
+async def generate_commit_message(body: RootRequest, request: Request):
+    """Generate a commit summary and description from the staged diff."""
+    await _require_repo(body.root)
+    try:
+        patch = await staged_diff(body.root)
+    except GitError as e:
+        _handle_git_error(e)
+    if not patch:
+        raise HTTPException(status_code=400, detail="No staged changes")
+
+    from cptr.utils.ai import chat_completion
+    from cptr.utils.chat_task import _default_base_url
+    from cptr.utils.config import _get_jwt_secret
+    from cptr.utils.crypto import decrypt_key
+    from cptr.utils.json_parser import extract_json
+    from cptr.utils.model_targets import first_api_model_target
+
+    target = await first_api_model_target(request.app.state)
+    connection = target.connection
+    try:
+        text = await chat_completion(
+            provider=connection["provider"],
+            base_url=connection.get("base_url") or _default_base_url(connection["provider"]),
+            api_key=decrypt_key(connection.get("api_key", ""), _get_jwt_secret()),
+            model=target.runtime_model,
+            messages=[{"role": "user", "content": patch}],
+            system=COMMIT_MESSAGE_PROMPT,
+            max_tokens=180,
+            api_type=connection.get("api_type", "chat_completions"),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail="Could not generate a commit message") from e
+    message = extract_json(text)
+    summary = str(message.get("summary", "")).strip().splitlines()[0] if isinstance(message, dict) else ""
+    description = str(message.get("description", "")).strip() if isinstance(message, dict) else ""
+    if not summary:
+        raise HTTPException(status_code=502, detail="Could not generate a commit message")
+    return {"summary": summary[:72], "description": description}
 
 
 @router.post("/checkout")
