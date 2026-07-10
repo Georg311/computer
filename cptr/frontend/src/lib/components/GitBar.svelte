@@ -808,27 +808,38 @@
 				<Icon name="chevron-down" size={9} class="text-gray-400 dark:text-gray-600" />
 			</button>
 
-			{#if gitStatus.ahead > 0}<span
+			{#if gitStatus.ahead > 0}
+				<span
 					class="ml-1.5 shrink-0 whitespace-nowrap text-[0.625rem] font-mono text-gray-400 dark:text-gray-600"
-					>↑{gitStatus.ahead}</span
-				>{/if}
-			{#if gitStatus.behind > 0}<span
-					class="text-[0.625rem] font-mono text-gray-400 dark:text-gray-600 ml-1"
-					>↓{gitStatus.behind}</span
-				>{/if}
-			{#if totalChanges > 0}<span
+				>
+					↑{gitStatus.ahead}
+				</span>
+			{/if}
+			{#if gitStatus.behind > 0}
+				<span class="text-[0.625rem] font-mono text-gray-400 dark:text-gray-600 ml-1">
+					↓{gitStatus.behind}
+				</span>
+			{/if}
+			{#if totalChanges > 0}
+				<span
 					class="mx-1.5 block min-w-0 max-w-20 shrink truncate whitespace-nowrap text-[0.625rem] font-mono text-gray-400 dark:text-gray-600"
-					>{$t('git.changedCount', { count: totalChanges })}</span
-				>{#if totalAdditions || totalDeletions}<span
-						class="mx-1.5 flex shrink-0 items-center gap-1 text-[0.625rem] font-mono"
-						><span class="text-green-600 dark:text-green-400">+{totalAdditions}</span>
-						<span class="text-red-500 dark:text-red-400">-{totalDeletions}</span></span
-					>{/if}
-				>{/if}
-			{#if actionMsg}<span
+				>
+					{$t('git.changedCount', { count: totalChanges })}
+				</span>
+				{#if totalAdditions || totalDeletions}
+					<span class="mx-1.5 flex shrink-0 items-center gap-1 text-[0.625rem] font-mono">
+						<span class="text-green-600 dark:text-green-400">+{totalAdditions}</span>
+						<span class="text-red-500 dark:text-red-400">-{totalDeletions}</span>
+					</span>
+				{/if}
+			{/if}
+			{#if actionMsg}
+				<span
 					class="ml-auto min-w-0 max-w-32 truncate whitespace-nowrap text-[0.625rem] font-mono text-gray-400 dark:text-gray-600"
-					>{actionMsg}</span
-				>{/if}
+				>
+					{actionMsg}
+				</span>
+			{/if}
 
 			<div class="flex-1"></div>
 
