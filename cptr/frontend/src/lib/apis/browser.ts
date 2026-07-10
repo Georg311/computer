@@ -4,7 +4,23 @@ export interface BrowserSession {
 	session_id: string;
 	url: string;
 	title: string;
+	mode: 'proxy' | 'chrome';
+	status: string;
 }
+
+export interface BrowserAvailability {
+	proxy: { available: true };
+	chrome: {
+		available: boolean;
+		browser_name: string | null;
+		experimental: true;
+		reason: string | null;
+	};
+}
+
+let availabilityPromise: Promise<BrowserAvailability> | undefined;
+export const getBrowserAvailability = () =>
+	(availabilityPromise ??= fetchJSON<BrowserAvailability>('/api/browser/availability'));
 
 export const createBrowserSession = () =>
 	fetchJSON<BrowserSession>('/api/browser/sessions', { method: 'POST' });
@@ -25,6 +41,13 @@ export const updateBrowserSession = (sessionId: string, url: string, title: stri
 		method: 'PATCH',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify({ url, title })
+	});
+
+export const setBrowserMode = (sessionId: string, mode: 'proxy' | 'chrome', url: string) =>
+	fetchJSON<BrowserSession>(`/api/browser/sessions/${sessionId}`, {
+		method: 'PATCH',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ mode, url })
 	});
 
 export const browserFrameUrl = (sessionId: string, rawUrl: string) => {

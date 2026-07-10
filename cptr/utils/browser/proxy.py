@@ -33,6 +33,8 @@ class BrowserSession:
     url: str = ""
     title: str = ""
     origin: str = ""
+    mode: str = "proxy"
+    status: str = "ready"
 
 
 @dataclass

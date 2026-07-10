@@ -5,25 +5,35 @@
 		browserBlankUrl,
 		browserFrameUrl,
 		getBrowserSession,
+		setBrowserMode,
 		updateBrowserSession
 	} from '$lib/apis/browser';
-	import { openBrowserTab } from '$lib/stores';
+	import { openBrowserTab, updateTabLabel } from '$lib/stores';
 	import Icon from './Icon.svelte';
+	import ChromeBrowser from './ChromeBrowser.svelte';
 	import { t } from '$lib/i18n';
 
 	interface Props {
 		sessionId: string;
 		groupId: string;
+		tabId: string;
 		initialUrl?: string;
+		active?: boolean;
 	}
 
-	let { sessionId, groupId, initialUrl }: Props = $props();
+	let { sessionId, groupId, tabId, initialUrl, active = true }: Props = $props();
 	let iframeEl: HTMLIFrameElement | undefined = $state();
+	let chromeEl: ChromeBrowser | undefined = $state();
 	let frameSrc = $state(browserBlankUrl(sessionId));
 	let urlInput = $state(initialUrl ?? '');
 	let title = $state('');
 	let loading = $state(false);
 	let error = $state('');
+	let modeError = $state('');
+	let mode = $state<'proxy' | 'chrome'>('proxy');
+	let chromeStatus = $state('');
+	let canGoBack = $state(false);
+	let canGoForward = $state(false);
 
 	function publicUrl(value: string) {
 		const proxyUrl = new URL(value, location.origin);
@@ -48,7 +58,8 @@
 			urlInput = new URL(
 				/^https?:\/\//i.test(publicUrl(value)) ? publicUrl(value) : `https://${publicUrl(value)}`
 			).href;
-			frameSrc = browserFrameUrl(sessionId, urlInput);
+			if (mode === 'chrome') chromeEl?.navigate(urlInput);
+			else frameSrc = browserFrameUrl(sessionId, urlInput);
 			loading = true;
 			error = '';
 			void updateBrowserSession(sessionId, urlInput, title).catch(() => {});
@@ -57,9 +68,21 @@
 		}
 	}
 
+	function newTabUrl(value: string) {
+		try {
+			const canonical = publicUrl(value.trim());
+			return canonical
+				? new URL(/^https?:\/\//i.test(canonical) ? canonical : `https://${canonical}`).href
+				: '';
+		} catch {
+			return '';
+		}
+	}
+
 	function refresh() {
 		loading = true;
-		iframeEl?.contentWindow?.location.reload();
+		if (mode === 'chrome') chromeEl?.reload();
+		else iframeEl?.contentWindow?.location.reload();
 	}
 
 	function frameLoaded() {
@@ -68,10 +91,15 @@
 			const current = new URL(iframeEl?.contentWindow?.location.href || '');
 			const framePrefix = `/api/browser/frame/${sessionId}`;
 			const blankPath = `/api/browser/sessions/${sessionId}/blank`;
-			if (current.origin !== location.origin || current.pathname.startsWith(framePrefix) || current.pathname === blankPath)
+			if (
+				current.origin !== location.origin ||
+				current.pathname.startsWith(framePrefix) ||
+				current.pathname === blankPath
+			)
 				return;
 
-			const upstream = new URL(`${current.pathname}${current.search}${current.hash}`, urlInput).href;
+			const upstream = new URL(`${current.pathname}${current.search}${current.hash}`, urlInput)
+				.href;
 			urlInput = upstream;
 			loading = true;
 			void updateBrowserSession(sessionId, upstream, title).catch(() => {});
@@ -87,6 +115,7 @@
 		if (data?.type === 'cptr-browser-state') {
 			urlInput = publicUrl(data.url || urlInput);
 			title = data.title || '';
+			updateTabLabel(tabId, title);
 			loading = false;
 			void updateBrowserSession(sessionId, urlInput, title).catch(() => {});
 		}
@@ -96,46 +125,77 @@
 	onMount(() => {
 		window.addEventListener('message', receiveMessage);
 		void getBrowserSession(sessionId)
-			.then((session) => {
+			.then(async (session) => {
 				const url = publicUrl(session.url || initialUrl || '');
+				urlInput = url;
 				title = session.title;
-				if (url) navigate(url);
+				updateTabLabel(tabId, title);
+				mode = session.mode || 'proxy';
+				if (mode === 'chrome') {
+					const supported =
+						'VideoDecoder' in window &&
+						(await VideoDecoder.isConfigSupported({ codec: 'avc1.42E028' })).supported;
+					if (!supported) {
+						mode = 'proxy';
+						modeError = $t('browser.decoderUnavailable');
+						void setBrowserMode(sessionId, 'proxy', url).catch(() => {});
+					}
+				}
+				if (url && mode === 'proxy') navigate(url);
 			})
 			.catch(() => {});
 	});
 	onDestroy(() => window.removeEventListener('message', receiveMessage));
 </script>
 
-<div class="preview-container">
-	<div class="preview-toolbar">
+<div class="flex h-full min-w-0 flex-col overflow-hidden">
+	<div
+		class="flex min-w-0 shrink-0 items-center gap-1 border-b border-gray-200 px-1.5 py-[3px] sm:px-2 dark:border-white/6"
+	>
 		<button
-			class="preview-btn"
-			onclick={() => iframeEl?.contentWindow?.history.back()}
+			class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:pointer-events-none disabled:opacity-35 dark:hover:bg-white/6 dark:hover:text-gray-300"
+			disabled={mode === 'chrome' && !canGoBack}
+			onclick={() =>
+				mode === 'chrome' ? chromeEl?.back() : iframeEl?.contentWindow?.history.back()}
 			use:tooltip={$t('settings.back')}
 		>
 			<Icon name="chevron-left" size={12} />
 		</button>
 		<button
-			class="preview-btn"
-			onclick={() => iframeEl?.contentWindow?.history.forward()}
+			class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:pointer-events-none disabled:opacity-35 dark:hover:bg-white/6 dark:hover:text-gray-300"
+			disabled={mode === 'chrome' && !canGoForward}
+			onclick={() =>
+				mode === 'chrome' ? chromeEl?.forward() : iframeEl?.contentWindow?.history.forward()}
 			use:tooltip={$t('common.forward')}
 		>
 			<Icon name="chevron-right" size={12} />
 		</button>
-		<button class="preview-btn" onclick={refresh} use:tooltip={$t('files.refresh')}>
+		<button
+			class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/6 dark:hover:text-gray-300"
+			onclick={refresh}
+			use:tooltip={$t('files.refresh')}
+		>
 			<Icon name="refresh" size={12} />
 		</button>
-		<div class="url-bar">
+		<div class="relative min-w-0 flex-1">
 			<input
-				class="url-input"
+				class="h-7 w-full min-w-0 rounded-full border border-transparent bg-gray-100 py-1 pr-8 pl-3 text-left text-xs font-medium text-gray-700 outline-none transition-colors focus:border-gray-300 focus:bg-white sm:px-8 sm:text-center dark:bg-white/8 dark:text-gray-300 dark:focus:border-white/12 dark:focus:bg-white/11"
 				bind:value={urlInput}
 				onkeydown={(event) => event.key === 'Enter' && navigate()}
 				placeholder="https://example.com"
 				spellcheck="false"
 			/>
+			<a
+				class="absolute top-1/2 right-1 z-10 grid h-5 w-5 -translate-y-1/2 place-items-center rounded-full text-xs text-gray-500 hover:bg-gray-200/60 dark:hover:bg-white/8"
+				href={newTabUrl(urlInput) || undefined}
+				target="_blank"
+				rel="noopener noreferrer"
+				aria-label={$t('port.openInNewTab')}
+				use:tooltip={$t('port.openInNewTab')}>↗</a
+			>
 		</div>
-		{#if title}<span class="browser-title" {title}>{title}</span>{/if}
 	</div>
+	{#if modeError}<div class="mode-error" title={modeError}>{modeError}</div>{/if}
 	{#if loading}<div class="loading-track"><div class="loading-bar"></div></div>{/if}
 	<div class="preview-content">
 		{#if error}
@@ -143,6 +203,30 @@
 				<p class="error-title">{error}</p>
 				<button class="error-retry" onclick={() => navigate()}>{$t('files.retry')}</button>
 			</div>
+		{:else if mode === 'chrome'}
+			<ChromeBrowser
+				bind:this={chromeEl}
+				{sessionId}
+				{active}
+				onstate={(state) => {
+					urlInput = state.url || urlInput;
+					title = state.title || '';
+					updateTabLabel(tabId, title);
+					canGoBack = state.can_go_back;
+					canGoForward = state.can_go_forward;
+					loading = false;
+				}}
+				onstatus={(status, message, nextMode) => {
+					chromeStatus = status;
+					loading = status === 'connecting';
+					if (message) modeError = message;
+					if (nextMode === 'proxy') {
+						mode = 'proxy';
+						if (urlInput) frameSrc = browserFrameUrl(sessionId, urlInput);
+					}
+				}}
+			/>
+			{#if chromeStatus === 'view_only'}<div class="status-pill">{$t('browser.viewOnly')}</div>{/if}
 		{:else}
 			<iframe
 				bind:this={iframeEl}
@@ -161,57 +245,24 @@
 
 <style>
 	@reference "../../app.css";
-	.preview-container {
-		display: flex;
-		flex-direction: column;
-		height: 100%;
-		overflow: hidden;
-	}
-	.preview-toolbar {
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
-		height: 2rem;
-		padding: 0 0.375rem;
-		border-bottom: 1px solid var(--color-gray-200);
-		flex-shrink: 0;
-	}
-	.preview-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 1.375rem;
-		height: 1.375rem;
-		border-radius: 0.25rem;
-		color: var(--color-gray-500);
-		flex-shrink: 0;
-	}
-	.preview-btn:hover {
-		background: var(--color-gray-100);
-		color: var(--color-gray-700);
-	}
-	.url-bar {
-		flex: 1;
-		min-width: 0;
-	}
-	.url-input {
-		width: 100%;
-		border: 1px solid var(--color-gray-200);
-		border-radius: 999px;
-		padding: 0.1875rem 0.75rem;
+	.mode-error {
+		padding: 0.2rem 0.5rem;
 		font-size: 0.6875rem;
-		font-family: var(--font-mono);
-		background: white;
-		color: var(--color-gray-600);
-		outline: none;
-	}
-	.browser-title {
-		max-width: 10rem;
+		color: var(--color-red-600);
+		background: color-mix(in srgb, var(--color-red-500) 8%, transparent);
+		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-		white-space: nowrap;
+	}
+	.status-pill {
+		position: absolute;
+		top: 0.5rem;
+		right: 0.5rem;
+		padding: 0.2rem 0.45rem;
+		border-radius: 999px;
+		background: rgba(0, 0, 0, 0.65);
+		color: white;
 		font-size: 0.6875rem;
-		color: var(--color-gray-500);
 	}
 	.preview-content {
 		flex: 1;
@@ -253,17 +304,5 @@
 		to {
 			transform: translateX(320%);
 		}
-	}
-	:global(.dark) .preview-toolbar {
-		border-color: rgba(255, 255, 255, 0.06);
-	}
-	:global(.dark) .url-input {
-		background: rgba(255, 255, 255, 0.04);
-		border-color: rgba(255, 255, 255, 0.08);
-		color: var(--color-gray-300);
-	}
-	:global(.dark) .preview-btn:hover {
-		background: rgba(255, 255, 255, 0.06);
-		color: var(--color-gray-300);
 	}
 </style>

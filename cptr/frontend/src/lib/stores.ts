@@ -807,6 +807,22 @@ export function reorderTabs(oldIndex: number, newIndex: number, groupId?: string
 	});
 }
 
+export function updateTabLabel(tabId: string, label: string): void {
+	const value = label.trim().slice(0, 120);
+	if (!value) return;
+	currentWorkspace.update((workspace) =>
+		workspace
+			? {
+					...workspace,
+					groups: workspace.groups.map((group) => ({
+						...group,
+						tabs: group.tabs.map((tab) => (tab.id === tabId ? { ...tab, label: value } : tab))
+					}))
+				}
+			: workspace
+	);
+}
+
 export function openFileTab(
 	filePath: string,
 	targetGroupId?: string,

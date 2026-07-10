@@ -89,7 +89,9 @@ async def shutdown():
         from cptr.utils.browser.session import session_manager
         from cptr.utils.browser.launcher import shutdown_browser
         from cptr.utils.browser.proxy import manager as browser_proxy_manager
+        from cptr.utils.browser.viewer import manager as chrome_viewer_manager
 
+        await chrome_viewer_manager.close_all()
         await browser_proxy_manager.close_all()
         await session_manager.close_all()
         await shutdown_browser()

@@ -32,16 +32,26 @@ _CHROME_PATHS_LINUX = [
     "microsoft-edge",
 ]
 
+_CHROME_PATHS_WINDOWS = [
+    ("PROGRAMFILES", "Google/Chrome/Application/chrome.exe"),
+    ("PROGRAMFILES(X86)", "Google/Chrome/Application/chrome.exe"),
+    ("LOCALAPPDATA", "Google/Chrome/Application/chrome.exe"),
+    ("PROGRAMFILES", "Microsoft/Edge/Application/msedge.exe"),
+    ("PROGRAMFILES(X86)", "Microsoft/Edge/Application/msedge.exe"),
+    ("LOCALAPPDATA", "BraveSoftware/Brave-Browser/Application/brave.exe"),
+]
+
 # Track launched process so we can kill it on shutdown
 _launched_process: asyncio.subprocess.Process | None = None
 _user_data_dir: str | None = None
 
 
-def _find_chrome() -> str | None:
-    """Find a Chrome/Chromium binary on this system."""
+def find_browser() -> str | None:
+    """Find a compatible Chrome-family browser without launching it."""
     import platform
 
-    if platform.system() == "Darwin":
+    system = platform.system()
+    if system == "Darwin":
         for path in _CHROME_PATHS_MACOS:
             if Path(path).exists():
                 return path
@@ -50,8 +60,15 @@ def _find_chrome() -> str | None:
             found = shutil.which(name)
             if found:
                 return found
+    elif system == "Windows":
+        for env_name, suffix in _CHROME_PATHS_WINDOWS:
+            root = os.environ.get(env_name)
+            if root and (candidate := Path(root) / suffix).exists():
+                return str(candidate)
+        for name in ("chrome", "msedge", "brave"):
+            if found := shutil.which(name):
+                return found
     else:
-        # Linux / other
         for name in _CHROME_PATHS_LINUX:
             found = shutil.which(name)
             if found:
@@ -96,7 +113,7 @@ async def ensure_browser(port: int = 9222) -> str:
         return base_url
 
     # 2. Find Chrome binary
-    chrome_path = _find_chrome()
+    chrome_path = find_browser()
     if not chrome_path:
         raise RuntimeError(
             "No Chrome or Chromium found. Install Google Chrome, Chromium, or Brave, "

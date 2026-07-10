@@ -277,7 +277,7 @@
 		if (tabsEl) {
 			sortable = Sortable.create(tabsEl, {
 				animation: 150,
-				ghostClass: 'opacity-30',
+				ghostClass: 'tab-reorder-preview',
 				dragClass: 'cursor-grabbing',
 				direction: 'horizontal',
 				delay: 200,
@@ -309,7 +309,7 @@
 <div
 	class="flex items-center h-9 px-1.5 gap-1 shrink-0 select-none border-b transition-colors duration-100
 		{dropHighlight
-		? 'border-blue-400 bg-blue-50 dark:bg-blue-500/5 dark:border-blue-500/40'
+		? 'tab-reorder-drop-preview'
 		: 'border-gray-200 dark:border-white/6'}
 		{isActiveGroup ? '' : 'opacity-50'}"
 	onclick={handlePaneClick}
@@ -462,5 +462,17 @@
 	}
 	.group-tabs-row::-webkit-scrollbar {
 		display: none;
+	}
+
+	.tab-reorder-preview {
+		background: color-mix(in oklab, var(--app-fg) 6%, transparent) !important;
+		box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--app-fg) 16%, transparent);
+		opacity: 1 !important;
+	}
+
+	.tab-reorder-drop-preview {
+		background: color-mix(in oklab, var(--app-fg) 6%, transparent);
+		box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--app-fg) 16%, transparent);
+		border-color: transparent;
 	}
 </style>

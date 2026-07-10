@@ -978,7 +978,13 @@
 				{/each}
 				{#each group.tabs.filter((tab) => tab.type === 'browser' && tab.browserSessionId) as tab (tab.id)}
 					<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
-						<BrowserPreview sessionId={tab.browserSessionId!} groupId={group.id} initialUrl={tab.path} />
+						<BrowserPreview
+							sessionId={tab.browserSessionId!}
+							groupId={group.id}
+							tabId={tab.id}
+							initialUrl={tab.path}
+							active={tab.id === group.activeTabId}
+						/>
 					</div>
 				{/each}
 				{#if !groupTab || groupTab.type === 'files'}

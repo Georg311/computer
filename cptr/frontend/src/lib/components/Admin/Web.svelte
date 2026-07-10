@@ -2,6 +2,7 @@
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
 	import { getAdminConfig, updateConfig } from '$lib/apis/admin';
+	import { getBrowserAvailability } from '$lib/apis/browser';
 	import { t } from '$lib/i18n';
 	import ToggleSwitch from '$lib/components/common/ToggleSwitch.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
@@ -28,6 +29,9 @@
 
 	// ── Browser ───────────────────────────────────────────
 	let browserEnabled = $state(false);
+	let browserTabDefaultMode = $state<'proxy' | 'chrome'>('proxy');
+	let chromeTabAvailable = $state(false);
+	let chromeTabReason = $state('');
 	let browserProvider = $state<'local' | 'firecrawl' | 'browser_use'>('local');
 	let cdpUrl = $state('http://localhost:9222');
 	let autoLaunch = $state(true);
@@ -59,6 +63,7 @@
 
 			// Browser
 			browserEnabled = config['browser.enabled'] === true || config['browser.enabled'] === 'true';
+			browserTabDefaultMode = config['browser.tab_default_mode'] === 'chrome' ? 'chrome' : 'proxy';
 			browserProvider = (config['browser.provider'] as typeof browserProvider) || 'local';
 			cdpUrl = (config['browser.cdp_url'] as string) || 'http://localhost:9222';
 			autoLaunch =
@@ -70,6 +75,10 @@
 			browserUseApiKey = (config['browser.browser_use_api_key'] as string) || '';
 			browserUseBaseUrl =
 				(config['browser.browser_use_base_url'] as string) || 'https://api.browser-use.com';
+			void getBrowserAvailability().then((availability) => {
+				chromeTabAvailable = availability.chrome.available;
+				chromeTabReason = availability.chrome.reason || '';
+			});
 		} catch {
 			toast.error($t('admin.failedToLoadConfig'));
 		}
@@ -94,6 +103,7 @@
 				'web.chat_completions_base_url': ccBaseUrl,
 				'web.chat_completions_model': ccModel,
 				'browser.enabled': browserEnabled,
+				'browser.tab_default_mode': browserTabDefaultMode,
 				'browser.provider': browserProvider,
 				'browser.cdp_url': cdpUrl,
 				'browser.auto_launch': autoLaunch,
@@ -356,6 +366,27 @@
 		<h3 class="text-xs text-gray-400 dark:text-gray-600 mb-2 mt-5">{$t('admin.browser')}</h3>
 
 		<div class="flex flex-col gap-2.5">
+			<div class="flex items-center justify-between">
+				<div>
+					<span class="text-xs text-gray-600 dark:text-gray-400"
+						>{$t('admin.browserTabDefault')}</span
+					>
+					<p class="text-[0.625rem] text-gray-400 dark:text-gray-600">
+						{$t('admin.browserTabDefaultHint')}
+					</p>
+				</div>
+				<select
+					bind:value={browserTabDefaultMode}
+					title={!chromeTabAvailable ? chromeTabReason : undefined}
+					class="bg-transparent text-xs text-gray-600 dark:text-gray-400 outline-none cursor-pointer"
+				>
+					<option value="proxy">{$t('browser.proxy')}</option>
+					<option value="chrome" disabled={!chromeTabAvailable}
+						>{$t('browser.chromeExperimental')}</option
+					>
+				</select>
+			</div>
+
 			<label class="flex items-center justify-between cursor-pointer">
 				<span class="text-xs text-gray-600 dark:text-gray-400">{$t('admin.browserTools')}</span>
 				<ToggleSwitch

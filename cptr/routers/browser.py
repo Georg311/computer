@@ -14,7 +14,9 @@ from fastapi import APIRouter, HTTPException, Request, Response, WebSocket, WebS
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 
 from cptr.routers.auth import COOKIE_NAME
+from cptr.models import Config
 from cptr.utils.browser.proxy import manager, rewrite_css, rewrite_html, rewrite_javascript, target_url
+from cptr.utils.browser.viewer import local_origin, manager as chrome_viewer_manager
 from cptr.utils.config import AuthResult, check_access
 
 router = APIRouter(prefix="/api/browser", tags=["browser"])
@@ -84,7 +86,17 @@ def _response_headers(upstream: httpx.Response) -> dict[str, str]:
 
 
 def _session_payload(session) -> dict[str, str]:
-    return {"session_id": session.session_id, "url": session.url, "title": session.title}
+    return {
+        "session_id": session.session_id,
+        "url": session.url,
+        "title": session.title,
+        "mode": session.mode,
+        "status": session.status,
+    }
+
+
+def _default_mode(value: object) -> str:
+    return "chrome" if value == "chrome" else "proxy"
 
 
 async def _stream_response(upstream: httpx.Response) -> AsyncIterator[bytes]:
@@ -165,9 +177,36 @@ async def _proxy(request: Request, session_id: str, url: str) -> Response:
     return await proxy_browser_request(request, session_id, url, _owner(_auth(request)))
 
 
+@router.get("/availability")
+async def browser_availability(request: Request):
+    _auth(request)
+    return chrome_viewer_manager.availability()
+
+
 @router.post("/sessions")
 async def create_session(request: Request):
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    explicit_mode = isinstance(payload, dict) and "mode" in payload
+    mode = (
+        payload.get("mode")
+        if explicit_mode
+        else _default_mode(await Config.get("browser.tab_default_mode"))
+    )
+    if mode not in {"proxy", "chrome"}:
+        raise HTTPException(status_code=400, detail="Invalid Browser mode")
     session = await manager.create(_owner(_auth(request)))
+    if mode == "chrome":
+        try:
+            await chrome_viewer_manager.start(session, local_origin(str(request.base_url)))
+            session.mode = "chrome"
+        except Exception as exc:
+            if explicit_mode:
+                await manager.close(session.session_id, session.owner)
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+            session.status = "ready"
     return _session_payload(session)
 
 
@@ -184,7 +223,9 @@ async def list_sessions(request: Request):
 
 @router.delete("/sessions/{session_id}")
 async def close_session(session_id: str, request: Request):
-    if not await manager.close(session_id, _owner(_auth(request))):
+    owner = _owner(_auth(request))
+    await chrome_viewer_manager.stop(session_id, owner)
+    if not await manager.close(session_id, owner):
         raise HTTPException(status_code=404, detail="Browser tab not found")
     return {"status": "closed"}
 
@@ -200,15 +241,35 @@ async def get_session(session_id: str, request: Request):
 @router.patch("/sessions/{session_id}")
 async def update_session(session_id: str, request: Request):
     payload = await request.json()
-    url = str(payload.get("url", ""))
-    title = str(payload.get("title", ""))[:512]
+    owner = _owner(_auth(request))
+    existing = manager.session(session_id, owner)
+    if existing is None:
+        raise HTTPException(status_code=404, detail="Browser tab expired")
+    url = str(payload["url"]) if "url" in payload else None
+    title = str(payload["title"])[:512] if "title" in payload else None
     if url:
         parsed = urlsplit(url)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise HTTPException(status_code=400, detail="Invalid Browser URL")
-    session = await manager.update(session_id, _owner(_auth(request)), url=url, title=title)
+    session = await manager.update(session_id, owner, url=url, title=title)
     if session is None:
         raise HTTPException(status_code=404, detail="Browser tab expired")
+    requested_mode = payload.get("mode")
+    if requested_mode is not None and requested_mode not in {"proxy", "chrome"}:
+        raise HTTPException(status_code=400, detail="Invalid Browser mode")
+    if requested_mode == "chrome" and session.mode != "chrome":
+        session.status = "connecting"
+        try:
+            await chrome_viewer_manager.start(session, local_origin(str(request.base_url)))
+        except Exception as exc:
+            session.status = "ready"
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        session.mode = "chrome"
+        session.status = "playing"
+    elif requested_mode == "proxy" and session.mode == "chrome":
+        await chrome_viewer_manager.stop(session_id, owner)
+        session.mode = "proxy"
+        session.status = "ready"
     return _session_payload(session)
 
 
@@ -306,3 +367,24 @@ async def proxy_websocket(websocket: WebSocket, session_id: str):
         pass
     except Exception:
         await websocket.close(code=1011, reason="Browser WebSocket failed")
+
+
+@router.websocket("/sessions/{session_id}/stream")
+async def chrome_viewer_stream(websocket: WebSocket, session_id: str):
+    client_host = websocket.client.host if websocket.client else "127.0.0.1"
+    token = websocket.cookies.get(COOKIE_NAME) or websocket.query_params.get("token")
+    auth = check_access(client_host, token)
+    owner = _owner(auth) if auth else ""
+    session = manager.session(session_id, owner) if auth else None
+    viewer = chrome_viewer_manager.viewers.get(session_id)
+    if not session or session.mode != "chrome" or not viewer:
+        await websocket.close(code=4004, reason="Chrome Browser session not found")
+        return
+    await chrome_viewer_manager.viewer_socket(websocket, viewer)
+
+
+@router.websocket("/sessions/{session_id}/encoder")
+async def chrome_encoder_stream(websocket: WebSocket, session_id: str):
+    await chrome_viewer_manager.encoder_socket(
+        websocket, session_id, websocket.query_params.get("token", "")
+    )
