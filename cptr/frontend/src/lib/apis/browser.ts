@@ -12,8 +12,6 @@ export interface BrowserAvailability {
 	proxy: { available: true };
 	chrome: {
 		available: boolean;
-		browser_name: string | null;
-		experimental: true;
 		reason: string | null;
 	};
 }
@@ -61,3 +59,15 @@ export const browserFrameUrl = (sessionId: string, rawUrl: string) => {
 };
 
 export const browserBlankUrl = (sessionId: string) => `/api/browser/sessions/${sessionId}/blank`;
+
+export const clearManagedChromeProfile = () =>
+	fetchJSON<{ status: string; closed_session_ids: string[] }>('/api/browser/profile', {
+		method: 'DELETE'
+	});
+
+export const testBrowserCdp = (url: string) =>
+	fetchJSON<{ browser: string }>('/api/browser/cdp', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ url })
+	});

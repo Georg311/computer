@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
 import json
 import os
 import secrets
 import shutil
 import socket
 import sys
-import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Awaitable, Callable
@@ -21,6 +21,7 @@ import websockets
 from fastapi import WebSocket, WebSocketDisconnect
 
 from cptr.utils.browser.launcher import find_browser
+from cptr.env import DATA_DIR
 
 FRAME_HEADER_SIZE = 14
 MAX_FRAME_SIZE = 8 * 1024 * 1024
@@ -64,27 +65,49 @@ def _editing_commands(key: str, modifiers: int, primary: bool) -> list[str]:
     return [command] if command else []
 
 
-def browser_name(path: str) -> str:
-    name = Path(path).name.lower()
-    if "brave" in name:
-        return "Brave"
-    if "edge" in name or "msedge" in name:
-        return "Microsoft Edge"
-    if "chromium" in name:
-        return "Chromium"
-    return "Google Chrome"
-
-
 def local_origin(fallback: str) -> str:
     """Prefer the CLI's loopback port so encoder traffic never traverses a tunnel."""
     port = os.environ.get("CPTR_PORT")
     return f"http://127.0.0.1:{port}" if port else fallback.rstrip("/")
 
 
-def _free_port() -> int:
-    with socket.socket() as sock:
-        sock.bind(("127.0.0.1", 0))
-        return int(sock.getsockname()[1])
+def managed_profile_path(owner: str) -> Path:
+    safe_owner = hashlib.sha256(owner.encode()).hexdigest()[:24]
+    return DATA_DIR / "browser-profiles" / safe_owner
+
+
+async def resolve_cdp_endpoint(cdp_url: str, data_dir: Path | None = None) -> str:
+    base = cdp_url.rstrip("/")
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{base}/json/version", timeout=5)
+            response.raise_for_status()
+            return str(response.json()["webSocketDebuggerUrl"])
+    except Exception as exc:
+        parsed = urlsplit(base)
+        if parsed.hostname not in {"localhost", "127.0.0.1", "::1"} or not parsed.port:
+            raise RuntimeError("Could not connect to Chrome") from exc
+        if data_dir is None:
+            home = Path.home()
+            if sys.platform == "darwin":
+                data_dir = home / "Library/Application Support/Google/Chrome"
+            elif sys.platform == "win32" and os.environ.get("LOCALAPPDATA"):
+                data_dir = Path(os.environ["LOCALAPPDATA"]) / "Google/Chrome/User Data"
+            else:
+                data_dir = (
+                    Path(os.environ.get("XDG_CONFIG_HOME", home / ".config")) / "google-chrome"
+                )
+        try:
+            port, path = (data_dir / "DevToolsActivePort").read_text().splitlines()[:2]
+        except (OSError, ValueError) as file_exc:
+            raise RuntimeError("Could not connect to Chrome") from file_exc
+        if (
+            not port.isdigit()
+            or int(port) != parsed.port
+            or not path.startswith("/devtools/browser/")
+        ):
+            raise RuntimeError("Could not connect to Chrome") from exc
+        return f"ws://127.0.0.1:{port}{path}"
 
 
 class CDPConnection:
@@ -152,15 +175,12 @@ class CDPConnection:
 class ChromeHost:
     owner: str
     browser_path: str
-    port: int
-    process: asyncio.subprocess.Process
-    profile: str
+    base_url: str
+    process: asyncio.subprocess.Process | None
+    profile: Path | None
     browser_cdp: CDPConnection
+    source: str = "managed"
     start_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
-
-    @property
-    def base_url(self) -> str:
-        return f"http://127.0.0.1:{self.port}"
 
     async def create_target(self, url: str) -> tuple[str, CDPConnection]:
         encoded = quote(url, safe="")
@@ -177,13 +197,12 @@ class ChromeHost:
 
     async def close(self) -> None:
         await self.browser_cdp.close()
-        if self.process.returncode is None:
+        if self.process and self.process.returncode is None:
             self.process.terminate()
             try:
                 await asyncio.wait_for(self.process.wait(), 5)
             except asyncio.TimeoutError:
                 self.process.kill()
-        shutil.rmtree(self.profile, ignore_errors=True)
 
 
 @dataclass(eq=False)
@@ -220,31 +239,39 @@ class ChromeViewer:
 
 class ChromeViewerManager:
     def __init__(self) -> None:
-        self.hosts: dict[str, ChromeHost] = {}
+        self.hosts: dict[tuple[str, str], ChromeHost] = {}
         self.viewers: dict[str, ChromeViewer] = {}
         self.lock = asyncio.Lock()
 
-    def availability(self) -> dict[str, Any]:
+    def availability(self, cdp_url: str = "") -> dict[str, Any]:
         path = find_browser()
         return {
             "proxy": {"available": True},
             "chrome": {
-                "available": bool(path),
-                "browser_name": browser_name(path) if path else None,
-                "experimental": True,
-                "reason": None if path else "No compatible Chrome-family browser found",
+                "available": bool(path or cdp_url),
+                "reason": None if path or cdp_url else "No compatible Chrome-family browser found",
             },
         }
 
-    async def _host(self, owner: str) -> ChromeHost:
-        if existing := self.hosts.get(owner):
-            if existing.process.returncode is None:
+    async def _host(self, owner: str, cdp_url: str = "") -> ChromeHost:
+        source = cdp_url.rstrip("/")
+        key = (owner, source)
+        if existing := self.hosts.get(key):
+            if existing.process is None or existing.process.returncode is None:
                 return existing
+        if source:
+            browser_cdp = await CDPConnection.connect(await resolve_cdp_endpoint(source))
+            host = ChromeHost(owner, "", source, None, None, browser_cdp, "external")
+            self.hosts[key] = host
+            return host
         browser_path = find_browser()
         if not browser_path:
             raise RuntimeError("No compatible Chrome-family browser found")
-        port = _free_port()
-        profile = tempfile.mkdtemp(prefix="cptr-chrome-viewer-")
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0))
+            port = int(sock.getsockname()[1])
+        profile = managed_profile_path(owner)
+        profile.mkdir(parents=True, exist_ok=True)
         args = [
             browser_path,
             f"--remote-debugging-port={port}",
@@ -273,7 +300,6 @@ class ChromeViewerManager:
                     await asyncio.sleep(0.2)
         if not version:
             process.terminate()
-            shutil.rmtree(profile, ignore_errors=True)
             raise RuntimeError("Chrome started without an available graphical capture session")
         browser_cdp = await CDPConnection.connect(version["webSocketDebuggerUrl"])
         info = await browser_cdp.send("SystemInfo.getInfo")
@@ -285,16 +311,22 @@ class ChromeViewerManager:
         ):
             await browser_cdp.close()
             process.terminate()
-            shutil.rmtree(profile, ignore_errors=True)
             raise RuntimeError("Chrome does not report hardware H.264 encoding support")
-        host = ChromeHost(owner, browser_path, port, process, profile, browser_cdp)
-        self.hosts[owner] = host
+        host = ChromeHost(
+            owner,
+            browser_path,
+            f"http://127.0.0.1:{port}",
+            process,
+            profile,
+            browser_cdp,
+        )
+        self.hosts[key] = host
         return host
 
-    async def start(self, session: Any, origin: str) -> ChromeViewer:
+    async def start(self, session: Any, origin: str, *, cdp_url: str = "") -> ChromeViewer:
         if session.session_id in self.viewers:
             return self.viewers[session.session_id]
-        host = await self._host(session.owner)
+        host = await self._host(session.owner, cdp_url)
         async with host.start_lock:
             marker = f"data:text/html,<title>{quote(CAPTURE_TITLE)}</title>"
             target_id, target_cdp = await host.create_target(marker)
@@ -534,7 +566,11 @@ class ChromeViewerManager:
         if viewer.controller is None:
             viewer.controller = peer
         await peer.queue.put(
-            {"type": "ready", "mode": "chrome", "controller": viewer.controller is peer}
+            {
+                "type": "ready",
+                "mode": "chrome",
+                "controller": viewer.controller is peer,
+            }
         )
         if viewer.config:
             await peer.queue.put(viewer.config)
@@ -571,6 +607,8 @@ class ChromeViewerManager:
             await self._set_visibility(viewer, peer, bool(data.get("visible")))
             return
         if viewer.controller is not peer:
+            return
+        if kind == "activate":
             return
         if kind == "viewport":
             width = max(320, min(1920, int(data.get("width", 1280))))
@@ -763,6 +801,20 @@ class ChromeViewerManager:
         await viewer.host.close_target(viewer.target_id)
         await viewer.host.close_target(viewer.controller_id)
         return True
+
+    async def clear_managed_profile(self, owner: str) -> list[str]:
+        session_ids = [
+            viewer.session.session_id
+            for viewer in self.viewers.values()
+            if viewer.session.owner == owner and viewer.host.source == "managed"
+        ]
+        for session_id in session_ids:
+            await self.stop(session_id, owner)
+        host = self.hosts.pop((owner, ""), None)
+        if host:
+            await host.close()
+        shutil.rmtree(managed_profile_path(owner), ignore_errors=True)
+        return session_ids
 
     async def close_all(self) -> None:
         for viewer in tuple(self.viewers.values()):

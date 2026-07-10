@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, WebSocket, WebS
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 
 from cptr.routers.auth import COOKIE_NAME
+from cptr.routers.admin import require_admin
 from cptr.models import Config
 from cptr.utils.browser.proxy import (
     manager,
@@ -22,7 +23,12 @@ from cptr.utils.browser.proxy import (
     rewrite_javascript,
     target_url,
 )
-from cptr.utils.browser.viewer import local_origin, manager as chrome_viewer_manager
+from cptr.utils.browser.viewer import (
+    CDPConnection,
+    local_origin,
+    manager as chrome_viewer_manager,
+    resolve_cdp_endpoint,
+)
 from cptr.utils.config import AuthResult, check_access
 
 router = APIRouter(prefix="/api/browser", tags=["browser"])
@@ -93,7 +99,7 @@ def _response_headers(upstream: httpx.Response) -> dict[str, str]:
     return headers
 
 
-def _session_payload(session) -> dict[str, str]:
+def _session_payload(session) -> dict[str, object]:
     return {
         "session_id": session.session_id,
         "url": session.url,
@@ -101,10 +107,6 @@ def _session_payload(session) -> dict[str, str]:
         "mode": session.mode,
         "status": session.status,
     }
-
-
-def _default_mode(value: object) -> str:
-    return "chrome" if value == "chrome" else "proxy"
 
 
 async def _stream_response(upstream: httpx.Response) -> AsyncIterator[bytes]:
@@ -198,7 +200,13 @@ async def _proxy(request: Request, session_id: str, url: str) -> Response:
 @router.get("/availability")
 async def browser_availability(request: Request):
     _auth(request)
-    return chrome_viewer_manager.availability()
+    return chrome_viewer_manager.availability(await _chrome_cdp_url())
+
+
+async def _chrome_cdp_url() -> str:
+    if await Config.get("browser.tab_chrome_source") != "personal":
+        return ""
+    return str(await Config.get("browser.cdp_url") or "").strip()
 
 
 def _initial_url(value: object) -> str:
@@ -221,7 +229,9 @@ async def create_session(request: Request):
     mode = (
         payload.get("mode")
         if explicit_mode
-        else _default_mode(await Config.get("browser.tab_default_mode"))
+        else "chrome"
+        if await Config.get("browser.tab_default_mode") == "chrome"
+        else "proxy"
     )
     if mode not in {"proxy", "chrome"}:
         raise HTTPException(status_code=400, detail="Invalid Browser mode")
@@ -231,7 +241,9 @@ async def create_session(request: Request):
         await manager.update(session.session_id, session.owner, url=initial_url)
     if mode == "chrome":
         try:
-            await chrome_viewer_manager.start(session, local_origin(str(request.base_url)))
+            await chrome_viewer_manager.start(
+                session, local_origin(str(request.base_url)), cdp_url=await _chrome_cdp_url()
+            )
             session.mode = "chrome"
         except Exception as exc:
             if explicit_mode:
@@ -291,7 +303,9 @@ async def update_session(session_id: str, request: Request):
     if requested_mode == "chrome" and session.mode != "chrome":
         session.status = "connecting"
         try:
-            await chrome_viewer_manager.start(session, local_origin(str(request.base_url)))
+            await chrome_viewer_manager.start(
+                session, local_origin(str(request.base_url)), cdp_url=await _chrome_cdp_url()
+            )
         except Exception as exc:
             session.status = "ready"
             raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -302,6 +316,34 @@ async def update_session(session_id: str, request: Request):
         session.mode = "proxy"
         session.status = "ready"
     return _session_payload(session)
+
+
+@router.delete("/profile")
+async def clear_managed_chrome_profile(request: Request):
+    owner = _owner(require_admin(request))
+    session_ids = await chrome_viewer_manager.clear_managed_profile(owner)
+    for session_id in session_ids:
+        await manager.close(session_id, owner)
+    return {"status": "cleared", "closed_session_ids": session_ids}
+
+
+@router.post("/cdp")
+async def test_chrome_cdp(request: Request):
+    require_admin(request)
+    url = str((await request.json()).get("url", "")).strip().rstrip("/")
+    parsed = urlsplit(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise HTTPException(status_code=400, detail="Invalid CDP URL")
+    connection = None
+    try:
+        connection = await CDPConnection.connect(await resolve_cdp_endpoint(url))
+        version = await connection.send("Browser.getVersion")
+    except Exception as exc:
+        raise HTTPException(status_code=409, detail="Could not connect to Chrome") from exc
+    finally:
+        if connection:
+            await connection.close()
+    return {"browser": str(version.get("product", "Chrome"))}
 
 
 @router.get("/sessions/{session_id}/blank")

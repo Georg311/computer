@@ -2,7 +2,7 @@
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
 	import { getAdminConfig, updateConfig } from '$lib/apis/admin';
-	import { getBrowserAvailability } from '$lib/apis/browser';
+	import { clearManagedChromeProfile, testBrowserCdp } from '$lib/apis/browser';
 	import { t } from '$lib/i18n';
 	import ToggleSwitch from '$lib/components/common/ToggleSwitch.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
@@ -30,8 +30,7 @@
 	// ── Browser ───────────────────────────────────────────
 	let browserEnabled = $state(false);
 	let browserTabDefaultMode = $state<'proxy' | 'chrome'>('proxy');
-	let chromeTabAvailable = $state(false);
-	let chromeTabReason = $state('');
+	let browserTabChromeSource = $state<'managed' | 'personal'>('managed');
 	let browserProvider = $state<'local' | 'firecrawl' | 'browser_use'>('local');
 	let cdpUrl = $state('http://localhost:9222');
 	let autoLaunch = $state(true);
@@ -64,6 +63,8 @@
 			// Browser
 			browserEnabled = config['browser.enabled'] === true || config['browser.enabled'] === 'true';
 			browserTabDefaultMode = config['browser.tab_default_mode'] === 'chrome' ? 'chrome' : 'proxy';
+			browserTabChromeSource =
+				config['browser.tab_chrome_source'] === 'personal' ? 'personal' : 'managed';
 			browserProvider = (config['browser.provider'] as typeof browserProvider) || 'local';
 			cdpUrl = (config['browser.cdp_url'] as string) || 'http://localhost:9222';
 			autoLaunch =
@@ -75,10 +76,6 @@
 			browserUseApiKey = (config['browser.browser_use_api_key'] as string) || '';
 			browserUseBaseUrl =
 				(config['browser.browser_use_base_url'] as string) || 'https://api.browser-use.com';
-			void getBrowserAvailability().then((availability) => {
-				chromeTabAvailable = availability.chrome.available;
-				chromeTabReason = availability.chrome.reason || '';
-			});
 		} catch {
 			toast.error($t('admin.failedToLoadConfig'));
 		}
@@ -104,6 +101,7 @@
 				'web.chat_completions_model': ccModel,
 				'browser.enabled': browserEnabled,
 				'browser.tab_default_mode': browserTabDefaultMode,
+				'browser.tab_chrome_source': browserTabChromeSource,
 				'browser.provider': browserProvider,
 				'browser.cdp_url': cdpUrl,
 				'browser.auto_launch': autoLaunch,
@@ -122,19 +120,27 @@
 		}
 	}
 
+	async function clearManagedProfile() {
+		if (!confirm($t('admin.managedChromeClearConfirm'))) return;
+		try {
+			await clearManagedChromeProfile();
+			toast.success($t('admin.managedChromeCleared'));
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : $t('admin.failedToSave'));
+		}
+	}
+
 	async function testConnection() {
 		testing = true;
 		testResult = null;
 		try {
-			const resp = await fetch(`${cdpUrl}/json/version`);
-			if (resp.ok) {
-				const data = await resp.json();
-				testResult = { ok: true, message: data.Browser || 'Connected' };
-			} else {
-				testResult = { ok: false, message: `HTTP ${resp.status}` };
-			}
-		} catch {
-			testResult = { ok: false, message: 'Could not connect' };
+			const result = await testBrowserCdp(cdpUrl);
+			testResult = { ok: true, message: result.browser };
+		} catch (error) {
+			testResult = {
+				ok: false,
+				message: error instanceof Error ? error.message : 'Could not connect'
+			};
 		} finally {
 			testing = false;
 		}
@@ -365,184 +371,269 @@
 		<!-- Browser -->
 		<h3 class="text-xs text-gray-400 dark:text-gray-600 mb-2 mt-5">{$t('admin.browser')}</h3>
 
-		<div class="flex flex-col gap-2.5">
-			<div class="flex items-center justify-between">
-				<div>
-					<span class="text-xs text-gray-600 dark:text-gray-400"
-						>{$t('admin.browserTabDefault')}</span
-					>
-					<p class="text-[0.625rem] text-gray-400 dark:text-gray-600">
-						{$t('admin.browserTabDefaultHint')}
-					</p>
-				</div>
-				<select
-					bind:value={browserTabDefaultMode}
-					title={!chromeTabAvailable ? chromeTabReason : undefined}
-					class="bg-transparent text-xs text-gray-600 dark:text-gray-400 outline-none cursor-pointer"
-				>
-					<option value="proxy">{$t('browser.proxy')}</option>
-					<option value="chrome" disabled={!chromeTabAvailable}
-						>{$t('browser.chromeExperimental')}</option
-					>
-				</select>
-			</div>
-
-			<label class="flex items-center justify-between cursor-pointer">
-				<span class="text-xs text-gray-600 dark:text-gray-400">{$t('admin.browserTools')}</span>
-				<ToggleSwitch
-					value={browserEnabled}
-					onchange={(v) => {
-						browserEnabled = v;
-					}}
-				/>
-			</label>
-			<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 -mt-1">
-				{$t('admin.browserHint')}
+		<div>
+			<p class="mb-2 text-xs text-gray-500 dark:text-gray-500">
+				{$t('admin.browserTabs')}
 			</p>
-
-			{#if browserEnabled}
+			<div class="flex flex-col gap-2.5">
 				<div class="flex items-center justify-between">
-					<span class="text-xs text-gray-600 dark:text-gray-400">{$t('admin.browserProvider')}</span
-					>
-					<select
-						bind:value={browserProvider}
-						class="bg-transparent text-xs text-gray-600 dark:text-gray-400 outline-none cursor-pointer"
-					>
-						<option value="local">{$t('admin.browserLocalCdp')}</option>
-						<option value="firecrawl">{$t('admin.browserFirecrawl')}</option>
-						<option value="browser_use">{$t('admin.browserBrowserUse')}</option>
-					</select>
-				</div>
-				<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 -mt-1">
-					{#if browserProvider === 'local'}
-						{$t('admin.browserLocalHint')}
-					{:else if browserProvider === 'firecrawl'}
-						{$t('admin.browserFirecrawlHint')}
-					{:else}
-						{$t('admin.browserBrowserUseHint')}
-					{/if}
-				</p>
-
-				{#if browserProvider === 'local'}
-					<label class="flex items-center justify-between cursor-pointer">
-						<div>
-							<span class="text-xs text-gray-600 dark:text-gray-400"
-								>{$t('admin.browserAutoLaunch')}</span
-							>
-							<p class="text-[0.625rem] text-gray-400 dark:text-gray-600">
-								{$t('admin.browserAutoLaunchHint')}
-							</p>
-						</div>
-						<ToggleSwitch
-							value={autoLaunch}
-							onchange={(v) => {
-								autoLaunch = v;
-							}}
-						/>
-					</label>
-
 					<div>
-						<label class="text-xs text-gray-600 dark:text-gray-400" for="cdp-url"
-							>{$t('admin.browserCdpUrl')}</label
+						<span class="text-xs text-gray-600 dark:text-gray-400"
+							>{$t('admin.browserTabDefault')}</span
 						>
-						<div class="flex gap-1.5 mt-1">
-							<input
-								id="cdp-url"
-								type="text"
-								bind:value={cdpUrl}
-								placeholder="http://localhost:9222"
-								class="flex-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
-							/>
-							<button
-								class="h-7 px-2.5 rounded-lg text-xs bg-gray-200/50 dark:bg-white/8 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors disabled:opacity-50"
-								onclick={() => testConnection()}
-								disabled={testing}>{testing ? '...' : $t('admin.browserTest')}</button
-							>
-						</div>
-						{#if testResult}
-							<p
-								class="text-[0.6875rem] mt-1 {testResult.ok
-									? 'text-emerald-600 dark:text-emerald-400'
-									: 'text-red-500'}"
-							>
-								{testResult.message}
-							</p>
-						{/if}
-					</div>
-
-					<div>
-						<label class="text-xs text-gray-600 dark:text-gray-400" for="session-timeout"
-							>{$t('admin.browserSessionTimeout')}</label
-						>
-						<div class="flex items-center gap-1.5 mt-1">
-							<input
-								id="session-timeout"
-								type="number"
-								bind:value={sessionTimeout}
-								min="1"
-								max="120"
-								class="w-16 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
-							/>
-							<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600"
-								>{$t('admin.browserMinutes')}</span
-							>
-						</div>
-					</div>
-				{:else if browserProvider === 'firecrawl'}
-					<div>
-						<label class="text-xs text-gray-600 dark:text-gray-400" for="fc-key"
-							>{$t('admin.browserApiKey')}</label
-						>
-						<input
-							id="fc-key"
-							type="password"
-							bind:value={firecrawlApiKey}
-							placeholder="fc-..."
-							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
-						/>
-					</div>
-					<div>
-						<label class="text-xs text-gray-600 dark:text-gray-400" for="fc-url"
-							>{$t('admin.browserBaseUrl')}</label
-						>
-						<input
-							id="fc-url"
-							type="text"
-							bind:value={firecrawlBaseUrl}
-							placeholder="https://api.firecrawl.dev"
-							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
-						/>
-						<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-0.5">
-							{$t('admin.browserFirecrawlBaseUrlHint')}
+						<p class="text-[0.625rem] text-gray-400 dark:text-gray-600">
+							{$t('admin.browserTabDefaultHint')}
 						</p>
 					</div>
-				{:else if browserProvider === 'browser_use'}
-					<div>
-						<label class="text-xs text-gray-600 dark:text-gray-400" for="bu-key"
-							>{$t('admin.browserApiKey')}</label
+					<select
+						bind:value={browserTabDefaultMode}
+						class="bg-transparent text-xs text-gray-600 dark:text-gray-400 outline-none cursor-pointer"
+					>
+						<option value="proxy">{$t('browser.proxy')}</option>
+						<option value="chrome">{$t('browser.chrome')}</option>
+					</select>
+				</div>
+
+				{#if browserTabDefaultMode === 'chrome'}
+					<div class="flex items-center justify-between">
+						<div>
+							<span class="text-xs text-gray-600 dark:text-gray-400"
+								>{$t('admin.chromeProfile')}</span
+							>
+							<p class="text-[0.625rem] text-gray-400 dark:text-gray-600">
+								{browserTabChromeSource === 'personal'
+									? $t('admin.personalChromeHint')
+									: $t('admin.managedChromeHint')}
+							</p>
+						</div>
+						<select
+							bind:value={browserTabChromeSource}
+							class="bg-transparent text-xs text-gray-600 dark:text-gray-400 outline-none cursor-pointer"
 						>
-						<input
-							id="bu-key"
-							type="password"
-							bind:value={browserUseApiKey}
-							placeholder="bu-..."
-							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
-						/>
+							<option value="managed">{$t('admin.managedChrome')}</option>
+							<option value="personal">{$t('admin.personalChrome')}</option>
+						</select>
 					</div>
-					<div>
-						<label class="text-xs text-gray-600 dark:text-gray-400" for="bu-url"
-							>{$t('admin.browserBaseUrl')}</label
-						>
-						<input
-							id="bu-url"
-							type="text"
-							bind:value={browserUseBaseUrl}
-							placeholder="https://api.browser-use.com"
-							class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
-						/>
-					</div>
+
+					{#if browserTabChromeSource === 'managed'}
+						<div class="flex items-center justify-between gap-4">
+							<div>
+								<span class="text-xs text-gray-600 dark:text-gray-400"
+									>{$t('admin.managedChromeData')}</span
+								>
+								<p class="text-[0.625rem] text-gray-400 dark:text-gray-600">
+									{$t('admin.managedChromeDataHint')}
+								</p>
+							</div>
+							<button
+								class="shrink-0 text-xs text-gray-500 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
+								onclick={clearManagedProfile}>{$t('admin.managedChromeClear')}</button
+							>
+						</div>
+					{:else}
+						<div>
+							<label class="text-xs text-gray-600 dark:text-gray-400" for="tab-cdp-url"
+								>{$t('admin.browserCdpUrl')}</label
+							>
+							<div class="mt-1 flex gap-1.5">
+								<input
+									id="tab-cdp-url"
+									type="text"
+									bind:value={cdpUrl}
+									placeholder="http://localhost:9222"
+									class="h-7 flex-1 rounded-lg border border-gray-200 bg-gray-100 px-2 text-xs text-gray-700 outline-none transition-colors focus:border-blue-400 dark:border-white/8 dark:bg-white/6 dark:text-gray-300 dark:focus:border-blue-500"
+								/>
+								<button
+									class="h-7 rounded-lg bg-gray-200/50 px-2.5 text-xs text-gray-600 transition-colors hover:text-gray-900 disabled:opacity-50 dark:bg-white/8 dark:text-gray-400 dark:hover:text-white"
+									onclick={() => testConnection()}
+									disabled={testing}>{testing ? '...' : $t('admin.browserTest')}</button
+								>
+							</div>
+							{#if testResult}
+								<p
+									class="mt-1 text-[0.6875rem] {testResult.ok
+										? 'text-emerald-600 dark:text-emerald-400'
+										: 'text-gray-400 dark:text-gray-600'}"
+								>
+									{testResult.message}
+								</p>
+							{/if}
+							<a
+								href="chrome://inspect/#remote-debugging"
+								target="_blank"
+								rel="noopener noreferrer"
+								class="mt-1 inline-block text-[0.6875rem] text-gray-400 hover:text-gray-700 dark:text-gray-600 dark:hover:text-gray-300"
+								>{$t('admin.personalChromeEnableDebugging')} ↗</a
+							>
+						</div>
+					{/if}
 				{/if}
-			{/if}
+			</div>
+		</div>
+
+		<div class="mt-5">
+			<p class="mb-2 text-xs text-gray-500 dark:text-gray-500">
+				{$t('admin.agentBrowserTools')}
+			</p>
+			<div class="flex flex-col gap-2.5">
+				<label class="flex items-center justify-between cursor-pointer">
+					<span class="text-xs text-gray-600 dark:text-gray-400">{$t('admin.browserTools')}</span>
+					<ToggleSwitch
+						value={browserEnabled}
+						onchange={(v) => {
+							browserEnabled = v;
+						}}
+					/>
+				</label>
+				<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 -mt-1">
+					{$t('admin.browserHint')}
+				</p>
+
+				{#if browserEnabled}
+					<div class="flex items-center justify-between">
+						<span class="text-xs text-gray-600 dark:text-gray-400"
+							>{$t('admin.browserProvider')}</span
+						>
+						<select
+							bind:value={browserProvider}
+							class="bg-transparent text-xs text-gray-600 dark:text-gray-400 outline-none cursor-pointer"
+						>
+							<option value="local">{$t('admin.browserLocalCdp')}</option>
+							<option value="firecrawl">{$t('admin.browserFirecrawl')}</option>
+							<option value="browser_use">{$t('admin.browserBrowserUse')}</option>
+						</select>
+					</div>
+					<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 -mt-1">
+						{#if browserProvider === 'local'}
+							{$t('admin.browserLocalHint')}
+						{:else if browserProvider === 'firecrawl'}
+							{$t('admin.browserFirecrawlHint')}
+						{:else}
+							{$t('admin.browserBrowserUseHint')}
+						{/if}
+					</p>
+
+					{#if browserProvider === 'local'}
+						<label class="flex items-center justify-between cursor-pointer">
+							<div>
+								<span class="text-xs text-gray-600 dark:text-gray-400"
+									>{$t('admin.browserAutoLaunch')}</span
+								>
+								<p class="text-[0.625rem] text-gray-400 dark:text-gray-600">
+									{$t('admin.browserAutoLaunchHint')}
+								</p>
+							</div>
+							<ToggleSwitch
+								value={autoLaunch}
+								onchange={(v) => {
+									autoLaunch = v;
+								}}
+							/>
+						</label>
+
+						<div>
+							<label class="text-xs text-gray-600 dark:text-gray-400" for="cdp-url"
+								>{$t('admin.browserCdpUrl')}</label
+							>
+							<div class="flex gap-1.5 mt-1">
+								<input
+									id="cdp-url"
+									type="text"
+									bind:value={cdpUrl}
+									placeholder="http://localhost:9222"
+									class="flex-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+								/>
+								<button
+									class="h-7 px-2.5 rounded-lg text-xs bg-gray-200/50 dark:bg-white/8 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors disabled:opacity-50"
+									onclick={() => testConnection()}
+									disabled={testing}>{testing ? '...' : $t('admin.browserTest')}</button
+								>
+							</div>
+							{#if testResult}
+								<p
+									class="text-[0.6875rem] mt-1 {testResult.ok
+										? 'text-emerald-600 dark:text-emerald-400'
+										: 'text-gray-400 dark:text-gray-600'}"
+								>
+									{testResult.message}
+								</p>
+							{/if}
+						</div>
+
+						<div>
+							<label class="text-xs text-gray-600 dark:text-gray-400" for="session-timeout"
+								>{$t('admin.browserSessionTimeout')}</label
+							>
+							<div class="flex items-center gap-1.5 mt-1">
+								<input
+									id="session-timeout"
+									type="number"
+									bind:value={sessionTimeout}
+									min="1"
+									max="120"
+									class="w-16 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+								/>
+								<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600"
+									>{$t('admin.browserMinutes')}</span
+								>
+							</div>
+						</div>
+					{:else if browserProvider === 'firecrawl'}
+						<div>
+							<label class="text-xs text-gray-600 dark:text-gray-400" for="fc-key"
+								>{$t('admin.browserApiKey')}</label
+							>
+							<input
+								id="fc-key"
+								type="password"
+								bind:value={firecrawlApiKey}
+								placeholder="fc-..."
+								class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+							/>
+						</div>
+						<div>
+							<label class="text-xs text-gray-600 dark:text-gray-400" for="fc-url"
+								>{$t('admin.browserBaseUrl')}</label
+							>
+							<input
+								id="fc-url"
+								type="text"
+								bind:value={firecrawlBaseUrl}
+								placeholder="https://api.firecrawl.dev"
+								class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+							/>
+							<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-0.5">
+								{$t('admin.browserFirecrawlBaseUrlHint')}
+							</p>
+						</div>
+					{:else if browserProvider === 'browser_use'}
+						<div>
+							<label class="text-xs text-gray-600 dark:text-gray-400" for="bu-key"
+								>{$t('admin.browserApiKey')}</label
+							>
+							<input
+								id="bu-key"
+								type="password"
+								bind:value={browserUseApiKey}
+								placeholder="bu-..."
+								class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+							/>
+						</div>
+						<div>
+							<label class="text-xs text-gray-600 dark:text-gray-400" for="bu-url"
+								>{$t('admin.browserBaseUrl')}</label
+							>
+							<input
+								id="bu-url"
+								type="text"
+								bind:value={browserUseBaseUrl}
+								placeholder="https://api.browser-use.com"
+								class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
+							/>
+						</div>
+					{/if}
+				{/if}
+			</div>
 		</div>
 
 		<!-- Save -->

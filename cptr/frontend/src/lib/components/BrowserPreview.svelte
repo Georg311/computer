@@ -195,7 +195,6 @@
 			>
 		</div>
 	</div>
-	{#if modeError}<div class="mode-error" title={modeError}>{modeError}</div>{/if}
 	<div class="preview-content">
 		{#if error}
 			<div class="preview-error">
@@ -226,13 +225,22 @@
 			/>
 			{#if chromeStatus === 'connecting'}
 				<div
-					class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-2 bg-white/80 text-xs text-gray-500 dark:bg-black/80 dark:text-gray-400"
+					class="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-white/80 text-xs text-gray-500 dark:bg-black/80 dark:text-gray-400"
 				>
 					<Spinner size={14} />
-					<span>{$t('common.loading')}</span>
+					<span>{$t('browser.starting')}</span>
 				</div>
 			{/if}
-			{#if chromeStatus === 'view_only'}<div class="status-pill">{$t('browser.viewOnly')}</div>{/if}
+			{#if chromeStatus === 'lost'}
+				<div
+					class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 bg-white/80 px-4 text-center text-xs text-gray-500 dark:bg-black/80 dark:text-gray-400"
+				>
+					<span class="font-medium">{$t('browser.connectionLost')}</span>
+					{#if modeError}<span class="max-w-md opacity-75">{modeError}</span>{/if}
+				</div>
+			{:else if chromeStatus === 'view_only'}
+				<div class="status-pill">{$t('browser.viewOnly')}</div>
+			{/if}
 		{:else}
 			<iframe
 				bind:this={iframeEl}
@@ -250,15 +258,6 @@
 
 <style>
 	@reference "../../app.css";
-	.mode-error {
-		padding: 0.2rem 0.5rem;
-		font-size: 0.6875rem;
-		color: var(--color-red-600);
-		background: color-mix(in srgb, var(--color-red-500) 8%, transparent);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
 	.status-pill {
 		position: absolute;
 		top: 0.5rem;

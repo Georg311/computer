@@ -138,6 +138,7 @@
 
 	function pointer(event: PointerEvent, type: 'move' | 'down' | 'up') {
 		if (type === 'down') {
+			activate();
 			canvas.focus();
 			canvas.setPointerCapture(event.pointerId);
 		}
@@ -163,6 +164,7 @@
 
 	function wheel(event: WheelEvent) {
 		event.preventDefault();
+		activate();
 		send({
 			type: 'wheel',
 			...coordinates(event),
@@ -175,6 +177,7 @@
 	function key(event: KeyboardEvent, type: 'keyDown' | 'keyUp') {
 		event.preventDefault();
 		event.stopPropagation();
+		if (type === 'keyDown') activate();
 		const message = {
 			type: 'key',
 			event: type,
@@ -208,16 +211,23 @@
 	}
 
 	export function navigate(url: string) {
+		activate();
 		send({ type: 'navigate', url });
 	}
 	export function back() {
+		activate();
 		send({ type: 'back' });
 	}
 	export function forward() {
+		activate();
 		send({ type: 'forward' });
 	}
 	export function reload() {
+		activate();
 		send({ type: 'reload' });
+	}
+	export function activate() {
+		send({ type: 'activate' });
 	}
 
 	$effect(() => {
