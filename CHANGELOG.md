@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.8] - 2026-07-09
+
+### Added
+
+- ✨ **More flexible layouts.** Split any view again and again, resize each section, and drag tabs exactly where you want them.
+- 🤖 **Commit-writing help.** Get a suggested commit title and description from your staged work.
+- 📁 **Create folders as you browse.** Make a new folder without leaving the workspace picker.
+- 💬 **An easy way to share feedback.** Send feature ideas from the sidebar.
+
+### Fixed
+
+- 👀 **Updates stay dismissed.** Closing the update notes no longer brings them back after a quick refresh.
+
 ## [0.8.7] - 2026-07-09
 
 ### Fixed
