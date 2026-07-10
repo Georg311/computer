@@ -271,17 +271,17 @@ async def generate_commit_message(body: CommitMessageRequest, request: Request):
     if not isinstance(target, ApiModelTarget):
         raise HTTPException(status_code=400, detail="Commit messages require an API model")
     connection = target.connection
+    base_url = (connection.get("base_url") or _default_base_url(connection["provider"])).rstrip("/")
     try:
         text = await chat_completion(
             provider=connection["provider"],
-            base_url=connection.get("base_url") or _default_base_url(connection["provider"]),
+            base_url=base_url,
             api_key=decrypt_key(connection.get("api_key", ""), _get_jwt_secret()),
             model=target.runtime_model,
             messages=[{"role": "user", "content": patch}],
             system=COMMIT_MESSAGE_PROMPT,
             max_tokens=180,
             api_type=connection.get("api_type", "chat_completions"),
-            request_params={"store": False},
         )
     except Exception as e:
         raise HTTPException(status_code=502, detail="Could not generate a commit message") from e
