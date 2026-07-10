@@ -130,8 +130,7 @@
 					// First-time load: initialize the last seen version to the current version so we don't pop up immediately
 					lastSeenVersion.set(currentVer);
 				} else {
-					// Update: record this version as seen before showing the changelog so it doesn't reopen repeatedly.
-					lastSeenVersion.set(currentVer);
+					// Update: show the changelog until the user dismisses it.
 					showChangelog.set(true);
 				}
 			}

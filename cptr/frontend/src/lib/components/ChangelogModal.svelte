@@ -2,6 +2,7 @@
 	import { fetchJSON } from '$lib/apis';
 	import Modal from './Modal.svelte';
 	import Icon from './Icon.svelte';
+	import { savePreferences } from '$lib/apis/state';
 	import { appVersion, lastSeenVersion, showChangelog } from '$lib/stores';
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import { t } from '$lib/i18n';
@@ -29,6 +30,8 @@
 	function handleClose() {
 		if ($appVersion) {
 			lastSeenVersion.set($appVersion);
+			// Persist immediately so Done and the close button survive a quick reload.
+			savePreferences({ version: $appVersion }).catch(() => {});
 		}
 		showChangelog.set(false);
 	}
