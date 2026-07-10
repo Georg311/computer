@@ -13,6 +13,7 @@
 	let { onsettings, onsysteminfo }: Props = $props();
 	let showMenu = $state(false);
 	let menuButtonEl: HTMLButtonElement | undefined = $state();
+	const FEATURE_REQUEST_URL = 'https://github.com/open-webui/computer/issues/new/choose';
 
 	function openSettings(tab?: string) {
 		showMenu = false;
@@ -78,6 +79,11 @@
 				label: $t('system.infoTitle'),
 				icon: 'info',
 				onclick: openSystemInfo
+			},
+			{
+				label: $t('sidebar.suggestFeature'),
+				icon: 'external-link',
+				onclick: () => window.open(FEATURE_REQUEST_URL, '_blank', 'noopener,noreferrer')
 			},
 			{ divider: true, label: '', onclick: () => {} },
 			{ label: $t('sidebar.logOut'), icon: 'log-out', onclick: clearSession }

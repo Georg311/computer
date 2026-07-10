@@ -19,7 +19,7 @@
 		showSearch,
 		pwaPreferences
 	} from '$lib/stores';
-	import type { Tab, EditorGroup, SplitDirection, WorkspaceState } from '$lib/stores';
+	import type { Tab, EditorGroup, EditorLayout, SplitDirection, WorkspaceState } from '$lib/stores';
 	import { t } from '$lib/i18n';
 	import { get } from 'svelte/store';
 	import { getWelcome, getWorkspaceState } from '$lib/apis/state';
@@ -582,31 +582,34 @@
 
 	// ── Draggable divider ──────────────────────────────────────────
 
-	let isDragging = $state(false);
-	let containerEl: HTMLDivElement | undefined = $state();
+	let resizingSplit = $state<{
+		splitId: string;
+		direction: SplitDirection;
+		element: HTMLElement;
+	} | null>(null);
 
-	function handleDividerPointerDown(e: PointerEvent) {
+	function handleDividerPointerDown(e: PointerEvent, split: Extract<EditorLayout, { type: 'split' }>) {
 		e.preventDefault();
-		isDragging = true;
-		(e.target as HTMLElement).setPointerCapture(e.pointerId);
+		const divider = e.currentTarget as HTMLElement;
+		resizingSplit = { splitId: split.id, direction: split.direction, element: divider.parentElement! };
+		divider.setPointerCapture(e.pointerId);
 	}
 
 	function handleDividerPointerMove(e: PointerEvent) {
-		if (!isDragging || !containerEl) return;
-		const rect = containerEl.getBoundingClientRect();
-		const direction = $currentWorkspace?.splitDirection ?? 'horizontal';
+		if (!resizingSplit) return;
+		const rect = resizingSplit.element.getBoundingClientRect();
 
 		let ratio: number;
-		if (direction === 'horizontal') {
+		if (resizingSplit.direction === 'horizontal') {
 			ratio = (e.clientX - rect.left) / rect.width;
 		} else {
 			ratio = (e.clientY - rect.top) / rect.height;
 		}
-		setSplitRatio(ratio);
+		setSplitRatio(resizingSplit.splitId, ratio);
 	}
 
 	function handleDividerPointerUp() {
-		isDragging = false;
+		resizingSplit = null;
 	}
 
 	// Computed
@@ -622,16 +625,10 @@
 	});
 
 	const allGroups = $derived($currentWorkspace?.groups ?? []);
-	const splitDirection = $derived($currentWorkspace?.splitDirection ?? 'horizontal');
-	const splitRatio = $derived($currentWorkspace?.splitRatio ?? 0.5);
-
-	// On mobile, collapse to just the active group
-	const displayGroups = $derived(
-		isWideScreen
-			? allGroups
-			: allGroups.filter((g) => g.id === $currentWorkspace?.activeGroupId).slice(0, 1)
+	const layout = $derived($currentWorkspace?.layout ?? null);
+	const activeGroup = $derived(
+		allGroups.find((group) => group.id === $currentWorkspace?.activeGroupId) ?? allGroups[0] ?? null
 	);
-	const hasSplit = $derived(displayGroups.length > 1);
 
 	function getGroupActiveTab(group: EditorGroup): Tab | null {
 		return group.tabs.find((t) => t.id === group.activeTabId) ?? null;
@@ -644,7 +641,19 @@
 	type SplitDropZone = 'left' | 'right' | 'top' | 'bottom';
 	type TabDragPayload = { tabId: string; groupId: string };
 
-	let dragOverZone = $state<SplitDropZone | null>(null);
+	let dragOverZone = $state<{ groupId: string; zone: SplitDropZone } | null>(null);
+
+	$effect(() => {
+		const clearSplitPreview = () => (dragOverZone = null);
+		document.addEventListener('dragend', clearSplitPreview, true);
+		document.addEventListener('drop', clearSplitPreview, true);
+		window.addEventListener('blur', clearSplitPreview);
+		return () => {
+			document.removeEventListener('dragend', clearSplitPreview, true);
+			document.removeEventListener('drop', clearSplitPreview, true);
+			window.removeEventListener('blur', clearSplitPreview);
+		};
+	});
 
 	function hasTabDrag(dataTransfer: DataTransfer): boolean {
 		return dataTransfer.types.includes(TAB_DRAG_MIME) || dataTransfer.types.includes('text/tab-id');
@@ -668,11 +677,11 @@
 		return tabId && groupId ? { tabId, groupId } : null;
 	}
 
-	function getSplitDropZone(e: DragEvent): SplitDropZone | null {
-		if (!containerEl || !isWideScreen || hasSplit || !e.dataTransfer) return null;
+	function getSplitDropZone(e: DragEvent, pane: HTMLElement): SplitDropZone | null {
+		if (!isWideScreen || !e.dataTransfer) return null;
 		if (e.dataTransfer.types.includes('Files') || !hasTabDrag(e.dataTransfer)) return null;
 
-		const rect = containerEl.getBoundingClientRect();
+		const rect = pane.getBoundingClientRect();
 		if (
 			e.clientX < rect.left ||
 			e.clientX > rect.right ||
@@ -701,27 +710,29 @@
 		return candidates[0]?.zone ?? null;
 	}
 
-	function handleContainerDragOver(e: DragEvent) {
-		const zone = getSplitDropZone(e);
+	function handlePaneDragOver(e: DragEvent, groupId: string) {
+		const zone = getSplitDropZone(e, e.currentTarget as HTMLElement);
 		if (!zone) {
-			dragOverZone = null;
+			if (dragOverZone?.groupId === groupId) dragOverZone = null;
 			return;
 		}
 
 		e.preventDefault();
 		e.dataTransfer!.dropEffect = 'move';
-		dragOverZone = zone;
+		dragOverZone = { groupId, zone };
 	}
 
-	function handleContainerDragLeave(e: DragEvent) {
-		// Only reset if leaving the container entirely
-		if (containerEl && !containerEl.contains(e.relatedTarget as Node)) {
+	function handlePaneDragLeave(e: DragEvent, groupId: string) {
+		if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node) && dragOverZone?.groupId === groupId) {
 			dragOverZone = null;
 		}
 	}
 
-	function handleContainerDrop(e: DragEvent) {
-		const zone = dragOverZone ?? getSplitDropZone(e);
+	function handlePaneDrop(e: DragEvent, targetGroupId: string) {
+		const zone =
+			dragOverZone?.groupId === targetGroupId
+				? dragOverZone.zone
+				: getSplitDropZone(e, e.currentTarget as HTMLElement);
 
 		if (!zone || !e.dataTransfer) {
 			dragOverZone = null;
@@ -738,7 +749,7 @@
 		const direction: SplitDirection =
 			zone === 'left' || zone === 'right' ? 'horizontal' : 'vertical';
 		const placement = zone === 'left' || zone === 'top' ? 'before' : 'after';
-		moveTabToNewSplit(payload.tabId, payload.groupId, direction, placement);
+		moveTabToNewSplit(payload.tabId, payload.groupId, targetGroupId, direction, placement);
 		dragOverZone = null;
 	}
 </script>
@@ -890,113 +901,91 @@
 {:else}
 	<!-- Editor groups layout -->
 	<div
-		bind:this={containerEl}
 		class="split-container"
-		class:split-horizontal={splitDirection === 'horizontal'}
-		class:split-vertical={splitDirection === 'vertical'}
-		class:is-dragging={isDragging}
+		class:is-dragging={resizingSplit !== null}
 		role="presentation"
-		ondragover={handleContainerDragOver}
-		ondragleave={handleContainerDragLeave}
-		ondrop={handleContainerDrop}
 	>
-		{#each displayGroups as group, i (group.id)}
-			{@const groupTab = getGroupActiveTab(group)}
-
-			{#if i > 0}
-				<!-- Divider between groups -->
-				<!-- svelte-ignore a11y_no_static_element_interactions -->
-				<div
-					class="split-divider"
-					class:split-divider-h={splitDirection === 'horizontal'}
-					class:split-divider-v={splitDirection === 'vertical'}
-					onpointerdown={handleDividerPointerDown}
-					onpointermove={handleDividerPointerMove}
-					onpointerup={handleDividerPointerUp}
-					onpointercancel={handleDividerPointerUp}
-				>
-					<div class="split-divider-handle"></div>
-				</div>
-			{/if}
-
-			<!-- svelte-ignore a11y_no_static_element_interactions -->
-			<div
-				class="split-pane"
-				class:split-pane-single={!hasSplit}
-				style={hasSplit
-					? splitDirection === 'horizontal'
-						? `width: ${i === 0 ? splitRatio * 100 : (1 - splitRatio) * 100}%;`
-						: `height: ${i === 0 ? splitRatio * 100 : (1 - splitRatio) * 100}%;`
-					: ''}
-				onclick={() => setActiveGroup(group.id)}
-			>
-				<!-- Per-group tab bar -->
-				<GroupTabBar {group} canClose={hasSplit} isPrimary={i === 0} />
-
-				<!-- Tab content -->
-				<div class="pane-content">
-					{#if $gitReviewOpen && i === 0}
-						<GitView />
-					{:else}
-						<!-- Persist all tab instances so state survives tab switches (like VS Code) -->
-						{#each group.tabs.filter((t) => t.type === 'file' && t.filePath) as tab (tab.id)}
-							<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
-								<FileEditor filePath={tab.filePath!} tabId={tab.id} edit={tab.edit === true} />
-							</div>
-						{/each}
-
-						{#each group.tabs.filter((t) => t.type === 'chat') as tab (tab.id)}
-							<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
-								<ChatPanel
-									workspace={$currentWorkspace.path}
-									chatId={tab.path?.startsWith('new-') || tab.path?.startsWith('pending-')
-										? undefined
-										: tab.path}
-									tabId={tab.id}
-								/>
-							</div>
-						{/each}
-
-						{#each group.tabs.filter((t) => t.type === 'terminal' && t.sessionId) as tab (tab.id)}
-							<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
-								<Terminal sessionId={tab.sessionId!} />
-							</div>
-						{/each}
-
-						{#each group.tabs.filter((t) => t.type === 'preview' && t.port) as tab (tab.id)}
-							<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
-								<PortPreview port={tab.port!} />
-							</div>
-						{/each}
-
-						<!-- Fallback content for non-persisted states -->
-						{#if !groupTab || groupTab.type === 'files'}
-							<FileBrowser />
-						{:else if groupTab.type === 'terminal' && !groupTab.sessionId}
-							<div class="flex items-center justify-center h-full">
-								<Spinner size={20} />
-							</div>
-						{/if}
-					{/if}
-				</div>
-			</div>
-		{/each}
-
-		<!-- Drop zone indicators for drag-to-split -->
-		{#if dragOverZone === 'left'}
-			<div class="split-drop-zone split-drop-left"></div>
-		{/if}
-		{#if dragOverZone === 'right'}
-			<div class="split-drop-zone split-drop-right"></div>
-		{/if}
-		{#if dragOverZone === 'top'}
-			<div class="split-drop-zone split-drop-top"></div>
-		{/if}
-		{#if dragOverZone === 'bottom'}
-			<div class="split-drop-zone split-drop-bottom"></div>
+		{#if isWideScreen && layout}
+			{@render renderLayout(layout)}
+		{:else if activeGroup}
+			{@render renderPane(activeGroup)}
 		{/if}
 	</div>
 {/if}
+
+{#snippet renderLayout(node: EditorLayout)}
+	{#if node.type === 'group'}
+		{@const group = allGroups.find((item) => item.id === node.groupId)}
+		{#if group}{@render renderPane(group)}{/if}
+	{:else}
+		<div class="split-branch" class:split-branch-horizontal={node.direction === 'horizontal'} class:split-branch-vertical={node.direction === 'vertical'}>
+			<div class="split-branch-child" style={`flex: ${node.ratio} 1 0%;`}>
+				{@render renderLayout(node.first)}
+			</div>
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<div
+				class="split-divider"
+				class:split-divider-h={node.direction === 'horizontal'}
+				class:split-divider-v={node.direction === 'vertical'}
+				onpointerdown={(event) => handleDividerPointerDown(event, node)}
+				onpointermove={handleDividerPointerMove}
+				onpointerup={handleDividerPointerUp}
+				onpointercancel={handleDividerPointerUp}
+			></div>
+			<div class="split-branch-child" style={`flex: ${1 - node.ratio} 1 0%;`}>
+				{@render renderLayout(node.second)}
+			</div>
+		</div>
+	{/if}
+{/snippet}
+
+{#snippet renderPane(group: EditorGroup)}
+	{@const groupTab = getGroupActiveTab(group)}
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		class="split-pane"
+		onclick={() => setActiveGroup(group.id)}
+		ondragover={(event) => handlePaneDragOver(event, group.id)}
+		ondragleave={(event) => handlePaneDragLeave(event, group.id)}
+		ondrop={(event) => handlePaneDrop(event, group.id)}
+	>
+		<GroupTabBar {group} canClose={allGroups.length > 1} isPrimary={group.id === allGroups[0]?.id} />
+		<div class="pane-content">
+			{#if $gitReviewOpen && group.id === allGroups[0]?.id}
+				<GitView />
+			{:else}
+				{#each group.tabs.filter((tab) => tab.type === 'file' && tab.filePath) as tab (tab.id)}
+					<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
+						<FileEditor filePath={tab.filePath!} tabId={tab.id} edit={tab.edit === true} />
+					</div>
+				{/each}
+				{#each group.tabs.filter((tab) => tab.type === 'chat') as tab (tab.id)}
+					<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
+						<ChatPanel workspace={$currentWorkspace!.path} chatId={tab.path?.startsWith('new-') || tab.path?.startsWith('pending-') ? undefined : tab.path} tabId={tab.id} />
+					</div>
+				{/each}
+				{#each group.tabs.filter((tab) => tab.type === 'terminal' && tab.sessionId) as tab (tab.id)}
+					<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
+						<Terminal sessionId={tab.sessionId!} />
+					</div>
+				{/each}
+				{#each group.tabs.filter((tab) => tab.type === 'preview' && tab.port) as tab (tab.id)}
+					<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
+						<PortPreview port={tab.port!} />
+					</div>
+				{/each}
+				{#if !groupTab || groupTab.type === 'files'}
+					<FileBrowser />
+				{:else if groupTab.type === 'terminal' && !groupTab.sessionId}
+					<div class="flex items-center justify-center h-full"><Spinner size={20} /></div>
+				{/if}
+			{/if}
+		</div>
+		{#if dragOverZone?.groupId === group.id}
+			<div class={`split-drop-zone split-drop-${dragOverZone.zone}`}></div>
+		{/if}
+	</div>
+{/snippet}
 
 {#if pendingIntent}
 	<WorkspacePicker
@@ -1032,28 +1021,38 @@
 		color: var(--app-fg);
 	}
 
-	.split-horizontal {
+	.split-branch {
+		display: flex;
+		flex: 1;
+		min-width: 0;
+		min-height: 0;
+		overflow: hidden;
+	}
+
+	.split-branch-horizontal {
 		flex-direction: row;
 	}
 
-	.split-vertical {
+	.split-branch-vertical {
 		flex-direction: column;
+	}
+
+	.split-branch-child {
+		display: flex;
+		min-width: 0;
+		min-height: 0;
+		overflow: hidden;
 	}
 
 	/* Panes */
 	.split-pane {
 		display: flex;
+		flex: 1;
 		flex-direction: column;
+		position: relative;
 		overflow: hidden;
 		min-width: 0;
 		min-height: 0;
-	}
-
-	/* Single pane takes all space even while preview overlays are mounted. */
-	.split-pane-single {
-		flex: 1;
-		width: 100%;
-		height: 100%;
 	}
 
 	.pane-content {
@@ -1129,14 +1128,6 @@
 	/* Drag state */
 	.is-dragging {
 		user-select: none;
-	}
-
-	.is-dragging.split-horizontal {
-		cursor: col-resize;
-	}
-
-	.is-dragging.split-vertical {
-		cursor: row-resize;
 	}
 
 	/* ── Drop zones for drag-to-split ─────────────────── */

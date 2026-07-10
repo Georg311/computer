@@ -35,7 +35,7 @@
 				active: direction === 'horizontal',
 				onclick: () => {
 					setSplitDirection('horizontal');
-					if (!$splitActive) splitCurrentTab('horizontal');
+					splitCurrentTab('horizontal');
 				}
 			},
 			{
@@ -44,7 +44,7 @@
 				active: direction === 'vertical',
 				onclick: () => {
 					setSplitDirection('vertical');
-					if (!$splitActive) splitCurrentTab('vertical');
+					splitCurrentTab('vertical');
 				}
 			}
 		];

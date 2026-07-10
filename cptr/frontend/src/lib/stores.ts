@@ -9,7 +9,7 @@
  * Architecture:
  *   Workspace → EditorGroup[] (1 or more groups, each with independent tabs)
  *   Each group has its own tab list and active tab, like VS Code editor groups.
- *   When there are 2+ groups, a split view is rendered.
+ *   Groups are arranged in a nested split tree, like VS Code editor groups.
  *
  * Multiple browser tabs can independently view different workspaces without
  * interfering; each tab reads its workspace path from the URL and loads/saves
@@ -65,11 +65,28 @@ export interface EditorGroup {
 	tabHistory?: string[]; // MRU stack of tab IDs (most recent last)
 }
 
+export type EditorLayout = EditorGroupLeaf | EditorSplit;
+
+export interface EditorGroupLeaf {
+	type: 'group';
+	groupId: string;
+}
+
+export interface EditorSplit {
+	type: 'split';
+	id: string;
+	direction: SplitDirection;
+	ratio: number;
+	first: EditorLayout;
+	second: EditorLayout;
+}
+
 export interface WorkspaceState {
 	name: string;
 	path: string;
 	groups: EditorGroup[];
 	activeGroupId: string;
+	layout: EditorLayout;
 	splitDirection: SplitDirection;
 	splitRatio: number; // 0-1, fraction for the first group
 	fileBrowserCwd: string;
@@ -119,10 +136,107 @@ function createDefaultWorkspace(path: string): WorkspaceState {
 		path,
 		groups: [createDefaultGroup()],
 		activeGroupId: 'default',
+		layout: { type: 'group', groupId: 'default' },
 		splitDirection: 'horizontal',
 		splitRatio: 0.5,
 		fileBrowserCwd: path
 	};
+}
+
+function splitLayout(
+	layout: EditorLayout,
+	groupId: string,
+	newGroupId: string,
+	direction: SplitDirection,
+	placement: 'before' | 'after' = 'after'
+): EditorLayout {
+	if (layout.type === 'group') {
+		if (layout.groupId !== groupId) return layout;
+		const newLeaf: EditorGroupLeaf = { type: 'group', groupId: newGroupId };
+		return {
+			type: 'split',
+			id: nextId(),
+			direction,
+			ratio: 0.5,
+			first: placement === 'before' ? newLeaf : layout,
+			second: placement === 'before' ? layout : newLeaf
+		};
+	}
+	return {
+		...layout,
+		first: splitLayout(layout.first, groupId, newGroupId, direction, placement),
+		second: splitLayout(layout.second, groupId, newGroupId, direction, placement)
+	};
+}
+
+function replaceLayoutGroup(layout: EditorLayout, groupId: string, replacementId: string): EditorLayout {
+	if (layout.type === 'group') {
+		return layout.groupId === groupId ? { type: 'group', groupId: replacementId } : layout;
+	}
+	return {
+		...layout,
+		first: replaceLayoutGroup(layout.first, groupId, replacementId),
+		second: replaceLayoutGroup(layout.second, groupId, replacementId)
+	};
+}
+
+function removeLayoutGroup(layout: EditorLayout, groupId: string): EditorLayout | null {
+	if (layout.type === 'group') return layout.groupId === groupId ? null : layout;
+	const first = removeLayoutGroup(layout.first, groupId);
+	const second = removeLayoutGroup(layout.second, groupId);
+	if (!first) return second;
+	if (!second) return first;
+	return { ...layout, first, second };
+}
+
+function layoutGroupIds(layout: EditorLayout): string[] {
+	return layout.type === 'group'
+		? [layout.groupId]
+		: [...layoutGroupIds(layout.first), ...layoutGroupIds(layout.second)];
+}
+
+function isEditorLayout(value: unknown): value is EditorLayout {
+	if (!value || typeof value !== 'object') return false;
+	const node = value as Partial<EditorLayout>;
+	return node.type === 'group'
+		? typeof node.groupId === 'string'
+		: node.type === 'split' &&
+			typeof node.id === 'string' &&
+			(node.direction === 'horizontal' || node.direction === 'vertical') &&
+			typeof node.ratio === 'number' &&
+			isEditorLayout(node.first) &&
+			isEditorLayout(node.second);
+}
+
+function createLayout(groups: EditorGroup[], direction: SplitDirection, ratio: number): EditorLayout {
+	let layout: EditorLayout = { type: 'group', groupId: groups[0].id };
+	for (const group of groups.slice(1)) {
+		layout = {
+			type: 'split',
+			id: nextId(),
+			direction,
+			ratio,
+			first: layout,
+			second: { type: 'group', groupId: group.id }
+		};
+	}
+	return layout;
+}
+
+function normalizeLayout(
+	layout: unknown,
+	groups: EditorGroup[],
+	direction: SplitDirection,
+	ratio: number
+): EditorLayout {
+	if (!isEditorLayout(layout)) return createLayout(groups, direction, ratio);
+	const ids = layoutGroupIds(layout);
+	const groupIds = groups.map((group) => group.id);
+	return ids.length === groupIds.length &&
+		ids.every((id) => groupIds.includes(id)) &&
+		new Set(ids).size === ids.length
+		? layout
+		: createLayout(groups, direction, ratio);
 }
 
 // ── Stores ──────────────────────────────────────────────────────
@@ -453,6 +567,7 @@ export async function loadWorkspace(path: string): Promise<void> {
 				path: canonicalWorkspacePath,
 				groups,
 				activeGroupId,
+				layout: normalizeLayout(ws.layout, groups, ws.splitDirection ?? 'horizontal', ws.splitRatio ?? 0.5),
 				splitDirection: ws.splitDirection ?? 'horizontal',
 				splitRatio: ws.splitRatio ?? 0.5,
 				fileBrowserCwd: ws.fileBrowserCwd ?? canonicalWorkspacePath
@@ -876,10 +991,14 @@ export function closeTab(tabId: string, groupId?: string): void {
 
 		// If active group was removed, switch to first remaining
 		const activeGroupStillExists = newGroups.some((g) => g.id === ws.activeGroupId);
+		const closedGroupStillExists = newGroups.some((g) => g.id === gid);
 
 		return {
 			...ws,
 			groups: newGroups,
+			layout: closedGroupStillExists
+				? ws.layout
+				: removeLayoutGroup(ws.layout, gid) ?? { type: 'group', groupId: newGroups[0].id },
 			activeGroupId: activeGroupStillExists ? ws.activeGroupId : newGroups[0].id
 		};
 	});
@@ -962,21 +1081,12 @@ export function clearTabEdit(tabId: string): void {
 
 // ── Split / Editor Group actions ────────────────────────────────
 
-/** Open a file in a new split group (creates the group if needed) */
+/** Open a file in a new editor group. */
 export function openInSplit(filePath: string, direction?: SplitDirection): void {
 	const ws = get(currentWorkspace);
 	if (!ws) return;
 
 	const dir = direction ?? ws.splitDirection ?? 'horizontal';
-
-	// If there's already a second group, open in it
-	if (ws.groups.length > 1) {
-		const otherGroup = ws.groups.find((g) => g.id !== ws.activeGroupId);
-		if (otherGroup) {
-			openFileTab(filePath, otherGroup.id);
-			return;
-		}
-	}
 
 	// Create a new group with this file
 	const name = getPathDisplayName(filePath, filePath);
@@ -993,6 +1103,7 @@ export function openInSplit(filePath: string, direction?: SplitDirection): void 
 			...ws,
 			groups: [...ws.groups, newGroup],
 			activeGroupId: newGroup.id,
+			layout: splitLayout(ws.layout, ws.activeGroupId, newGroup.id, dir),
 			splitDirection: dir,
 			splitRatio: ws.splitRatio ?? 0.5
 		};
@@ -1010,15 +1121,6 @@ export function splitCurrentTab(direction?: SplitDirection): void {
 
 	const dir = direction ?? ws.splitDirection ?? 'horizontal';
 
-	// If already split, focus the other group
-	if (ws.groups.length > 1) {
-		const otherGroup = ws.groups.find((g) => g.id !== ws.activeGroupId);
-		if (otherGroup) {
-			setActiveGroup(otherGroup.id);
-			return;
-		}
-	}
-
 	// Copy the tab into a new group
 	const newTab: Tab = { ...tab, id: nextId(), permanent: false };
 	const newGroup: EditorGroup = {
@@ -1033,6 +1135,7 @@ export function splitCurrentTab(direction?: SplitDirection): void {
 			...ws,
 			groups: [...ws.groups, newGroup],
 			activeGroupId: newGroup.id,
+			layout: splitLayout(ws.layout, group.id, newGroup.id, dir),
 			splitDirection: dir,
 			splitRatio: ws.splitRatio ?? 0.5
 		};
@@ -1070,7 +1173,8 @@ export function closeGroup(groupId: string): void {
 		return {
 			...ws,
 			groups: newGroups,
-			activeGroupId: targetGroup.id
+			activeGroupId: targetGroup.id,
+			layout: removeLayoutGroup(ws.layout, groupId) ?? { type: 'group', groupId: targetGroup.id }
 		};
 	});
 }
@@ -1100,10 +1204,12 @@ export function moveTabToGroup(tabId: string, fromGroupId: string, toGroupId: st
 		newGroups = newGroups.filter((g) => g.tabs.length > 0);
 		if (newGroups.length === 0) newGroups = [createDefaultGroup()];
 
+		const sourceGroupStillExists = newGroups.some((g) => g.id === fromGroupId);
 		const targetGroupStillExists = newGroups.some((g) => g.id === toGroupId);
 		return {
 			...ws,
 			groups: newGroups,
+			layout: sourceGroupStillExists ? ws.layout : removeLayoutGroup(ws.layout, fromGroupId) ?? ws.layout,
 			activeGroupId: targetGroupStillExists ? toGroupId : newGroups[0].id
 		};
 	});
@@ -1112,11 +1218,12 @@ export function moveTabToGroup(tabId: string, fromGroupId: string, toGroupId: st
 export function moveTabToNewSplit(
 	tabId: string,
 	fromGroupId: string,
+	targetGroupId: string,
 	direction: SplitDirection,
 	placement: 'before' | 'after' = 'after'
 ): void {
 	currentWorkspace.update((ws) => {
-		if (!ws || ws.groups.length > 1) return ws;
+		if (!ws) return ws;
 		const fromGroup = ws.groups.find((g) => g.id === fromGroupId);
 		if (!fromGroup) return ws;
 		const tab = fromGroup.tabs.find((t) => t.id === tabId);
@@ -1132,12 +1239,25 @@ export function moveTabToNewSplit(
 			const tabs = g.tabs.filter((t) => t.id !== tabId);
 			return { ...g, tabs, activeTabId: tabs[0]?.id ?? '' };
 		});
+		const sourceGroupRemoved = groups.some((group) => group.id === fromGroupId && group.tabs.length === 0);
 		groups = groups.filter((g) => g.tabs.length > 0);
+		groups.push(newGroup);
+		let layout = ws.layout;
+		if (sourceGroupRemoved) {
+			layout =
+				fromGroupId === targetGroupId
+					? replaceLayoutGroup(layout, fromGroupId, newGroup.id)
+					: removeLayoutGroup(layout, fromGroupId) ?? layout;
+		}
+		if (!(sourceGroupRemoved && fromGroupId === targetGroupId)) {
+			layout = splitLayout(layout, targetGroupId, newGroup.id, direction, placement);
+		}
 
 		return {
 			...ws,
-			groups: placement === 'before' ? [newGroup, ...groups] : [...groups, newGroup],
+			groups,
 			activeGroupId: newGroup.id,
+			layout,
 			splitDirection: direction,
 			splitRatio: ws.splitRatio ?? 0.5
 		};
@@ -1148,8 +1268,23 @@ export function setSplitDirection(direction: SplitDirection): void {
 	currentWorkspace.update((ws) => (ws ? { ...ws, splitDirection: direction } : ws));
 }
 
-export function setSplitRatio(ratio: number): void {
+export function setSplitRatio(splitId: string, ratio: number): void {
 	currentWorkspace.update((ws) =>
-		ws ? { ...ws, splitRatio: Math.max(0.2, Math.min(0.8, ratio)) } : ws
+		ws
+			? {
+					...ws,
+					layout: updateSplitRatio(ws.layout, splitId, ratio)
+				}
+			: ws
 	);
+}
+
+function updateSplitRatio(layout: EditorLayout, splitId: string, ratio: number): EditorLayout {
+	if (layout.type === 'group') return layout;
+	if (layout.id === splitId) return { ...layout, ratio: Math.max(0.2, Math.min(0.8, ratio)) };
+	return {
+		...layout,
+		first: updateSplitRatio(layout.first, splitId, ratio),
+		second: updateSplitRatio(layout.second, splitId, ratio)
+	};
 }
