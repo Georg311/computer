@@ -13,6 +13,7 @@
 		unstageFiles,
 		discardChanges,
 		gitCommit,
+		generateGitCommitMessage,
 		gitFetch,
 		gitPull,
 		gitPush,
@@ -109,6 +110,7 @@
 	let commitDescription = $state('');
 	let actionMsg = $state('');
 	let loading = $state(false);
+	let generatingCommitMessage = $state(false);
 	let panelHeight = $state(280);
 	let prevHeight = $state(280);
 	let isMaximized = $state(false);
@@ -374,6 +376,20 @@
 		fileDiff = [];
 		loading = false;
 		await refresh();
+	}
+
+	async function generateCommitMessage() {
+		if (!stagedFiles.length || generatingCommitMessage) return;
+		generatingCommitMessage = true;
+		try {
+			const message = await generateGitCommitMessage(workspacePath);
+			commitSummary = message.summary;
+			commitDescription = message.description;
+		} catch (e) {
+			flash(e instanceof Error ? e.message : $t('git.generateMessageFailed'));
+		} finally {
+			generatingCommitMessage = false;
+		}
 	}
 
 	async function doUncommit() {
@@ -1340,15 +1356,31 @@
 								<div
 									class="rounded-lg border border-gray-200 dark:border-white/8 overflow-hidden focus-within:border-gray-300 dark:focus-within:border-white/15 transition-colors"
 								>
-									<input
-										type="text"
-										class="w-full h-7 px-2 bg-transparent text-[0.6875rem] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 outline-none"
-										placeholder={$t('git.summaryRequired')}
-										bind:value={commitSummary}
-										onkeydown={(e) => {
-											if (e.key === 'Enter' && !e.shiftKey) doCommit();
-										}}
-									/>
+									<div class="relative">
+										<input
+											type="text"
+											class="w-full h-7 pl-2 pr-7 bg-transparent text-[0.6875rem] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 outline-none"
+											placeholder={$t('git.summaryRequired')}
+											bind:value={commitSummary}
+											onkeydown={(e) => {
+												if (e.key === 'Enter' && !e.shiftKey) doCommit();
+											}}
+										/>
+										<button
+											class="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:cursor-default disabled:opacity-50 dark:text-gray-600 dark:hover:bg-white/10 dark:hover:text-gray-300"
+											type="button"
+											disabled={!stagedFiles.length || generatingCommitMessage}
+											use:tooltip={$t('git.generateMessage')}
+											aria-label={$t('git.generateMessage')}
+											onclick={generateCommitMessage}
+										>
+											{#if generatingCommitMessage}
+												<Spinner size={10} />
+											{:else}
+												<Icon name="spark" size={11} />
+											{/if}
+										</button>
+									</div>
 									<textarea
 										class="w-full px-2 py-1.5 bg-transparent text-[0.6875rem] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 outline-none resize-none border-t border-gray-100 dark:border-white/4"
 										rows="2"
