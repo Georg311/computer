@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { addWorkspace } from '$lib/stores';
 	import { getWelcome } from '$lib/apis/state';
-	import { listDir } from '$lib/apis/files';
+	import { createEntry, listDir } from '$lib/apis/files';
 	import Icon from './Icon.svelte';
 	import Modal from './Modal.svelte';
 	import DropdownMenu from './DropdownMenu.svelte';
@@ -33,6 +33,8 @@
 	let actionsBtnEl: HTMLButtonElement | undefined = $state();
 	let listEl: HTMLDivElement | undefined = $state();
 	let history = $state<string[]>([]);
+	let creatingFolder = $state(false);
+	let folderName = $state('');
 
 	// ── Editable path bar ───────────────────────────────────────
 	let editingPath = $state(false);
@@ -283,6 +285,32 @@
 	function toggleHidden() {
 		showHidden = !showHidden;
 	}
+
+	function startCreatingFolder() {
+		creatingFolder = true;
+		folderName = '';
+		actionsMenuOpen = false;
+	}
+
+	async function createFolder() {
+		const name = folderName.trim();
+		if (!name) return;
+		const path = currentPath === '/' ? `/${name}` : `${currentPath}/${name}`;
+		try {
+			await createEntry(path, 'directory');
+			await fetchDirectories(currentPath);
+		} catch (e: any) {
+			error = e.message || $t('files.failedToLoad');
+		} finally {
+			creatingFolder = false;
+			folderName = '';
+		}
+	}
+
+	function cancelCreatingFolder() {
+		creatingFolder = false;
+		folderName = '';
+	}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -393,6 +421,37 @@
 
 	<!-- Directory listing -->
 	<div bind:this={listEl} class="overflow-y-auto px-1.5 pb-1.5 flex-1 min-h-0">
+		{#if creatingFolder}
+			<div class="flex items-center gap-2 h-7 px-2">
+				<Icon name="folder" size={14} class="text-gray-400 shrink-0" />
+				<input
+					type="text"
+					class="flex-1 border-none outline-none bg-transparent text-xs text-gray-900 dark:text-white"
+					placeholder={$t('files.folderNamePlaceholder')}
+					bind:value={folderName}
+					onkeydown={(e) => {
+						if (e.key === 'Enter') createFolder();
+						if (e.key === 'Escape') cancelCreatingFolder();
+					}}
+					autofocus
+				/>
+				<button
+					class="flex items-center justify-center w-5 h-5 rounded text-green-500 hover:bg-green-50 dark:hover:bg-green-500/10 transition-colors duration-75"
+					onclick={createFolder}
+					aria-label={$t('files.newFolder')}
+				>
+					<Icon name="check" size={12} />
+				</button>
+				<button
+					class="flex items-center justify-center w-5 h-5 rounded text-gray-400 hover:bg-gray-100 dark:hover:bg-white/6 transition-colors duration-75"
+					onclick={cancelCreatingFolder}
+					aria-label={$t('directory.cancel')}
+				>
+					<Icon name="xmark" size={12} />
+				</button>
+			</div>
+		{/if}
+
 		{#if loading}
 			<div class="flex items-center justify-center py-8">
 				<Spinner size={16} />
@@ -459,6 +518,11 @@
 		anchor={actionsBtnEl}
 		align="end"
 		items={[
+			{
+				label: $t('files.newFolder'),
+				icon: 'folder',
+				onclick: () => startCreatingFolder()
+			},
 			{
 				label: showHidden ? $t('files.hideHidden') : $t('files.showHidden'),
 				icon: 'eye',
