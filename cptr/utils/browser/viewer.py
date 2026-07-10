@@ -175,7 +175,7 @@ class CDPConnection:
 class ChromeHost:
     owner: str
     browser_path: str
-    base_url: str
+    browser_ws_url: str
     process: asyncio.subprocess.Process | None
     profile: Path | None
     browser_cdp: CDPConnection
@@ -183,17 +183,15 @@ class ChromeHost:
     start_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     async def create_target(self, url: str) -> tuple[str, CDPConnection]:
-        encoded = quote(url, safe="")
-        async with httpx.AsyncClient() as client:
-            response = await client.put(f"{self.base_url}/json/new?{encoded}", timeout=10)
-            response.raise_for_status()
-            target = response.json()
-        return target["id"], await CDPConnection.connect(target["webSocketDebuggerUrl"])
+        target = await self.browser_cdp.send("Target.createTarget", {"url": url})
+        target_id = str(target["targetId"])
+        browser_url = urlsplit(self.browser_ws_url)
+        target_url = f"{browser_url.scheme}://{browser_url.netloc}/devtools/page/{target_id}"
+        return target_id, await CDPConnection.connect(target_url)
 
     async def close_target(self, target_id: str) -> None:
-        async with httpx.AsyncClient() as client:
-            with contextlib.suppress(Exception):
-                await client.get(f"{self.base_url}/json/close/{target_id}", timeout=3)
+        with contextlib.suppress(Exception):
+            await self.browser_cdp.send("Target.closeTarget", {"targetId": target_id})
 
     async def close(self) -> None:
         await self.browser_cdp.close()
@@ -260,8 +258,9 @@ class ChromeViewerManager:
             if existing.process is None or existing.process.returncode is None:
                 return existing
         if source:
-            browser_cdp = await CDPConnection.connect(await resolve_cdp_endpoint(source))
-            host = ChromeHost(owner, "", source, None, None, browser_cdp, "external")
+            browser_ws_url = await resolve_cdp_endpoint(source)
+            browser_cdp = await CDPConnection.connect(browser_ws_url)
+            host = ChromeHost(owner, "", browser_ws_url, None, None, browser_cdp, "external")
             self.hosts[key] = host
             return host
         browser_path = find_browser()
@@ -315,7 +314,7 @@ class ChromeViewerManager:
         host = ChromeHost(
             owner,
             browser_path,
-            f"http://127.0.0.1:{port}",
+            str(version["webSocketDebuggerUrl"]),
             process,
             profile,
             browser_cdp,
@@ -380,7 +379,9 @@ class ChromeViewerManager:
                         "userGesture": True,
                     },
                 )
-                await asyncio.wait_for(viewer.first_keyframe.wait(), 5)
+                await asyncio.wait_for(
+                    viewer.first_keyframe.wait(), 90 if host.source == "external" else 5
+                )
                 if viewer.encoder_error:
                     raise RuntimeError(viewer.encoder_error)
                 if session.url:
