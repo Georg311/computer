@@ -1,6 +1,6 @@
 # Manifesto
 
-> **TL;DR** We pushed code and went to dinner. Prod broke. Phone in pocket, laptop at home. The fix was on our computer, not in some fresh cloud box. So we built `cptr`: your actual machine, in any browser. Files, terminal, editor, git, running sessions, all of it. Phone, tablet, laptop, whatever. It literally is your computer. Now go outside.
+> **TL;DR** We pushed code and went to dinner. Prod broke. Phone in pocket, laptop at home. The fix was on our computer, not in some fresh cloud box. So we built Open WebUI Computer: your actual machine, in any browser. Files, terminal, editor, git, running sessions, all of it. Phone, tablet, laptop, whatever. It literally is your computer. Now go outside.
 
 Your computer is where your work lives.
 
