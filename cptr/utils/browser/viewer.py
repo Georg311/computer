@@ -298,7 +298,8 @@ class ChromeViewerManager:
             try:
                 for _ in range(30):
                     ready = await controller_cdp.send(
-                        "Runtime.evaluate", {"expression": "typeof window.startCapture === 'function'"}
+                        "Runtime.evaluate",
+                        {"expression": "typeof window.startCapture === 'function'"},
                     )
                     if ready.get("result", {}).get("value") is True:
                         break
@@ -338,7 +339,11 @@ class ChromeViewerManager:
             with contextlib.suppress(Exception):
                 await viewer.target_cdp.send("Page.handleJavaScriptDialog", {"accept": True})
 
-        for method in ("Page.frameNavigated", "Page.navigatedWithinDocument", "Page.loadEventFired"):
+        for method in (
+            "Page.frameNavigated",
+            "Page.navigatedWithinDocument",
+            "Page.loadEventFired",
+        ):
             viewer.target_cdp.on(method, refresh)
         viewer.target_cdp.on("Page.javascriptDialogOpening", dialog)
 
@@ -412,7 +417,8 @@ class ChromeViewerManager:
                 viewer.encoder = None
                 viewer.session.status = "lost"
                 await self._broadcast_json(
-                    viewer, {"type": "status", "status": "lost", "message": "Chrome encoder disconnected"}
+                    viewer,
+                    {"type": "status", "status": "lost", "message": "Chrome encoder disconnected"},
                 )
                 if self.viewers.get(session_id) is viewer:
                     asyncio.create_task(self._restart_encoder(viewer))
@@ -563,14 +569,24 @@ class ChromeViewerManager:
         elif kind == "wheel":
             await self._wheel(viewer, data)
         elif kind == "key":
+            event = str(data.get("event", ""))
+            if event not in {"keyDown", "keyUp", "char"}:
+                return
+            text = str(data.get("text", ""))
             await viewer.target_cdp.send(
                 "Input.dispatchKeyEvent",
                 {
-                    "type": str(data.get("event", "keyDown")),
+                    "type": "rawKeyDown" if event == "keyDown" and not text else event,
                     "key": str(data.get("key", "")),
                     "code": str(data.get("code", "")),
-                    "text": str(data.get("text", "")),
+                    "text": text,
                     "modifiers": int(data.get("modifiers", 0)),
+                    "autoRepeat": bool(data.get("auto_repeat", False)),
+                    "location": max(0, min(3, int(data.get("location", 0)))),
+                    "isKeypad": bool(data.get("is_keypad", False)),
+                    "windowsVirtualKeyCode": max(
+                        0, min(65535, int(data.get("windows_virtual_key_code", 0)))
+                    ),
                 },
             )
         elif kind == "paste":

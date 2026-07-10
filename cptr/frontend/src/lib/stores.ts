@@ -171,7 +171,11 @@ function splitLayout(
 	};
 }
 
-function replaceLayoutGroup(layout: EditorLayout, groupId: string, replacementId: string): EditorLayout {
+function replaceLayoutGroup(
+	layout: EditorLayout,
+	groupId: string,
+	replacementId: string
+): EditorLayout {
 	if (layout.type === 'group') {
 		return layout.groupId === groupId ? { type: 'group', groupId: replacementId } : layout;
 	}
@@ -203,14 +207,18 @@ function isEditorLayout(value: unknown): value is EditorLayout {
 	return node.type === 'group'
 		? typeof node.groupId === 'string'
 		: node.type === 'split' &&
-			typeof node.id === 'string' &&
-			(node.direction === 'horizontal' || node.direction === 'vertical') &&
-			typeof node.ratio === 'number' &&
-			isEditorLayout(node.first) &&
-			isEditorLayout(node.second);
+				typeof node.id === 'string' &&
+				(node.direction === 'horizontal' || node.direction === 'vertical') &&
+				typeof node.ratio === 'number' &&
+				isEditorLayout(node.first) &&
+				isEditorLayout(node.second);
 }
 
-function createLayout(groups: EditorGroup[], direction: SplitDirection, ratio: number): EditorLayout {
+function createLayout(
+	groups: EditorGroup[],
+	direction: SplitDirection,
+	ratio: number
+): EditorLayout {
 	let layout: EditorLayout = { type: 'group', groupId: groups[0].id };
 	for (const group of groups.slice(1)) {
 		layout = {
@@ -605,7 +613,12 @@ export async function loadWorkspace(path: string): Promise<void> {
 				path: canonicalWorkspacePath,
 				groups,
 				activeGroupId,
-				layout: normalizeLayout(ws.layout, groups, ws.splitDirection ?? 'horizontal', ws.splitRatio ?? 0.5),
+				layout: normalizeLayout(
+					ws.layout,
+					groups,
+					ws.splitDirection ?? 'horizontal',
+					ws.splitRatio ?? 0.5
+				),
 				splitDirection: ws.splitDirection ?? 'horizontal',
 				splitRatio: ws.splitRatio ?? 0.5,
 				fileBrowserCwd: ws.fileBrowserCwd ?? canonicalWorkspacePath
@@ -934,23 +947,32 @@ export async function openPreviewTab(port: number, targetGroupId?: string): Prom
 	await openBrowserTab(gid, url, `localhost:${port}`);
 }
 
-export async function openBrowserTab(targetGroupId?: string, url?: string, label = 'Browser'): Promise<void> {
+export async function openBrowserTab(
+	targetGroupId?: string,
+	url?: string,
+	label = 'Browser'
+): Promise<void> {
 	const ws = get(currentWorkspace);
 	if (!ws) return;
 	const gid = targetGroupId ?? ws.activeGroupId;
 	if (!ws.groups.some((group) => group.id === gid)) return;
+	const tabId = nextId();
+	const pendingTab: Tab = { id: tabId, type: 'browser', label, path: url };
+	updateGroupTabs(gid, (tabs) => ({ tabs: [...tabs, pendingTab], activeTabId: tabId }));
 	try {
 		const session = await createBrowserSession();
-		const newTab: Tab = {
-			id: nextId(),
-			type: 'browser',
-			label,
-			browserSessionId: session.session_id,
-			path: url
-		};
-		updateGroupTabs(gid, (tabs) => ({ tabs: [...tabs, newTab], activeTabId: newTab.id }));
+		let attached = false;
+		updateGroupTabs(gid, (tabs) => ({
+			tabs: tabs.map((tab) => {
+				if (tab.id !== tabId) return tab;
+				attached = true;
+				return { ...tab, browserSessionId: session.session_id };
+			})
+		}));
+		if (!attached) deleteBrowserSession(session.session_id);
 	} catch (error) {
 		console.error('Failed to create browser session:', error);
+		closeTab(tabId, gid);
 	}
 }
 
@@ -1066,7 +1088,7 @@ export function closeTab(tabId: string, groupId?: string): void {
 			groups: newGroups,
 			layout: closedGroupStillExists
 				? ws.layout
-				: removeLayoutGroup(ws.layout, gid) ?? { type: 'group', groupId: newGroups[0].id },
+				: (removeLayoutGroup(ws.layout, gid) ?? { type: 'group', groupId: newGroups[0].id }),
 			activeGroupId: activeGroupStillExists ? ws.activeGroupId : newGroups[0].id
 		};
 	});
@@ -1277,7 +1299,9 @@ export function moveTabToGroup(tabId: string, fromGroupId: string, toGroupId: st
 		return {
 			...ws,
 			groups: newGroups,
-			layout: sourceGroupStillExists ? ws.layout : removeLayoutGroup(ws.layout, fromGroupId) ?? ws.layout,
+			layout: sourceGroupStillExists
+				? ws.layout
+				: (removeLayoutGroup(ws.layout, fromGroupId) ?? ws.layout),
 			activeGroupId: targetGroupStillExists ? toGroupId : newGroups[0].id
 		};
 	});
@@ -1307,7 +1331,9 @@ export function moveTabToNewSplit(
 			const tabs = g.tabs.filter((t) => t.id !== tabId);
 			return { ...g, tabs, activeTabId: tabs[0]?.id ?? '' };
 		});
-		const sourceGroupRemoved = groups.some((group) => group.id === fromGroupId && group.tabs.length === 0);
+		const sourceGroupRemoved = groups.some(
+			(group) => group.id === fromGroupId && group.tabs.length === 0
+		);
 		groups = groups.filter((g) => g.tabs.length > 0);
 		groups.push(newGroup);
 		let layout = ws.layout;
@@ -1315,7 +1341,7 @@ export function moveTabToNewSplit(
 			layout =
 				fromGroupId === targetGroupId
 					? replaceLayoutGroup(layout, fromGroupId, newGroup.id)
-					: removeLayoutGroup(layout, fromGroupId) ?? layout;
+					: (removeLayoutGroup(layout, fromGroupId) ?? layout);
 		}
 		if (!(sourceGroupRemoved && fromGroupId === targetGroupId)) {
 			layout = splitLayout(layout, targetGroupId, newGroup.id, direction, placement);

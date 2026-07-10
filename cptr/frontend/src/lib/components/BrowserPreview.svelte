@@ -11,6 +11,7 @@
 	import { openBrowserTab, updateTabLabel } from '$lib/stores';
 	import Icon from './Icon.svelte';
 	import ChromeBrowser from './ChromeBrowser.svelte';
+	import Spinner from './common/Spinner.svelte';
 	import { t } from '$lib/i18n';
 
 	interface Props {
@@ -132,6 +133,8 @@
 				updateTabLabel(tabId, title);
 				mode = session.mode || 'proxy';
 				if (mode === 'chrome') {
+					chromeStatus = 'connecting';
+					loading = true;
 					const supported =
 						'VideoDecoder' in window &&
 						(await VideoDecoder.isConfigSupported({ codec: 'avc1.42E028' })).supported;
@@ -179,7 +182,7 @@
 		</button>
 		<div class="relative min-w-0 flex-1">
 			<input
-				class="h-7 w-full min-w-0 rounded-full border border-transparent bg-gray-100 py-1 pr-8 pl-3 text-left text-xs font-medium text-gray-700 outline-none transition-colors focus:border-gray-300 focus:bg-white sm:px-8 sm:text-center dark:bg-white/8 dark:text-gray-300 dark:focus:border-white/12 dark:focus:bg-white/11"
+				class="h-7 w-full min-w-0 rounded-full bg-transparent py-1 pr-8 pl-3 text-left text-xs font-medium text-gray-700 outline-none transition-colors hover:bg-gray-100/60 focus:bg-gray-100 sm:px-8 sm:text-center dark:text-gray-300 dark:hover:bg-white/5 dark:focus:bg-white/8"
 				bind:value={urlInput}
 				onkeydown={(event) => event.key === 'Enter' && navigate()}
 				placeholder="https://example.com"
@@ -214,18 +217,26 @@
 					updateTabLabel(tabId, title);
 					canGoBack = state.can_go_back;
 					canGoForward = state.can_go_forward;
-					loading = false;
 				}}
 				onstatus={(status, message, nextMode) => {
 					chromeStatus = status;
 					loading = status === 'connecting';
 					if (message) modeError = message;
+					else if (status === 'playing' || status === 'view_only') modeError = '';
 					if (nextMode === 'proxy') {
 						mode = 'proxy';
 						if (urlInput) frameSrc = browserFrameUrl(sessionId, urlInput);
 					}
 				}}
 			/>
+			{#if chromeStatus === 'connecting'}
+				<div
+					class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-2 bg-white/80 text-xs text-gray-500 dark:bg-black/80 dark:text-gray-400"
+				>
+					<Spinner size={14} />
+					<span>{$t('common.loading')}</span>
+				</div>
+			{/if}
 			{#if chromeStatus === 'view_only'}<div class="status-pill">{$t('browser.viewOnly')}</div>{/if}
 		{:else}
 			<iframe

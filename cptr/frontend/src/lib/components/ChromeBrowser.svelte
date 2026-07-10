@@ -27,6 +27,9 @@
 	let viewport = { width: 1280, height: 720 };
 	let pendingPointer: Record<string, unknown> | undefined;
 	let pointerFrame = 0;
+	let controller = false;
+	let hasFrame = false;
+	const pressedKeys = new Map<string, Record<string, unknown>>();
 
 	function send(message: Record<string, unknown>) {
 		if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
@@ -34,6 +37,7 @@
 
 	function connect() {
 		if (disposed) return;
+		hasFrame = false;
 		onstatus('connecting');
 		const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
 		socket = new WebSocket(`${scheme}://${location.host}/api/browser/sessions/${sessionId}/stream`);
@@ -55,9 +59,10 @@
 	function receive(event: MessageEvent) {
 		if (typeof event.data === 'string') {
 			const message = JSON.parse(event.data);
-			if (message.type === 'ready') onstatus(message.controller ? 'playing' : 'view_only');
+			if (message.type === 'ready') controller = message.controller === true;
 			if (message.type === 'state') onstate(message);
-			if (message.type === 'status') onstatus(message.status, message.message, message.mode);
+			if (message.type === 'status' && (message.status !== 'playing' || hasFrame))
+				onstatus(message.status, message.message, message.mode);
 			if (message.type === 'config') configureDecoder(message);
 			return;
 		}
@@ -86,6 +91,10 @@
 				canvas.height = frame.displayHeight;
 				canvas.getContext('2d', { alpha: false })?.drawImage(frame, 0, 0);
 				frame.close();
+				if (!hasFrame) {
+					hasFrame = true;
+					onstatus(controller ? 'playing' : 'view_only');
+				}
 			},
 			error() {
 				send({ type: 'request_keyframe' });
@@ -164,14 +173,34 @@
 
 	function key(event: KeyboardEvent, type: 'keyDown' | 'keyUp') {
 		event.preventDefault();
-		send({
+		event.stopPropagation();
+		const message = {
 			type: 'key',
 			event: type,
 			key: event.key,
 			code: event.code,
-			text: type === 'keyDown' && event.key.length === 1 ? event.key : '',
-			modifiers: modifiers(event)
-		});
+			text:
+				type === 'keyDown' &&
+				event.key.length === 1 &&
+				!event.altKey &&
+				!event.ctrlKey &&
+				!event.metaKey
+					? event.key
+					: '',
+			modifiers: modifiers(event),
+			auto_repeat: event.repeat,
+			location: event.location,
+			is_keypad: event.location === KeyboardEvent.DOM_KEY_LOCATION_NUMPAD,
+			windows_virtual_key_code: event.keyCode
+		};
+		if (type === 'keyDown') pressedKeys.set(event.code, message);
+		else pressedKeys.delete(event.code);
+		send(message);
+	}
+
+	function releaseKeys() {
+		for (const message of pressedKeys.values()) send({ ...message, event: 'keyUp', text: '' });
+		pressedKeys.clear();
 	}
 
 	export function navigate(url: string) {
@@ -202,6 +231,7 @@
 
 	onDestroy(() => {
 		disposed = true;
+		releaseKeys();
 		observer?.disconnect();
 		if (reconnectTimer) clearTimeout(reconnectTimer);
 		if (pointerFrame) cancelAnimationFrame(pointerFrame);
@@ -220,8 +250,10 @@
 		onwheel={wheel}
 		onkeydown={(event) => key(event, 'keyDown')}
 		onkeyup={(event) => key(event, 'keyUp')}
+		onblur={releaseKeys}
 		onpaste={(event) => {
 			event.preventDefault();
+			event.stopPropagation();
 			send({ type: 'paste', text: event.clipboardData?.getData('text/plain') || '' });
 		}}
 		oncontextmenu={(event) => event.preventDefault()}

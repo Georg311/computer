@@ -588,10 +588,17 @@
 		element: HTMLElement;
 	} | null>(null);
 
-	function handleDividerPointerDown(e: PointerEvent, split: Extract<EditorLayout, { type: 'split' }>) {
+	function handleDividerPointerDown(
+		e: PointerEvent,
+		split: Extract<EditorLayout, { type: 'split' }>
+	) {
 		e.preventDefault();
 		const divider = e.currentTarget as HTMLElement;
-		resizingSplit = { splitId: split.id, direction: split.direction, element: divider.parentElement! };
+		resizingSplit = {
+			splitId: split.id,
+			direction: split.direction,
+			element: divider.parentElement!
+		};
 		divider.setPointerCapture(e.pointerId);
 	}
 
@@ -723,7 +730,10 @@
 	}
 
 	function handlePaneDragLeave(e: DragEvent, groupId: string) {
-		if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node) && dragOverZone?.groupId === groupId) {
+		if (
+			!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node) &&
+			dragOverZone?.groupId === groupId
+		) {
 			dragOverZone = null;
 		}
 	}
@@ -900,11 +910,7 @@
 	</div>
 {:else}
 	<!-- Editor groups layout -->
-	<div
-		class="split-container"
-		class:is-dragging={resizingSplit !== null}
-		role="presentation"
-	>
+	<div class="split-container" class:is-dragging={resizingSplit !== null} role="presentation">
 		{#if isWideScreen && layout}
 			{@render renderLayout(layout)}
 		{:else if activeGroup}
@@ -918,7 +924,11 @@
 		{@const group = allGroups.find((item) => item.id === node.groupId)}
 		{#if group}{@render renderPane(group)}{/if}
 	{:else}
-		<div class="split-branch" class:split-branch-horizontal={node.direction === 'horizontal'} class:split-branch-vertical={node.direction === 'vertical'}>
+		<div
+			class="split-branch"
+			class:split-branch-horizontal={node.direction === 'horizontal'}
+			class:split-branch-vertical={node.direction === 'vertical'}
+		>
 			<div class="split-branch-child" style={`flex: ${node.ratio} 1 0%;`}>
 				{@render renderLayout(node.first)}
 			</div>
@@ -968,7 +978,13 @@
 				{/each}
 				{#each group.tabs.filter((tab) => tab.type === 'chat') as tab (tab.id)}
 					<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
-						<ChatPanel workspace={$currentWorkspace!.path} chatId={tab.path?.startsWith('new-') || tab.path?.startsWith('pending-') ? undefined : tab.path} tabId={tab.id} />
+						<ChatPanel
+							workspace={$currentWorkspace!.path}
+							chatId={tab.path?.startsWith('new-') || tab.path?.startsWith('pending-')
+								? undefined
+								: tab.path}
+							tabId={tab.id}
+						/>
 					</div>
 				{/each}
 				{#each group.tabs.filter((tab) => tab.type === 'terminal' && tab.sessionId) as tab (tab.id)}
@@ -991,6 +1007,13 @@
 					<FileBrowser />
 				{:else if groupTab.type === 'terminal' && !groupTab.sessionId}
 					<div class="flex items-center justify-center h-full"><Spinner size={20} /></div>
+				{:else if groupTab.type === 'browser' && !groupTab.browserSessionId}
+					<div
+						class="flex h-full items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400"
+					>
+						<Spinner size={16} />
+						<span>{$t('common.loading')}</span>
+					</div>
 				{/if}
 			{/if}
 		</div>
