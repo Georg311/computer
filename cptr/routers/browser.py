@@ -5,15 +5,16 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncIterator
+from pathlib import Path
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
 import httpx
 import websockets
 from fastapi import APIRouter, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 
 from cptr.routers.auth import COOKIE_NAME
-from cptr.utils.browser.proxy import manager, rewrite_css, rewrite_html, target_url
+from cptr.utils.browser.proxy import manager, rewrite_css, rewrite_html, rewrite_javascript, target_url
 from cptr.utils.config import AuthResult, check_access
 
 router = APIRouter(prefix="/api/browser", tags=["browser"])
@@ -135,11 +136,14 @@ async def proxy_browser_request(request: Request, session_id: str, url: str, own
     content = await upstream.aread()
     await upstream.aclose()
     if "text/html" in content_type or "application/xhtml" in content_type:
-        final_url = upstream_url if parsed.hostname == "127.0.0.1" else str(upstream.url)
+        final_url = str(upstream.url)
+        if parsed.hostname == "127.0.0.1" and urlsplit(final_url).hostname == "::1":
+            redirected = urlsplit(final_url)
+            final_url = urlunsplit((parsed.scheme, parsed.netloc, redirected.path, redirected.query, ""))
         if f"/api/browser/frame/{session_id}/" not in urlsplit(final_url).path:
             await manager.update(session_id, owner, url=final_url)
         text = content.decode(upstream.encoding or "utf-8", errors="replace")
-        content = rewrite_html(text, upstream_url, session_id, final_url).encode("utf-8")
+        content = rewrite_html(text, final_url, session_id, final_url).encode("utf-8")
         headers.pop("content-type", None)
         content_type = "text/html; charset=utf-8"
     elif "text/css" in content_type:
@@ -147,6 +151,13 @@ async def proxy_browser_request(request: Request, session_id: str, url: str, own
         content = rewrite_css(text, upstream_url, session_id).encode("utf-8")
         headers.pop("content-type", None)
         content_type = "text/css; charset=utf-8"
+    elif parsed.hostname in {"localhost", "127.0.0.1", "::1"} and (
+        "javascript" in content_type or "ecmascript" in content_type
+    ):
+        text = content.decode(upstream.encoding or "utf-8", errors="replace")
+        content = rewrite_javascript(text, upstream_url, session_id).encode("utf-8")
+        headers.pop("content-type", None)
+        content_type = "text/javascript; charset=utf-8"
     return Response(content=content, status_code=upstream.status_code, headers=headers, media_type=content_type)
 
 
@@ -158,6 +169,12 @@ async def _proxy(request: Request, session_id: str, url: str) -> Response:
 async def create_session(request: Request):
     session = await manager.create(_owner(_auth(request)))
     return _session_payload(session)
+
+
+@router.get("/runtime.js", response_class=FileResponse)
+async def browser_runtime():
+    path = Path(__file__).parents[1] / "frontend" / "build" / "browser-runtime.js"
+    return FileResponse(path, media_type="text/javascript", headers={"cache-control": "no-store"})
 
 
 @router.get("/sessions")

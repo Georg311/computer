@@ -30,7 +30,7 @@ export const updateBrowserSession = (sessionId: string, url: string, title: stri
 export const browserFrameUrl = (sessionId: string, rawUrl: string) => {
 	const normalized = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
 	const url = new URL(normalized);
-	return `/api/browser/frame/${sessionId}?url=${encodeURIComponent(url.href)}`;
+	return `/api/browser/frame/${sessionId}/${url.protocol.slice(0, -1)}/${encodeURIComponent(url.host)}${url.pathname}${url.search}${url.hash}`;
 };
 
 export const browserBlankUrl = (sessionId: string) => `/api/browser/sessions/${sessionId}/blank`;

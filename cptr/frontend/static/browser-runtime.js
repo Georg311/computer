@@ -9,16 +9,20 @@
 
   function remoteUrl(value = location.href) {
     const url = new URL(value, location.href);
-    return url.pathname === prefix ? url.searchParams.get('url') || config.url : config.url;
+    if (url.pathname === prefix) return url.searchParams.get('url') || config.url;
+    if (!url.pathname.startsWith(`${prefix}/`)) return config.url;
+    const [scheme, encodedHost, ...path] = url.pathname.slice(prefix.length + 1).split('/');
+    if (!scheme || !encodedHost) return config.url;
+    return `${scheme}://${decodeURIComponent(encodedHost)}/${path.join('/')}${url.search}${url.hash}`;
   }
 
   function proxyUrl(value, base = remoteUrl()) {
     try {
       const current = new URL(value, location.href);
-      if (current.pathname === prefix && current.searchParams.has('url')) return `${current.pathname}${current.search}`;
+      if (current.pathname.startsWith(`${prefix}/`)) return `${current.pathname}${current.search}${current.hash}`;
       const url = new URL(value, base);
       if (!/^https?:$/.test(url.protocol)) return value;
-      return `${prefix}?url=${encodeURIComponent(url.href)}`;
+      return `${prefix}/${url.protocol.slice(0, -1)}/${encodeURIComponent(url.host)}${url.pathname}${url.search}${url.hash}`;
     } catch {
       return value;
     }
@@ -111,7 +115,7 @@
   document.addEventListener('click', (event) => {
     const link = event.target.closest?.('a[href]');
     if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    const url = new URL(link.href, remoteUrl());
+    const url = new URL(link.getAttribute('href'), remoteUrl());
     if (!/^https?:$/.test(url.protocol)) return;
     event.preventDefault();
     if (link.target && link.target !== '_self') {
@@ -119,6 +123,13 @@
     } else {
       location.assign(proxyUrl(url.href));
     }
+  }, true);
+
+  document.addEventListener('submit', (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    const url = new URL(form.getAttribute('action') || remoteUrl(), remoteUrl());
+    if (/^https?:$/.test(url.protocol)) form.action = proxyUrl(url.href);
   }, true);
 
   const nativeOpen = window.open.bind(window);

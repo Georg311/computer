@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import html
-import json
 import re
 import uuid
 from dataclasses import dataclass
 from html.parser import HTMLParser
-from urllib.parse import urlencode, urljoin, urlsplit, urlunsplit
+from urllib.parse import quote, urljoin, urlsplit, urlunsplit
 
 import httpx
 
@@ -115,7 +114,11 @@ def proxy_path(session_id: str, url: str) -> str:
     parsed = urlsplit(url)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         raise ValueError("Only HTTP(S) URLs can be opened in Browser")
-    return f"/api/browser/frame/{session_id}?{urlencode({'url': url})}"
+    host = quote(parsed.netloc, safe=":[]")
+    path = quote(parsed.path or "/", safe="/%:@!$&'()*+,;=-._~")
+    query = f"?{parsed.query}" if parsed.query else ""
+    fragment = f"#{parsed.fragment}" if parsed.fragment else ""
+    return f"/api/browser/frame/{session_id}/{parsed.scheme}/{host}{path}{query}{fragment}"
 
 
 def target_url(url: str) -> str:
@@ -210,13 +213,13 @@ def rewrite_html(content: str, base_url: str, session_id: str, final_url: str) -
     parser = _HtmlRewriter(base_url, session_id)
     parser.feed(content)
     parser.close()
-    resource_prefix = f"/api/browser/resources/{session_id}/"
     runtime = (
-        f'<script type="importmap">{json.dumps({"imports": {"/": resource_prefix}})}</script>'
         f'<script>window.__cptrBrowser={{session:{session_id!r},url:{final_url!r}}};</script>'
-        '<script src="/browser-runtime.js"></script>'
+        '<script src="/api/browser/runtime.js"></script>'
     )
     rendered = "".join(parser.output)
+    if urlsplit(final_url).hostname in {"localhost", "127.0.0.1", "::1"}:
+        rendered = rewrite_javascript(rendered, final_url, session_id)
     if re.search(r"<head(?:\s[^>]*)?>", rendered, re.I):
         return re.sub(r"(<head(?:\s[^>]*)?>)", r"\1" + runtime, rendered, count=1, flags=re.I)
     return runtime + rendered
@@ -233,6 +236,15 @@ def rewrite_css(content: str, base_url: str, session_id: str) -> str:
         lambda match: match.group(1) + rewrite_url(match.group(2), base_url, session_id),
         content,
         flags=re.I,
+    )
+
+
+def rewrite_javascript(content: str, base_url: str, session_id: str) -> str:
+    """Rewrite root-relative ES module imports used by local dev servers."""
+    return re.sub(
+        r"((?:from\s*|import\s*\(\s*|import\s*)['\"])(/[^'\"]+)",
+        lambda match: match.group(1) + rewrite_url(match.group(2), base_url, session_id),
+        content,
     )
 
 
