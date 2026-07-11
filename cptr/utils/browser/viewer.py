@@ -139,7 +139,7 @@ class CDPConnection:
         self.ws = ws
         self.message_id = 0
         self.pending: dict[int, asyncio.Future[dict[str, Any]]] = {}
-        self.handlers: dict[str, list[EventHandler]] = {}
+        self.handlers: dict[tuple[str, str | None], list[EventHandler]] = {}
         self.send_lock = asyncio.Lock()
         self.reader = asyncio.create_task(self._read())
 
@@ -156,7 +156,8 @@ class CDPConnection:
                     if future and not future.done():
                         future.set_result(message)
                     continue
-                for handler in self.handlers.get(message.get("method", ""), ()):
+                key = (message.get("method", ""), message.get("sessionId"))
+                for handler in self.handlers.get(key, ()):
                     asyncio.create_task(handler(message.get("params", {})))
         except Exception as exc:
             for future in self.pending.values():
@@ -164,7 +165,13 @@ class CDPConnection:
                     future.set_exception(exc)
             self.pending.clear()
 
-    async def send(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def send(
+        self,
+        method: str,
+        params: dict[str, Any] | None = None,
+        *,
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
         async with self.send_lock:
             self.message_id += 1
             message_id = self.message_id
@@ -173,6 +180,8 @@ class CDPConnection:
             payload: dict[str, Any] = {"id": message_id, "method": method}
             if params:
                 payload["params"] = params
+            if session_id:
+                payload["sessionId"] = session_id
             await self.ws.send(json.dumps(payload))
         try:
             response = await asyncio.wait_for(future, 15)
@@ -183,8 +192,12 @@ class CDPConnection:
             raise RuntimeError(error.get("message", str(error)))
         return response.get("result", {})
 
-    def on(self, method: str, handler: EventHandler) -> None:
-        self.handlers.setdefault(method, []).append(handler)
+    def on(self, method: str, handler: EventHandler, *, session_id: str | None = None) -> None:
+        self.handlers.setdefault((method, session_id), []).append(handler)
+
+    def remove_session_handlers(self, session_id: str) -> None:
+        for key in [key for key in self.handlers if key[1] == session_id]:
+            self.handlers.pop(key, None)
 
     async def close(self) -> None:
         await self.ws.close()
@@ -194,22 +207,39 @@ class CDPConnection:
 
 
 @dataclass
+class CDPTargetSession:
+    connection: CDPConnection
+    session_id: str
+
+    async def send(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        return await self.connection.send(method, params, session_id=self.session_id)
+
+    def on(self, method: str, handler: EventHandler) -> None:
+        self.connection.on(method, handler, session_id=self.session_id)
+
+    async def close(self) -> None:
+        self.connection.remove_session_handlers(self.session_id)
+        with contextlib.suppress(Exception):
+            await self.connection.send("Target.detachFromTarget", {"sessionId": self.session_id})
+
+
+@dataclass
 class ChromeHost:
     owner: str
     browser_path: str
-    browser_ws_url: str
     process: asyncio.subprocess.Process | None
     profile: Path | None
     browser_cdp: CDPConnection
     source: str = "managed"
     start_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
-    async def create_target(self, url: str) -> tuple[str, CDPConnection]:
+    async def create_target(self, url: str) -> tuple[str, CDPTargetSession]:
         target = await self.browser_cdp.send("Target.createTarget", {"url": url})
         target_id = str(target["targetId"])
-        browser_url = urlsplit(self.browser_ws_url)
-        target_url = f"{browser_url.scheme}://{browser_url.netloc}/devtools/page/{target_id}"
-        return target_id, await CDPConnection.connect(target_url)
+        attached = await self.browser_cdp.send(
+            "Target.attachToTarget", {"targetId": target_id, "flatten": True}
+        )
+        return target_id, CDPTargetSession(self.browser_cdp, str(attached["sessionId"]))
 
     async def close_target(self, target_id: str) -> None:
         with contextlib.suppress(Exception):
@@ -240,9 +270,9 @@ class ChromeViewer:
     session: Any
     host: ChromeHost
     target_id: str
-    target_cdp: CDPConnection
+    target_cdp: CDPTargetSession
     controller_id: str
-    controller_cdp: CDPConnection
+    controller_cdp: CDPTargetSession
     encoder_token: str
     controller_origin: str
     encoder: WebSocket | None = None
@@ -282,7 +312,7 @@ class ChromeViewerManager:
         if source:
             browser_ws_url = await resolve_cdp_endpoint(source)
             browser_cdp = await CDPConnection.connect(browser_ws_url)
-            host = ChromeHost(owner, "", browser_ws_url, None, None, browser_cdp, "external")
+            host = ChromeHost(owner, "", None, None, browser_cdp, "external")
             self.hosts[key] = host
             return host
         browser_path = find_browser()
@@ -336,7 +366,6 @@ class ChromeViewerManager:
         host = ChromeHost(
             owner,
             browser_path,
-            str(version["webSocketDebuggerUrl"]),
             process,
             profile,
             browser_cdp,
