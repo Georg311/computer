@@ -2,7 +2,6 @@
 	// Module-level cache: survives component destroy/create cycles
 	const _treeExpandedCache = new Map();
 	const _treeContentsCache = new Map();
-	const _searchQueryCache = new Map();
 </script>
 
 <script lang="ts">
@@ -298,18 +297,15 @@
 	$effect(() => {
 		if (cwd) {
 			if (cwd !== _prevCwd) {
-				const previousCwd = _prevCwd;
-				const isNavigation = previousCwd !== '';
+				const isNavigation = _prevCwd !== '';
 				_prevCwd = cwd;
 				if (isNavigation) {
-					_searchQueryCache.delete(previousCwd);
 					searchQuery = '';
 					// Navigated to a new directory: reset tree state
 					expandedDirs = new Set();
 					dirContents = new Map();
 					initialLoad = true;
 				} else {
-					searchQuery = _searchQueryCache.get(cwd) ?? '';
 					// Component (re)mount: restore tree state from cache
 					const cachedExpanded = _treeExpandedCache.get(cwd);
 					if (cachedExpanded) {
@@ -577,7 +573,6 @@
 	}
 
 	function navigateTo(path: string) {
-		_searchQueryCache.delete(cwd);
 		searchQuery = '';
 		setFileBrowserCwd(path);
 	}
@@ -1194,16 +1189,9 @@
 			class="flex-1 border-none outline-none bg-transparent text-xs text-gray-900 dark:text-white placeholder:text-gray-400"
 			placeholder={$t('files.searchFilesAndContents')}
 			bind:value={searchQuery}
-			oninput={(event) => _searchQueryCache.set(cwd, event.currentTarget.value)}
 		/>
 		{#if searchQuery}
-			<button
-				class="text-gray-400 flex items-center"
-				onclick={() => {
-					searchQuery = '';
-					_searchQueryCache.set(cwd, '');
-				}}
-			>
+			<button class="text-gray-400 flex items-center" onclick={() => (searchQuery = '')}>
 				<Icon name="xmark" size={11} />
 			</button>
 		{/if}
