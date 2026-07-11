@@ -40,3 +40,25 @@ export const searchFiles = (query: string, path: string) =>
 	fetchJSON(
 		`/api/workspace/files/search?query=${encodeURIComponent(query)}&path=${encodeURIComponent(path)}`
 	);
+
+export type ContentMatch = { line: number; column: number; text: string };
+export type FileMatch = {
+	path: string;
+	relative_path: string;
+	name: string;
+	type: 'file' | 'directory';
+	name_match: boolean;
+	content_matches: ContentMatch[];
+};
+export type FileMatches = { results: FileMatch[]; truncated: boolean };
+
+export const getFileMatches = (
+	query: string,
+	path: string,
+	showHidden: boolean,
+	signal?: AbortSignal
+) =>
+	fetchJSON<FileMatches>(
+		`/api/workspace/files/matches?query=${encodeURIComponent(query)}&path=${encodeURIComponent(path)}&show_hidden=${showHidden}`,
+		{ signal }
+	);

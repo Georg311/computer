@@ -1,5 +1,6 @@
 {
 	"app.tagline": "Votre ordinateur, où que vous soyez.",
+	"home.welcomeBack": "Bon retour, {{name}}.",
 	"auth.createAccountHint": "Créez votre compte pour commencer.",
 	"auth.signInSystemHint": "Connectez-vous avec votre compte système.",
 	"auth.setup": "Configuration",

@@ -15,7 +15,10 @@
 		deleteFiles,
 		moveFile,
 		uploadFiles as apiUpload,
-		createEntry
+		createEntry,
+		getFileMatches,
+		type FileMatch,
+		type ContentMatch
 	} from '$lib/apis/files';
 	import { fileIconName } from '$lib/utils/fileIcon';
 	import Icon from './Icon.svelte';
@@ -44,6 +47,14 @@
 	let dragExpandTimer: ReturnType<typeof setTimeout> | null = null;
 	let error = $state<string | null>(null);
 	let searchQuery = $state('');
+	let matchResults = $state<FileMatch[] | null>(null);
+	let matchLoading = $state(false);
+	let matchError = $state<string | null>(null);
+	let matchesTruncated = $state(false);
+	let matchTimer: ReturnType<typeof setTimeout> | null = null;
+	let matchController: AbortController | null = null;
+	let matchRequestId = 0;
+	let searchTargetRequestId = 0;
 	let dragOverDir = $state<string | null>(null);
 	let draggedItem = $state<string | null>(null);
 	let showNewInput = $state<'file' | 'folder' | null>(null);
@@ -80,6 +91,8 @@
 
 	let cwd = $derived($activeWorkspace?.fileBrowserCwd ?? $activeWorkspace?.path ?? '/');
 	let workspacePath = $derived($activeWorkspace?.path ?? '/');
+	let searchText = $derived(searchQuery.trim());
+	let isSearching = $derived(Boolean(searchText));
 	let gitStatus = $derived(gitStatusStore.status);
 	let gitRoot = $derived(workspacePath.replace(/\/$/, ''));
 
@@ -283,6 +296,7 @@
 				const isNavigation = _prevCwd !== '';
 				_prevCwd = cwd;
 				if (isNavigation) {
+					searchQuery = '';
 					// Navigated to a new directory: reset tree state
 					expandedDirs = new Set();
 					dirContents = new Map();
@@ -298,6 +312,50 @@
 				fetchDirectoryImmediate(cwd);
 			}
 		}
+	});
+
+	$effect(() => {
+		const query = searchText;
+		const hidden = showHidden;
+		if (matchTimer) clearTimeout(matchTimer);
+		matchTimer = null;
+		matchController?.abort();
+		matchController = null;
+		matchError = null;
+		const requestId = ++matchRequestId;
+
+		if (!query) {
+			matchResults = null;
+			matchLoading = false;
+			matchesTruncated = false;
+			return;
+		}
+
+		showNewInput = null;
+		clearSelection();
+		contextMenu = null;
+		directoryMenu = null;
+		addMenuOpen = false;
+		sortMenuOpen = false;
+		matchLoading = true;
+		matchTimer = setTimeout(async () => {
+			const controller = new AbortController();
+			matchController = controller;
+			try {
+				const data = await getFileMatches(query, cwd, hidden, controller.signal);
+				if (requestId === matchRequestId) {
+					matchResults = data.results;
+					matchesTruncated = data.truncated;
+				}
+			} catch (e: any) {
+				if (e.name !== 'AbortError' && requestId === matchRequestId) {
+					matchError = e.message || $t('files.failedToSearch');
+					matchResults = [];
+				}
+			} finally {
+				if (requestId === matchRequestId) matchLoading = false;
+			}
+		}, 200);
 	});
 
 	// Keep the websocket watch path in sync (separate effect so it doesn't
@@ -464,7 +522,44 @@
 	}
 
 	function navigateTo(path: string) {
+		searchQuery = '';
 		setFileBrowserCwd(path);
+	}
+
+	function highlightParts(text: string): { text: string; match: boolean }[] {
+		const query = searchText.toLowerCase();
+		if (!query) return [{ text, match: false }];
+		const parts: { text: string; match: boolean }[] = [];
+		const lower = text.toLowerCase();
+		let start = 0;
+		let index = lower.indexOf(query, start);
+		while (index !== -1) {
+			if (index > start) parts.push({ text: text.slice(start, index), match: false });
+			parts.push({ text: text.slice(index, index + query.length), match: true });
+			start = index + query.length;
+			index = lower.indexOf(query, start);
+		}
+		if (start < text.length) parts.push({ text: text.slice(start), match: false });
+		return parts;
+	}
+
+	function openFileMatch(match: FileMatch) {
+		if (match.type === 'directory') {
+			navigateTo(match.path);
+			return;
+		}
+		openFileTab(match.path);
+	}
+
+	function openContentMatch(match: FileMatch, contentMatch: ContentMatch) {
+		openFileTab(match.path, undefined, {
+			searchTarget: {
+				line: contentMatch.line,
+				column: contentMatch.column,
+				length: searchText.length,
+				requestId: ++searchTargetRequestId
+			}
+		});
 	}
 
 	// fileIconName imported from $lib/utils/fileIcon
@@ -955,9 +1050,9 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="flex flex-col h-full overflow-hidden relative"
-	ondragover={onDropzoneOver}
-	ondragleave={onDropzoneLeave}
-	ondrop={onDropzoneDrop}
+	ondragover={(e) => !isSearching && onDropzoneOver(e)}
+	ondragleave={(e) => !isSearching && onDropzoneLeave(e)}
+	ondrop={(e) => !isSearching && onDropzoneDrop(e)}
 >
 	<!-- Header: breadcrumb + actions -->
 	<div
@@ -1002,29 +1097,31 @@
 			<Icon name="refresh" size={11} />
 		</button>
 
-		<!-- Sort dropdown -->
-		<button
-			bind:this={sortBtnEl}
-			class="flex items-center justify-center w-5 h-5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 shrink-0"
-			onclick={() => {
-				sortMenuOpen = !sortMenuOpen;
-			}}
-			use:tooltip={$t('files.sort')}
-		>
-			<Icon name="sort" size={11} />
-		</button>
+		{#if !isSearching}
+			<!-- Sort dropdown -->
+			<button
+				bind:this={sortBtnEl}
+				class="flex items-center justify-center w-5 h-5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 shrink-0"
+				onclick={() => {
+					sortMenuOpen = !sortMenuOpen;
+				}}
+				use:tooltip={$t('files.sort')}
+			>
+				<Icon name="sort" size={11} />
+			</button>
 
-		<!-- Three-dot menu -->
-		<button
-			bind:this={addBtnEl}
-			class="flex items-center justify-center w-5 h-5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 shrink-0"
-			onclick={() => {
-				toggleAddMenu();
-			}}
-			use:tooltip={$t('files.actions')}
-		>
-			<Icon name="three-dots" size={11} />
-		</button>
+			<!-- Three-dot menu -->
+			<button
+				bind:this={addBtnEl}
+				class="flex items-center justify-center w-5 h-5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 shrink-0"
+				onclick={() => {
+					toggleAddMenu();
+				}}
+				use:tooltip={$t('files.actions')}
+			>
+				<Icon name="three-dots" size={11} />
+			</button>
+		{/if}
 	</div>
 
 	<!-- Ports -->
@@ -1051,7 +1148,7 @@
 		<input
 			type="text"
 			class="flex-1 border-none outline-none bg-transparent text-xs text-gray-900 dark:text-white placeholder:text-gray-400"
-			placeholder={$t('files.filter')}
+			placeholder={$t('files.searchFilesAndContents')}
 			bind:value={searchQuery}
 		/>
 		{#if searchQuery}
@@ -1064,9 +1161,12 @@
 	<!-- Sort bar replaced with dropdown in toolbar -->
 
 	<!-- File list -->
-	<div class="flex-1 overflow-y-auto p-1" oncontextmenu={onDirectoryContextMenu}>
+	<div
+		class="flex-1 overflow-y-auto p-1"
+		oncontextmenu={(e) => !isSearching && onDirectoryContextMenu(e)}
+	>
 		<!-- New item input -->
-		{#if showNewInput}
+		{#if showNewInput && !isSearching}
 			<div class="flex items-center gap-2 h-7 px-2">
 				<Icon
 					name={showNewInput === 'folder' ? 'folder' : 'empty-page'}
@@ -1113,6 +1213,80 @@
 					onclick={() => fetchDirectory(cwd)}>{$t('files.retry')}</button
 				>
 			</div>
+		{:else if isSearching}
+			{#if matchLoading}
+				<div class="flex items-center justify-center py-12">
+					<Spinner size={16} />
+				</div>
+			{:else if matchError}
+				<div class="flex items-center justify-center py-12">
+					<p class="text-xs text-red-400">{matchError}</p>
+				</div>
+			{:else if !matchResults?.length}
+				<div class="flex items-center justify-center py-12">
+					<p class="text-xs text-gray-400 dark:text-gray-600">{$t('files.noMatches')}</p>
+				</div>
+			{:else}
+				{#each matchResults as match (match.path)}
+					<div class="mb-1 rounded-lg bg-gray-50 dark:bg-white/[0.03] overflow-hidden">
+						<button
+							class="flex items-center gap-2 w-full min-h-8 px-2 text-left hover:bg-gray-100 dark:hover:bg-white/[0.06] transition-colors duration-75"
+							onclick={() => openFileMatch(match)}
+						>
+							<span
+								class="flex items-center justify-center w-4 shrink-0 {match.type === 'directory'
+									? 'text-gray-500 dark:text-gray-400'
+									: 'text-gray-400 dark:text-gray-500'}"
+							>
+								<Icon name={fileIconName(match.name, match.type)} size={14} strokeWidth={1.4} />
+							</span>
+							<span class="min-w-0 flex-1">
+								<span class="block truncate text-xs text-gray-800 dark:text-gray-200">
+									{#each highlightParts(match.name) as part}
+										<span
+											class={part.match ? 'font-semibold bg-amber-200/70 dark:bg-amber-400/20' : ''}
+											>{part.text}</span
+										>
+									{/each}
+								</span>
+								<span class="block truncate text-[0.625rem] text-gray-400 dark:text-gray-600"
+									>{match.relative_path}</span
+								>
+							</span>
+							{#if match.name_match}
+								<span class="shrink-0 text-[0.625rem] text-gray-400 dark:text-gray-500"
+									>{$t('files.filenameMatch')}</span
+								>
+							{/if}
+						</button>
+						{#each match.content_matches as contentMatch (contentMatch.line)}
+							<button
+								class="flex w-full items-baseline gap-2 px-2 py-1 pl-8 text-left hover:bg-gray-100 dark:hover:bg-white/[0.06] transition-colors duration-75"
+								onclick={() => openContentMatch(match, contentMatch)}
+							>
+								<span class="shrink-0 text-[0.625rem] font-mono text-gray-400 dark:text-gray-600"
+									>{$t('files.line', { line: contentMatch.line })}</span
+								>
+								<span
+									class="min-w-0 truncate text-[0.6875rem] font-mono text-gray-600 dark:text-gray-400"
+								>
+									{#each highlightParts(contentMatch.text) as part}
+										<span
+											class={part.match ? 'font-semibold bg-amber-200/70 dark:bg-amber-400/20' : ''}
+											>{part.text}</span
+										>
+									{/each}
+								</span>
+							</button>
+						{/each}
+					</div>
+				{/each}
+				{#if matchesTruncated}
+					<p class="px-2 py-2 text-center text-[0.6875rem] text-gray-400 dark:text-gray-600">
+						{$t('files.searchTruncated')}
+					</p>
+				{/if}
+			{/if}
 		{:else if visibleEntries.length === 0 && !showNewInput}
 			<div class="flex items-center justify-center py-12">
 				<p class="text-xs text-gray-400 dark:text-gray-600">
@@ -1268,7 +1442,7 @@
 	</div>
 
 	<!-- Upload dropzone overlay -->
-	{#if dropzoneActive}
+	{#if dropzoneActive && !isSearching}
 		<div
 			class="absolute inset-0 bg-blue-500/10 border-2 border-dashed border-blue-400 dark:border-blue-500 rounded-lg flex items-center justify-center z-10 pointer-events-none"
 		>
@@ -1277,7 +1451,7 @@
 	{/if}
 
 	<!-- Multi-select action bar -->
-	{#if selectedPaths.size > 0}
+	{#if selectedPaths.size > 0 && !isSearching}
 		<div
 			class="flex items-center justify-between h-8 px-2 border-t border-gray-200 dark:border-white/6 shrink-0 bg-blue-50 dark:bg-blue-500/5"
 		>

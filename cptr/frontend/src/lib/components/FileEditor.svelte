@@ -1,6 +1,13 @@
 <script lang="ts">
 	import { onMount, onDestroy, tick } from 'svelte';
-	import { clearTabEdit, markTabUnsaved, updateTabFilePath, activeWorkspace } from '$lib/stores';
+	import {
+		clearFileSearchTarget,
+		clearTabEdit,
+		markTabUnsaved,
+		updateTabFilePath,
+		activeWorkspace,
+		type FileSearchTarget
+	} from '$lib/stores';
 	import { get } from 'svelte/store';
 	import { t } from '$lib/i18n';
 	import { tooltip } from '$lib/tooltip';
@@ -80,9 +87,10 @@
 		filePath: string;
 		tabId: string;
 		edit?: boolean;
+		searchTarget?: FileSearchTarget;
 	}
 
-	let { filePath, tabId, edit = false }: Props = $props();
+	let { filePath, tabId, edit = false, searchTarget }: Props = $props();
 
 	interface FileData {
 		path: string;
@@ -867,6 +875,33 @@
 	}
 
 	let themeObserver: MutationObserver | null = null;
+	let appliedSearchTarget = 0;
+
+	function applySearchTarget() {
+		if (!view || !searchTarget || appliedSearchTarget === searchTarget.requestId) return;
+		const target = searchTarget;
+		const line = view.state.doc.line(Math.min(Math.max(target.line, 1), view.state.doc.lines));
+		const from = Math.min(line.from + Math.max(target.column - 1, 0), line.to);
+		const to = Math.min(from + Math.max(target.length, 0), line.to);
+		view.dispatch({
+			selection: { anchor: from, head: to },
+			effects: EditorView.scrollIntoView(from, { y: 'center' })
+		});
+		appliedSearchTarget = target.requestId;
+		clearFileSearchTarget(tabId, target.requestId);
+	}
+
+	$effect(() => {
+		if (searchTarget && fileData && !fileData.binary) {
+			if (isMarkdown && markdownMode !== 'raw') switchMarkdownMode('raw');
+			else if (isJson && jsonViewMode !== 'source') toggleJsonView();
+			else if ((isHtml || isSvg) && previewMode) togglePreview();
+			else if (isCsv && !view) {
+				requestAnimationFrame(() => initEditor(fileData!.content!, fileData!.language));
+			}
+		}
+		applySearchTarget();
+	});
 
 	function initEditor(content: string, language: string | null) {
 		if (!editorEl) return;
@@ -944,6 +979,7 @@
 		const state = EditorState.create({ doc: content, extensions });
 		view = new EditorView({ state, parent: editorEl });
 		applyGitLineChanges();
+		applySearchTarget();
 
 		// Watch for theme changes and rebuild editor
 		themeObserver = new MutationObserver(() => {

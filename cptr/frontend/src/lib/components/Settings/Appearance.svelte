@@ -281,10 +281,7 @@
 			<ToggleSwitch value={$widescreenMode} onchange={(value) => widescreenMode.set(value)} />
 		</label>
 
-		<h3 class="text-xs text-gray-400 dark:text-gray-600 mb-2 mt-5">
-			{$t('general.uiScale')}
-		</h3>
-		<div class="w-full">
+		<div class="w-full mt-5">
 			<div class="flex items-center gap-2">
 				<span id="ui-scale-label" class="text-xs text-gray-600 dark:text-gray-400">
 					{$t('general.uiScale')}

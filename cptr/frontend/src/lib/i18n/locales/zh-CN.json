@@ -1,5 +1,6 @@
 {
 	"app.tagline": "随时随地，掌控你的电脑。",
+	"home.welcomeBack": "欢迎回来，{{name}}。",
 	"auth.createAccountHint": "创建账户以开始使用。",
 	"auth.signInSystemHint": "使用系统账户登录。",
 	"auth.setup": "初始设置",

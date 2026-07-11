@@ -1,5 +1,6 @@
 {
 	"app.tagline": "どこからでも、あなたのコンピュータへ。",
+	"home.welcomeBack": "おかえりなさい、{{name}}さん。",
 	"auth.createAccountHint": "アカウントを作成して始めましょう。",
 	"auth.signInSystemHint": "システムアカウントでサインインしてください。",
 	"auth.setup": "セットアップ",

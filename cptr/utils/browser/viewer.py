@@ -426,6 +426,7 @@ class ChromeViewer:
     controller_origin: str
     encoder: WebSocket | None = None
     encoder_connected: asyncio.Event = field(default_factory=asyncio.Event)
+    encoder_configured: asyncio.Event = field(default_factory=asyncio.Event)
     first_keyframe: asyncio.Event = field(default_factory=asyncio.Event)
     encoder_error: str = ""
     config: dict[str, Any] | None = None
@@ -642,7 +643,7 @@ class ChromeViewerManager:
                     },
                 )
                 await asyncio.wait_for(
-                    viewer.first_keyframe.wait(), 90 if host.source == "external" else 5
+                    viewer.encoder_configured.wait(), 90 if host.source == "external" else 5
                 )
                 if viewer.encoder_error:
                     raise RuntimeError(viewer.encoder_error)
@@ -917,6 +918,7 @@ class ChromeViewerManager:
                     data = json.loads(message["text"])
                     if data.get("type") == "config":
                         viewer.config = data
+                        viewer.encoder_configured.set()
                         viewer.keyframe = None
                         if viewer.viewport_initialized:
                             for peer in tuple(viewer.peers):
@@ -1044,6 +1046,7 @@ class ChromeViewerManager:
                 )
                 await viewer.controller_cdp.send("Runtime.enable")
                 viewer.first_keyframe.clear()
+                viewer.encoder_configured.clear()
                 viewer.encoder_error = ""
                 for _ in range(30):
                     ready = await viewer.controller_cdp.send(
@@ -1057,7 +1060,7 @@ class ChromeViewerManager:
                     "Runtime.evaluate",
                     {"expression": "window.startCapture()", "userGesture": True},
                 )
-                await asyncio.wait_for(viewer.first_keyframe.wait(), 5)
+                await asyncio.wait_for(viewer.encoder_configured.wait(), 5)
                 if viewer.encoder_error:
                     raise RuntimeError(viewer.encoder_error)
                 viewer.session.status = "playing"
@@ -1291,7 +1294,7 @@ class ChromeViewerManager:
         device_changed = (
             mode != viewer.session.device_mode or mobile_viewport != viewer.session.mobile_viewport
         )
-        viewport_changed = viewer.viewport != layout_viewport
+        viewport_changed = viewer.viewport != layout_viewport or data.get("force") is True
         viewer.viewport = layout_viewport
         viewer.session.device_profile = profile
         viewer.session.device_mode = mode
@@ -1354,7 +1357,13 @@ class ChromeViewerManager:
             await viewer.target_cdp.send(
                 "Page.navigate", {"url": viewer.session.url or "about:blank"}
             )
-            await self._request_keyframe(viewer)
+            await self._send_encoder(viewer, {"type": "resize"})
+            await self._send_encoder(
+                viewer,
+                {"type": "resume" if any(item.visible for item in viewer.peers) else "pause"},
+            )
+            if any(item.visible for item in viewer.peers):
+                await self._request_keyframe(viewer)
         elif device_changed and viewer.session.url:
             await viewer.target_cdp.send("Page.reload")
 
@@ -1551,9 +1560,14 @@ class ChromeViewerManager:
                 await self._send_personal({"type": "keyframe"})
             return
         await self._send_encoder(
-            viewer, {"type": "resume" if any(item.visible for item in viewer.peers) else "pause"}
+            viewer,
+            {
+                "type": "resume"
+                if viewer.viewport_initialized and any(item.visible for item in viewer.peers)
+                else "pause"
+            },
         )
-        if visible:
+        if visible and viewer.viewport_initialized:
             await self._request_keyframe(viewer)
 
     async def _request_keyframe(self, viewer: ChromeViewer | PersonalTab) -> None:

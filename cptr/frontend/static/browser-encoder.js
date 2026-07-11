@@ -174,7 +174,6 @@
       if (first.done || !first.value) throw new Error('Chrome tab capture returned no video');
       let rect = crop(first.value);
       await configure(rect.width, rect.height);
-      paused = false;
       if (audioEnabled) void startAudio(stream);
 
       let frame = first.value;

@@ -59,7 +59,7 @@
 	let viewportTimer: ReturnType<typeof setTimeout> | undefined;
 	let reconnectAttempt = 0;
 	let disposed = false;
-	let viewport = { width: 1280, height: 720 };
+	let viewport = { width: 0, height: 0 };
 	let pendingPointer: Record<string, unknown> | undefined;
 	let pointerFrame = 0;
 	let hasFrame = false;
@@ -77,6 +77,7 @@
 	let suppressText = '';
 	let keepKeyboardFocus = false;
 	let audioClockOrigin: number | undefined;
+	let reapplyViewportAfterConfig = true;
 	const pressedKeys = new Map<string, Record<string, unknown>>();
 	const touchPoints = new Map<number, Record<string, unknown>>();
 	const macClient = /Mac|iPhone|iPad/.test(navigator.userAgent);
@@ -140,6 +141,7 @@
 		if (disposed) return;
 		ready = false;
 		lastViewport = '';
+		reapplyViewportAfterConfig = true;
 		awaitingFrame = true;
 		onstatus(hasFrame ? 'playing' : 'reconnecting');
 		const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -250,6 +252,10 @@
 			}
 		});
 		decoder.configure({ codec: config.codec, optimizeForLatency: true });
+		if (managed && reapplyViewportAfterConfig) {
+			reapplyViewportAfterConfig = false;
+			void sendViewport(true);
+		}
 	}
 
 	function configureAudio(config: { codec: string; sampleRate: number; numberOfChannels: number }) {
@@ -325,10 +331,10 @@
 		}
 	}
 
-	async function sendViewport() {
+	async function sendViewport(force = false) {
 		const device = deviceProfile || (await deviceProfilePromise);
 		const key = JSON.stringify([viewport, quality, device, deviceMode, mobileViewport]);
-		if (key === lastViewport) return;
+		if (!force && key === lastViewport) return;
 		lastViewport = key;
 		send({
 			type: 'viewport',
@@ -336,7 +342,8 @@
 			quality,
 			device,
 			device_mode: deviceMode,
-			mobile_viewport: mobileViewport
+			mobile_viewport: mobileViewport,
+			force
 		});
 	}
 

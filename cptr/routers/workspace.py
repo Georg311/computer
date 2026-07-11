@@ -8,7 +8,9 @@ single-user model. Not safe for shared or public instances. See README.md.
 from __future__ import annotations
 
 import asyncio
-import os
+import json
+import shutil
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -322,6 +324,223 @@ SEARCH_IGNORE_DIRS = {
     "*.egg-info",
     ".DS_Store",
 }
+
+MAX_MATCH_RESULTS = 100
+MAX_CONTENT_MATCHES_PER_FILE = 3
+MAX_CONTENT_SEARCH_FILE_SIZE = 1 * 1024 * 1024
+
+
+class ContentMatch(BaseModel):
+    line: int
+    column: int
+    text: str
+
+
+class FileMatch(BaseModel):
+    path: str
+    relative_path: str
+    name: str
+    type: str  # "file" | "directory"
+    name_match: bool
+    content_matches: list[ContentMatch]
+
+
+class FileMatches(BaseModel):
+    results: list[FileMatch]
+    truncated: bool
+
+
+def _is_search_ignored(name: str) -> bool:
+    return name in SEARCH_IGNORE_DIRS or name.endswith(".egg-info")
+
+
+def _walk_match_entries(root: Path, show_hidden: bool):
+    """Yield visible files and directories without following symlinks."""
+    try:
+        entries = sorted(root.iterdir(), key=lambda item: item.name.lower())
+    except (OSError, PermissionError):
+        return
+
+    for item in entries:
+        if _is_search_ignored(item.name) or (not show_hidden and item.name.startswith(".")):
+            continue
+        try:
+            if item.is_symlink():
+                yield item, "file"
+            elif item.is_dir():
+                yield item, "directory"
+                yield from _walk_match_entries(item, show_hidden)
+            elif item.is_file():
+                yield item, "file"
+        except (OSError, PermissionError):
+            continue
+
+
+def _match_column(text: str, query_lower: str) -> int | None:
+    index = text.lower().find(query_lower)
+    if index < 0:
+        return None
+    # CodeMirror measures columns in UTF-16 code units.
+    return len(text[:index].encode("utf-16-le")) // 2 + 1
+
+
+def _content_match(text: str, line: int, query_lower: str) -> ContentMatch | None:
+    text = text.rstrip("\r\n")
+    column = _match_column(text, query_lower)
+    return ContentMatch(line=line, column=column, text=text) if column is not None else None
+
+
+def _content_matches_with_rg(
+    root: Path, query: str, query_lower: str, show_hidden: bool, files: set[Path]
+) -> tuple[dict[Path, list[ContentMatch]], bool] | None:
+    rg = shutil.which("rg")
+    if not rg:
+        return None
+
+    args = [
+        rg,
+        "--json",
+        "--no-messages",
+        "--fixed-strings",
+        "--ignore-case",
+        "--line-number",
+        "--column",
+        "--max-count",
+        str(MAX_CONTENT_MATCHES_PER_FILE + 1),
+        "--no-ignore",
+    ]
+    if show_hidden:
+        args.append("--hidden")
+    for ignored in SEARCH_IGNORE_DIRS:
+        pattern = f"!{ignored}" if ignored == ".DS_Store" else f"!{ignored}/**"
+        args.extend(("--glob", pattern))
+    args.extend(("--", query, str(root)))
+
+    try:
+        completed = subprocess.run(args, capture_output=True, text=True, check=False)
+    except OSError:
+        return None
+    if completed.returncode not in (0, 1):
+        return None
+
+    matches: dict[Path, list[ContentMatch]] = {}
+    truncated = False
+    for raw in completed.stdout.splitlines():
+        try:
+            message = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        if message.get("type") != "match":
+            continue
+        data = message["data"]
+        path = Path(data["path"]["text"]).resolve()
+        if path not in files:
+            continue
+        line_matches = matches.setdefault(path, [])
+        if len(line_matches) >= MAX_CONTENT_MATCHES_PER_FILE:
+            truncated = True
+            continue
+        match = _content_match(data["lines"]["text"], data["line_number"], query_lower)
+        if match:
+            line_matches.append(match)
+    return matches, truncated
+
+
+def _content_matches_with_python(
+    files: set[Path], query_lower: str
+) -> tuple[dict[Path, list[ContentMatch]], bool]:
+    matches: dict[Path, list[ContentMatch]] = {}
+    truncated = False
+    for path in files:
+        try:
+            if path.stat().st_size > MAX_CONTENT_SEARCH_FILE_SIZE:
+                continue
+            with path.open("rb") as source:
+                if b"\0" in source.read(8192):
+                    continue
+            lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except (OSError, PermissionError):
+            continue
+
+        for number, text in enumerate(lines, start=1):
+            match = _content_match(text, number, query_lower)
+            if not match:
+                continue
+            file_matches = matches.setdefault(path, [])
+            if len(file_matches) >= MAX_CONTENT_MATCHES_PER_FILE:
+                truncated = True
+                break
+            file_matches.append(match)
+    return matches, truncated
+
+
+def find_file_matches(root: Path, query: str, show_hidden: bool = False) -> FileMatches:
+    """Find filename/path and literal text matches below a browser directory."""
+    query = query.strip()
+    query_lower = query.lower()
+    entries = list(_walk_match_entries(root, show_hidden))
+    files = {path.resolve() for path, kind in entries if kind == "file" and not path.is_symlink()}
+    content_result = _content_matches_with_rg(root, query, query_lower, show_hidden, files)
+    content_matches, truncated = (
+        content_result if content_result is not None else _content_matches_with_python(files, query_lower)
+    )
+
+    matches: list[tuple[int, int, FileMatch]] = []
+    for path, kind in entries:
+        relative_path = path.relative_to(root).as_posix()
+        name_lower = path.name.lower()
+        relative_lower = relative_path.lower()
+        if name_lower == query_lower:
+            score = 0
+        elif name_lower.startswith(query_lower):
+            score = 1
+        elif query_lower in name_lower:
+            score = 2
+        elif query_lower in relative_lower:
+            score = 3
+        else:
+            score = 4
+
+        path_content_matches = content_matches.get(path.resolve(), []) if kind == "file" else []
+        name_match = score < 4
+        if not name_match and not path_content_matches:
+            continue
+        matches.append(
+            (
+                score,
+                len(relative_path),
+                FileMatch(
+                    path=str(path),
+                    relative_path=relative_path,
+                    name=path.name,
+                    type=kind,
+                    name_match=name_match,
+                    content_matches=path_content_matches,
+                ),
+            )
+        )
+
+    matches.sort(key=lambda item: (item[0], item[1], item[2].relative_path.lower()))
+    if len(matches) > MAX_MATCH_RESULTS:
+        truncated = True
+    return FileMatches(results=[item[2] for item in matches[:MAX_MATCH_RESULTS]], truncated=truncated)
+
+
+@router.get("/matches", response_model=FileMatches)
+async def file_matches(
+    query: str = Query(..., description="Literal text to match"),
+    path: str = Query(..., description="Root path to search"),
+    show_hidden: bool = Query(False, description="Include dotfiles and dot-directories"),
+):
+    """Return filename/path and content matches below a directory."""
+    if not query.strip():
+        raise HTTPException(status_code=400, detail="Query must not be blank")
+
+    root = Path(path).resolve()
+    if not root.exists() or not root.is_dir():
+        raise HTTPException(status_code=404, detail=f"Path not found: {path}")
+
+    return await asyncio.to_thread(find_file_matches, root, query, show_hidden)
 
 
 class SearchResult(BaseModel):

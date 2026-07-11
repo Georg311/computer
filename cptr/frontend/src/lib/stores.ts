@@ -43,6 +43,13 @@ export type { AppearancePreferences, Theme, ThemeConfig };
 
 // ── Types ───────────────────────────────────────────────────────
 
+export interface FileSearchTarget {
+	line: number;
+	column: number;
+	length: number;
+	requestId: number;
+}
+
 export interface Tab {
 	id: string;
 	type: 'home' | 'files' | 'terminal' | 'file' | 'git' | 'chat' | 'preview' | 'browser'; // preview is migrated on load
@@ -56,6 +63,7 @@ export interface Tab {
 	unsaved?: boolean;
 	permanent?: boolean;
 	badge?: number;
+	searchTarget?: FileSearchTarget;
 }
 
 export type SplitDirection = 'horizontal' | 'vertical';
@@ -399,7 +407,7 @@ function persistPreferences(): void {
 			appearance: {
 				theme: get(theme),
 				themeConfig: sanitizeThemeConfig(get(themeConfig)),
-				textScale: get(textScale) ?? undefined
+				textScale: get(textScale)
 			},
 			sidebarOpen: get(sidebarOpen),
 			sidebarWidth: get(sidebarWidth),
@@ -413,7 +421,7 @@ function persistPreferences(): void {
 			requestParams: Object.keys(get(requestParams)).length ? get(requestParams) : undefined,
 			showUpdateToast: get(showUpdateToastPref),
 			pwa: get(pwaPreferences),
-			textScale: get(textScale) ?? undefined,
+			textScale: get(textScale),
 			widescreenMode: get(widescreenMode),
 			homeGroup: get(homeGroup)
 		};
@@ -884,10 +892,28 @@ export function updateTabLabel(tabId: string, label: string): void {
 	);
 }
 
+export function clearFileSearchTarget(tabId: string, requestId: number): void {
+	currentWorkspace.update((workspace) =>
+		workspace
+			? {
+					...workspace,
+					groups: workspace.groups.map((group) => ({
+						...group,
+						tabs: group.tabs.map((tab) =>
+							tab.id === tabId && tab.searchTarget?.requestId === requestId
+								? { ...tab, searchTarget: undefined }
+								: tab
+						)
+					}))
+				}
+			: workspace
+	);
+}
+
 export function openFileTab(
 	filePath: string,
 	targetGroupId?: string,
-	options: { edit?: boolean } = {}
+	options: { edit?: boolean; searchTarget?: FileSearchTarget } = {}
 ): void {
 	const ws = get(currentWorkspace);
 	if (!ws) return;
@@ -899,9 +925,13 @@ export function openFileTab(
 	// Reuse existing tab within this group
 	const existing = group.tabs.find((t) => t.type === 'file' && t.filePath === filePath);
 	if (existing) {
-		if (options.edit) {
+		if (options.edit || options.searchTarget) {
 			updateGroupTabs(gid, (tabs) => ({
-				tabs: tabs.map((t) => (t.id === existing.id ? { ...t, edit: true } : t)),
+				tabs: tabs.map((t) =>
+					t.id === existing.id
+						? { ...t, ...(options.edit ? { edit: true } : {}), searchTarget: options.searchTarget }
+						: t
+				),
 				activeTabId: existing.id
 			}));
 			return;
@@ -916,7 +946,8 @@ export function openFileTab(
 		type: 'file',
 		label: name,
 		filePath,
-		edit: options.edit
+		edit: options.edit,
+		searchTarget: options.searchTarget
 	};
 
 	updateGroupTabs(gid, (tabs) => ({

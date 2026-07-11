@@ -23,6 +23,7 @@
 	import type { Tab, EditorGroup, EditorLayout, SplitDirection, WorkspaceState } from '$lib/stores';
 	import { chatEnabled } from '$lib/stores/chat';
 	import { t } from '$lib/i18n';
+	import { session } from '$lib/session';
 	import { get } from 'svelte/store';
 	import { getWelcome, getWorkspaceState } from '$lib/apis/state';
 	import { createSession, deleteSession } from '$lib/apis/terminal';
@@ -49,6 +50,7 @@
 	let pendingIntent = $state<LaunchIntent | null>(null);
 	let folderPickerIntent = $state<LaunchIntent | null>(null);
 	let folderPickerWorkspace = $state<string | null>(null);
+	const welcomeName = $derived($session?.display_name || $session?.username);
 	const activeHomeTab = $derived(
 		$homeGroup.tabs.find((tab) => tab.id === $homeGroup.activeTabId) ?? $homeGroup.tabs[0]
 	);
@@ -928,6 +930,12 @@
 							{/if}
 						</div>
 
+						{#if welcomeName}
+							<p class="mb-7 text-xl font-medium tracking-tight text-gray-800 dark:text-gray-200">
+								{$t('home.welcomeBack', { name: welcomeName })}
+							</p>
+						{/if}
+
 						<div class="mb-6">
 							<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">{$t('home.start')}</h2>
 							<button
@@ -1152,7 +1160,12 @@
 			{:else}
 				{#each group.tabs.filter((tab) => tab.type === 'file' && tab.filePath) as tab (tab.id)}
 					<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
-						<FileEditor filePath={tab.filePath!} tabId={tab.id} edit={tab.edit === true} />
+						<FileEditor
+							filePath={tab.filePath!}
+							tabId={tab.id}
+							edit={tab.edit === true}
+							searchTarget={tab.searchTarget}
+						/>
 					</div>
 				{/each}
 				{#each group.tabs.filter((tab) => tab.type === 'chat') as tab (tab.id)}
