@@ -12,11 +12,11 @@
 
 ![Open WebUI Computer Demo](./demo.png)
 
-<sub>Read more in the [Open WebUI Computer docs](https://docs.openwebui.com/ecosystem/computer/)</sub>
-
 Open WebUI Computer (`cptr`) runs on your machine and serves your whole computer to any browser: files, terminal, editor, git, running sessions, AI agents, and tools. It literally is your computer.
 
 Use it from your phone, tablet, laptop, another computer, or the machine it's running on. Designed to feel native on every screen. Connect your own AI via API key, plug in a coding agent you already subscribe to, or work directly in the terminal. One tool, full workstation, any device.
+
+> Start here: [Open WebUI Computer docs](https://docs.openwebui.com/ecosystem/computer/)
 
 ## Install
 
