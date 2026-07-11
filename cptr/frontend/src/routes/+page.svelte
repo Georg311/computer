@@ -163,6 +163,7 @@
 				? (tabs[Math.max(0, index - 1)]?.id ?? 'home')
 				: group.activeTabId;
 		updateHomeTabs(groupId, () => ({ tabs, activeTabId }));
+		if (!tabs.length) closeHomeGroup(groupId);
 	}
 
 	function updateHomeChatTab(
