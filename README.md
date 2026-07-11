@@ -12,7 +12,7 @@
 
 ![Open WebUI Computer Demo](./demo.png)
 
-<sub>See more at [cptr.sh](https://cptr.sh/)</sub>
+<sub>Read more in the [Open WebUI Computer docs](https://docs.openwebui.com/ecosystem/computer/)</sub>
 
 Open WebUI Computer (`cptr`) runs on your machine and serves your whole computer to any browser: files, terminal, editor, git, running sessions, AI agents, and tools. It literally is your computer.
 
