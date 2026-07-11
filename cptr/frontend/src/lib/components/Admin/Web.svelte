@@ -2,7 +2,14 @@
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
 	import { getAdminConfig, updateConfig } from '$lib/apis/admin';
-	import { clearManagedChromeProfile, testBrowserCdp } from '$lib/apis/browser';
+	import {
+		clearManagedChromeProfile,
+		connectPersonalChrome,
+		disconnectPersonalChrome,
+		getPersonalChrome,
+		testBrowserCdp,
+		type PersonalChromeStatus
+	} from '$lib/apis/browser';
 	import { t } from '$lib/i18n';
 	import ToggleSwitch from '$lib/components/common/ToggleSwitch.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
@@ -10,7 +17,9 @@
 	let loading = $state(true);
 	let saving = $state(false);
 	let testing = $state(false);
+	let connectingPersonal = $state(false);
 	let testResult = $state<{ ok: boolean; message: string } | null>(null);
+	let personalStatus = $state<PersonalChromeStatus | null>(null);
 
 	// ── Web search ────────────────────────────────────────
 	let webEnabled = $state(true);
@@ -31,6 +40,7 @@
 	let browserEnabled = $state(false);
 	let browserTabDefaultMode = $state<'proxy' | 'chrome'>('proxy');
 	let browserTabChromeSource = $state<'managed' | 'personal'>('managed');
+	let personalKeepAlive = $state(true);
 	let browserProvider = $state<'local' | 'firecrawl' | 'browser_use'>('local');
 	let cdpUrl = $state('http://localhost:9222');
 	let autoLaunch = $state(true);
@@ -65,6 +75,7 @@
 			browserTabDefaultMode = config['browser.tab_default_mode'] === 'chrome' ? 'chrome' : 'proxy';
 			browserTabChromeSource =
 				config['browser.tab_chrome_source'] === 'personal' ? 'personal' : 'managed';
+			personalKeepAlive = config['browser.personal_keep_alive'] !== false;
 			browserProvider = (config['browser.provider'] as typeof browserProvider) || 'local';
 			cdpUrl = (config['browser.cdp_url'] as string) || 'http://localhost:9222';
 			autoLaunch =
@@ -78,6 +89,11 @@
 				(config['browser.browser_use_base_url'] as string) || 'https://api.browser-use.com';
 		} catch {
 			toast.error($t('admin.failedToLoadConfig'));
+		}
+		try {
+			personalStatus = await getPersonalChrome();
+		} catch {
+			personalStatus = null;
 		}
 		loading = false;
 	});
@@ -102,6 +118,7 @@
 				'browser.enabled': browserEnabled,
 				'browser.tab_default_mode': browserTabDefaultMode,
 				'browser.tab_chrome_source': browserTabChromeSource,
+				'browser.personal_keep_alive': personalKeepAlive,
 				'browser.provider': browserProvider,
 				'browser.cdp_url': cdpUrl,
 				'browser.auto_launch': autoLaunch,
@@ -112,6 +129,13 @@
 				'browser.browser_use_base_url': browserUseBaseUrl
 			};
 			await updateConfig(cfg);
+			if (
+				browserTabDefaultMode !== 'chrome' ||
+				browserTabChromeSource !== 'personal' ||
+				(!personalKeepAlive && personalStatus?.session_count === 0)
+			) {
+				personalStatus = await disconnectPersonalChrome();
+			}
 			toast.success($t('settings.saved'));
 		} catch {
 			toast.error($t('admin.failedToSave'));
@@ -143,6 +167,23 @@
 			};
 		} finally {
 			testing = false;
+		}
+	}
+
+	async function togglePersonalChrome() {
+		connectingPersonal = true;
+		try {
+			personalStatus =
+				personalStatus?.status === 'playing'
+					? await disconnectPersonalChrome()
+					: await connectPersonalChrome(cdpUrl);
+		} catch (error) {
+			testResult = {
+				ok: false,
+				message: error instanceof Error ? error.message : $t('admin.personalChromeUnavailable')
+			};
+		} finally {
+			connectingPersonal = false;
 		}
 	}
 </script>
@@ -465,6 +506,48 @@
 								class="mt-1 inline-block text-[0.6875rem] text-gray-400 hover:text-gray-700 dark:text-gray-600 dark:hover:text-gray-300"
 								>{$t('admin.personalChromeEnableDebugging')} ↗</a
 							>
+							<div class="mt-2 flex items-center justify-between">
+								<div>
+									<span class="text-xs text-gray-600 dark:text-gray-400"
+										>{$t('admin.personalChromeConnection')}</span
+									>
+									<p class="text-[0.625rem] text-gray-400 dark:text-gray-600">
+										{$t('admin.personalChromeConnectionHint')}
+									</p>
+								</div>
+								<select
+									bind:value={personalKeepAlive}
+									class="cursor-pointer bg-transparent text-xs text-gray-600 outline-none dark:text-gray-400"
+								>
+									<option value={true}>{$t('admin.personalChromeKeepRunning')}</option>
+									<option value={false}>{$t('admin.personalChromeStopUnused')}</option>
+								</select>
+							</div>
+							<div class="mt-2 flex items-center justify-between">
+								<span class="text-xs text-gray-400 dark:text-gray-600">
+									{#if personalStatus?.status === 'playing'}
+										{$t('admin.personalChromeConnected')}
+										{#if personalStatus.session_count}
+											· {personalStatus.session_count} {$t('admin.personalChromeTabs')}
+										{/if}
+									{:else if personalStatus?.status === 'lost'}
+										{$t('admin.personalChromeLost')}
+									{:else}
+										{$t('admin.personalChromeDisconnected')}
+									{/if}
+								</span>
+								<button
+									class="text-xs text-gray-500 transition-colors hover:text-gray-900 disabled:opacity-50 dark:text-gray-500 dark:hover:text-white"
+									onclick={togglePersonalChrome}
+									disabled={connectingPersonal}
+								>
+									{connectingPersonal
+										? '...'
+										: personalStatus?.status === 'playing'
+											? $t('admin.personalChromeDisconnect')
+											: $t('admin.personalChromeConnect')}
+								</button>
+							</div>
 						</div>
 					{/if}
 				{/if}

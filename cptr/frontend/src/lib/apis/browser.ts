@@ -16,6 +16,12 @@ export interface BrowserAvailability {
 	};
 }
 
+export interface PersonalChromeStatus {
+	status: 'disconnected' | 'connecting' | 'playing' | 'lost' | 'unavailable';
+	browser: string;
+	session_count: number;
+}
+
 let availabilityPromise: Promise<BrowserAvailability> | undefined;
 export const getBrowserAvailability = () =>
 	(availabilityPromise ??= fetchJSON<BrowserAvailability>('/api/browser/availability'));
@@ -71,3 +77,15 @@ export const testBrowserCdp = (url: string) =>
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify({ url })
 	});
+
+export const getPersonalChrome = () => fetchJSON<PersonalChromeStatus>('/api/browser/personal');
+
+export const connectPersonalChrome = (url: string) =>
+	fetchJSON<PersonalChromeStatus>('/api/browser/personal', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ url })
+	});
+
+export const disconnectPersonalChrome = () =>
+	fetchJSON<PersonalChromeStatus>('/api/browser/personal', { method: 'DELETE' });

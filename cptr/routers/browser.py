@@ -209,6 +209,10 @@ async def _chrome_cdp_url() -> str:
     return str(await Config.get("browser.cdp_url") or "").strip()
 
 
+async def _personal_keep_alive() -> bool:
+    return await Config.get("browser.personal_keep_alive") is not False
+
+
 def _initial_url(value: object) -> str:
     url = str(value or "").strip()
     if not url:
@@ -236,14 +240,21 @@ async def create_session(request: Request):
     if mode not in {"proxy", "chrome"}:
         raise HTTPException(status_code=400, detail="Invalid Browser mode")
     initial_url = _initial_url(payload.get("url") if isinstance(payload, dict) else None)
-    session = await manager.create(_owner(_auth(request)))
+    auth = _auth(request)
+    session = await manager.create(_owner(auth))
     if initial_url:
         await manager.update(session.session_id, session.owner, url=initial_url)
     if mode == "chrome":
         try:
-            await chrome_viewer_manager.start(
-                session, local_origin(str(request.base_url)), cdp_url=await _chrome_cdp_url()
-            )
+            cdp_url = await _chrome_cdp_url()
+            if cdp_url:
+                if auth.role != "admin":
+                    raise RuntimeError("Personal Chrome is available to administrators only")
+                await chrome_viewer_manager.attach_personal(
+                    session, local_origin(str(request.base_url)), cdp_url
+                )
+            else:
+                await chrome_viewer_manager.start(session, local_origin(str(request.base_url)))
             session.mode = "chrome"
         except Exception as exc:
             await manager.close(session.session_id, session.owner)
@@ -265,7 +276,10 @@ async def list_sessions(request: Request):
 @router.delete("/sessions/{session_id}")
 async def close_session(session_id: str, request: Request):
     owner = _owner(_auth(request))
-    await chrome_viewer_manager.stop(session_id, owner)
+    if not await chrome_viewer_manager.detach_personal(
+        session_id, owner, await _personal_keep_alive()
+    ):
+        await chrome_viewer_manager.stop(session_id, owner)
     if not await manager.close(session_id, owner):
         raise HTTPException(status_code=404, detail="Browser tab not found")
     return {"status": "closed"}
@@ -301,16 +315,25 @@ async def update_session(session_id: str, request: Request):
     if requested_mode == "chrome" and session.mode != "chrome":
         session.status = "connecting"
         try:
-            await chrome_viewer_manager.start(
-                session, local_origin(str(request.base_url)), cdp_url=await _chrome_cdp_url()
-            )
+            cdp_url = await _chrome_cdp_url()
+            if cdp_url:
+                if _auth(request).role != "admin":
+                    raise RuntimeError("Personal Chrome is available to administrators only")
+                await chrome_viewer_manager.attach_personal(
+                    session, local_origin(str(request.base_url)), cdp_url
+                )
+            else:
+                await chrome_viewer_manager.start(session, local_origin(str(request.base_url)))
         except Exception as exc:
             session.status = "ready"
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         session.mode = "chrome"
         session.status = "playing"
     elif requested_mode == "proxy" and session.mode == "chrome":
-        await chrome_viewer_manager.stop(session_id, owner)
+        if not await chrome_viewer_manager.detach_personal(
+            session_id, owner, await _personal_keep_alive()
+        ):
+            await chrome_viewer_manager.stop(session_id, owner)
         session.mode = "proxy"
         session.status = "ready"
     return _session_payload(session)
@@ -342,6 +365,35 @@ async def test_chrome_cdp(request: Request):
         if connection:
             await connection.close()
     return {"browser": str(version.get("product", "Chrome"))}
+
+
+@router.get("/personal")
+async def personal_chrome_status(request: Request):
+    return chrome_viewer_manager.personal_status(_owner(require_admin(request)))
+
+
+@router.post("/personal")
+async def connect_personal_chrome(request: Request):
+    owner = _owner(require_admin(request))
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    cdp_url = str(payload.get("url") or await Config.get("browser.cdp_url") or "").strip()
+    try:
+        await chrome_viewer_manager.connect_personal(
+            owner, local_origin(str(request.base_url)), cdp_url
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return chrome_viewer_manager.personal_status(owner)
+
+
+@router.delete("/personal")
+async def disconnect_personal_chrome(request: Request):
+    owner = _owner(require_admin(request))
+    await chrome_viewer_manager.disconnect_personal(owner)
+    return chrome_viewer_manager.personal_status(owner)
 
 
 @router.get("/sessions/{session_id}/blank")
@@ -457,11 +509,11 @@ async def chrome_viewer_stream(websocket: WebSocket, session_id: str):
     auth = check_access(client_host, token)
     owner = _owner(auth) if auth else ""
     session = manager.session(session_id, owner) if auth else None
-    viewer = chrome_viewer_manager.viewers.get(session_id)
+    viewer = chrome_viewer_manager.viewer_for(session_id)
     if not session or session.mode != "chrome" or not viewer:
         await websocket.close(code=4004, reason="Chrome Browser session not found")
         return
-    await chrome_viewer_manager.viewer_socket(websocket, viewer)
+    await chrome_viewer_manager.viewer_socket(websocket, viewer, session_id)
 
 
 @router.websocket("/sessions/{session_id}/encoder")
