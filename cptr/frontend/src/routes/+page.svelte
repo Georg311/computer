@@ -17,7 +17,8 @@
 		appVersion,
 		showChangelog,
 		showSearch,
-		pwaPreferences
+		pwaPreferences,
+		homeGroup
 	} from '$lib/stores';
 	import type { Tab, EditorGroup, EditorLayout, SplitDirection, WorkspaceState } from '$lib/stores';
 	import { chatEnabled } from '$lib/stores/chat';
@@ -48,22 +49,17 @@
 	let pendingIntent = $state<LaunchIntent | null>(null);
 	let folderPickerIntent = $state<LaunchIntent | null>(null);
 	let folderPickerWorkspace = $state<string | null>(null);
-	let homeGroup = $state<EditorGroup>({
-		id: 'home',
-		tabs: [{ id: 'home', type: 'home', label: 'Home', permanent: true }],
-		activeTabId: 'home'
-	});
 	const activeHomeTab = $derived(
-		homeGroup.tabs.find((tab) => tab.id === homeGroup.activeTabId) ?? homeGroup.tabs[0]
+		$homeGroup.tabs.find((tab) => tab.id === $homeGroup.activeTabId) ?? $homeGroup.tabs[0]
 	);
 
 	function updateHomeTabs(update: (tabs: Tab[]) => { tabs: Tab[]; activeTabId: string }) {
-		const next = update(homeGroup.tabs);
-		homeGroup = { ...homeGroup, ...next };
+		const next = update($homeGroup.tabs);
+		homeGroup.set({ ...$homeGroup, ...next });
 	}
 
 	function openHomeChat(chatId?: string) {
-		const existing = homeGroup.tabs.find(
+		const existing = $homeGroup.tabs.find(
 			(tab) =>
 				tab.type === 'chat' &&
 				(chatId
@@ -71,7 +67,7 @@
 					: tab.path?.startsWith('new-') || tab.path?.startsWith('pending-'))
 		);
 		if (existing) {
-			homeGroup = { ...homeGroup, activeTabId: existing.id };
+			homeGroup.set({ ...$homeGroup, activeTabId: existing.id });
 			return;
 		}
 		const tab: Tab = {
@@ -115,30 +111,30 @@
 	}
 
 	function closeHomeTab(tabId: string) {
-		const index = homeGroup.tabs.findIndex((tab) => tab.id === tabId);
-		const tab = homeGroup.tabs[index];
+		const index = $homeGroup.tabs.findIndex((tab) => tab.id === tabId);
+		const tab = $homeGroup.tabs[index];
 		if (!tab || tab.permanent) return;
 		if (tab.type === 'terminal' && tab.sessionId) deleteSession(tab.sessionId);
 		if (tab.type === 'browser' && tab.browserSessionId) deleteBrowserSession(tab.browserSessionId);
-		const tabs = homeGroup.tabs.filter((item) => item.id !== tabId);
+		const tabs = $homeGroup.tabs.filter((item) => item.id !== tabId);
 		const activeTabId =
-			homeGroup.activeTabId === tabId
+			$homeGroup.activeTabId === tabId
 				? (tabs[Math.max(0, index - 1)]?.id ?? 'home')
-				: homeGroup.activeTabId;
-		homeGroup = { ...homeGroup, tabs, activeTabId };
+				: $homeGroup.activeTabId;
+		homeGroup.set({ ...$homeGroup, tabs, activeTabId });
 	}
 
 	function updateHomeChatTab(tabId: string, chatId: string, label: string) {
 		updateHomeTabs((tabs) => ({
 			tabs: tabs.map((tab) => (tab.id === tabId ? { ...tab, path: chatId, label } : tab)),
-			activeTabId: homeGroup.activeTabId
+			activeTabId: $homeGroup.activeTabId
 		}));
 	}
 
 	function updateHomeBrowserTab(tabId: string, label: string) {
 		updateHomeTabs((tabs) => ({
 			tabs: tabs.map((tab) => (tab.id === tabId ? { ...tab, label } : tab)),
-			activeTabId: homeGroup.activeTabId
+			activeTabId: $homeGroup.activeTabId
 		}));
 	}
 	const INTENT_URL_KEYS = [
@@ -898,10 +894,10 @@
 {#if !$currentWorkspace}
 	<div class="flex h-full flex-col">
 		<GroupTabBar
-			group={homeGroup}
+			group={$homeGroup}
 			home
 			isPrimary
-			onHomeSelect={(tabId) => (homeGroup = { ...homeGroup, activeTabId: tabId })}
+			onHomeSelect={(tabId) => homeGroup.set({ ...$homeGroup, activeTabId: tabId })}
 			onHomeClose={closeHomeTab}
 			onHomeNewChat={openHomeChat}
 			onHomeNewTerminal={openHomeTerminal}

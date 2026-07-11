@@ -113,6 +113,7 @@ export interface UserPreferences {
 	pwa?: PwaPreferences;
 	textScale?: number | null;
 	widescreenMode?: boolean;
+	homeGroup?: EditorGroup;
 }
 
 // ── ID generation ───────────────────────────────────────────────
@@ -254,6 +255,11 @@ function normalizeLayout(
 
 /** The workspace currently displayed in THIS browser tab. Null = welcome page. */
 export const currentWorkspace = writable<WorkspaceState | null>(null);
+export const homeGroup = writable<EditorGroup>({
+	id: 'home',
+	tabs: [{ id: 'home', type: 'home', label: 'Home', permanent: true }],
+	activeTabId: 'home'
+});
 
 /** List of all workspace summaries for the sidebar. */
 export const workspaceList = writable<{ path: string; name: string }[]>([]);
@@ -408,7 +414,8 @@ function persistPreferences(): void {
 			showUpdateToast: get(showUpdateToastPref),
 			pwa: get(pwaPreferences),
 			textScale: get(textScale) ?? undefined,
-			widescreenMode: get(widescreenMode)
+			widescreenMode: get(widescreenMode),
+			homeGroup: get(homeGroup)
 		};
 		savePreferences(prefs as unknown as Record<string, unknown>).catch(() => {});
 	}, 300);
@@ -420,6 +427,9 @@ function subscribeForPersistence() {
 	_subscribed = true;
 	currentWorkspace.subscribe(() => {
 		if (get(stateLoaded)) persistWorkspace();
+	});
+	homeGroup.subscribe(() => {
+		if (get(stateLoaded)) persistPreferences();
 	});
 	theme.subscribe(() => {
 		if (get(stateLoaded)) persistPreferences();
@@ -507,6 +517,36 @@ export async function loadPreferences(): Promise<void> {
 					: null
 		);
 		if (prefs.widescreenMode !== undefined) widescreenMode.set(prefs.widescreenMode as boolean);
+		const savedHomeGroup = prefs.homeGroup as EditorGroup | undefined;
+		if (savedHomeGroup && Array.isArray(savedHomeGroup.tabs)) {
+			const [terminalIds, browserIds] = await Promise.all([
+				listSessions().catch(() => []),
+				listBrowserSessions().catch(() => [])
+			]);
+			const aliveTerminals = new Set(terminalIds);
+			const aliveBrowsers = new Set(browserIds);
+			const tabs = savedHomeGroup.tabs.filter(
+				(tab) =>
+					tab.type !== 'terminal' ||
+					(tab.sessionId !== undefined && aliveTerminals.has(tab.sessionId))
+			);
+			const liveTabs = tabs.filter(
+				(tab) =>
+					tab.type !== 'browser' ||
+					(tab.browserSessionId !== undefined && aliveBrowsers.has(tab.browserSessionId))
+			);
+			if (!liveTabs.some((tab) => tab.type === 'home')) {
+				liveTabs.unshift({ id: 'home', type: 'home', label: 'Home', permanent: true });
+			}
+			homeGroup.set({
+				...savedHomeGroup,
+				id: 'home',
+				tabs: liveTabs,
+				activeTabId: liveTabs.some((tab) => tab.id === savedHomeGroup.activeTabId)
+					? savedHomeGroup.activeTabId
+					: 'home'
+			});
+		}
 		const pwaPrefs = prefs.pwa;
 		if (pwaPrefs)
 			pwaPreferences.set({

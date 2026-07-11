@@ -310,9 +310,12 @@
 	function resize(debounce = false) {
 		if (!container || !ready) return;
 		const rect = container.getBoundingClientRect();
+		const width = Math.round(rect.width);
+		const height = Math.round(rect.height);
+		if (width <= 0 || height <= 0) return;
 		viewport = {
-			width: Math.max(320, Math.min(1920, Math.round(rect.width))),
-			height: Math.max(240, Math.min(1080, Math.round(rect.height)))
+			width,
+			height
 		};
 		if (viewportTimer) clearTimeout(viewportTimer);
 		if (debounce || (mobile && document.activeElement === keyboardAntenna)) {
