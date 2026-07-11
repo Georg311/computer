@@ -206,14 +206,14 @@
 
 <div class="flex items-center justify-between h-8 pl-3.5 pr-1.5 shrink-0">
 	<button
-		class="flex flex-1 h-full items-center gap-1 text-left text-xs text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400 transition-colors duration-100"
+		class="group flex flex-1 h-full items-center gap-1 text-left text-xs text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400 transition-colors duration-100"
 		onclick={() => (workspacesExpanded = !workspacesExpanded)}
 		aria-expanded={workspacesExpanded}
 		aria-controls="workspace-list"
 	>
 		<span>{$t('sidebar.workspaces')}</span>
 		<span
-			class="flex transition-transform duration-100"
+			class="flex opacity-0 group-hover:opacity-100 transition-all duration-100"
 			style="transform: rotate({workspacesExpanded ? '90deg' : '0deg'})"
 		>
 			<Icon name="chevron-right" size={11} />
@@ -415,7 +415,7 @@
 	}
 
 	:global(.dark) .ws-icon-chevron {
-		color: #6b7280;
+		color: var(--app-fg-muted);
 	}
 
 	.ws-icon-toggle:hover .ws-icon-folder {
@@ -439,21 +439,13 @@
 		background: none;
 		cursor: pointer;
 		font-size: 0.6875rem;
-		color: #b0b5be;
+		color: var(--app-fg-subtle);
 		text-align: left;
 		transition: color 0.1s;
 	}
 
 	.ws-chat-show-more:hover {
-		color: #6b7280;
-	}
-
-	:global(.dark) .ws-chat-show-more {
-		color: #6b7280;
-	}
-
-	:global(.dark) .ws-chat-show-more:hover {
-		color: #9ca3af;
+		color: var(--app-fg);
 	}
 
 	.ws-chat-loading {

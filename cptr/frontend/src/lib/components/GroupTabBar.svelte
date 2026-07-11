@@ -41,6 +41,7 @@
 		onHomeSelect?: (tabId: string) => void;
 		onHomeClose?: (tabId: string) => void;
 		onHomeReorder?: (oldIndex: number, newIndex: number) => void;
+		onHomeMove?: (tabId: string, fromGroupId: string) => void;
 		onHomeNewChat?: () => void;
 		onHomeNewTerminal?: () => void;
 		onHomeNewBrowser?: () => void;
@@ -60,6 +61,7 @@
 		onHomeSelect,
 		onHomeClose,
 		onHomeReorder,
+		onHomeMove,
 		onHomeNewChat,
 		onHomeNewTerminal,
 		onHomeNewBrowser,
@@ -179,7 +181,6 @@
 	}
 
 	function handleBarDragOver(e: DragEvent) {
-		if (home) return;
 		// Only accept tab drags (not file uploads)
 		if (!e.dataTransfer || !hasTabDrag(e.dataTransfer)) return;
 		e.preventDefault();
@@ -194,7 +195,6 @@
 	}
 
 	function handleBarDrop(e: DragEvent) {
-		if (home) return;
 		dropHighlight = false;
 		if (!e.dataTransfer) return;
 		const payload = readTabDragPayload(e.dataTransfer);
@@ -202,7 +202,8 @@
 		e.preventDefault();
 		e.stopPropagation();
 		if (payload.groupId === group.id) return; // same group, ignore
-		moveTabToGroup(payload.tabId, payload.groupId, group.id);
+		if (home) onHomeMove?.(payload.tabId, payload.groupId);
+		else moveTabToGroup(payload.tabId, payload.groupId, group.id);
 	}
 
 	const plusMenuItems = $derived(

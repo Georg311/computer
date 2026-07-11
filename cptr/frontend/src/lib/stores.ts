@@ -1463,42 +1463,106 @@ export function closeHomeGroup(groupId: string): void {
 	});
 }
 
+type SplitEditorState = Pick<
+	WorkspaceState,
+	'groups' | 'activeGroupId' | 'layout' | 'splitDirection'
+>;
+
+function moveTabToGroupInState<T extends SplitEditorState>(
+	state: T,
+	tabId: string,
+	fromGroupId: string,
+	toGroupId: string,
+	allowPermanent: boolean
+): T {
+	const fromGroup = state.groups.find((g) => g.id === fromGroupId);
+	if (!fromGroup || fromGroupId === toGroupId) return state;
+	const tab = fromGroup.tabs.find((t) => t.id === tabId);
+	if (!tab || (!allowPermanent && tab.permanent)) return state;
+
+	let newGroups = state.groups.map((g) => {
+		if (g.id === fromGroupId) {
+			const newTabs = g.tabs.filter((t) => t.id !== tabId);
+			const newActiveId = g.activeTabId === tabId ? (newTabs[0]?.id ?? 'files') : g.activeTabId;
+			return { ...g, tabs: newTabs, activeTabId: newActiveId };
+		}
+		if (g.id === toGroupId) {
+			return { ...g, tabs: [...g.tabs, tab], activeTabId: tab.id };
+		}
+		return g;
+	});
+
+	newGroups = newGroups.filter((g) => g.tabs.length > 0);
+
+	const sourceGroupStillExists = newGroups.some((g) => g.id === fromGroupId);
+	const targetGroupStillExists = newGroups.some((g) => g.id === toGroupId);
+	return {
+		...state,
+		groups: newGroups,
+		layout: sourceGroupStillExists
+			? state.layout
+			: (removeLayoutGroup(state.layout, fromGroupId) ?? state.layout),
+		activeGroupId: targetGroupStillExists ? toGroupId : newGroups[0].id
+	};
+}
+
 /** Move a tab from one group to another */
 export function moveTabToGroup(tabId: string, fromGroupId: string, toGroupId: string): void {
-	currentWorkspace.update((ws) => {
-		if (!ws) return ws;
-		const fromGroup = ws.groups.find((g) => g.id === fromGroupId);
-		if (!fromGroup) return ws;
-		const tab = fromGroup.tabs.find((t) => t.id === tabId);
-		if (!tab) return ws;
+	currentWorkspace.update((workspace) =>
+		workspace ? moveTabToGroupInState(workspace, tabId, fromGroupId, toGroupId, true) : workspace
+	);
+}
 
-		let newGroups = ws.groups.map((g) => {
-			if (g.id === fromGroupId) {
-				const newTabs = g.tabs.filter((t) => t.id !== tabId);
-				const newActiveId = g.activeTabId === tabId ? (newTabs[0]?.id ?? 'files') : g.activeTabId;
-				return { ...g, tabs: newTabs, activeTabId: newActiveId };
-			}
-			if (g.id === toGroupId) {
-				return { ...g, tabs: [...g.tabs, tab], activeTabId: tab.id };
-			}
-			return g;
-		});
+export function moveHomeTabToGroup(tabId: string, fromGroupId: string, toGroupId: string): void {
+	homeState.update((state) => moveTabToGroupInState(state, tabId, fromGroupId, toGroupId, false));
+}
 
-		// Remove empty non-primary groups
-		newGroups = newGroups.filter((g) => g.tabs.length > 0);
-		if (newGroups.length === 0) newGroups = [createDefaultGroup()];
+function moveTabToNewSplitInState<T extends SplitEditorState>(
+	state: T,
+	tabId: string,
+	fromGroupId: string,
+	targetGroupId: string,
+	direction: SplitDirection,
+	placement: 'before' | 'after' = 'after'
+): T {
+	const fromGroup = state.groups.find((g) => g.id === fromGroupId);
+	if (!fromGroup) return state;
+	const tab = fromGroup.tabs.find((t) => t.id === tabId);
+	if (!tab || tab.permanent) return state;
 
-		const sourceGroupStillExists = newGroups.some((g) => g.id === fromGroupId);
-		const targetGroupStillExists = newGroups.some((g) => g.id === toGroupId);
-		return {
-			...ws,
-			groups: newGroups,
-			layout: sourceGroupStillExists
-				? ws.layout
-				: (removeLayoutGroup(ws.layout, fromGroupId) ?? ws.layout),
-			activeGroupId: targetGroupStillExists ? toGroupId : newGroups[0].id
-		};
+	const newGroup: EditorGroup = {
+		id: nextId(),
+		tabs: [tab],
+		activeTabId: tab.id
+	};
+	let groups = state.groups.map((g) => {
+		if (g.id !== fromGroupId) return g;
+		const tabs = g.tabs.filter((t) => t.id !== tabId);
+		return { ...g, tabs, activeTabId: tabs[0]?.id ?? '' };
 	});
+	const sourceGroupRemoved = groups.some(
+		(group) => group.id === fromGroupId && group.tabs.length === 0
+	);
+	groups = groups.filter((g) => g.tabs.length > 0);
+	groups.push(newGroup);
+	let layout = state.layout;
+	if (sourceGroupRemoved) {
+		layout =
+			fromGroupId === targetGroupId
+				? replaceLayoutGroup(layout, fromGroupId, newGroup.id)
+				: (removeLayoutGroup(layout, fromGroupId) ?? layout);
+	}
+	if (!(sourceGroupRemoved && fromGroupId === targetGroupId)) {
+		layout = splitLayout(layout, targetGroupId, newGroup.id, direction, placement);
+	}
+
+	return {
+		...state,
+		groups,
+		activeGroupId: newGroup.id,
+		layout,
+		splitDirection: direction
+	};
 }
 
 export function moveTabToNewSplit(
@@ -1508,48 +1572,23 @@ export function moveTabToNewSplit(
 	direction: SplitDirection,
 	placement: 'before' | 'after' = 'after'
 ): void {
-	currentWorkspace.update((ws) => {
-		if (!ws) return ws;
-		const fromGroup = ws.groups.find((g) => g.id === fromGroupId);
-		if (!fromGroup) return ws;
-		const tab = fromGroup.tabs.find((t) => t.id === tabId);
-		if (!tab || tab.permanent) return ws;
+	currentWorkspace.update((workspace) =>
+		workspace
+			? moveTabToNewSplitInState(workspace, tabId, fromGroupId, targetGroupId, direction, placement)
+			: workspace
+	);
+}
 
-		const newGroup: EditorGroup = {
-			id: nextId(),
-			tabs: [tab],
-			activeTabId: tab.id
-		};
-		let groups = ws.groups.map((g) => {
-			if (g.id !== fromGroupId) return g;
-			const tabs = g.tabs.filter((t) => t.id !== tabId);
-			return { ...g, tabs, activeTabId: tabs[0]?.id ?? '' };
-		});
-		const sourceGroupRemoved = groups.some(
-			(group) => group.id === fromGroupId && group.tabs.length === 0
-		);
-		groups = groups.filter((g) => g.tabs.length > 0);
-		groups.push(newGroup);
-		let layout = ws.layout;
-		if (sourceGroupRemoved) {
-			layout =
-				fromGroupId === targetGroupId
-					? replaceLayoutGroup(layout, fromGroupId, newGroup.id)
-					: (removeLayoutGroup(layout, fromGroupId) ?? layout);
-		}
-		if (!(sourceGroupRemoved && fromGroupId === targetGroupId)) {
-			layout = splitLayout(layout, targetGroupId, newGroup.id, direction, placement);
-		}
-
-		return {
-			...ws,
-			groups,
-			activeGroupId: newGroup.id,
-			layout,
-			splitDirection: direction,
-			splitRatio: ws.splitRatio ?? 0.5
-		};
-	});
+export function moveHomeTabToNewSplit(
+	tabId: string,
+	fromGroupId: string,
+	targetGroupId: string,
+	direction: SplitDirection,
+	placement: 'before' | 'after' = 'after'
+): void {
+	homeState.update((state) =>
+		moveTabToNewSplitInState(state, tabId, fromGroupId, targetGroupId, direction, placement)
+	);
 }
 
 export function setSplitDirection(direction: SplitDirection): void {
@@ -1565,6 +1604,13 @@ export function setSplitRatio(splitId: string, ratio: number): void {
 				}
 			: ws
 	);
+}
+
+export function setHomeSplitRatio(splitId: string, ratio: number): void {
+	homeState.update((state) => ({
+		...state,
+		layout: updateSplitRatio(state.layout, splitId, ratio)
+	}));
 }
 
 function updateSplitRatio(layout: EditorLayout, splitId: string, ratio: number): EditorLayout {
