@@ -121,6 +121,7 @@ export interface UserPreferences {
 	pwa?: PwaPreferences;
 	textScale?: number | null;
 	widescreenMode?: boolean;
+	expandToolDetails?: boolean;
 	homeGroup?: EditorGroup;
 }
 
@@ -323,6 +324,7 @@ export const pwaPreferences = writable<PwaPreferences>(defaultPwaPreferences);
 export const themeConfig = writable<ThemeConfig | null>(null);
 export const textScale = writable<number | null>(null);
 export const widescreenMode = writable(false);
+export const expandToolDetails = writable(false);
 
 /** Saved workspace path order for sidebar drag-reorder. */
 export const workspaceOrder = writable<string[]>([]);
@@ -423,6 +425,7 @@ function persistPreferences(): void {
 			pwa: get(pwaPreferences),
 			textScale: get(textScale),
 			widescreenMode: get(widescreenMode),
+			expandToolDetails: get(expandToolDetails),
 			homeGroup: get(homeGroup)
 		};
 		savePreferences(prefs as unknown as Record<string, unknown>).catch(() => {});
@@ -484,6 +487,9 @@ function subscribeForPersistence() {
 	widescreenMode.subscribe(() => {
 		if (get(stateLoaded)) persistPreferences();
 	});
+	expandToolDetails.subscribe(() => {
+		if (get(stateLoaded)) persistPreferences();
+	});
 	i18next.on('languageChanged', () => {
 		if (get(stateLoaded)) persistPreferences();
 	});
@@ -525,6 +531,8 @@ export async function loadPreferences(): Promise<void> {
 					: null
 		);
 		if (prefs.widescreenMode !== undefined) widescreenMode.set(prefs.widescreenMode as boolean);
+		if (prefs.expandToolDetails !== undefined)
+			expandToolDetails.set(prefs.expandToolDetails as boolean);
 		const savedHomeGroup = prefs.homeGroup as EditorGroup | undefined;
 		if (savedHomeGroup && Array.isArray(savedHomeGroup.tabs)) {
 			const [terminalIds, browserIds] = await Promise.all([

@@ -54,6 +54,7 @@
 	const greetingTime = $derived(
 		new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'
 	);
+	const greetingNameMarker = '\uE000';
 	const activeHomeTab = $derived(
 		$homeGroup.tabs.find((tab) => tab.id === $homeGroup.activeTabId) ?? $homeGroup.tabs[0]
 	);
@@ -916,7 +917,9 @@
 							<div class="flex items-baseline gap-2">
 								<h1 class="text-lg font-medium tracking-tight text-gray-900 dark:text-white">
 									{#if welcomeName}
-										{$t(`home.greeting.${greetingTime}BeforeName`)}<span class="capitalize">{welcomeName}</span>{$t('home.greetingAfterName')}
+										{@const greeting = $t(`home.greeting.${greetingTime}`, { name: greetingNameMarker })}
+										{@const [beforeName, afterName] = greeting.split(greetingNameMarker)}
+										{beforeName}<span class="capitalize">{welcomeName}</span>{afterName}
 									{:else}
 										Computer
 									{/if}
@@ -1161,6 +1164,11 @@
 			{#if $gitReviewOpen && group.id === allGroups[0]?.id}
 				<GitView />
 			{:else}
+				{#each group.tabs.filter((tab) => tab.type === 'files') as tab (tab.id)}
+					<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
+						<FileBrowser />
+					</div>
+				{/each}
 				{#each group.tabs.filter((tab) => tab.type === 'file' && tab.filePath) as tab (tab.id)}
 					<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
 						<FileEditor
@@ -1198,7 +1206,7 @@
 						/>
 					</div>
 				{/each}
-				{#if !groupTab || groupTab.type === 'files'}
+				{#if !groupTab}
 					<FileBrowser />
 				{:else if groupTab.type === 'terminal' && !groupTab.sessionId}
 					<div class="flex items-center justify-center h-full"><Spinner size={20} /></div>

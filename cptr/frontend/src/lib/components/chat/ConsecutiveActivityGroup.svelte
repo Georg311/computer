@@ -2,6 +2,7 @@
 	import { slide } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
 	import { t } from '$lib/i18n';
+	import { expandToolDetails } from '$lib/stores';
 	import ReasoningCollapsible from './ReasoningCollapsible.svelte';
 	import ToolCallCollapsible from './ToolCallCollapsible.svelte';
 
@@ -31,7 +32,10 @@
 		onapprove
 	}: Props = $props();
 
-	let expanded = $state(false);
+	let expanded = $state($expandToolDetails);
+	$effect(() => {
+		expanded = $expandToolDetails;
+	});
 
 	const hasReasoningPending = $derived(
 		reasoning.some((ri: any) => ri.status === 'in_progress' || ri.status === 'running')

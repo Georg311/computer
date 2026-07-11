@@ -2,7 +2,7 @@
 	import { toast } from 'svelte-sonner';
 	import Icon from '../Icon.svelte';
 	import { t } from '$lib/i18n';
-	import { textScale, theme, themeConfig, widescreenMode } from '$lib/stores';
+	import { expandToolDetails, textScale, theme, themeConfig, widescreenMode } from '$lib/stores';
 	import ToggleSwitch from '$lib/components/common/ToggleSwitch.svelte';
 	import type { Theme, ThemeConfig } from '$lib/stores';
 	import {
@@ -279,6 +279,13 @@
 			<span class="text-xs text-gray-600 dark:text-gray-400">{$t('appearance.widescreenMode')}</span
 			>
 			<ToggleSwitch value={$widescreenMode} onchange={(value) => widescreenMode.set(value)} />
+		</label>
+
+		<label class="flex items-center justify-between gap-3 mt-3">
+			<span class="text-xs text-gray-600 dark:text-gray-400"
+				>{$t('appearance.expandToolDetails')}</span
+			>
+			<ToggleSwitch value={$expandToolDetails} onchange={(value) => expandToolDetails.set(value)} />
 		</label>
 
 		<div class="w-full mt-5">

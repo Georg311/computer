@@ -2,6 +2,7 @@
 	import { slide } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
 	import { t } from '$lib/i18n';
+	import { expandToolDetails } from '$lib/stores';
 
 	interface Props {
 		item: any;
@@ -15,7 +16,10 @@
 
 	let { item, pairedOutput, done, chatId, messageId, toolLabel, onapprove }: Props = $props();
 
-	let expanded = $state(false);
+	let expanded = $state($expandToolDetails);
+	$effect(() => {
+		expanded = $expandToolDetails;
+	});
 
 	const args = $derived(item.arguments || {});
 	const toolName = $derived(item.name);
