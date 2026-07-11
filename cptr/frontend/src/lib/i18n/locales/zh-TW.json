@@ -1,6 +1,7 @@
 {
 	"app.tagline": "隨時隨地，掌控你的電腦。",
-	"home.welcomeBack": "歡迎回來，{{name}}。",
+	"home.greetingBeforeName": "很高興見到你，",
+	"home.greetingAfterName": "。",
 	"auth.createAccountHint": "建立帳號以開始使用。",
 	"auth.signInSystemHint": "使用系統帳號登入。",
 	"auth.setup": "初始設定",

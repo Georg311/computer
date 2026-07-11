@@ -308,6 +308,7 @@ async def write_file(req: WriteFileRequest):
 
 
 SEARCH_IGNORE_DIRS = {
+    ".cptr",
     ".git",
     "node_modules",
     "__pycache__",

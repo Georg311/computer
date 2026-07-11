@@ -1,6 +1,7 @@
 {
 	"app.tagline": "Ваш компьютер, откуда угодно.",
-	"home.welcomeBack": "С возвращением, {{name}}.",
+	"home.greetingBeforeName": "Рад вас видеть, ",
+	"home.greetingAfterName": ".",
 	"auth.createAccountHint": "Создайте аккаунт, чтобы начать.",
 	"auth.signInSystemHint": "Войдите с помощью системной учётной записи.",
 	"auth.setup": "Настройка",

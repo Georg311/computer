@@ -911,30 +911,30 @@
 					<div class="mx-auto flex min-h-full w-full max-w-md flex-col justify-center py-6">
 						<div class="mb-5">
 							<div class="flex items-baseline gap-2">
-								<h1 class="text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
-									Computer
+								<h1 class="text-lg font-medium tracking-tight text-gray-900 dark:text-white">
+									{#if welcomeName}
+										{$t('home.greetingBeforeName')}<span class="capitalize">{welcomeName}</span>{$t('home.greetingAfterName')}
+									{:else}
+										Computer
+									{/if}
 								</h1>
+							</div>
+							<div
+								class="mt-0.5 flex items-baseline gap-2 font-mono text-xs text-gray-400 dark:text-gray-600"
+							>
+								{#if welcomeData?.hostname}
+									<span class="text-[0.6875rem]">{welcomeData.hostname}</span>
+								{/if}
 								{#if $appVersion}
 									<button
 										onclick={() => showChangelog.set(true)}
-										class="cursor-pointer font-mono text-[0.6875rem] text-gray-400 hover:text-gray-500 hover:underline dark:text-gray-600 dark:hover:text-gray-400"
+										class="cursor-pointer text-[0.6875rem] hover:text-gray-500 hover:underline dark:hover:text-gray-400"
 									>
 										v{$appVersion}
 									</button>
 								{/if}
 							</div>
-							{#if welcomeData?.hostname}
-								<p class="mt-0.5 font-mono text-xs text-gray-400 dark:text-gray-600">
-									{welcomeData.hostname}
-								</p>
-							{/if}
 						</div>
-
-						{#if welcomeName}
-							<p class="mb-7 text-xl font-medium tracking-tight text-gray-800 dark:text-gray-200">
-								{$t('home.welcomeBack', { name: welcomeName })}
-							</p>
-						{/if}
 
 						<div class="mb-6">
 							<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">{$t('home.start')}</h2>

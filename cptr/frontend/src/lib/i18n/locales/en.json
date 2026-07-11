@@ -1,6 +1,7 @@
 {
 	"app.tagline": "Your computer, from anywhere.",
-	"home.welcomeBack": "Welcome back, {{name}}.",
+	"home.greetingBeforeName": "Good to see you, ",
+	"home.greetingAfterName": ".",
 	"auth.createAccountHint": "Create your account to get started.",
 	"auth.signInSystemHint": "Sign in with your system account.",
 	"auth.setup": "Setup",
@@ -58,7 +59,8 @@
 	"files.fileNamePlaceholder": "File name...",
 	"files.retry": "Retry",
 	"files.noMatches": "No matches",
-	"files.filenameMatch": "Filename match",
+	"files.filenameMatches": "Files",
+	"files.contentMatches": "Contents",
 	"files.line": "Line {{line}}",
 	"files.searchTruncated": "Some matches are not shown",
 	"files.failedToSearch": "Failed to search files",
