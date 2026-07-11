@@ -7,6 +7,7 @@ import contextlib
 import hashlib
 import json
 import os
+import re
 import secrets
 import shutil
 import socket
@@ -32,9 +33,9 @@ EventHandler = Callable[[dict[str, Any]], Awaitable[None]]
 
 QUALITY_PRESETS = ("low", "balanced", "crisp")
 DEFAULT_QUALITY_PROFILES = {
-    "low": {"max_height": 720, "bitrate": 3_000_000, "device_scale_factor": 1},
-    "balanced": {"max_height": 1080, "bitrate": 6_000_000, "device_scale_factor": 1},
-    "crisp": {"max_height": 1080, "bitrate": 12_000_000, "device_scale_factor": 2},
+    "low": {"bitrate": 3_000_000, "frame_rate": 15},
+    "balanced": {"bitrate": 6_000_000, "frame_rate": 24},
+    "crisp": {"bitrate": 12_000_000, "frame_rate": 30},
 }
 
 
@@ -52,51 +53,37 @@ def _number(value: object, default: float, minimum: float, maximum: float) -> fl
         return default
 
 
-async def _quality_settings() -> tuple[str, dict[str, dict[str, int]], int, int, bool]:
+async def _quality_settings() -> tuple[str, dict[str, dict[str, int]], int]:
     configured = await Config.get("browser.quality.profiles")
     profiles: dict[str, dict[str, int]] = {}
     for name, fallback in DEFAULT_QUALITY_PROFILES.items():
         value = configured.get(name) if isinstance(configured, dict) else None
         value = value if isinstance(value, dict) else {}
         profiles[name] = {
-            "max_height": _integer(
-                value.get("max_height", value.get("resolution")), fallback["max_height"], 240, 1080
-            ),
             "bitrate": _integer(value.get("bitrate"), fallback["bitrate"], 1_000_000, 12_000_000),
-            "device_scale_factor": 2
-            if _integer(value.get("device_scale_factor"), fallback["device_scale_factor"], 1, 2)
-            == 2
-            else 1,
+            "frame_rate": _integer(
+                value.get("frame_rate", value.get("fps")), fallback["frame_rate"], 1, 60
+            ),
         }
     default = await Config.get("browser.quality.default")
     default = default if default in QUALITY_PRESETS else "balanced"
-    max_resolution = _integer(await Config.get("browser.quality.max_resolution"), 1080, 240, 1080)
     max_bitrate = _integer(
         await Config.get("browser.quality.max_bitrate"), 12_000_000, 1_000_000, 12_000_000
     )
-    return (
-        default,
-        profiles,
-        max_resolution,
-        max_bitrate,
-        await Config.get("browser.quality.allow_dsf2") is not False,
-    )
+    return default, profiles, max_bitrate
 
 
 def _resolve_quality(
     preset: object,
     profiles: dict[str, dict[str, int]],
-    max_resolution: int,
     max_bitrate: int,
-    allow_dsf2: bool,
     default: str,
 ) -> tuple[str, dict[str, int]]:
     name = preset if preset in QUALITY_PRESETS else default
     value = profiles[name]
     return name, {
-        "max_height": min(value["max_height"], max_resolution),
         "bitrate": min(value["bitrate"], max_bitrate),
-        "device_scale_factor": 2 if allow_dsf2 and value["device_scale_factor"] == 2 else 1,
+        "frame_rate": value["frame_rate"],
     }
 
 
@@ -117,6 +104,41 @@ def _device_profile(data: object) -> dict[str, Any]:
         "mobile": bool(data.get("mobile")),
         "user_agent_metadata": metadata if isinstance(metadata, dict) else None,
     }
+
+
+def _mobile_user_agent(desktop_user_agent: str) -> str:
+    version = re.search(r"Chrome/([\d.]+)", desktop_user_agent)
+    chrome = version.group(1) if version else "120.0.0.0"
+    return (
+        "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 "
+        f"(KHTML, like Gecko) Chrome/{chrome} Mobile Safari/537.36"
+    )
+
+
+def _effective_device_profile(
+    profile: dict[str, Any], mode: str, mobile_viewport: tuple[int, int], desktop_user_agent: str
+) -> tuple[dict[str, Any], tuple[int, int]]:
+    if mode == "desktop":
+        return {
+            **profile,
+            "user_agent": desktop_user_agent or profile["user_agent"],
+            "max_touch_points": 0,
+            "mobile": False,
+            "user_agent_metadata": None,
+        }, mobile_viewport
+    if mode == "mobile":
+        width, height = mobile_viewport
+        return {
+            **profile,
+            "user_agent": _mobile_user_agent(desktop_user_agent),
+            "max_touch_points": 5,
+            "screen_width": width,
+            "screen_height": height,
+            "orientation": "landscapePrimary" if width > height else "portraitPrimary",
+            "mobile": True,
+            "user_agent_metadata": {"mobile": True, "platform": "Android"},
+        }, mobile_viewport
+    return profile, mobile_viewport
 
 
 def _user_agent_metadata(value: object) -> dict[str, Any] | None:
@@ -351,6 +373,7 @@ class ChromeHost:
     profile: Path | None
     browser_cdp: CDPConnection
     source: str = "managed"
+    user_agent: str = ""
     start_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     async def create_target(
@@ -411,13 +434,14 @@ class ChromeViewer:
     keyframe: bytes | None = None
     peers: set[ViewerPeer] = field(default_factory=set)
     controller: ViewerPeer | None = None
-    viewport: tuple[int, int] = (1280, 720)
-    target_viewport: tuple[float, float] = (1280, 720)
+    viewport: tuple[int, int] = (0, 0)
+    target_viewport: tuple[float, float] = (0, 0)
+    viewport_initialized: bool = False
     restart_attempted: bool = False
     initial_navigation_pending: bool = True
     quality_default: str = "balanced"
     quality_profiles: dict[str, dict[str, int]] = field(default_factory=dict)
-    quality_limits: tuple[int, int, bool] = (1080, 12_000_000, True)
+    max_bitrate: int = 12_000_000
     personal: bool = False
 
 
@@ -482,7 +506,16 @@ class ChromeViewerManager:
         if source:
             browser_ws_url = await resolve_cdp_endpoint(source)
             browser_cdp = await CDPConnection.connect(browser_ws_url)
-            host = ChromeHost(owner, "", None, None, browser_cdp, "external")
+            version = await browser_cdp.send("Browser.getVersion")
+            host = ChromeHost(
+                owner,
+                "",
+                None,
+                None,
+                browser_cdp,
+                "external",
+                str(version.get("userAgent", "")),
+            )
             self.hosts[key] = host
             return host
         browser_path = find_browser()
@@ -501,7 +534,6 @@ class ChromeViewerManager:
             "--no-first-run",
             "--no-default-browser-check",
             "--disable-background-networking",
-            "--window-size=1280,800",
             f"--auto-select-tab-capture-source-by-title={CAPTURE_TITLE}",
             "about:blank",
         ]
@@ -539,6 +571,7 @@ class ChromeViewerManager:
             process,
             profile,
             browser_cdp,
+            user_agent=str(version.get("User-Agent", version.get("userAgent", ""))),
         )
         self.hosts[key] = host
         return host
@@ -548,9 +581,9 @@ class ChromeViewerManager:
             return self.viewers[session.session_id]
         host = await self._host(session.owner, cdp_url)
         async with host.start_lock:
-            default, profiles, max_resolution, max_bitrate, allow_dsf2 = await _quality_settings()
+            default, profiles, max_bitrate = await _quality_settings()
             preset, quality = _resolve_quality(
-                session.quality_preset, profiles, max_resolution, max_bitrate, allow_dsf2, default
+                session.quality_preset, profiles, max_bitrate, default
             )
             session.quality_preset = preset
             session.resolved_quality = quality
@@ -572,15 +605,6 @@ class ChromeViewerManager:
                     """,
                 },
             )
-            await target_cdp.send(
-                "Emulation.setDeviceMetricsOverride",
-                {
-                    "width": 1280,
-                    "height": 720,
-                    "deviceScaleFactor": quality["device_scale_factor"],
-                    "mobile": False,
-                },
-            )
             token = secrets.token_urlsafe(32)
             base = local_origin(origin)
             ws_scheme = "wss" if base.startswith("https:") else "ws"
@@ -597,7 +621,7 @@ class ChromeViewerManager:
             )
             viewer.quality_default = default
             viewer.quality_profiles = profiles
-            viewer.quality_limits = (max_resolution, max_bitrate, allow_dsf2)
+            viewer.max_bitrate = max_bitrate
             self.viewers[session.session_id] = viewer
             self._wire_events(viewer)
             try:
@@ -730,7 +754,9 @@ class ChromeViewerManager:
         return tab
 
     def viewer_for(self, session_id: str) -> ChromeViewer | PersonalTab | None:
-        return self.viewers.get(session_id) or (self.personal.tabs.get(session_id) if self.personal else None)
+        return self.viewers.get(session_id) or (
+            self.personal.tabs.get(session_id) if self.personal else None
+        )
 
     async def detach_personal(self, session_id: str, owner: str, keep_alive: bool) -> bool:
         if not self.personal or self.personal.owner != owner:
@@ -863,7 +889,9 @@ class ChromeViewerManager:
             ]
             if normalized != viewer.editable_regions:
                 viewer.editable_regions = normalized
-                await self._broadcast_json(viewer, {"type": "editable_regions", "regions": normalized})
+                await self._broadcast_json(
+                    viewer, {"type": "editable_regions", "regions": normalized}
+                )
         except Exception:
             pass
 
@@ -890,7 +918,14 @@ class ChromeViewerManager:
                     if data.get("type") == "config":
                         viewer.config = data
                         viewer.keyframe = None
-                        await self._broadcast_json(viewer, data)
+                        if viewer.viewport_initialized:
+                            for peer in tuple(viewer.peers):
+                                while not peer.queue.empty():
+                                    with contextlib.suppress(asyncio.QueueEmpty):
+                                        peer.queue.get_nowait()
+                                peer.waiting_keyframe = True
+                                with contextlib.suppress(asyncio.QueueFull):
+                                    peer.queue.put_nowait(data)
                     elif data.get("type") == "audio_config":
                         viewer.audio_config = data
                         await self._broadcast_json(viewer, data)
@@ -945,9 +980,7 @@ class ChromeViewerManager:
                         if tab := personal.tabs.get(personal.active_session_id):
                             await self._broadcast_json(tab, data)
                     elif data.get("type") == "error":
-                        personal.encoder_error = str(
-                            data.get("message", "Chrome encoder failed")
-                        )
+                        personal.encoder_error = str(data.get("message", "Chrome encoder failed"))
                         personal.first_keyframe.set()
                 elif message.get("bytes") is not None:
                     frame = message["bytes"]
@@ -1066,6 +1099,13 @@ class ChromeViewerManager:
                 }
                 if not viewer.personal
                 else None,
+                "device_mode": viewer.session.device_mode if not viewer.personal else None,
+                "mobile_viewport": {
+                    "width": viewer.session.mobile_viewport[0],
+                    "height": viewer.session.mobile_viewport[1],
+                }
+                if not viewer.personal
+                else None,
             }
         )
         config = (
@@ -1073,14 +1113,16 @@ class ChromeViewerManager:
             if viewer.personal and self.personal
             else viewer.config
         )
-        if config:
-            await peer.queue.put(config)
-        if not viewer.personal and viewer.audio_config:
-            await peer.queue.put(viewer.audio_config)
-        if viewer.keyframe:
-            await peer.queue.put(viewer.keyframe)
+        if viewer.personal or viewer.viewport_initialized:
+            if config:
+                await peer.queue.put(config)
+            if not viewer.personal and viewer.audio_config:
+                await peer.queue.put(viewer.audio_config)
+            if viewer.keyframe:
+                await peer.queue.put(viewer.keyframe)
         await self._refresh_state(viewer)
-        await self._request_keyframe(viewer)
+        if viewer.personal or viewer.viewport_initialized:
+            await self._request_keyframe(viewer)
 
         async def write() -> None:
             while True:
@@ -1129,8 +1171,12 @@ class ChromeViewerManager:
         if viewer.controller is not peer:
             return
         if kind == "viewport":
-            width = max(320, min(1920, int(data.get("width", 1280))))
-            height = max(240, min(1080, int(data.get("height", 720))))
+            try:
+                width, height = int(data.get("width")), int(data.get("height"))
+            except (TypeError, ValueError):
+                return
+            if width <= 0 or height <= 0:
+                return
             if viewer.personal:
                 viewer.viewport = (width, height)
                 if self.personal and self.personal.active_session_id == viewer.session.session_id:
@@ -1213,21 +1259,43 @@ class ChromeViewerManager:
     async def _apply_managed_viewport(
         self, viewer: ChromeViewer, data: dict[str, Any], width: int, height: int
     ) -> None:
-        profile = _device_profile(data.get("device"))
-        max_resolution, max_bitrate, allow_dsf2 = viewer.quality_limits
+        requested_profile = _device_profile(data.get("device"))
+        mode = str(data.get("device_mode", viewer.session.device_mode))
+        mode = mode if mode in {"auto", "desktop", "mobile"} else "auto"
+        requested_mobile_viewport = data.get("mobile_viewport")
+        current_mobile_viewport = viewer.session.mobile_viewport
+        if isinstance(requested_mobile_viewport, dict):
+            try:
+                mobile_viewport = (
+                    int(requested_mobile_viewport.get("width")),
+                    int(requested_mobile_viewport.get("height")),
+                )
+            except (TypeError, ValueError):
+                mobile_viewport = current_mobile_viewport
+            if mobile_viewport[0] <= 0 or mobile_viewport[1] <= 0:
+                mobile_viewport = current_mobile_viewport
+        else:
+            mobile_viewport = current_mobile_viewport
+        profile, _ = _effective_device_profile(
+            requested_profile, mode, mobile_viewport, viewer.host.user_agent
+        )
+        layout_viewport = mobile_viewport if mode == "mobile" else (width, height)
         preset, quality = _resolve_quality(
             data.get("quality"),
             viewer.quality_profiles,
-            max_resolution,
-            max_bitrate,
-            allow_dsf2,
+            viewer.max_bitrate,
             viewer.quality_default,
         )
         profile_changed = profile != viewer.session.device_profile
         quality_changed = quality != viewer.session.resolved_quality
-        viewport_changed = viewer.viewport != (width, height)
-        viewer.viewport = (width, height)
+        device_changed = (
+            mode != viewer.session.device_mode or mobile_viewport != viewer.session.mobile_viewport
+        )
+        viewport_changed = viewer.viewport != layout_viewport
+        viewer.viewport = layout_viewport
         viewer.session.device_profile = profile
+        viewer.session.device_mode = mode
+        viewer.session.mobile_viewport = mobile_viewport
         viewer.session.quality_preset = preset
         viewer.session.resolved_quality = quality
 
@@ -1247,13 +1315,13 @@ class ChromeViewerManager:
                     "maxTouchPoints": profile["max_touch_points"],
                 },
             )
-        if profile_changed or quality_changed or viewport_changed:
+        if profile_changed or device_changed or viewport_changed:
             await viewer.target_cdp.send(
                 "Emulation.setDeviceMetricsOverride",
                 {
-                    "width": width,
-                    "height": height,
-                    "deviceScaleFactor": quality["device_scale_factor"],
+                    "width": layout_viewport[0],
+                    "height": layout_viewport[1],
+                    "deviceScaleFactor": profile["device_scale_factor"],
                     "mobile": profile["mobile"],
                     "screenWidth": profile["screen_width"],
                     "screenHeight": profile["screen_height"],
@@ -1266,17 +1334,29 @@ class ChromeViewerManager:
             metrics = await viewer.target_cdp.send("Page.getLayoutMetrics")
             visual = metrics.get("cssVisualViewport", {})
             viewer.target_viewport = (
-                float(visual.get("clientWidth", width)),
-                float(visual.get("clientHeight", height)),
+                float(visual.get("clientWidth", layout_viewport[0])),
+                float(visual.get("clientHeight", layout_viewport[1])),
             )
         if quality_changed:
             await self._send_encoder(viewer, {"type": "quality", **quality})
             await self._broadcast_json(viewer, {"type": "quality", "preset": preset, **quality})
         if viewer.initial_navigation_pending:
             viewer.initial_navigation_pending = False
+            viewer.viewport_initialized = True
+            for peer in tuple(viewer.peers):
+                while not peer.queue.empty():
+                    with contextlib.suppress(asyncio.QueueEmpty):
+                        peer.queue.get_nowait()
+                peer.waiting_keyframe = True
+                if viewer.config:
+                    with contextlib.suppress(asyncio.QueueFull):
+                        peer.queue.put_nowait(viewer.config)
             await viewer.target_cdp.send(
                 "Page.navigate", {"url": viewer.session.url or "about:blank"}
             )
+            await self._request_keyframe(viewer)
+        elif device_changed and viewer.session.url:
+            await viewer.target_cdp.send("Page.reload")
 
     async def _focus_personal(self, tab: PersonalTab, peer: ViewerPeer | None = None) -> None:
         async with self.lock:
@@ -1463,7 +1543,11 @@ class ChromeViewerManager:
                 and any(peer.visible for tab in self.personal.tabs.values() for peer in tab.peers)
             )
             await self._send_personal({"type": "resume" if visible_personal else "pause"})
-            if visible and self.personal and self.personal.active_session_id == viewer.session.session_id:
+            if (
+                visible
+                and self.personal
+                and self.personal.active_session_id == viewer.session.session_id
+            ):
                 await self._send_personal({"type": "keyframe"})
             return
         await self._send_encoder(

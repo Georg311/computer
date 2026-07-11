@@ -34,6 +34,14 @@ DEFAULT_SYSTEM_PROMPT = (
     "\nFiles:\n{{FILE_TREE}}"
 )
 
+HOME_SYSTEM_PROMPT = (
+    "You are Computer (cptr), a helpful assistant in the user's computer interface. "
+    "This is a general chat with no workspace open. Use the available tools directly and "
+    "ask the user to open a workspace for project files or commands."
+    "\n\n{{MEMORY}}"
+    "\n\n{{SKILLS}}"
+)
+
 
 def _get_file_tree(workspace: str, max_entries: int = 200) -> str:
     """Generate a compact file tree listing for the workspace."""
@@ -215,11 +223,11 @@ def _build_template_variables(
     skills_enabled: bool = True,
 ) -> dict[str, str]:
     """Build the dict of template variable values for the current context."""
-    ws_path = Path(workspace)
+    ws_path = Path(workspace) if workspace else None
     os_name = platform.system().replace("Darwin", "macOS")
     shell = os.environ.get("SHELL") or os.environ.get("COMSPEC") or ""
 
-    instructions = _load_instruction_files(workspace)
+    instructions = _load_instruction_files(workspace) if workspace else ""
     if instructions:
         instructions_block = (
             f"<instructions>\n{instructions}\n</instructions>"
@@ -233,13 +241,13 @@ def _build_template_variables(
     skills_block = build_catalog_xml(discover_skills(workspace)) if skills_enabled else ""
 
     return {
-        "WORKSPACE_NAME": ws_path.name if ws_path.is_dir() else "",
-        "WORKSPACE_PATH": str(ws_path),
-        "FILE_TREE": _get_file_tree(workspace),
+        "WORKSPACE_NAME": ws_path.name if ws_path and ws_path.is_dir() else "",
+        "WORKSPACE_PATH": str(ws_path) if ws_path else "",
+        "FILE_TREE": _get_file_tree(workspace) if workspace else "",
         "INSTRUCTIONS": instructions_block,
         "MEMORY": memory,
         "SKILLS": skills_block,
-        "CPTR_CONTEXT": _format_cptr_context(workspace, model),
+        "CPTR_CONTEXT": _format_cptr_context(workspace, model) if workspace else "",
         "RUNTIME_ENV": _runtime_label(),
         "HOSTNAME": _safe_hostname(),
         "OS": os_name,
@@ -271,9 +279,10 @@ async def load_system_prompt(
     """
     template = None
 
-    ws_prompt = Path(workspace) / ".cptr" / "system.md"
-    if ws_prompt.is_file():
-        template = ws_prompt.read_text(errors="replace").strip()
+    if workspace:
+        ws_prompt = Path(workspace) / ".cptr" / "system.md"
+        if ws_prompt.is_file():
+            template = ws_prompt.read_text(errors="replace").strip()
 
     if template is None:
         try:
@@ -294,7 +303,7 @@ async def load_system_prompt(
             logger.debug("[system_prompt] Failed to load from config", exc_info=True)
 
     if template is None:
-        template = DEFAULT_SYSTEM_PROMPT
+        template = DEFAULT_SYSTEM_PROMPT if workspace else HOME_SYSTEM_PROMPT
 
     memory = ""
     if user_id:

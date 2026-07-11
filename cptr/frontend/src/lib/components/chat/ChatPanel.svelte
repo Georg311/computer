@@ -73,11 +73,13 @@
 	};
 
 	interface Props {
-		workspace: string;
+		workspace?: string;
 		chatId?: string;
 		tabId?: string;
+		ontabupdate?: (tabId: string, chatId: string, label: string) => void;
+		onopenchat?: (chatId?: string) => void;
 	}
-	let { workspace, chatId: initialChatId, tabId }: Props = $props();
+	let { workspace = '', chatId: initialChatId, tabId, ontabupdate, onopenchat }: Props = $props();
 
 	let inputText = $state('');
 	let chatId = $state<string | null>(initialChatId ?? null);
@@ -303,7 +305,9 @@
 	const hasChatContent = $derived(
 		activePath.some(({ msg }) => msg.role === 'user' && msg.content.trim())
 	);
-	const workspaceDisplayName = $derived(getPathDisplayName(workspace, 'workspace'));
+	const workspaceDisplayName = $derived(
+		workspace ? getPathDisplayName(workspace, 'workspace') : 'Computer'
+	);
 	const displayChatTitle = $derived(chatTitle || firstUserMessageTitle() || workspaceDisplayName);
 	const runningCommandSessions = $derived(commandSessions.filter((session) => !session.done));
 	const summaryCount = $derived(runningCommandSessions.length);
@@ -464,6 +468,7 @@
 	}
 
 	function copyChatPath(id: string) {
+		if (!workspace) return;
 		const chat = previousChats.find((c) => c.id === id);
 		if (!chat) return;
 		navigator.clipboard.writeText(
@@ -940,7 +945,8 @@
 		const toastId = toast.loading($t('chat.forking'));
 		try {
 			const result = await apiForkChat(chatId, messageId ?? currentMessageId);
-			openChatTab(result.chat_id);
+			if (onopenchat) onopenchat(result.chat_id);
+			else openChatTab(result.chat_id);
 			toast.success($t('chat.forkDone'), { id: toastId });
 		} catch (err: any) {
 			toast.error(err?.message || $t('chat.forkFailed'), { id: toastId });
@@ -977,7 +983,7 @@
 
 	async function refreshCommandSessions() {
 		const currentChatId = chatId;
-		if (!currentChatId) {
+		if (!currentChatId || !workspace) {
 			commandSessions = [];
 			return;
 		}
@@ -1205,6 +1211,7 @@
 	}
 
 	function updateTab(tid: string, newChatId: string, label: string) {
+		if (ontabupdate) return ontabupdate(tid, newChatId, label);
 		currentWorkspace.update((ws) => {
 			if (!ws) return ws;
 			return {
@@ -1586,7 +1593,7 @@
 					onopen={openChat}
 					ondelete={deleteChat}
 					onrename={renameChat}
-					oncopy={copyChatPath}
+					oncopy={workspace ? copyChatPath : undefined}
 					page={chatPage}
 					{totalPages}
 					perPage={CHATS_PAGE_SIZE}

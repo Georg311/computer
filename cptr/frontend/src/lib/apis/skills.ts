@@ -21,5 +21,7 @@ export interface SkillInfo {
 	last_updated_at?: string | null;
 }
 
-export const getSkills = (workspace: string) =>
-	fetchJSON<SkillInfo[]>(`/api/skills?workspace=${encodeURIComponent(workspace)}`);
+export const getSkills = (workspace?: string) =>
+	fetchJSON<SkillInfo[]>(
+		workspace ? `/api/skills?workspace=${encodeURIComponent(workspace)}` : '/api/skills'
+	);

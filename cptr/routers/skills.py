@@ -30,7 +30,9 @@ class SkillResponse(BaseModel):
 
 
 @router.get("", response_model=list[SkillResponse])
-async def list_skills(workspace: str = Query(..., description="Workspace path")):
+async def list_skills(
+    workspace: str = Query("", description="Workspace path; omit for global skills"),
+):
     """List available skills (frontmatter only) for the $ mention picker."""
     from cptr.models import Config
     from cptr.utils.skills import discover_skills

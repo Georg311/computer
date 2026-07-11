@@ -36,6 +36,8 @@ class BrowserSession:
     mode: str = "proxy"
     status: str = "ready"
     device_profile: dict = field(default_factory=dict)
+    device_mode: str = "auto"
+    mobile_viewport: tuple[int, int] = (390, 844)
     quality_preset: str = "balanced"
     resolved_quality: dict = field(default_factory=dict)
 
@@ -69,7 +71,9 @@ class BrowserProxyManager:
             return True
 
     def ids(self, owner: str) -> list[str]:
-        return [session_id for session_id, session in self._sessions.items() if session.owner == owner]
+        return [
+            session_id for session_id, session in self._sessions.items() if session.owner == owner
+        ]
 
     def session(self, session_id: str, owner: str) -> BrowserSession | None:
         session = self._sessions.get(session_id)
@@ -85,7 +89,9 @@ class BrowserProxyManager:
             if url is not None:
                 session.url = url
                 parsed = urlsplit(url)
-                session.origin = f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme and parsed.netloc else ""
+                session.origin = (
+                    f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme and parsed.netloc else ""
+                )
             if title is not None:
                 session.title = title
             return session
@@ -136,7 +142,9 @@ def target_url(url: str) -> str:
 def resource_path(session_id: str, url: str) -> str:
     parsed = urlsplit(url)
     path = parsed.path or "/"
-    return f"/api/browser/resources/{session_id}{path}" + (f"?{parsed.query}" if parsed.query else "")
+    return f"/api/browser/resources/{session_id}{path}" + (
+        f"?{parsed.query}" if parsed.query else ""
+    )
 
 
 def rewrite_url(value: str, base_url: str, session_id: str) -> str:
@@ -199,8 +207,10 @@ class _HtmlRewriter(HTMLParser):
             elif tag.lower() == "meta" and lower == "content":
                 value = re.sub(
                     r"(?i)(url\s*=\s*)([^;]+)",
-                    lambda match: match.group(1)
-                    + rewrite_url(match.group(2).strip(), self.base_url, self.session_id),
+                    lambda match: (
+                        match.group(1)
+                        + rewrite_url(match.group(2).strip(), self.base_url, self.session_id)
+                    ),
                     value,
                 )
             rewritten.append((key, value))
@@ -219,7 +229,7 @@ def rewrite_html(content: str, base_url: str, session_id: str, final_url: str) -
     parser.feed(content)
     parser.close()
     runtime = (
-        f'<script>window.__cptrBrowser={{session:{session_id!r},url:{final_url!r}}};</script>'
+        f"<script>window.__cptrBrowser={{session:{session_id!r},url:{final_url!r}}};</script>"
         '<script src="/api/browser/runtime.js"></script>'
     )
     rendered = "".join(parser.output)

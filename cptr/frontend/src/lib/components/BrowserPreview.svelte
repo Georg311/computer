@@ -21,9 +21,22 @@
 		tabId: string;
 		initialUrl?: string;
 		active?: boolean;
+		onTabUpdate?: (label: string) => void;
+		onOpenBrowser?: (url?: string) => void;
 	}
 
-	let { sessionId, groupId, tabId, initialUrl, active = true }: Props = $props();
+	type DeviceMode = 'auto' | 'desktop' | 'mobile';
+	type MobileViewport = { width: number; height: number };
+
+	let {
+		sessionId,
+		groupId,
+		tabId,
+		initialUrl,
+		active = true,
+		onTabUpdate,
+		onOpenBrowser
+	}: Props = $props();
 	let iframeEl: HTMLIFrameElement | undefined = $state();
 	let chromeEl: ChromeBrowser | undefined = $state();
 	let frameSrc = $state(browserBlankUrl(sessionId));
@@ -36,34 +49,32 @@
 	let canGoBack = $state(false);
 	let canGoForward = $state(false);
 	let chromeQuality = $state<'low' | 'balanced' | 'crisp' | null>(null);
+	let chromeDeviceMode = $state<DeviceMode>('auto');
+	let chromeMobileViewport = $state<MobileViewport>({ width: 390, height: 844 });
 	let qualityMenuOpen = $state(false);
 	let qualityMenuAnchor = $state<HTMLElement>();
+
+	function updateLabel(label: string) {
+		if (onTabUpdate) onTabUpdate(label);
+		else updateTabLabel(tabId, label);
+	}
 
 	function setChromeQuality(quality: 'low' | 'balanced' | 'crisp') {
 		chromeEl?.setQuality(quality);
 		chromeQuality = quality;
+		qualityMenuOpen = false;
 	}
 
-	const qualityMenuItems = $derived([
-		{
-			label: $t('admin.browserQualityLow'),
-			onclick: () => setChromeQuality('low'),
-			active: chromeQuality === 'low',
-			check: true
-		},
-		{
-			label: $t('admin.browserQualityBalanced'),
-			onclick: () => setChromeQuality('balanced'),
-			active: chromeQuality === 'balanced',
-			check: true
-		},
-		{
-			label: $t('admin.browserQualityCrisp'),
-			onclick: () => setChromeQuality('crisp'),
-			active: chromeQuality === 'crisp',
-			check: true
-		}
-	]);
+	function setChromeDeviceMode(nextMode: DeviceMode) {
+		chromeDeviceMode = nextMode;
+		chromeEl?.setDeviceMode(nextMode);
+	}
+
+	function setChromeMobileDimension(key: keyof MobileViewport, value: number) {
+		if (!Number.isFinite(value) || value <= 0) return;
+		chromeMobileViewport = { ...chromeMobileViewport, [key]: Math.round(value) };
+		chromeEl?.setMobileViewport(chromeMobileViewport);
+	}
 
 	function publicUrl(value: string) {
 		const proxyUrl = new URL(value, location.origin);
@@ -141,10 +152,13 @@
 		if (data?.type === 'cptr-browser-state') {
 			urlInput = publicUrl(data.url || urlInput);
 			title = data.title || '';
-			updateTabLabel(tabId, title);
+			updateLabel(title);
 			void updateBrowserSession(sessionId, urlInput, title).catch(() => {});
 		}
-		if (data?.type === 'cptr-browser-popup' && data.url) openBrowserTab(groupId, data.url);
+		if (data?.type === 'cptr-browser-popup' && data.url) {
+			if (onOpenBrowser) onOpenBrowser(data.url);
+			else openBrowserTab(groupId, data.url);
+		}
 	}
 
 	onMount(() => {
@@ -154,7 +168,7 @@
 				const url = publicUrl(session.url || initialUrl || '');
 				urlInput = url;
 				title = session.title;
-				updateTabLabel(tabId, title);
+				updateLabel(title);
 				mode = session.mode || 'proxy';
 				if (mode === 'chrome') {
 					const supported =
@@ -237,11 +251,71 @@
 	</div>
 	{#if qualityMenuOpen && qualityMenuAnchor}
 		<DropdownMenu
-			items={qualityMenuItems}
+			items={[]}
 			anchor={qualityMenuAnchor}
 			align="end"
 			onclose={() => (qualityMenuOpen = false)}
-		/>
+		>
+			<div class="p-1 text-xs">
+				{#each [{ value: 'low' as const, label: $t('admin.browserQualityLow') }, { value: 'balanced' as const, label: $t('admin.browserQualityBalanced') }, { value: 'crisp' as const, label: $t('admin.browserQualityCrisp') }] as item}
+					<button
+						class="flex h-6 w-full items-center rounded-lg px-2 text-left hover:bg-gray-100 dark:hover:bg-white/8 {chromeQuality ===
+						item.value
+							? 'font-medium text-gray-900 dark:text-white'
+							: 'text-gray-500 dark:text-gray-400'}"
+						onclick={() => setChromeQuality(item.value)}
+					>
+						<span class="flex-1">{item.label}</span>
+						{#if chromeQuality === item.value}<Icon name="check" size={12} />{/if}
+					</button>
+				{/each}
+				<div class="my-1 h-px bg-gray-200 dark:bg-white/8"></div>
+				<div class="px-1 pb-1 pt-0.5 text-[0.625rem] text-gray-400 dark:text-gray-600">
+					{$t('browser.device')}
+				</div>
+				<div class="flex gap-1">
+					{#each [{ value: 'auto' as DeviceMode, label: $t('browser.deviceAuto'), icon: 'monitor' }, { value: 'desktop' as DeviceMode, label: $t('browser.deviceDesktop'), icon: 'monitor' }, { value: 'mobile' as DeviceMode, label: $t('browser.deviceMobile'), icon: 'phone' }] as item}
+						<button
+							class="flex h-7 flex-1 items-center justify-center gap-1 rounded-lg px-1.5 text-[0.625rem] transition-colors {chromeDeviceMode ===
+							item.value
+								? 'bg-gray-200/50 font-medium text-gray-900 dark:bg-white/8 dark:text-white'
+								: 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}"
+							onclick={() => setChromeDeviceMode(item.value)}
+						>
+							<Icon name={item.icon} size={12} />
+							{item.label}
+						</button>
+					{/each}
+				</div>
+				{#if chromeDeviceMode === 'mobile'}
+					<div
+						class="mt-1.5 flex items-center gap-1 text-[0.625rem] text-gray-500 dark:text-gray-400"
+					>
+						<input
+							type="number"
+							min="1"
+							value={chromeMobileViewport.width}
+							aria-label={$t('browser.deviceWidth')}
+							use:tooltip={$t('browser.deviceWidthHint')}
+							onchange={(event) =>
+								setChromeMobileDimension('width', event.currentTarget.valueAsNumber)}
+							class="h-6 min-w-0 rounded-md border border-gray-200 bg-gray-100 px-1 text-center dark:border-white/8 dark:bg-white/6"
+						/>
+						<span>×</span>
+						<input
+							type="number"
+							min="1"
+							value={chromeMobileViewport.height}
+							aria-label={$t('browser.deviceHeight')}
+							use:tooltip={$t('browser.deviceHeightHint')}
+							onchange={(event) =>
+								setChromeMobileDimension('height', event.currentTarget.valueAsNumber)}
+							class="h-6 min-w-0 rounded-md border border-gray-200 bg-gray-100 px-1 text-center dark:border-white/8 dark:bg-white/6"
+						/>
+					</div>
+				{/if}
+			</div>
+		</DropdownMenu>
 	{/if}
 	<div class="preview-content">
 		{#if error}
@@ -257,7 +331,7 @@
 				onstate={(state) => {
 					urlInput = state.url || urlInput;
 					title = state.title || '';
-					updateTabLabel(tabId, title);
+					updateLabel(title);
 					canGoBack = state.can_go_back;
 					canGoForward = state.can_go_forward;
 				}}
@@ -272,6 +346,10 @@
 					}
 				}}
 				onquality={(quality) => (chromeQuality = quality)}
+				ondevicemode={(nextMode, viewport) => {
+					chromeDeviceMode = nextMode;
+					chromeMobileViewport = viewport;
+				}}
 			/>
 			{#if chromeStatus === 'reconnecting'}
 				<div

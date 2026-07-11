@@ -45,7 +45,7 @@ export type { AppearancePreferences, Theme, ThemeConfig };
 
 export interface Tab {
 	id: string;
-	type: 'files' | 'terminal' | 'file' | 'git' | 'chat' | 'preview' | 'browser'; // preview is migrated on load
+	type: 'home' | 'files' | 'terminal' | 'file' | 'git' | 'chat' | 'preview' | 'browser'; // preview is migrated on load
 	label: string;
 	filePath?: string;
 	edit?: boolean;

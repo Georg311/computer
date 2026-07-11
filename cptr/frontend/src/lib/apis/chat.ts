@@ -79,14 +79,14 @@ export interface CompactChatResult {
 // ── Queries ─────────────────────────────────────────────────
 
 export const getChats = (
-	workspace: string,
+	workspace?: string,
 	limit = 50,
 	offset = 0,
 	sortBy: 'title' | 'updated_at' = 'updated_at',
 	sortDir: 'asc' | 'desc' = 'desc'
 ) =>
 	fetchJSON<{ chats: ChatInfo[]; total: number; has_more: boolean }>(
-		`/api/chats?workspace=${encodeURIComponent(workspace)}&limit=${limit}&offset=${offset}&sort_by=${sortBy}&sort_dir=${sortDir}`
+		`/api/chats?${workspace ? `workspace=${encodeURIComponent(workspace)}&` : ''}limit=${limit}&offset=${offset}&sort_by=${sortBy}&sort_dir=${sortDir}`
 	);
 
 export const getChat = (chatId: string, modelId?: string) => {
@@ -115,7 +115,7 @@ export const forkChat = (chatId: string, messageId?: string | null) =>
 export const sendMessage = (
 	content: string,
 	modelId: string,
-	workspace: string,
+	workspace?: string,
 	chatId?: string,
 	parentId?: string | null,
 	params: ChatSendParams = {},
@@ -127,7 +127,7 @@ export const sendMessage = (
 		jsonBody({
 			content,
 			model_id: modelId,
-			workspace,
+			...(workspace ? { workspace } : {}),
 			chat_id: chatId,
 			parent_id: parentId ?? null,
 			regeneration_prompt: regenerationPrompt,

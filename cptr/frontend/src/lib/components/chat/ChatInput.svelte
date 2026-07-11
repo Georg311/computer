@@ -160,6 +160,7 @@
 	}
 
 	async function processFiles(files: File[]) {
+		if (!workspace) return;
 		for (const file of files) {
 			const id = Math.random().toString(36).substring(7);
 			const isImage = file.type.startsWith('image/');
@@ -373,7 +374,6 @@
 	let slashSkillsRequestId = 0;
 
 	async function getCachedSkills(): Promise<SkillMentionAttrs[]> {
-		if (!workspace) return [];
 		if (!cachedSkills || cachedSkillsWorkspace !== workspace) {
 			const data = await getSkills(workspace);
 			cachedSkills = data.map((s) => ({
@@ -388,7 +388,6 @@
 	}
 
 	async function fetchSkillSuggestions({ query }: { query: string }): Promise<SkillMentionAttrs[]> {
-		if (!workspace) return [];
 		try {
 			const skills = await getCachedSkills();
 			if (!query) return skills;
@@ -990,7 +989,7 @@
 	$effect(() => {
 		const query = slashCommandQuery;
 		const requestId = ++slashSkillsRequestId;
-		if (!query.startsWith('/') || /\s/.test(query.slice(1)) || !workspace) {
+		if (!query.startsWith('/') || /\s/.test(query.slice(1))) {
 			slashSkillSuggestions = [];
 			return;
 		}
@@ -1472,14 +1471,16 @@
 			onmousedown={(e) => e.stopPropagation()}
 		>
 			<div class="ml-0.5 self-end flex items-center gap-1">
-				<PlusMenu
-					onfiles={(files) => {
-						if (files) processFiles(Array.from(files));
-					}}
-					oncapture={(file) => {
-						processFiles([file]);
-					}}
-				/>
+				{#if workspace}
+					<PlusMenu
+						onfiles={(files) => {
+							if (files) processFiles(Array.from(files));
+						}}
+						oncapture={(file) => {
+							processFiles([file]);
+						}}
+					/>
+				{/if}
 				{#if $planMode}
 					<button
 						type="button"

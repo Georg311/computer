@@ -34,12 +34,29 @@
 
 	interface Props {
 		group: EditorGroup;
+		home?: boolean;
 		canClose?: boolean;
 		isPrimary?: boolean;
 		onTabDragOver?: () => void;
+		onHomeSelect?: (tabId: string) => void;
+		onHomeClose?: (tabId: string) => void;
+		onHomeNewChat?: () => void;
+		onHomeNewTerminal?: () => void;
+		onHomeNewBrowser?: () => void;
 	}
 
-	let { group, canClose = false, isPrimary = false, onTabDragOver }: Props = $props();
+	let {
+		group,
+		home = false,
+		canClose = false,
+		isPrimary = false,
+		onTabDragOver,
+		onHomeSelect,
+		onHomeClose,
+		onHomeNewChat,
+		onHomeNewTerminal,
+		onHomeNewBrowser
+	}: Props = $props();
 
 	let tabsEl: HTMLDivElement | undefined = $state();
 	let sortable: Sortable | null = null;
@@ -64,10 +81,12 @@
 
 	const displayTabs = $derived((group?.tabs ?? []).filter((t) => t.type !== 'git'));
 
-	const isActiveGroup = $derived($activeWorkspace?.activeGroupId === group?.id);
+	const isActiveGroup = $derived(home || $activeWorkspace?.activeGroupId === group?.id);
 
 	function tabIconName(tab: Tab): string {
 		switch (tab.type) {
+			case 'home':
+				return 'spark';
 			case 'files':
 				return 'folder';
 			case 'terminal':
@@ -88,11 +107,13 @@
 	}
 
 	function handleTabClick(tab: Tab) {
+		if (home) return onHomeSelect?.(tab.id);
 		setActiveTab(tab.id, group.id);
 	}
 
 	function handleClose(e: Event, tabId: string) {
 		e.stopPropagation();
+		if (home) return onHomeClose?.(tabId);
 		closeTab(tabId, group.id);
 	}
 
@@ -102,12 +123,14 @@
 	}
 
 	function handleContextMenu(e: MouseEvent, tab: Tab) {
+		if (home) return;
 		if (!isWideScreen) return;
 		e.preventDefault();
 		contextMenu = { tab, x: e.clientX, y: e.clientY };
 	}
 
 	function handlePaneClick() {
+		if (home) return;
 		if (!isActiveGroup) {
 			setActiveGroup(group.id);
 		}
@@ -143,6 +166,7 @@
 	}
 
 	function handleBarDragOver(e: DragEvent) {
+		if (home) return;
 		// Only accept tab drags (not file uploads)
 		if (!e.dataTransfer || !hasTabDrag(e.dataTransfer)) return;
 		e.preventDefault();
@@ -157,6 +181,7 @@
 	}
 
 	function handleBarDrop(e: DragEvent) {
+		if (home) return;
 		dropHighlight = false;
 		if (!e.dataTransfer) return;
 		const payload = readTabDragPayload(e.dataTransfer);
@@ -167,54 +192,81 @@
 		moveTabToGroup(payload.tabId, payload.groupId, group.id);
 	}
 
-	const plusMenuItems = $derived([
-		{
-			label: $t('bar.newFile'),
-			icon: 'page',
-			shortcut: formatChord($keybindings.newFile),
-			onclick: () => {
-				openUntitledFileTab(group.id);
-			}
-		},
-		...($chatEnabled
+	const plusMenuItems = $derived(
+		home
 			? [
+					...($chatEnabled
+						? [
+								{
+									label: $t('bar.newChat'),
+									icon: 'chat-bubble',
+									shortcut: formatChord($keybindings.newChat),
+									onclick: () => onHomeNewChat?.()
+								}
+							]
+						: []),
 					{
-						label: $t('bar.newChat'),
-						icon: 'chat-bubble',
-						shortcut: formatChord($keybindings.newChat),
-						onclick: () => {
-							openChatTab(undefined, group.id);
-						}
+						label: $t('bar.newTerminal'),
+						icon: 'terminal',
+						shortcut: formatChord($keybindings.newTerminal),
+						onclick: () => onHomeNewTerminal?.()
+					},
+					{
+						label: $t('bar.newBrowser'),
+						icon: 'browser',
+						shortcut: formatChord($keybindings.newBrowser),
+						onclick: () => onHomeNewBrowser?.()
 					}
 				]
-			: []),
-		{
-			label: $t('bar.newTerminal'),
-			icon: 'terminal',
-			shortcut: formatChord($keybindings.newTerminal),
-			onclick: () => {
-				openTerminalTab(group.id);
-			}
-		},
-		{
-			label: $t('bar.newBrowser'),
-			icon: 'browser',
-			shortcut: formatChord($keybindings.newBrowser),
-			onclick: () => openBrowserTab(group.id)
-		},
-		...($voiceMemosEnabled
-			? [
+			: [
 					{
-						label: $t('bar.voiceMemo'),
-						icon: 'microphone',
-						shortcut: formatChord($keybindings.voiceMemo),
+						label: $t('bar.newFile'),
+						icon: 'page',
+						shortcut: formatChord($keybindings.newFile),
 						onclick: () => {
-							showVoiceMemo.set(true);
+							openUntitledFileTab(group.id);
 						}
-					}
+					},
+					...($chatEnabled
+						? [
+								{
+									label: $t('bar.newChat'),
+									icon: 'chat-bubble',
+									shortcut: formatChord($keybindings.newChat),
+									onclick: () => {
+										openChatTab(undefined, group.id);
+									}
+								}
+							]
+						: []),
+					{
+						label: $t('bar.newTerminal'),
+						icon: 'terminal',
+						shortcut: formatChord($keybindings.newTerminal),
+						onclick: () => {
+							openTerminalTab(group.id);
+						}
+					},
+					{
+						label: $t('bar.newBrowser'),
+						icon: 'browser',
+						shortcut: formatChord($keybindings.newBrowser),
+						onclick: () => openBrowserTab(group.id)
+					},
+					...($voiceMemosEnabled
+						? [
+								{
+									label: $t('bar.voiceMemo'),
+									icon: 'microphone',
+									shortcut: formatChord($keybindings.voiceMemo),
+									onclick: () => {
+										showVoiceMemo.set(true);
+									}
+								}
+							]
+						: [])
 				]
-			: [])
-	]);
+	);
 
 	const contextMenuItems = $derived.by(() => {
 		if (!contextMenu) return [];
@@ -239,7 +291,7 @@
 			items.push({
 				label: $t('bar.closeTab'),
 				icon: 'xmark',
-				onclick: () => closeTab(tab.id, group.id)
+				onclick: () => (home ? onHomeClose?.(tab.id) : closeTab(tab.id, group.id))
 			});
 		}
 
@@ -275,7 +327,7 @@
 	}
 
 	onMount(() => {
-		if (tabsEl) {
+		if (tabsEl && !home) {
 			sortable = Sortable.create(tabsEl, {
 				animation: 150,
 				ghostClass: 'tab-reorder-preview',
@@ -387,7 +439,7 @@
 	<!-- Right-side controls -->
 	<div class="flex items-center gap-0.5 shrink-0">
 		<!-- Split button (wide screens) -->
-		{#if isWideScreen}
+		{#if isWideScreen && !home}
 			<button
 				bind:this={splitBtnEl}
 				class="flex items-center justify-center w-7 h-7 rounded-lg transition-colors duration-100 shrink-0
@@ -446,7 +498,7 @@
 	/>
 {/if}
 
-{#if $showVoiceMemo}
+{#if !home && $showVoiceMemo}
 	<VoiceMemoModal
 		workspace={$activeWorkspace?.path ?? ''}
 		directory={$activeWorkspace?.fileBrowserCwd ?? $activeWorkspace?.path ?? ''}

@@ -6,7 +6,6 @@ import asyncio
 from copy import deepcopy
 import json
 import logging
-from pathlib import Path
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -16,6 +15,7 @@ from cptr.models import Chat, ChatMessage, Config
 from cptr.utils.config import check_access, now_ms, _get_jwt_secret
 from cptr.utils.crypto import decrypt_key
 from cptr.utils.workspace import ensure_cptr_gitignored
+from cptr.utils.chat_export import chat_directory
 
 log = logging.getLogger(__name__)
 
@@ -34,25 +34,26 @@ def _get_user(request: Request) -> str:
     return auth.user_id
 
 
-# ── List chats for a workspace ──────────────────────────────
+# ── List chats for a workspace or Home ──────────────────────
 
 
 @router.get("")
 async def list_chats(
     request: Request,
-    workspace: str = Query(..., description="Workspace root path"),
+    workspace: str | None = Query(None, description="Workspace root path; omit for Home chats"),
     limit: int = Query(50, ge=1, le=200, description="Max chats to return"),
     offset: int = Query(0, ge=0, description="Number of chats to skip"),
     sort_by: str = Query("updated_at", description="Sort field: 'title' or 'updated_at'"),
     sort_dir: str = Query("desc", description="Sort direction: 'asc' or 'desc'"),
 ):
-    """List chats for a workspace by scanning .cptr/chats/ for JSON files.
+    """List chats by scanning the workspace or global chat directory.
 
     Returns chat metadata with relative folder paths for sidebar display.
     Supports pagination via limit/offset and sorting via sort_by/sort_dir.
     """
     user_id = _get_user(request)
-    chats_dir = Path(workspace) / ".cptr" / "chats"
+
+    chats_dir = chat_directory(workspace)
 
     if not chats_dir.exists():
         return {"chats": [], "total": 0, "has_more": False}
@@ -529,10 +530,9 @@ async def delete_chat(chat_id: str, request: Request):
         raise HTTPException(404, "chat not found")
 
     # Remove the workspace chat file.
-    workspace = chat.meta.get("workspace", "") if chat.meta else ""
-    if workspace:
-        chat_file = Path(workspace) / ".cptr" / "chats" / f"{chat_id}.json"
-        await asyncio.to_thread(chat_file.unlink, True)  # missing_ok=True
+    workspace = chat.meta.get("workspace") if chat.meta else None
+    chat_file = chat_directory(workspace) / f"{chat_id}.json"
+    await asyncio.to_thread(chat_file.unlink, True)  # missing_ok=True
 
     await Chat.delete(chat_id)
     return {"ok": True}
@@ -619,7 +619,7 @@ async def fork_chat(chat_id: str, request: Request, body: ForkChatRequest | None
 class SendMessageRequest(BaseModel):
     content: str = ""
     model_id: str
-    workspace: str
+    workspace: Optional[str] = None
     chat_id: Optional[str] = None
     parent_id: Optional[str] = None
     regeneration_prompt: Optional[str] = None
@@ -638,11 +638,18 @@ async def send_message(body: SendMessageRequest, request: Request):
     """
     user_id = _get_user(request)
 
+    from cptr.utils.model_targets import AgentModelTarget, resolve_model_target
+
+    target = await resolve_model_target(body.model_id, request.app.state)
+
     # Create or fetch chat
     if body.chat_id:
         chat = await Chat.get_by_id(body.chat_id)
         if not chat or chat.user_id != user_id:
             raise HTTPException(404, "chat not found")
+        workspace = (chat.meta or {}).get("workspace") or None
+        if not workspace and isinstance(target, AgentModelTarget):
+            raise HTTPException(400, "Home chats require an API model")
         # Sync params into chat meta
         if chat.meta is None:
             chat.meta = {}
@@ -651,28 +658,27 @@ async def send_message(body: SendMessageRequest, request: Request):
             chat.meta["last_model"] = body.model_id
             await Chat.update_meta(chat.id, chat.meta)
     else:
+        workspace = body.workspace or None
+        if not workspace and isinstance(target, AgentModelTarget):
+            raise HTTPException(400, "Home chats require an API model")
         title = body.content[:50].strip() or "New Chat"
+        meta = {
+            "params": body.params,
+            "last_model": body.model_id,
+        }
+        if workspace:
+            meta["workspace"] = workspace
         chat = await Chat.create(
             user_id=user_id,
             title=title,
-            meta={
-                "workspace": body.workspace,
-                "params": body.params,
-                "last_model": body.model_id,
-            },
+            meta=meta,
             created_at=now_ms(),
         )
-        # Ensure .cptr/chats/ dir exists
-        chats_dir = Path(body.workspace) / ".cptr" / "chats"
+        chats_dir = chat_directory(workspace)
         await asyncio.to_thread(lambda: chats_dir.mkdir(parents=True, exist_ok=True))
 
-        # Auto-add .cptr to .gitignore if this is a git repo
-        await asyncio.to_thread(ensure_cptr_gitignored, body.workspace)
-
-    # Resolve selected model to either an API connection or an agent profile.
-    from cptr.utils.model_targets import resolve_model_target
-
-    target = await resolve_model_target(body.model_id, request.app.state)
+        if workspace:
+            await asyncio.to_thread(ensure_cptr_gitignored, workspace)
 
     from cptr.utils.chat_task import (
         get_pending_input_lock,
@@ -730,8 +736,7 @@ async def send_message(body: SendMessageRequest, request: Request):
             await Chat.update_current_message(chat.id, assistant_msg.id, now_ms())
 
     if queued_msg:
-        workspace = (chat.meta or {}).get("workspace", body.workspace)
-        await process_pending_chat_inputs(chat.id, user_id, workspace)
+        await process_pending_chat_inputs(chat.id, user_id, workspace or "")
         return {"chat_id": chat.id, "message_id": queued_msg.id, "queued": True}
 
     if not assistant_msg:
@@ -746,7 +751,7 @@ async def send_message(body: SendMessageRequest, request: Request):
         message_id=assistant_msg.id,
         chat_id=chat.id,
         user_id=user_id,
-        workspace=body.workspace,
+        workspace=workspace or "",
         regeneration_prompt=body.regeneration_prompt,
         target=target,
     )

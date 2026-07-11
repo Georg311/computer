@@ -245,21 +245,29 @@ export function executeAction(
 		toggleVoiceMemo?: () => void;
 	}
 ): boolean {
+	const dispatchHomeAction = (detail: 'newChat' | 'newTerminal' | 'newBrowser') => {
+		if (typeof window !== 'undefined')
+			window.dispatchEvent(new CustomEvent('cptr:home-action', { detail }));
+	};
+
 	switch (action) {
 		case 'newFile':
 			openUntitledFileTab();
 			return true;
 
 		case 'newTerminal':
-			openTerminalTab();
+			if (get(currentWorkspace)) openTerminalTab();
+			else dispatchHomeAction('newTerminal');
 			return true;
 
 		case 'newChat':
-			openChatTab();
+			if (get(currentWorkspace)) openChatTab();
+			else dispatchHomeAction('newChat');
 			return true;
 
 		case 'newBrowser':
-			void openBrowserTab();
+			if (get(currentWorkspace)) void openBrowserTab();
+			else dispatchHomeAction('newBrowser');
 			return true;
 
 		case 'closeTab': {

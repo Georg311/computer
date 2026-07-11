@@ -14,7 +14,11 @@
 		onstate: (state: BrowserState) => void;
 		onstatus: (status: string, message?: string, mode?: 'proxy') => void;
 		onquality: (quality: 'low' | 'balanced' | 'crisp' | null) => void;
+		ondevicemode: (mode: DeviceMode, viewport: MobileViewport) => void;
 	}
+
+	type DeviceMode = 'auto' | 'desktop' | 'mobile';
+	type MobileViewport = { width: number; height: number };
 
 	interface DeviceProfile {
 		userAgent: string;
@@ -42,7 +46,7 @@
 		height: number;
 	}
 
-	let { sessionId, active, onstate, onstatus, onquality }: Props = $props();
+	let { sessionId, active, onstate, onstatus, onquality, ondevicemode }: Props = $props();
 	let canvas: HTMLCanvasElement;
 	let container: HTMLDivElement;
 	let keyboardAntenna: HTMLTextAreaElement;
@@ -64,6 +68,8 @@
 	let managed = $state(false);
 	let mobile = $state(false);
 	let quality = $state<'low' | 'balanced' | 'crisp'>('balanced');
+	let deviceMode = $state<DeviceMode>('auto');
+	let mobileViewport = $state<MobileViewport>({ width: 390, height: 844 });
 	let deviceProfile: DeviceProfile | undefined;
 	let editableRegions = $state<EditableRegion[]>([]);
 	let lastViewport = '';
@@ -160,7 +166,15 @@
 				managed = message.managed === true;
 				if (message.quality?.preset in { low: true, balanced: true, crisp: true })
 					quality = message.quality.preset;
+				if (message.device_mode in { auto: true, desktop: true, mobile: true })
+					deviceMode = message.device_mode;
+				if (
+					Number.isFinite(message.mobile_viewport?.width) &&
+					Number.isFinite(message.mobile_viewport?.height)
+				)
+					mobileViewport = message.mobile_viewport;
 				onquality(managed ? quality : null);
+				ondevicemode(deviceMode, mobileViewport);
 				if (active) focusBrowser();
 				else resize();
 			}
@@ -310,10 +324,17 @@
 
 	async function sendViewport() {
 		const device = deviceProfile || (await deviceProfilePromise);
-		const key = JSON.stringify([viewport, quality, device]);
+		const key = JSON.stringify([viewport, quality, device, deviceMode, mobileViewport]);
 		if (key === lastViewport) return;
 		lastViewport = key;
-		send({ type: 'viewport', ...viewport, quality, device });
+		send({
+			type: 'viewport',
+			...viewport,
+			quality,
+			device,
+			device_mode: deviceMode,
+			mobile_viewport: mobileViewport
+		});
 	}
 
 	function modifiers(event: MouseEvent | KeyboardEvent | WheelEvent) {
@@ -561,6 +582,19 @@
 		onquality(quality);
 		resize();
 	}
+	export function setDeviceMode(nextMode: DeviceMode) {
+		deviceMode = nextMode;
+		lastViewport = '';
+		ondevicemode(deviceMode, mobileViewport);
+		resize();
+	}
+	export function setMobileViewport(nextViewport: MobileViewport) {
+		if (nextViewport.width <= 0 || nextViewport.height <= 0) return;
+		mobileViewport = nextViewport;
+		lastViewport = '';
+		ondevicemode(deviceMode, mobileViewport);
+		resize();
+	}
 	function focusBrowser() {
 		if (!ready) return;
 		send({ type: 'focus' });
@@ -655,10 +689,17 @@
 	}
 	.chrome-container {
 		position: relative;
+		display: grid;
+		place-items: center;
 	}
 	canvas {
+		width: auto;
+		height: auto;
+		max-width: 100%;
+		max-height: 100%;
+		margin: auto;
 		outline: none;
-		object-fit: fill;
+		object-fit: contain;
 		touch-action: none;
 	}
 	.keyboard-antenna {

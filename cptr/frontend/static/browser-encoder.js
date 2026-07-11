@@ -17,7 +17,8 @@
   let configured = '';
   let resolveInitialQuality;
   const initialQuality = new Promise(resolve => { resolveInitialQuality = resolve; });
-  let quality = { max_height: 1080, bitrate: 12_000_000, device_scale_factor: 1 };
+  let quality = { bitrate: 12_000_000, frame_rate: 30 };
+  let lastEncodedTimestamp = -Infinity;
 
   function sendError(error) {
     if (socket?.readyState === WebSocket.OPEN) {
@@ -26,23 +27,9 @@
   }
 
   function normalizedQuality(value) {
-    const maxHeight = Math.max(240, Math.min(1080, Number(value?.max_height) || 1080));
     const bitrate = Math.max(1_000_000, Math.min(12_000_000, Number(value?.bitrate) || 12_000_000));
-    return { max_height: Math.round(maxHeight), bitrate: Math.round(bitrate), device_scale_factor: value?.device_scale_factor === 2 ? 2 : 1 };
-  }
-
-  async function applyQuality() {
-    if (!videoTrack) return;
-    try {
-      await videoTrack.applyConstraints({
-        height: { ideal: quality.max_height, max: quality.max_height },
-        frameRate: { ideal: 30, max: 30 }
-      });
-      configured = '';
-      forceKeyframe = true;
-    } catch {
-      // Keep the last live capture constraints if a browser rejects a dynamic resize.
-    }
+    const frameRate = Math.max(1, Math.min(60, Number(value?.frame_rate ?? value?.fps) || 30));
+    return { bitrate: Math.round(bitrate), frame_rate: Math.round(frameRate) };
   }
 
   function receiveControl(event) {
@@ -56,7 +43,9 @@
       quality = normalizedQuality(message);
       resolveInitialQuality?.();
       resolveInitialQuality = undefined;
-      void applyQuality();
+      configured = '';
+      forceKeyframe = true;
+      lastEncodedTimestamp = -Infinity;
     }
   }
 
@@ -75,21 +64,24 @@
   }
 
   async function configure(width, height) {
-    const key = `${width}x${height}:${quality.bitrate}`;
+    const key = `${width}x${height}:${quality.bitrate}:${quality.frame_rate}`;
     if (configured === key) return;
     const config = {
       codec: 'avc1.42E028',
       width,
       height,
       bitrate: quality.bitrate,
-      framerate: 30,
+      framerate: quality.frame_rate,
       hardwareAcceleration: 'prefer-hardware',
       latencyMode: 'realtime',
       avc: { format: 'annexb' }
     };
     const support = await VideoEncoder.isConfigSupported(config);
     if (!support.supported) throw new Error(`H.264 WebCodecs encoding is unavailable at ${width}×${height}`);
-    encoder?.close();
+    if (encoder) {
+      try { await encoder.flush(); } catch {}
+      encoder.close();
+    }
     encoder = new VideoEncoder({
       error: sendError,
       output(chunk) {
@@ -167,9 +159,7 @@
       const stream = await navigator.mediaDevices.getDisplayMedia({
         audio: audioEnabled ? { suppressLocalAudioPlayback: true } : false,
         video: {
-          ...(windowCapture ? { displaySurface: 'window' } : {}),
-          height: { ideal: quality.max_height, max: quality.max_height },
-          frameRate: { ideal: 30, max: 30 }
+          ...(windowCapture ? { displaySurface: 'window' } : {})
         },
         preferCurrentTab: false,
         ...(windowCapture ? { selfBrowserSurface: 'include', surfaceSwitching: 'exclude' } : {})
@@ -179,7 +169,6 @@
         videoTrack.stop();
         throw new Error('Select the Open WebUI Computer Browser window');
       }
-      await applyQuality();
       reader = new MediaStreamTrackProcessor({ track: videoTrack }).readable.getReader();
       const first = await reader.read();
       if (first.done || !first.value) throw new Error('Chrome tab capture returned no video');
@@ -192,7 +181,12 @@
       while (frame) {
         const nextRect = crop(frame);
         if (nextRect.width !== rect.width || nextRect.height !== rect.height) rect = nextRect;
-        if (!paused && encoder.encodeQueueSize <= 2) {
+        const frameInterval = 1_000_000 / quality.frame_rate;
+        if (
+          !paused &&
+          encoder.encodeQueueSize <= 2 &&
+          (forceKeyframe || frame.timestamp - lastEncodedTimestamp >= frameInterval)
+        ) {
           const now = performance.now();
           const keyFrame = forceKeyframe || now - lastKeyframe >= 2000;
           const encoded = windowCapture
@@ -200,6 +194,7 @@
             : frame;
           await configure(rect.width, rect.height);
           encoder.encode(encoded, { keyFrame });
+          lastEncodedTimestamp = frame.timestamp;
           if (encoded !== frame) encoded.close();
           if (keyFrame) { forceKeyframe = false; lastKeyframe = now; }
         }

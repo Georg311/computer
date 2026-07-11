@@ -2533,6 +2533,16 @@ BUILTIN_TOOL_GROUPS: dict[str, tuple[str, ...]] = {
     "notifications": ("notify",),
 }
 
+GLOBAL_CHAT_DISABLED_TOOLS = {
+    *BUILTIN_TOOL_GROUPS["files"],
+    *BUILTIN_TOOL_GROUPS["terminal"],
+    *BUILTIN_TOOL_GROUPS["browser"],
+    *BUILTIN_TOOL_GROUPS["automations"],
+    *BUILTIN_TOOL_GROUPS["images"],
+    *BUILTIN_TOOL_GROUPS["subagents"],
+    "manage_skill",
+}
+
 
 def disabled_builtin_tool_names(builtin_tools: dict | None) -> set[str]:
     """Return builtin tool names disabled by group config."""
@@ -2851,7 +2861,7 @@ def _without_background_param(schema: dict) -> dict:
     return schema
 
 
-async def get_tool_list(builtin_tools: dict | None = None) -> list[dict]:
+async def get_tool_list(builtin_tools: dict | None = None, workspace: str = "") -> list[dict]:
     """Return tool schemas for the LLM.
 
     Automatically includes browser tools when browser.enabled is true,
@@ -2898,6 +2908,8 @@ async def get_tool_list(builtin_tools: dict | None = None) -> list[dict]:
         pass
 
     disabled_tools = disabled_builtin_tool_names(builtin_tools)
+    if not workspace:
+        disabled_tools |= GLOBAL_CHAT_DISABLED_TOOLS
     if disabled_tools:
         tools = {name: tool for name, tool in tools.items() if name not in disabled_tools}
 
@@ -2920,6 +2932,8 @@ async def execute_tool(name: str, args: dict, __context__: dict) -> str:
     """Execute a tool by name, injecting execution context."""
     info = ALL_TOOLS.get(name)
     if info:
+        if not __context__.get("workspace") and name in GLOBAL_CHAT_DISABLED_TOOLS:
+            return f"Error: tool requires an open workspace: {name}"
         if not is_builtin_tool_enabled(name, __context__.get("builtin_tools")):
             return f"Error: tool disabled: {name}"
         fn = info["fn"]

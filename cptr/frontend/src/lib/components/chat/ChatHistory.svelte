@@ -10,7 +10,7 @@
 		onopen: (id: string) => void;
 		ondelete: (id: string) => void;
 		onrename: (id: string) => void;
-		oncopy: (id: string) => void;
+		oncopy?: (id: string) => void;
 		page?: number;
 		totalPages?: number;
 		perPage?: number;
@@ -148,13 +148,17 @@
 		anchor={menuAnchor}
 		align="end"
 		items={[
-			{
-				label: $t('files.copyPath'),
-				icon: 'copy',
-				onclick: () => {
-					if (menuChatId) oncopy(menuChatId);
-				}
-			},
+			...(oncopy
+				? [
+						{
+							label: $t('files.copyPath'),
+							icon: 'copy',
+							onclick: () => {
+								if (menuChatId) oncopy(menuChatId);
+							}
+						}
+					]
+				: []),
 			{
 				label: $t('files.rename'),
 				icon: 'pencil',
