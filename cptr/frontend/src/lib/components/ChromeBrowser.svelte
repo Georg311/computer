@@ -27,8 +27,8 @@
 	let viewport = { width: 1280, height: 720 };
 	let pendingPointer: Record<string, unknown> | undefined;
 	let pointerFrame = 0;
-	let controller = false;
 	let hasFrame = false;
+	let awaitingFrame = true;
 	const pressedKeys = new Map<string, Record<string, unknown>>();
 	const macClient = /Mac|iPhone|iPad/.test(navigator.userAgent);
 
@@ -38,8 +38,8 @@
 
 	function connect() {
 		if (disposed) return;
-		hasFrame = false;
-		onstatus('connecting');
+		awaitingFrame = true;
+		onstatus(hasFrame ? 'playing' : 'reconnecting');
 		const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
 		socket = new WebSocket(`${scheme}://${location.host}/api/browser/sessions/${sessionId}/stream`);
 		socket.binaryType = 'arraybuffer';
@@ -61,10 +61,6 @@
 	function receive(event: MessageEvent) {
 		if (typeof event.data === 'string') {
 			const message = JSON.parse(event.data);
-			if (message.type === 'ready') {
-				controller = message.controller === true;
-				if (hasFrame) onstatus(controller ? 'playing' : 'view_only');
-			}
 			if (message.type === 'state') onstate(message);
 			if (message.type === 'status' && (message.status !== 'playing' || hasFrame))
 				onstatus(message.status, message.message, message.mode);
@@ -96,9 +92,10 @@
 				canvas.height = frame.displayHeight;
 				canvas.getContext('2d', { alpha: false })?.drawImage(frame, 0, 0);
 				frame.close();
-				if (!hasFrame) {
+				if (awaitingFrame) {
+					awaitingFrame = false;
 					hasFrame = true;
-					onstatus(controller ? 'playing' : 'view_only');
+					onstatus('playing');
 				}
 			},
 			error() {

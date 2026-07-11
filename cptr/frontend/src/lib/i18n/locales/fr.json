@@ -373,7 +373,7 @@
 	"admin.personalChromeHint": "Connect to Chrome through its CDP URL.",
 	"admin.personalChromeEnableDebugging": "Enable remote debugging",
 	"admin.personalChromeConnection": "Connection",
-	"admin.personalChromeConnectionHint": "Keep one approved capture ready for Browser tabs.",
+	"admin.personalChromeConnectionHint": "When Chrome asks what to share, choose the Open WebUI Computer Browser window. Do not choose a tab or your screen.",
 	"admin.personalChromeKeepRunning": "Keep running",
 	"admin.personalChromeStopUnused": "Stop when unused",
 	"admin.personalChromeConnected": "Connected",

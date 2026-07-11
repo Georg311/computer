@@ -1012,7 +1012,7 @@
 						class="flex h-full items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400"
 					>
 						<Spinner size={16} />
-						<span>{$t('common.loading')}</span>
+						<span>{$t('browser.starting')}</span>
 					</div>
 				{/if}
 			{/if}

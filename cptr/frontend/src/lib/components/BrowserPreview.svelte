@@ -127,7 +127,6 @@
 				updateTabLabel(tabId, title);
 				mode = session.mode || 'proxy';
 				if (mode === 'chrome') {
-					chromeStatus = 'connecting';
 					const supported =
 						'VideoDecoder' in window &&
 						(await VideoDecoder.isConfigSupported({ codec: 'avc1.42E028' })).supported;
@@ -216,30 +215,27 @@
 				onstatus={(status, message, nextMode) => {
 					chromeStatus = status;
 					if (message) modeError = message;
-					else if (status === 'playing' || status === 'view_only') modeError = '';
+					else if (status === 'playing') modeError = '';
 					if (nextMode === 'proxy') {
 						mode = 'proxy';
 						if (urlInput) frameSrc = browserFrameUrl(sessionId, urlInput);
 					}
 				}}
 			/>
-			{#if chromeStatus === 'connecting'}
+			{#if chromeStatus === 'reconnecting'}
 				<div
-					class="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-white/80 text-xs text-gray-500 dark:bg-black/80 dark:text-gray-400"
+					class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-2 bg-white/80 text-xs text-gray-500 dark:bg-black/80 dark:text-gray-400"
 				>
 					<Spinner size={14} />
-					<span>{$t('browser.starting')}</span>
+					<span>{$t('common.loading')}</span>
 				</div>
-			{/if}
-			{#if chromeStatus === 'lost'}
+			{:else if chromeStatus === 'lost'}
 				<div
 					class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 bg-white/80 px-4 text-center text-xs text-gray-500 dark:bg-black/80 dark:text-gray-400"
 				>
 					<span class="font-medium">{$t('browser.connectionLost')}</span>
 					{#if modeError}<span class="max-w-md opacity-75">{modeError}</span>{/if}
 				</div>
-			{:else if chromeStatus === 'view_only'}
-				<div class="status-pill">{$t('browser.viewOnly')}</div>
 			{/if}
 		{:else}
 			<iframe
@@ -258,16 +254,6 @@
 
 <style>
 	@reference "../../app.css";
-	.status-pill {
-		position: absolute;
-		top: 0.5rem;
-		right: 0.5rem;
-		padding: 0.2rem 0.45rem;
-		border-radius: 999px;
-		background: rgba(0, 0, 0, 0.65);
-		color: white;
-		font-size: 0.6875rem;
-	}
 	.preview-content {
 		flex: 1;
 		min-height: 0;

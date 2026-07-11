@@ -304,6 +304,8 @@ class PersonalTab:
     controller: ViewerPeer | None = None
     viewport: tuple[int, int] = (1280, 720)
     target_viewport: tuple[float, float] = (1280, 720)
+    config: dict[str, Any] | None = None
+    keyframe: bytes | None = None
     personal: bool = True
 
 
@@ -769,6 +771,9 @@ class ChromeViewerManager:
                     if frame[1] & 1:
                         personal.first_keyframe.set()
                     if tab := personal.tabs.get(personal.active_session_id):
+                        if frame[1] & 1:
+                            tab.config = personal.config
+                            tab.keyframe = frame
                         await self._broadcast_frame(tab, frame)
                 else:
                     break
@@ -871,9 +876,16 @@ class ChromeViewerManager:
                 "controller": viewer.controller is peer,
             }
         )
-        config = self.personal.config if viewer.personal and self.personal else viewer.config
+        config = (
+            viewer.config or self.personal.config
+            if viewer.personal and self.personal
+            else viewer.config
+        )
         if config:
             await peer.queue.put(config)
+        if viewer.personal and viewer.keyframe:
+            peer.waiting_keyframe = False
+            await peer.queue.put(viewer.keyframe)
         await self._refresh_state(viewer)
         await self._request_keyframe(viewer)
 
@@ -889,7 +901,11 @@ class ChromeViewerManager:
         try:
             while True:
                 data = await websocket.receive_json()
-                await self._viewer_message(viewer, peer, data)
+                if viewer.personal:
+                    with contextlib.suppress(Exception):
+                        await self._viewer_message(viewer, peer, data)
+                else:
+                    await self._viewer_message(viewer, peer, data)
         except (WebSocketDisconnect, json.JSONDecodeError):
             pass
         finally:
@@ -912,7 +928,13 @@ class ChromeViewerManager:
             await self._set_visibility(viewer, peer, bool(data.get("visible")))
             return
         if kind == "activate" and viewer.personal:
+            became_visible = not peer.visible
+            peer.visible = True
+            if became_visible:
+                await self._send_personal({"type": "resume"})
             await self._activate_personal(viewer, peer)
+            if became_visible:
+                await self._request_keyframe(viewer)
             return
         if viewer.controller is not peer:
             return
@@ -1003,6 +1025,9 @@ class ChromeViewerManager:
         personal = self.personal
         if not personal or personal.tabs.get(tab.session.session_id) is not tab:
             return
+        already_active = personal.active_session_id == tab.session.session_id
+        if already_active and (peer is None or tab.controller is peer):
+            return
         previous = personal.tabs.get(personal.active_session_id)
         if previous and previous is not tab and previous.controller:
             with contextlib.suppress(asyncio.QueueFull):
@@ -1031,7 +1056,13 @@ class ChromeViewerManager:
                         {"type": "ready", "mode": "chrome", "controller": True}
                     )
         personal.active_session_id = tab.session.session_id
-        await personal.host.browser_cdp.send("Target.activateTarget", {"targetId": tab.target_id})
+        with contextlib.suppress(Exception):
+            await asyncio.wait_for(
+                personal.host.browser_cdp.send(
+                    "Target.activateTarget", {"targetId": tab.target_id}
+                ),
+                2,
+            )
         await self._resize_personal(tab)
 
     async def _resize_personal(self, tab: PersonalTab) -> None:
@@ -1039,24 +1070,29 @@ class ChromeViewerManager:
         if not personal:
             return
         width, height = tab.viewport
+        tab.target_viewport = (width, height)
         with contextlib.suppress(Exception):
-            await personal.host.browser_cdp.send(
-                "Browser.setWindowBounds",
-                {
-                    "windowId": personal.window_id,
-                    "bounds": {
-                        "windowState": "normal",
-                        "width": width + personal.width_inset,
-                        "height": height + personal.height_inset,
+            await asyncio.wait_for(
+                personal.host.browser_cdp.send(
+                    "Browser.setWindowBounds",
+                    {
+                        "windowId": personal.window_id,
+                        "bounds": {
+                            "windowState": "normal",
+                            "width": width + personal.width_inset,
+                            "height": height + personal.height_inset,
+                        },
                     },
-                },
+                ),
+                1,
             )
-        metrics = await tab.target_cdp.send("Page.getLayoutMetrics")
-        visual = metrics.get("cssVisualViewport", {})
-        tab.target_viewport = (
-            float(visual.get("clientWidth", width)),
-            float(visual.get("clientHeight", height)),
-        )
+        with contextlib.suppress(Exception):
+            metrics = await asyncio.wait_for(tab.target_cdp.send("Page.getLayoutMetrics"), 1)
+            visual = metrics.get("cssVisualViewport", {})
+            tab.target_viewport = (
+                float(visual.get("clientWidth", width)),
+                float(visual.get("clientHeight", height)),
+            )
         await self._send_personal({"type": "resize"})
         await self._send_personal({"type": "keyframe"})
 
