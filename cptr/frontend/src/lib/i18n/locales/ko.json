@@ -942,6 +942,7 @@
 	"appearance.background": "배경",
 	"appearance.foreground": "전경",
 	"appearance.uiFont": "UI 글꼴",
+	"appearance.widescreenMode": "와이드스크린 모드",
 	"appearance.exported": "테마를 내보냈습니다",
 	"appearance.exportFailed": "테마 내보내기에 실패했습니다",
 	"appearance.imported": "테마를 가져왔습니다",

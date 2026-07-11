@@ -954,6 +954,7 @@
 	"appearance.background": "Background",
 	"appearance.foreground": "Foreground",
 	"appearance.uiFont": "UI font",
+	"appearance.widescreenMode": "Widescreen Mode",
 	"appearance.exported": "Theme exported",
 	"appearance.exportFailed": "Failed to export theme",
 	"appearance.imported": "Theme imported",

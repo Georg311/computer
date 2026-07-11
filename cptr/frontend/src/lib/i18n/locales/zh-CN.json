@@ -942,6 +942,7 @@
 	"appearance.background": "背景",
 	"appearance.foreground": "前景",
 	"appearance.uiFont": "界面字体",
+	"appearance.widescreenMode": "宽屏模式",
 	"appearance.exported": "主题已导出",
 	"appearance.exportFailed": "主题导出失败",
 	"appearance.imported": "主题已导入",

@@ -37,7 +37,8 @@
 		planMode,
 		streamingBehavior,
 		selectedModelId,
-		requestParams
+		requestParams,
+		widescreenMode
 	} from '$lib/stores';
 	import { getPathDisplayName } from '$lib/utils/paths';
 	import {
@@ -1609,7 +1610,11 @@
 				style="background: var(--app-bg); color: var(--app-fg);"
 				onscroll={handleMessagesScroll}
 			>
-				<div class="max-w-2xl mx-auto px-4 pt-4 pb-16 flex flex-col gap-4">
+				<div
+					class="{$widescreenMode
+						? 'max-w-full'
+						: 'max-w-2xl'} mx-auto w-full px-4 pt-4 pb-16 flex flex-col gap-4"
+				>
 					{#if hasHiddenMessages}
 						<div bind:this={loadSentinelEl} class="h-1 w-full" aria-hidden="true"></div>
 					{/if}
@@ -1651,7 +1656,7 @@
 
 		<!-- Input area -->
 		<div class="px-4 py-3" style="background: var(--app-bg);">
-			<div class="max-w-2xl mx-auto relative">
+			<div class="{$widescreenMode ? 'max-w-full' : 'max-w-2xl'} mx-auto w-full relative">
 				{#if !autoScroll && activePath.length > 0}
 					<div
 						class="absolute -top-10 left-0 right-0 pr-2 flex justify-end z-30 pointer-events-none"

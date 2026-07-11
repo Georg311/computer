@@ -942,6 +942,7 @@
 	"appearance.background": "Arrière-plan",
 	"appearance.foreground": "Premier plan",
 	"appearance.uiFont": "Police de l’interface",
+	"appearance.widescreenMode": "Mode grand écran",
 	"appearance.exported": "Thème exporté",
 	"appearance.exportFailed": "Échec de l’export du thème",
 	"appearance.imported": "Thème importé",

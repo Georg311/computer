@@ -942,6 +942,7 @@
 	"appearance.background": "Фон",
 	"appearance.foreground": "Передний план",
 	"appearance.uiFont": "Шрифт интерфейса",
+	"appearance.widescreenMode": "Широкоэкранный режим",
 	"appearance.exported": "Тема экспортирована",
 	"appearance.exportFailed": "Не удалось экспортировать тему",
 	"appearance.imported": "Тема импортирована",

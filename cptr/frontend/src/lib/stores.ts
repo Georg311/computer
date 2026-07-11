@@ -112,6 +112,7 @@ export interface UserPreferences {
 	showUpdateToast?: boolean; // show version update notifications (default true)
 	pwa?: PwaPreferences;
 	textScale?: number | null;
+	widescreenMode?: boolean;
 }
 
 // ── ID generation ───────────────────────────────────────────────
@@ -307,6 +308,7 @@ export const selectedModelId = writable<string>('');
 export const pwaPreferences = writable<PwaPreferences>(defaultPwaPreferences);
 export const themeConfig = writable<ThemeConfig | null>(null);
 export const textScale = writable<number | null>(null);
+export const widescreenMode = writable(false);
 
 /** Saved workspace path order for sidebar drag-reorder. */
 export const workspaceOrder = writable<string[]>([]);
@@ -405,7 +407,8 @@ function persistPreferences(): void {
 			requestParams: Object.keys(get(requestParams)).length ? get(requestParams) : undefined,
 			showUpdateToast: get(showUpdateToastPref),
 			pwa: get(pwaPreferences),
-			textScale: get(textScale) ?? undefined
+			textScale: get(textScale) ?? undefined,
+			widescreenMode: get(widescreenMode)
 		};
 		savePreferences(prefs as unknown as Record<string, unknown>).catch(() => {});
 	}, 300);
@@ -460,6 +463,9 @@ function subscribeForPersistence() {
 	textScale.subscribe(() => {
 		if (get(stateLoaded)) persistPreferences();
 	});
+	widescreenMode.subscribe(() => {
+		if (get(stateLoaded)) persistPreferences();
+	});
 	i18next.on('languageChanged', () => {
 		if (get(stateLoaded)) persistPreferences();
 	});
@@ -500,6 +506,7 @@ export async function loadPreferences(): Promise<void> {
 					? (prefs.textScale as number)
 					: null
 		);
+		if (prefs.widescreenMode !== undefined) widescreenMode.set(prefs.widescreenMode as boolean);
 		const pwaPrefs = prefs.pwa;
 		if (pwaPrefs)
 			pwaPreferences.set({

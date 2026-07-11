@@ -942,6 +942,7 @@
 	"appearance.background": "Fondo",
 	"appearance.foreground": "Primer plano",
 	"appearance.uiFont": "Fuente de interfaz",
+	"appearance.widescreenMode": "Modo panorámico",
 	"appearance.exported": "Tema exportado",
 	"appearance.exportFailed": "Error al exportar el tema",
 	"appearance.imported": "Tema importado",

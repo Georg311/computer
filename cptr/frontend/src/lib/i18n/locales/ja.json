@@ -942,6 +942,7 @@
 	"appearance.background": "背景",
 	"appearance.foreground": "前景",
 	"appearance.uiFont": "UIフォント",
+	"appearance.widescreenMode": "ワイドスクリーンモード",
 	"appearance.exported": "テーマをエクスポートしました",
 	"appearance.exportFailed": "テーマのエクスポートに失敗しました",
 	"appearance.imported": "テーマをインポートしました",

@@ -942,6 +942,7 @@
 	"appearance.background": "Hintergrund",
 	"appearance.foreground": "Vordergrund",
 	"appearance.uiFont": "Oberflächenschrift",
+	"appearance.widescreenMode": "Breitbildmodus",
 	"appearance.exported": "Design exportiert",
 	"appearance.exportFailed": "Design konnte nicht exportiert werden",
 	"appearance.imported": "Design importiert",
