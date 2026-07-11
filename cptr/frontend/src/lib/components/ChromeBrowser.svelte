@@ -74,6 +74,7 @@
 	const pressedKeys = new Map<string, Record<string, unknown>>();
 	const touchPoints = new Map<number, Record<string, unknown>>();
 	const macClient = /Mac|iPhone|iPad/.test(navigator.userAgent);
+	const keyboardSentinel = '\u200b';
 
 	function send(message: Record<string, unknown>) {
 		if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
@@ -294,14 +295,13 @@
 
 	function resize(debounce = false) {
 		if (!container || !ready) return;
-		if (mobile && document.activeElement === keyboardAntenna) return;
 		const rect = container.getBoundingClientRect();
 		viewport = {
 			width: Math.max(320, Math.min(1920, Math.round(rect.width))),
 			height: Math.max(240, Math.min(1080, Math.round(rect.height)))
 		};
 		if (viewportTimer) clearTimeout(viewportTimer);
-		if (debounce) {
+		if (debounce || (mobile && document.activeElement === keyboardAntenna)) {
 			viewportTimer = setTimeout(() => void sendViewport(), 150);
 		} else {
 			void sendViewport();
@@ -341,8 +341,15 @@
 	function focusAntenna() {
 		if (!managed || !mobile) return;
 		keepKeyboardFocus = true;
+		resetKeyboardAntenna();
 		keyboardAntenna?.focus({ preventScroll: true });
 		unlockAudio();
+	}
+
+	function resetKeyboardAntenna() {
+		if (!keyboardAntenna) return;
+		keyboardAntenna.value = keyboardSentinel;
+		keyboardAntenna.setSelectionRange(keyboardSentinel.length, keyboardSentinel.length);
 	}
 
 	function canvasFocus() {
@@ -496,7 +503,7 @@
 		if (suppressText && text === suppressText) {
 			event.preventDefault();
 			suppressText = '';
-			keyboardAntenna.value = '';
+			resetKeyboardAntenna();
 			return;
 		}
 		switch (event.inputType) {
@@ -524,7 +531,7 @@
 			default:
 				return;
 		}
-		keyboardAntenna.value = '';
+		resetKeyboardAntenna();
 	}
 
 	function releaseKeys() {
@@ -560,6 +567,10 @@
 		resize();
 	}
 
+	function visualViewportResize() {
+		resize(true);
+	}
+
 	$effect(() => {
 		if (socket?.readyState === WebSocket.OPEN && ready) {
 			send({ type: 'visibility', visible: active });
@@ -569,6 +580,8 @@
 	onMount(() => {
 		observer = new ResizeObserver(() => resize());
 		observer.observe(container);
+		window.visualViewport?.addEventListener('resize', visualViewportResize);
+		resetKeyboardAntenna();
 		connect();
 	});
 
@@ -576,6 +589,7 @@
 		disposed = true;
 		releaseKeys();
 		observer?.disconnect();
+		window.visualViewport?.removeEventListener('resize', visualViewportResize);
 		if (reconnectTimer) clearTimeout(reconnectTimer);
 		if (viewportTimer) clearTimeout(viewportTimer);
 		if (pointerFrame) cancelAnimationFrame(pointerFrame);
@@ -604,10 +618,10 @@
 					if (suppressText === text) suppressText = '';
 				});
 			}
-			keyboardAntenna.value = '';
+			resetKeyboardAntenna();
 		}}
 		oninput={() => {
-			if (!composition) keyboardAntenna.value = '';
+			if (!composition) resetKeyboardAntenna();
 		}}
 	></textarea>
 	<canvas
