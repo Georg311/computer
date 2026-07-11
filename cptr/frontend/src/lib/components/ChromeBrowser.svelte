@@ -46,7 +46,8 @@
 		socket.onopen = () => {
 			reconnectAttempt = 0;
 			send({ type: 'visibility', visible: active });
-			resize();
+			if (active) activate();
+			else resize();
 		};
 		socket.onmessage = receive;
 		socket.onclose = () => {
@@ -60,7 +61,10 @@
 	function receive(event: MessageEvent) {
 		if (typeof event.data === 'string') {
 			const message = JSON.parse(event.data);
-			if (message.type === 'ready') controller = message.controller === true;
+			if (message.type === 'ready') {
+				controller = message.controller === true;
+				if (hasFrame) onstatus(controller ? 'playing' : 'view_only');
+			}
 			if (message.type === 'state') onstate(message);
 			if (message.type === 'status' && (message.status !== 'playing' || hasFrame))
 				onstatus(message.status, message.message, message.mode);
@@ -228,12 +232,13 @@
 	}
 	export function activate() {
 		send({ type: 'activate' });
+		resize();
 	}
 
 	$effect(() => {
 		if (socket?.readyState === WebSocket.OPEN) {
 			send({ type: 'visibility', visible: active });
-			if (active) send({ type: 'request_keyframe' });
+			if (active) activate();
 		}
 	});
 

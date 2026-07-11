@@ -21,7 +21,6 @@ import websockets
 from fastapi import WebSocket, WebSocketDisconnect
 
 from cptr.utils.browser.launcher import find_browser
-from cptr.utils.browser.proxy import BrowserSession
 from cptr.env import DATA_DIR
 
 FRAME_HEADER_SIZE = 14
@@ -235,8 +234,13 @@ class ChromeHost:
     source: str = "managed"
     start_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
-    async def create_target(self, url: str) -> tuple[str, CDPTargetSession]:
-        target = await self.browser_cdp.send("Target.createTarget", {"url": url})
+    async def create_target(
+        self, url: str, *, new_window: bool = False
+    ) -> tuple[str, CDPTargetSession]:
+        params: dict[str, Any] = {"url": url}
+        if new_window:
+            params["newWindow"] = True
+        target = await self.browser_cdp.send("Target.createTarget", params)
         target_id = str(target["targetId"])
         attached = await self.browser_cdp.send(
             "Target.attachToTarget", {"targetId": target_id, "flatten": True}
@@ -288,7 +292,40 @@ class ChromeViewer:
     viewport: tuple[int, int] = (1280, 720)
     target_viewport: tuple[float, float] = (1280, 720)
     restart_attempted: bool = False
-    attached_sessions: dict[str, Any] = field(default_factory=dict)
+    personal: bool = False
+
+
+@dataclass
+class PersonalTab:
+    session: Any
+    target_id: str
+    target_cdp: CDPTargetSession
+    peers: set[ViewerPeer] = field(default_factory=set)
+    controller: ViewerPeer | None = None
+    viewport: tuple[int, int] = (1280, 720)
+    target_viewport: tuple[float, float] = (1280, 720)
+    personal: bool = True
+
+
+@dataclass
+class PersonalChrome:
+    owner: str
+    cdp_url: str
+    host: ChromeHost
+    controller_id: str
+    controller_cdp: CDPTargetSession
+    window_id: int
+    encoder_token: str
+    controller_origin: str
+    width_inset: int
+    height_inset: int
+    encoder: WebSocket | None = None
+    first_keyframe: asyncio.Event = field(default_factory=asyncio.Event)
+    encoder_error: str = ""
+    config: dict[str, Any] | None = None
+    tabs: dict[str, PersonalTab] = field(default_factory=dict)
+    active_session_id: str = ""
+    status: str = "connecting"
 
 
 class ChromeViewerManager:
@@ -296,8 +333,7 @@ class ChromeViewerManager:
         self.hosts: dict[tuple[str, str], ChromeHost] = {}
         self.viewers: dict[str, ChromeViewer] = {}
         self.lock = asyncio.Lock()
-        self.personal_cdp_url = ""
-        self.personal_sessions: dict[str, Any] = {}
+        self.personal: PersonalChrome | None = None
 
     def availability(self, cdp_url: str = "") -> dict[str, Any]:
         path = find_browser()
@@ -459,108 +495,154 @@ class ChromeViewerManager:
                 await host.close_target(controller_id)
                 raise
 
-    async def connect_personal(self, owner: str, origin: str, cdp_url: str) -> ChromeViewer:
-        if viewer := self.viewers.get(PERSONAL_VIEWER_ID):
-            if viewer.session.owner != owner:
+    async def connect_personal(self, owner: str, origin: str, cdp_url: str) -> PersonalChrome:
+        if self.personal:
+            if self.personal.owner != owner:
                 raise RuntimeError("Personal Chrome is connected by another administrator")
-            if viewer.session.status == "playing":
-                return viewer
-            if viewer.session.status == "lost":
-                await self.disconnect_personal(owner)
+            if self.personal.status == "playing":
+                return self.personal
+            await self.disconnect_personal(owner)
         if not cdp_url:
             raise RuntimeError("Personal Chrome CDP URL is not configured")
         async with self.lock:
-            if viewer := self.viewers.get(PERSONAL_VIEWER_ID):
-                if viewer.session.owner != owner:
-                    raise RuntimeError("Personal Chrome is connected by another administrator")
-                return viewer
-            current = next(reversed(self.personal_sessions.values()), None)
-            session = BrowserSession(
-                PERSONAL_VIEWER_ID,
-                owner,
-                url=current.url if current else "",
-                mode="chrome",
-                status="connecting",
+            if self.personal:
+                return self.personal
+            host = await self._host(owner, cdp_url)
+            token = secrets.token_urlsafe(32)
+            base = local_origin(origin)
+            ws_scheme = "wss" if base.startswith("https:") else "ws"
+            ws_url = f"{ws_scheme}://{urlsplit(base).netloc}/api/browser/sessions/personal/encoder"
+            fragment = urlencode({"token": token, "ws": ws_url, "window": "1"})
+            controller_id, controller_cdp = await host.create_target(
+                f"{base}/browser-encoder.html#{fragment}", new_window=True
             )
-            viewer = await self.start(session, origin, cdp_url=cdp_url)
-            viewer.attached_sessions.update(self.personal_sessions)
-            for attached in self.personal_sessions.values():
-                attached.status = "playing"
-                attached.url = viewer.session.url
-                attached.title = viewer.session.title
-                attached.origin = viewer.session.origin
-            self.personal_cdp_url = cdp_url.rstrip("/")
-            return viewer
+            await controller_cdp.send("Runtime.enable")
+            window = await host.browser_cdp.send(
+                "Browser.getWindowForTarget", {"targetId": controller_id}
+            )
+            metrics = await controller_cdp.send(
+                "Runtime.evaluate",
+                {
+                    "expression": "({w:outerWidth-innerWidth,h:outerHeight-innerHeight})",
+                    "returnByValue": True,
+                },
+            )
+            inset = metrics.get("result", {}).get("value", {})
+            personal = PersonalChrome(
+                owner,
+                cdp_url.rstrip("/"),
+                host,
+                controller_id,
+                controller_cdp,
+                int(window["windowId"]),
+                token,
+                base,
+                max(0, int(inset.get("w", 0))),
+                max(0, int(inset.get("h", 0))),
+            )
+            self.personal = personal
+            try:
+                await host.browser_cdp.send("Target.activateTarget", {"targetId": controller_id})
+                for _ in range(30):
+                    ready = await controller_cdp.send(
+                        "Runtime.evaluate",
+                        {"expression": "typeof window.startCapture === 'function'"},
+                    )
+                    if ready.get("result", {}).get("value") is True:
+                        break
+                    await asyncio.sleep(0.1)
+                await controller_cdp.send(
+                    "Runtime.evaluate",
+                    {"expression": "window.startCapture()", "userGesture": True},
+                )
+                await asyncio.wait_for(personal.first_keyframe.wait(), 90)
+                if personal.encoder_error:
+                    raise RuntimeError(personal.encoder_error)
+                personal.status = "playing"
+                await self._send_personal({"type": "pause"})
+                return personal
+            except Exception:
+                await self.disconnect_personal(owner)
+                raise
 
-    async def attach_personal(self, session: Any, origin: str, cdp_url: str) -> ChromeViewer:
-        viewer = await self.connect_personal(session.owner, origin, cdp_url)
-        self.personal_sessions[session.session_id] = session
-        viewer.attached_sessions[session.session_id] = session
+    async def attach_personal(self, session: Any, origin: str, cdp_url: str) -> PersonalTab:
+        personal = await self.connect_personal(session.owner, origin, cdp_url)
+        await personal.host.browser_cdp.send(
+            "Target.activateTarget", {"targetId": personal.controller_id}
+        )
+        target_id, target_cdp = await personal.host.create_target(session.url or "about:blank")
+        window = await personal.host.browser_cdp.send(
+            "Browser.getWindowForTarget", {"targetId": target_id}
+        )
+        if int(window["windowId"]) != personal.window_id:
+            await target_cdp.close()
+            await personal.host.close_target(target_id)
+            raise RuntimeError("Chrome created the Browser tab outside the captured window")
+        await target_cdp.send("Page.enable")
+        await target_cdp.send("Runtime.enable")
+        tab = PersonalTab(session, target_id, target_cdp)
+        personal.tabs[session.session_id] = tab
         session.mode = "chrome"
-        session.status = viewer.session.status
-        if session.url:
-            await viewer.target_cdp.send("Page.navigate", {"url": session.url})
-        else:
-            session.url = viewer.session.url
-            session.title = viewer.session.title
-            session.origin = viewer.session.origin
-        await self._refresh_state(viewer)
-        return viewer
+        session.status = "playing"
+        self._wire_events(tab)
+        await self._refresh_state(tab)
+        await self._activate_personal(tab)
+        return tab
 
-    def viewer_for(self, session_id: str) -> ChromeViewer | None:
-        if viewer := self.viewers.get(session_id):
-            return viewer
-        personal = self.viewers.get(PERSONAL_VIEWER_ID)
-        if personal and session_id in personal.attached_sessions:
-            return personal
-        return None
+    def viewer_for(self, session_id: str) -> ChromeViewer | PersonalTab | None:
+        return self.viewers.get(session_id) or (self.personal.tabs.get(session_id) if self.personal else None)
 
     async def detach_personal(self, session_id: str, owner: str, keep_alive: bool) -> bool:
-        viewer = self.viewers.get(PERSONAL_VIEWER_ID)
-        session = self.personal_sessions.get(session_id)
-        if not session or session.owner != owner:
+        if not self.personal or self.personal.owner != owner:
             return False
-        self.personal_sessions.pop(session_id, None)
-        if viewer:
-            viewer.attached_sessions.pop(session_id, None)
-            for peer in tuple(viewer.peers):
-                if peer.session_id == session_id:
-                    with contextlib.suppress(Exception):
-                        await peer.websocket.close(code=1001)
-        if not self.personal_sessions and not keep_alive:
+        tab = self.personal.tabs.pop(session_id, None)
+        if not tab:
+            return False
+        for peer in tuple(tab.peers):
+            with contextlib.suppress(Exception):
+                await peer.websocket.close(code=1001)
+        await tab.target_cdp.close()
+        await self.personal.host.close_target(tab.target_id)
+        if self.personal.active_session_id == session_id:
+            self.personal.active_session_id = ""
+        if not self.personal.tabs and not keep_alive:
             await self.disconnect_personal(owner)
         return True
 
     async def disconnect_personal(self, owner: str) -> bool:
-        viewer = self.viewers.get(PERSONAL_VIEWER_ID)
-        if not viewer or viewer.session.owner != owner:
+        personal = self.personal
+        if not personal or personal.owner != owner:
             return False
-        for session in viewer.attached_sessions.values():
-            session.status = "lost"
-        await self.stop(PERSONAL_VIEWER_ID, owner)
-        host = self.hosts.pop((owner, self.personal_cdp_url), None)
+        self.personal = None
+        for tab in personal.tabs.values():
+            tab.session.status = "lost"
+            for peer in tuple(tab.peers):
+                with contextlib.suppress(Exception):
+                    await peer.websocket.close(code=1001)
+            await tab.target_cdp.close()
+            await personal.host.close_target(tab.target_id)
+        if personal.encoder:
+            with contextlib.suppress(Exception):
+                await personal.encoder.close(code=1001)
+        await personal.controller_cdp.close()
+        await personal.host.close_target(personal.controller_id)
+        host = self.hosts.pop((owner, personal.cdp_url), None)
         if host:
             await host.close()
-        self.personal_cdp_url = ""
         return True
 
     def personal_status(self, owner: str) -> dict[str, Any]:
-        viewer = self.viewers.get(PERSONAL_VIEWER_ID)
-        if not viewer:
-            return {
-                "status": "disconnected",
-                "browser": "",
-                "session_count": len(self.personal_sessions),
-            }
-        if viewer.session.owner != owner:
+        if not self.personal:
+            return {"status": "disconnected", "browser": "", "session_count": 0}
+        if self.personal.owner != owner:
             return {"status": "unavailable", "browser": "", "session_count": 0}
         return {
-            "status": viewer.session.status,
+            "status": self.personal.status,
             "browser": "Chrome",
-            "session_count": len(viewer.attached_sessions),
+            "session_count": len(self.personal.tabs),
         }
 
-    def _wire_events(self, viewer: ChromeViewer) -> None:
+    def _wire_events(self, viewer: ChromeViewer | PersonalTab) -> None:
         async def refresh(_: dict[str, Any]) -> None:
             await self._refresh_state(viewer)
 
@@ -577,7 +659,7 @@ class ChromeViewerManager:
             viewer.target_cdp.on(method, refresh)
         viewer.target_cdp.on("Page.javascriptDialogOpening", dialog)
 
-    async def _refresh_state(self, viewer: ChromeViewer) -> None:
+    async def _refresh_state(self, viewer: ChromeViewer | PersonalTab) -> None:
         try:
             value = await viewer.target_cdp.send(
                 "Runtime.evaluate",
@@ -596,11 +678,6 @@ class ChromeViewerManager:
                 parsed = urlsplit(url)
                 viewer.session.origin = f"{parsed.scheme}://{parsed.netloc}"
             viewer.session.title = str(page.get("title", ""))[:512]
-            for session in viewer.attached_sessions.values():
-                session.url = viewer.session.url
-                session.title = viewer.session.title
-                session.origin = viewer.session.origin
-                session.status = viewer.session.status
             await self._broadcast_json(
                 viewer,
                 {
@@ -615,6 +692,9 @@ class ChromeViewerManager:
             pass
 
     async def encoder_socket(self, websocket: WebSocket, session_id: str, token: str) -> None:
+        if session_id == PERSONAL_VIEWER_ID:
+            await self._personal_encoder_socket(websocket, token)
+            return
         viewer = self.viewers.get(session_id)
         if not viewer or not secrets.compare_digest(viewer.encoder_token, token):
             await websocket.close(code=4001, reason="unauthorized")
@@ -651,14 +731,63 @@ class ChromeViewerManager:
             if viewer.encoder is websocket:
                 viewer.encoder = None
                 viewer.session.status = "lost"
-                for session in viewer.attached_sessions.values():
-                    session.status = "lost"
                 await self._broadcast_json(
                     viewer,
                     {"type": "status", "status": "lost", "message": "Chrome encoder disconnected"},
                 )
-                if session_id != PERSONAL_VIEWER_ID and self.viewers.get(session_id) is viewer:
+                if self.viewers.get(session_id) is viewer:
                     asyncio.create_task(self._restart_encoder(viewer))
+
+    async def _personal_encoder_socket(self, websocket: WebSocket, token: str) -> None:
+        personal = self.personal
+        if not personal or not secrets.compare_digest(personal.encoder_token, token):
+            await websocket.close(code=4001, reason="unauthorized")
+            return
+        if personal.encoder is not None:
+            await websocket.close(code=4009, reason="encoder already connected")
+            return
+        await websocket.accept()
+        personal.encoder = websocket
+        try:
+            while True:
+                message = await websocket.receive()
+                if message.get("text") is not None:
+                    data = json.loads(message["text"])
+                    if data.get("type") == "config":
+                        personal.config = data
+                        if tab := personal.tabs.get(personal.active_session_id):
+                            await self._broadcast_json(tab, data)
+                    elif data.get("type") == "error":
+                        personal.encoder_error = str(
+                            data.get("message", "Chrome encoder failed")
+                        )
+                        personal.first_keyframe.set()
+                elif message.get("bytes") is not None:
+                    frame = message["bytes"]
+                    if not FRAME_HEADER_SIZE <= len(frame) <= MAX_FRAME_SIZE or frame[0] != 1:
+                        continue
+                    if frame[1] & 1:
+                        personal.first_keyframe.set()
+                    if tab := personal.tabs.get(personal.active_session_id):
+                        await self._broadcast_frame(tab, frame)
+                else:
+                    break
+        except (WebSocketDisconnect, json.JSONDecodeError):
+            pass
+        finally:
+            if self.personal is personal and personal.encoder is websocket:
+                personal.encoder = None
+                personal.status = "lost"
+                for tab in personal.tabs.values():
+                    tab.session.status = "lost"
+                    await self._broadcast_json(
+                        tab,
+                        {
+                            "type": "status",
+                            "status": "lost",
+                            "message": "Chrome encoder disconnected",
+                        },
+                    )
 
     async def _restart_encoder(self, viewer: ChromeViewer) -> None:
         if viewer.restart_attempted:
@@ -728,7 +857,7 @@ class ChromeViewerManager:
         await self.stop(viewer.session.session_id, viewer.session.owner)
 
     async def viewer_socket(
-        self, websocket: WebSocket, viewer: ChromeViewer, session_id: str = ""
+        self, websocket: WebSocket, viewer: ChromeViewer | PersonalTab, session_id: str = ""
     ) -> None:
         await websocket.accept()
         peer = ViewerPeer(websocket, session_id=session_id or viewer.session.session_id)
@@ -742,8 +871,9 @@ class ChromeViewerManager:
                 "controller": viewer.controller is peer,
             }
         )
-        if viewer.config:
-            await peer.queue.put(viewer.config)
+        config = self.personal.config if viewer.personal and self.personal else viewer.config
+        if config:
+            await peer.queue.put(config)
         await self._refresh_state(viewer)
         await self._request_keyframe(viewer)
 
@@ -767,28 +897,22 @@ class ChromeViewerManager:
             viewer.peers.discard(peer)
             if viewer.controller is peer:
                 viewer.controller = next(iter(viewer.peers), None)
+                if viewer.controller:
+                    with contextlib.suppress(asyncio.QueueFull):
+                        viewer.controller.queue.put_nowait(
+                            {"type": "ready", "mode": "chrome", "controller": True}
+                        )
             await self._set_visibility(viewer, peer, False)
 
     async def _viewer_message(
-        self, viewer: ChromeViewer, peer: ViewerPeer, data: dict[str, Any]
+        self, viewer: ChromeViewer | PersonalTab, peer: ViewerPeer, data: dict[str, Any]
     ) -> None:
         kind = data.get("type")
         if kind == "visibility":
             await self._set_visibility(viewer, peer, bool(data.get("visible")))
             return
-        if kind == "activate" and viewer.session.session_id == PERSONAL_VIEWER_ID:
-            previous = viewer.controller
-            viewer.controller = peer
-            if previous is not peer:
-                if previous:
-                    with contextlib.suppress(asyncio.QueueFull):
-                        previous.queue.put_nowait(
-                            {"type": "ready", "mode": "chrome", "controller": False}
-                        )
-                with contextlib.suppress(asyncio.QueueFull):
-                    peer.queue.put_nowait(
-                        {"type": "ready", "mode": "chrome", "controller": True}
-                    )
+        if kind == "activate" and viewer.personal:
+            await self._activate_personal(viewer, peer)
             return
         if viewer.controller is not peer:
             return
@@ -798,6 +922,10 @@ class ChromeViewerManager:
             width = max(320, min(1920, int(data.get("width", 1280))))
             height = max(240, min(1080, int(data.get("height", 720))))
             viewer.viewport = (width, height)
+            if viewer.personal:
+                if self.personal and self.personal.active_session_id == viewer.session.session_id:
+                    await self._resize_personal(viewer)
+                return
             await viewer.target_cdp.send(
                 "Emulation.setDeviceMetricsOverride",
                 {"width": width, "height": height, "deviceScaleFactor": 1, "mobile": False},
@@ -863,16 +991,76 @@ class ChromeViewerManager:
             )
             if event == "keyDown" and commands:
                 params["commands"] = commands
-            await viewer.target_cdp.send(
-                "Input.dispatchKeyEvent",
-                params,
-            )
+            await viewer.target_cdp.send("Input.dispatchKeyEvent", params)
         elif kind == "paste":
             await viewer.target_cdp.send("Input.insertText", {"text": str(data.get("text", ""))})
         elif kind == "request_keyframe":
             await self._request_keyframe(viewer)
 
-    async def _pointer(self, viewer: ChromeViewer, data: dict[str, Any]) -> None:
+    async def _activate_personal(
+        self, tab: PersonalTab, peer: ViewerPeer | None = None
+    ) -> None:
+        personal = self.personal
+        if not personal or personal.tabs.get(tab.session.session_id) is not tab:
+            return
+        previous = personal.tabs.get(personal.active_session_id)
+        if previous and previous is not tab and previous.controller:
+            with contextlib.suppress(asyncio.QueueFull):
+                previous.controller.queue.put_nowait(
+                    {"type": "ready", "mode": "chrome", "controller": False}
+                )
+        for item in tab.peers:
+            while not item.queue.empty():
+                with contextlib.suppress(asyncio.QueueEmpty):
+                    item.queue.get_nowait()
+            item.waiting_keyframe = True
+            if personal.config:
+                with contextlib.suppress(asyncio.QueueFull):
+                    item.queue.put_nowait(personal.config)
+        if peer:
+            previous = tab.controller
+            tab.controller = peer
+            if previous is not peer:
+                if previous and previous in tab.peers:
+                    with contextlib.suppress(asyncio.QueueFull):
+                        previous.queue.put_nowait(
+                            {"type": "ready", "mode": "chrome", "controller": False}
+                        )
+                with contextlib.suppress(asyncio.QueueFull):
+                    peer.queue.put_nowait(
+                        {"type": "ready", "mode": "chrome", "controller": True}
+                    )
+        personal.active_session_id = tab.session.session_id
+        await personal.host.browser_cdp.send("Target.activateTarget", {"targetId": tab.target_id})
+        await self._resize_personal(tab)
+
+    async def _resize_personal(self, tab: PersonalTab) -> None:
+        personal = self.personal
+        if not personal:
+            return
+        width, height = tab.viewport
+        with contextlib.suppress(Exception):
+            await personal.host.browser_cdp.send(
+                "Browser.setWindowBounds",
+                {
+                    "windowId": personal.window_id,
+                    "bounds": {
+                        "windowState": "normal",
+                        "width": width + personal.width_inset,
+                        "height": height + personal.height_inset,
+                    },
+                },
+            )
+        metrics = await tab.target_cdp.send("Page.getLayoutMetrics")
+        visual = metrics.get("cssVisualViewport", {})
+        tab.target_viewport = (
+            float(visual.get("clientWidth", width)),
+            float(visual.get("clientHeight", height)),
+        )
+        await self._send_personal({"type": "resize"})
+        await self._send_personal({"type": "keyframe"})
+
+    async def _pointer(self, viewer: ChromeViewer | PersonalTab, data: dict[str, Any]) -> None:
         coordinates = self._coordinates(viewer, data)
         if coordinates is None:
             return
@@ -900,7 +1088,7 @@ class ChromeViewerManager:
             {**params, "type": event},
         )
 
-    async def _wheel(self, viewer: ChromeViewer, data: dict[str, Any]) -> None:
+    async def _wheel(self, viewer: ChromeViewer | PersonalTab, data: dict[str, Any]) -> None:
         coordinates = self._coordinates(viewer, data)
         if coordinates is None:
             return
@@ -918,7 +1106,9 @@ class ChromeViewerManager:
         )
 
     @staticmethod
-    def _coordinates(viewer: ChromeViewer, data: dict[str, Any]) -> tuple[float, float] | None:
+    def _coordinates(
+        viewer: ChromeViewer | PersonalTab, data: dict[str, Any]
+    ) -> tuple[float, float] | None:
         x, y = float(data.get("x", -1)), float(data.get("y", -1))
         if data.get("normalized"):
             if not (0 <= x <= 1 and 0 <= y <= 1):
@@ -928,15 +1118,29 @@ class ChromeViewerManager:
         width, height = viewer.viewport
         return (x, y) if 0 <= x <= width and 0 <= y <= height else None
 
-    async def _set_visibility(self, viewer: ChromeViewer, peer: ViewerPeer, visible: bool) -> None:
+    async def _set_visibility(
+        self, viewer: ChromeViewer | PersonalTab, peer: ViewerPeer, visible: bool
+    ) -> None:
         peer.visible = visible
+        if viewer.personal:
+            visible_personal = bool(
+                self.personal
+                and any(peer.visible for tab in self.personal.tabs.values() for peer in tab.peers)
+            )
+            await self._send_personal({"type": "resume" if visible_personal else "pause"})
+            if visible and self.personal and self.personal.active_session_id == viewer.session.session_id:
+                await self._send_personal({"type": "keyframe"})
+            return
         await self._send_encoder(
             viewer, {"type": "resume" if any(item.visible for item in viewer.peers) else "pause"}
         )
         if visible:
             await self._request_keyframe(viewer)
 
-    async def _request_keyframe(self, viewer: ChromeViewer) -> None:
+    async def _request_keyframe(self, viewer: ChromeViewer | PersonalTab) -> None:
+        if viewer.personal:
+            await self._send_personal({"type": "keyframe"})
+            return
         await self._send_encoder(viewer, {"type": "keyframe"})
 
     async def _send_encoder(self, viewer: ChromeViewer, message: dict[str, Any]) -> None:
@@ -944,7 +1148,14 @@ class ChromeViewerManager:
             with contextlib.suppress(Exception):
                 await viewer.encoder.send_json(message)
 
-    async def _broadcast_json(self, viewer: ChromeViewer, message: dict[str, Any]) -> None:
+    async def _send_personal(self, message: dict[str, Any]) -> None:
+        if self.personal and self.personal.encoder:
+            with contextlib.suppress(Exception):
+                await self.personal.encoder.send_json(message)
+
+    async def _broadcast_json(
+        self, viewer: ChromeViewer | PersonalTab, message: dict[str, Any]
+    ) -> None:
         for peer in tuple(viewer.peers):
             if peer.queue.full():
                 with contextlib.suppress(asyncio.QueueEmpty):
@@ -952,7 +1163,7 @@ class ChromeViewerManager:
             with contextlib.suppress(asyncio.QueueFull):
                 peer.queue.put_nowait(message)
 
-    async def _broadcast_frame(self, viewer: ChromeViewer, frame: bytes) -> None:
+    async def _broadcast_frame(self, viewer: ChromeViewer | PersonalTab, frame: bytes) -> None:
         keyframe = bool(frame[1] & 1)
         for peer in tuple(viewer.peers):
             if not peer.visible or (peer.waiting_keyframe and not keyframe):
@@ -1001,13 +1212,13 @@ class ChromeViewerManager:
         return session_ids
 
     async def close_all(self) -> None:
+        if self.personal:
+            await self.disconnect_personal(self.personal.owner)
         for viewer in tuple(self.viewers.values()):
             await self.stop(viewer.session.session_id, viewer.session.owner)
         for host in tuple(self.hosts.values()):
             await host.close()
         self.hosts.clear()
-        self.personal_cdp_url = ""
-        self.personal_sessions.clear()
 
 
 manager = ChromeViewerManager()
