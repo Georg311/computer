@@ -95,6 +95,24 @@
 		updateHomeTabs(groupId, () => ({ tabs, activeTabId: group.activeTabId }));
 	}
 
+	function cycleHomeTab(direction: 1 | -1) {
+		const group = activeHomeGroup;
+		if (!group || group.tabs.length < 2) return;
+		const currentIndex = group.tabs.findIndex((tab) => tab.id === group.activeTabId);
+		if (currentIndex === -1) return;
+		const nextIndex = (currentIndex + direction + group.tabs.length) % group.tabs.length;
+		updateHomeTabs(group.id, (tabs) => ({ tabs, activeTabId: tabs[nextIndex].id }));
+	}
+
+	function toggleHomeSplit() {
+		if ($homeState.groups.length > 1) {
+			const group = $homeState.groups.find((item) => item.id !== $homeState.activeGroupId);
+			if (group) closeHomeGroup(group.id);
+		} else {
+			splitHomeTab();
+		}
+	}
+
 	function openHomeChat(chatId?: string, groupId = $homeState.activeGroupId) {
 		const group = $homeState.groups.find((item) => item.id === groupId);
 		if (!group) return;
@@ -530,12 +548,41 @@
 		if (typeof window === 'undefined') return;
 		const handleHomeAction = (event: Event) => {
 			if ($currentWorkspace) return;
-			switch ((event as CustomEvent<'newChat' | 'newTerminal' | 'newBrowser'>).detail) {
+			switch (
+				(
+					event as CustomEvent<
+						| 'newChat'
+						| 'newTerminal'
+						| 'newBrowser'
+						| 'closeTab'
+						| 'nextTab'
+						| 'prevTab'
+						| 'toggleSplit'
+					>
+				).detail
+			) {
 				case 'newChat':
 					openHomeChat();
 					break;
 				case 'newBrowser':
 					void openHomeBrowser();
+					break;
+				case 'closeTab':
+					if (
+						activeHomeGroup &&
+						!activeHomeGroup.tabs.find((tab) => tab.id === activeHomeGroup.activeTabId)?.permanent
+					) {
+						closeHomeTab(activeHomeGroup.activeTabId, activeHomeGroup.id);
+					}
+					break;
+				case 'nextTab':
+					cycleHomeTab(1);
+					break;
+				case 'prevTab':
+					cycleHomeTab(-1);
+					break;
+				case 'toggleSplit':
+					toggleHomeSplit();
 					break;
 				default:
 					void openHomeTerminal();

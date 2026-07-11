@@ -1387,7 +1387,7 @@
 						: null}
 					<!-- svelte-ignore a11y_no_static_element_interactions -->
 					<button
-						class="group flex items-center gap-1 w-full h-7 rounded-lg text-left transition-colors duration-75
+						class="group flex items-center gap-1 w-full h-7 pr-2 rounded-lg text-left transition-colors duration-75
 							{isSelected
 							? 'bg-blue-50 dark:bg-blue-500/10'
 							: isDragTarget
@@ -1395,7 +1395,6 @@
 									? 'bg-blue-100 dark:bg-blue-500/20'
 									: 'bg-blue-50/60 dark:bg-blue-500/8'
 								: 'hover:bg-gray-100 dark:hover:bg-white/4'}"
-						style="padding-left: {8 + entry.depth * 16}px; padding-right: 0.5rem;"
 						onclick={(e) => handleClick(e, entry, i)}
 						oncontextmenu={(e) => onContextMenu(e, entry)}
 						draggable="true"
@@ -1408,7 +1407,7 @@
 						{#if entry.type === 'directory'}
 							<!-- svelte-ignore a11y_no_static_element_interactions -->
 							<span
-								class="flex items-center justify-center w-4 shrink-0 text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 cursor-pointer"
+								class="flex h-full shrink-0 cursor-pointer items-center text-gray-400 hover:text-gray-600 dark:text-gray-600 dark:hover:text-gray-400"
 								role="button"
 								tabindex="-1"
 								onclick={(e) => {
@@ -1422,13 +1421,25 @@
 									}
 								}}
 							>
-								<Icon
-									name={expandedDirs.has(entry.path) ? 'chevron-down' : 'chevron-right'}
-									size={10}
-								/>
+								<span class="w-2 shrink-0"></span>
+								{#each Array(entry.depth) as _}
+									<span class="w-4 shrink-0"></span>
+								{/each}
+								<span class="flex w-4 shrink-0 items-center justify-center">
+									<Icon
+										name={expandedDirs.has(entry.path) ? 'chevron-down' : 'chevron-right'}
+										size={10}
+									/>
+								</span>
 							</span>
 						{:else}
-							<span class="w-4 shrink-0"></span>
+							<span class="flex shrink-0">
+								<span class="w-2 shrink-0"></span>
+								{#each Array(entry.depth) as _}
+									<span class="w-4 shrink-0"></span>
+								{/each}
+								<span class="w-4 shrink-0"></span>
+							</span>
 						{/if}
 						<span
 							class="flex items-center justify-center w-4 shrink-0 {entry.type === 'directory'

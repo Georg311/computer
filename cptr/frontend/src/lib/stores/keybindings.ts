@@ -245,7 +245,16 @@ export function executeAction(
 		toggleVoiceMemo?: () => void;
 	}
 ): boolean {
-	const dispatchHomeAction = (detail: 'newChat' | 'newTerminal' | 'newBrowser') => {
+	const dispatchHomeAction = (
+		detail:
+			| 'newChat'
+			| 'newTerminal'
+			| 'newBrowser'
+			| 'closeTab'
+			| 'nextTab'
+			| 'prevTab'
+			| 'toggleSplit'
+	) => {
 		if (typeof window !== 'undefined')
 			window.dispatchEvent(new CustomEvent('cptr:home-action', { detail }));
 	};
@@ -271,6 +280,10 @@ export function executeAction(
 			return true;
 
 		case 'closeTab': {
+			if (!get(currentWorkspace)) {
+				dispatchHomeAction('closeTab');
+				return true;
+			}
 			const group = get(activeGroup);
 			if (!group) return false;
 			const tab = group.tabs.find((t) => t.id === group.activeTabId);
@@ -282,6 +295,10 @@ export function executeAction(
 
 		case 'nextTab':
 		case 'prevTab': {
+			if (!get(currentWorkspace)) {
+				dispatchHomeAction(action);
+				return true;
+			}
 			const g = get(activeGroup);
 			if (!g || g.tabs.length < 2) return true;
 			const visibleTabs = g.tabs.filter((t) => t.type !== 'git');
@@ -307,7 +324,10 @@ export function executeAction(
 
 		case 'toggleSplit': {
 			const ws = get(currentWorkspace);
-			if (!ws) return false;
+			if (!ws) {
+				dispatchHomeAction('toggleSplit');
+				return true;
+			}
 			if (get(splitActive)) {
 				const otherGroup = ws.groups.find((g) => g.id !== ws.activeGroupId);
 				if (otherGroup) closeGroup(otherGroup.id);

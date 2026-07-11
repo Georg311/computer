@@ -16,6 +16,7 @@
 	import { Toaster, toast } from 'svelte-sonner';
 	import {
 		activeTab,
+		activeHomeTab,
 		currentWorkspace,
 		stateLoaded,
 		initState,
@@ -460,7 +461,7 @@
 				<GitBar />
 			{/if}
 
-			{#if $activeTab?.type === 'terminal'}
+			{#if $activeTab?.type === 'terminal' || (!$currentWorkspace && $activeHomeTab?.type === 'terminal')}
 				<ShortcutBar />
 			{/if}
 		</div>

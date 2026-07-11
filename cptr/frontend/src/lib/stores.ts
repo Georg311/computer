@@ -357,6 +357,16 @@ export const activeTab = derived(activeGroup, ($g) =>
 	$g ? ($g.tabs.find((t) => t.id === $g.activeTabId) ?? null) : null
 );
 
+export const activeHomeGroup = derived(
+	homeState,
+	($state) =>
+		$state.groups.find((group) => group.id === $state.activeGroupId) ?? $state.groups[0] ?? null
+);
+
+export const activeHomeTab = derived(activeHomeGroup, ($group) =>
+	$group ? ($group.tabs.find((tab) => tab.id === $group.activeTabId) ?? null) : null
+);
+
 export const splitActive = derived(currentWorkspace, ($ws) => ($ws?.groups.length ?? 0) > 1);
 
 // ── Compat aliases for old split-pane API ──────────────────────
@@ -1514,7 +1524,7 @@ export function moveTabToGroup(tabId: string, fromGroupId: string, toGroupId: st
 }
 
 export function moveHomeTabToGroup(tabId: string, fromGroupId: string, toGroupId: string): void {
-	homeState.update((state) => moveTabToGroupInState(state, tabId, fromGroupId, toGroupId, false));
+	homeState.update((state) => moveTabToGroupInState(state, tabId, fromGroupId, toGroupId, true));
 }
 
 function moveTabToNewSplitInState<T extends SplitEditorState>(
