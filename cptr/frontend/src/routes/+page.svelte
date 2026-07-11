@@ -51,9 +51,17 @@
 	let folderPickerIntent = $state<LaunchIntent | null>(null);
 	let folderPickerWorkspace = $state<string | null>(null);
 	const welcomeName = $derived($session?.display_name || $session?.username);
-	const greetingTime = $derived(
-		new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'
-	);
+	const greetingTime = $derived.by(() => {
+		const hour = new Date().getHours();
+		if (hour < 5) return 'lateNight';
+		if (hour < 7) return 'superEarly';
+		if (hour < 11) return 'morning';
+		if (hour < 13) return 'noon';
+		if (hour < 17) return 'afternoon';
+		if (hour < 21) return 'evening';
+		return 'night';
+	});
+	const greetingVariant = $derived(new Date().getDate() % 3);
 	const greetingNameMarker = '\uE000';
 	const activeHomeTab = $derived(
 		$homeGroup.tabs.find((tab) => tab.id === $homeGroup.activeTabId) ?? $homeGroup.tabs[0]
@@ -917,7 +925,9 @@
 							<div class="flex items-baseline gap-2">
 								<h1 class="text-lg font-medium tracking-tight text-gray-900 dark:text-white">
 									{#if welcomeName}
-										{@const greeting = $t(`home.greeting.${greetingTime}`, { name: greetingNameMarker })}
+										{@const greeting = $t(`home.greeting.${greetingTime}.${greetingVariant}`, {
+											name: greetingNameMarker
+										})}
 										{@const [beforeName, afterName] = greeting.split(greetingNameMarker)}
 										{beforeName}<span class="capitalize">{welcomeName}</span>{afterName}
 									{:else}
@@ -1161,10 +1171,7 @@
 			}}
 		/>
 		<div class="pane-content">
-			{#if $gitReviewOpen && group.id === allGroups[0]?.id}
-				<GitView />
-			{:else}
-				{#each group.tabs.filter((tab) => tab.type === 'files') as tab (tab.id)}
+			{#each group.tabs.filter((tab) => tab.type === 'files') as tab (tab.id)}
 					<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
 						<FileBrowser />
 					</div>
@@ -1217,7 +1224,11 @@
 						<Spinner size={16} />
 						<span>{$t('browser.starting')}</span>
 					</div>
-				{/if}
+			{/if}
+			{#if $gitReviewOpen && group.id === allGroups[0]?.id}
+				<div class="persisted-tab git-review-tab">
+					<GitView />
+				</div>
 			{/if}
 		</div>
 		{#if dragOverZone?.groupId === group.id}
@@ -1424,5 +1435,9 @@
 		visibility: hidden;
 		z-index: 0;
 		pointer-events: none;
+	}
+
+	.git-review-tab {
+		z-index: 2;
 	}
 </style>
