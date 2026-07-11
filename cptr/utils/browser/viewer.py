@@ -885,7 +885,6 @@ class ChromeViewerManager:
         if config:
             await peer.queue.put(config)
         if viewer.keyframe:
-            peer.waiting_keyframe = False
             await peer.queue.put(viewer.keyframe)
         await self._refresh_state(viewer)
         await self._request_keyframe(viewer)
@@ -928,18 +927,13 @@ class ChromeViewerManager:
         if kind == "visibility":
             await self._set_visibility(viewer, peer, bool(data.get("visible")))
             return
-        if kind == "focus" and viewer.personal:
-            became_visible = not peer.visible
-            peer.visible = True
-            if became_visible:
-                await self._send_personal({"type": "resume"})
-            await self._focus_personal(viewer, peer)
-            if became_visible:
-                await self._request_keyframe(viewer)
+        if kind == "focus":
+            if not peer.visible:
+                await self._set_visibility(viewer, peer, True)
+            if viewer.personal:
+                await self._focus_personal(viewer, peer)
             return
         if viewer.controller is not peer:
-            return
-        if kind == "focus":
             return
         if kind == "viewport":
             width = max(320, min(1920, int(data.get("width", 1280))))
@@ -1046,7 +1040,6 @@ class ChromeViewerManager:
                     with contextlib.suppress(asyncio.QueueFull):
                         item.queue.put_nowait(tab.config)
                         item.queue.put_nowait(tab.keyframe)
-                    item.waiting_keyframe = False
                 elif personal.config:
                     with contextlib.suppress(asyncio.QueueFull):
                         item.queue.put_nowait(personal.config)
