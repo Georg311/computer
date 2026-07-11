@@ -1,6 +1,8 @@
 {
 	"app.tagline": "随时随地，掌控你的电脑。",
-	"home.greetingBeforeName": "很高兴见到你，",
+	"home.greeting.morningBeforeName": "早上好，",
+	"home.greeting.afternoonBeforeName": "还在忙，",
+	"home.greeting.eveningBeforeName": "还有一件事，",
 	"home.greetingAfterName": "。",
 	"auth.createAccountHint": "创建账户以开始使用。",
 	"auth.signInSystemHint": "使用系统账户登录。",

@@ -51,6 +51,9 @@
 	let folderPickerIntent = $state<LaunchIntent | null>(null);
 	let folderPickerWorkspace = $state<string | null>(null);
 	const welcomeName = $derived($session?.display_name || $session?.username);
+	const greetingTime = $derived(
+		new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'
+	);
 	const activeHomeTab = $derived(
 		$homeGroup.tabs.find((tab) => tab.id === $homeGroup.activeTabId) ?? $homeGroup.tabs[0]
 	);
@@ -913,7 +916,7 @@
 							<div class="flex items-baseline gap-2">
 								<h1 class="text-lg font-medium tracking-tight text-gray-900 dark:text-white">
 									{#if welcomeName}
-										{$t('home.greetingBeforeName')}<span class="capitalize">{welcomeName}</span>{$t('home.greetingAfterName')}
+										{$t(`home.greeting.${greetingTime}BeforeName`)}<span class="capitalize">{welcomeName}</span>{$t('home.greetingAfterName')}
 									{:else}
 										Computer
 									{/if}

@@ -1,6 +1,8 @@
 {
 	"app.tagline": "Your computer, from anywhere.",
-	"home.greetingBeforeName": "Good to see you, ",
+	"home.greeting.morningBeforeName": "Morning, ",
+	"home.greeting.afternoonBeforeName": "Still at it, ",
+	"home.greeting.eveningBeforeName": "One more thing, ",
 	"home.greetingAfterName": ".",
 	"auth.createAccountHint": "Create your account to get started.",
 	"auth.signInSystemHint": "Sign in with your system account.",

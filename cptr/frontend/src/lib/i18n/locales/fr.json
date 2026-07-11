@@ -1,6 +1,8 @@
 {
 	"app.tagline": "Votre ordinateur, où que vous soyez.",
-	"home.greetingBeforeName": "Ravi de vous voir, ",
+	"home.greeting.morningBeforeName": "Bonjour, ",
+	"home.greeting.afternoonBeforeName": "Toujours à l’œuvre, ",
+	"home.greeting.eveningBeforeName": "Encore une chose, ",
 	"home.greetingAfterName": ".",
 	"auth.createAccountHint": "Créez votre compte pour commencer.",
 	"auth.signInSystemHint": "Connectez-vous avec votre compte système.",

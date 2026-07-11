@@ -326,7 +326,7 @@ SEARCH_IGNORE_DIRS = {
     ".DS_Store",
 }
 
-MAX_MATCH_RESULTS = 100
+MATCH_PAGE_SIZE = 100
 MAX_CONTENT_MATCHES_PER_FILE = 3
 MAX_CONTENT_SEARCH_FILE_SIZE = 1 * 1024 * 1024
 
@@ -348,7 +348,7 @@ class FileMatch(BaseModel):
 
 class FileMatches(BaseModel):
     results: list[FileMatch]
-    truncated: bool
+    next_offset: int | None = None
 
 
 def _is_search_ignored(name: str) -> bool:
@@ -475,14 +475,20 @@ def _content_matches_with_python(
     return matches, truncated
 
 
-def find_file_matches(root: Path, query: str, show_hidden: bool = False) -> FileMatches:
+def find_file_matches(
+    root: Path,
+    query: str,
+    show_hidden: bool = False,
+    offset: int = 0,
+    limit: int = MATCH_PAGE_SIZE,
+) -> FileMatches:
     """Find filename/path and literal text matches below a browser directory."""
     query = query.strip()
     query_lower = query.lower()
     entries = list(_walk_match_entries(root, show_hidden))
     files = {path.resolve() for path, kind in entries if kind == "file" and not path.is_symlink()}
     content_result = _content_matches_with_rg(root, query, query_lower, show_hidden, files)
-    content_matches, truncated = (
+    content_matches, _ = (
         content_result if content_result is not None else _content_matches_with_python(files, query_lower)
     )
 
@@ -522,9 +528,11 @@ def find_file_matches(root: Path, query: str, show_hidden: bool = False) -> File
         )
 
     matches.sort(key=lambda item: (item[0], item[1], item[2].relative_path.lower()))
-    if len(matches) > MAX_MATCH_RESULTS:
-        truncated = True
-    return FileMatches(results=[item[2] for item in matches[:MAX_MATCH_RESULTS]], truncated=truncated)
+    next_offset = offset + limit if offset + limit < len(matches) else None
+    return FileMatches(
+        results=[item[2] for item in matches[offset : offset + limit]],
+        next_offset=next_offset,
+    )
 
 
 @router.get("/matches", response_model=FileMatches)
@@ -532,6 +540,8 @@ async def file_matches(
     query: str = Query(..., description="Literal text to match"),
     path: str = Query(..., description="Root path to search"),
     show_hidden: bool = Query(False, description="Include dotfiles and dot-directories"),
+    offset: int = Query(0, ge=0, description="Result offset"),
+    limit: int = Query(MATCH_PAGE_SIZE, ge=1, le=MATCH_PAGE_SIZE, description="Page size"),
 ):
     """Return filename/path and content matches below a directory."""
     if not query.strip():
@@ -541,7 +551,7 @@ async def file_matches(
     if not root.exists() or not root.is_dir():
         raise HTTPException(status_code=404, detail=f"Path not found: {path}")
 
-    return await asyncio.to_thread(find_file_matches, root, query, show_hidden)
+    return await asyncio.to_thread(find_file_matches, root, query, show_hidden, offset, limit)
 
 
 class SearchResult(BaseModel):

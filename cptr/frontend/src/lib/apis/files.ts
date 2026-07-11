@@ -50,15 +50,16 @@ export type FileMatch = {
 	name_match: boolean;
 	content_matches: ContentMatch[];
 };
-export type FileMatches = { results: FileMatch[]; truncated: boolean };
+export type FileMatches = { results: FileMatch[]; next_offset: number | null };
 
 export const getFileMatches = (
 	query: string,
 	path: string,
 	showHidden: boolean,
+	offset = 0,
 	signal?: AbortSignal
 ) =>
 	fetchJSON<FileMatches>(
-		`/api/workspace/files/matches?query=${encodeURIComponent(query)}&path=${encodeURIComponent(path)}&show_hidden=${showHidden}`,
+		`/api/workspace/files/matches?query=${encodeURIComponent(query)}&path=${encodeURIComponent(path)}&show_hidden=${showHidden}&offset=${offset}`,
 		{ signal }
 	);

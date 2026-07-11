@@ -1,6 +1,8 @@
 {
 	"app.tagline": "어디서든, 당신의 컴퓨터로.",
-	"home.greetingBeforeName": "다시 만나서 반가워요, ",
+	"home.greeting.morningBeforeName": "좋은 아침이에요, ",
+	"home.greeting.afternoonBeforeName": "계속하고 있네요, ",
+	"home.greeting.eveningBeforeName": "한 가지만 더, ",
 	"home.greetingAfterName": "님.",
 	"auth.createAccountHint": "계정을 만들어 시작하세요.",
 	"auth.signInSystemHint": "시스템 계정으로 로그인하세요.",

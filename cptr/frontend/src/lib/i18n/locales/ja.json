@@ -1,6 +1,8 @@
 {
 	"app.tagline": "どこからでも、あなたのコンピュータへ。",
-	"home.greetingBeforeName": "会えてうれしいです、",
+	"home.greeting.morningBeforeName": "おはよう、",
+	"home.greeting.afternoonBeforeName": "まだやってるね、",
+	"home.greeting.eveningBeforeName": "もう一つだけ、",
 	"home.greetingAfterName": "さん。",
 	"auth.createAccountHint": "アカウントを作成して始めましょう。",
 	"auth.signInSystemHint": "システムアカウントでサインインしてください。",

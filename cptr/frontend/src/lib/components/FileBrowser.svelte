@@ -2,6 +2,7 @@
 	// Module-level cache: survives component destroy/create cycles
 	const _treeExpandedCache = new Map();
 	const _treeContentsCache = new Map();
+	const _searchQueryCache = new Map();
 </script>
 
 <script lang="ts">
@@ -49,8 +50,10 @@
 	let searchQuery = $state('');
 	let matchResults = $state<FileMatch[] | null>(null);
 	let matchLoading = $state(false);
+	let matchLoadingMore = $state(false);
 	let matchError = $state<string | null>(null);
-	let matchesTruncated = $state(false);
+	let matchLoadMoreError = $state(false);
+	let nextMatchOffset = $state<number | null>(null);
 	let matchTimer: ReturnType<typeof setTimeout> | null = null;
 	let matchController: AbortController | null = null;
 	let matchRequestId = 0;
@@ -295,15 +298,18 @@
 	$effect(() => {
 		if (cwd) {
 			if (cwd !== _prevCwd) {
-				const isNavigation = _prevCwd !== '';
+				const previousCwd = _prevCwd;
+				const isNavigation = previousCwd !== '';
 				_prevCwd = cwd;
 				if (isNavigation) {
+					_searchQueryCache.delete(previousCwd);
 					searchQuery = '';
 					// Navigated to a new directory: reset tree state
 					expandedDirs = new Set();
 					dirContents = new Map();
 					initialLoad = true;
 				} else {
+					searchQuery = _searchQueryCache.get(cwd) ?? '';
 					// Component (re)mount: restore tree state from cache
 					const cachedExpanded = _treeExpandedCache.get(cwd);
 					if (cachedExpanded) {
@@ -329,7 +335,9 @@
 		if (!query) {
 			matchResults = null;
 			matchLoading = false;
-			matchesTruncated = false;
+			matchLoadingMore = false;
+			matchLoadMoreError = false;
+			nextMatchOffset = null;
 			return;
 		}
 
@@ -340,14 +348,17 @@
 		addMenuOpen = false;
 		sortMenuOpen = false;
 		matchLoading = true;
+		matchLoadingMore = false;
+		matchLoadMoreError = false;
+		nextMatchOffset = null;
 		matchTimer = setTimeout(async () => {
 			const controller = new AbortController();
 			matchController = controller;
 			try {
-				const data = await getFileMatches(query, cwd, hidden, controller.signal);
+				const data = await getFileMatches(query, cwd, hidden, 0, controller.signal);
 				if (requestId === matchRequestId) {
 					matchResults = data.results;
-					matchesTruncated = data.truncated;
+					nextMatchOffset = data.next_offset;
 				}
 			} catch (e: any) {
 				if (e.name !== 'AbortError' && requestId === matchRequestId) {
@@ -359,6 +370,48 @@
 			}
 		}, 200);
 	});
+
+	async function loadMoreMatches() {
+		const offset = nextMatchOffset;
+		if (offset === null || !isSearching || matchLoading || matchLoadingMore || matchLoadMoreError)
+			return;
+
+		const query = searchText;
+		const hidden = showHidden;
+		const requestId = matchRequestId;
+		matchLoadingMore = true;
+		const controller = new AbortController();
+		matchController = controller;
+		try {
+			const data = await getFileMatches(query, cwd, hidden, offset, controller.signal);
+			if (requestId === matchRequestId) {
+				matchResults = [...(matchResults ?? []), ...data.results];
+				nextMatchOffset = data.next_offset;
+			}
+		} catch (e: any) {
+			if (e.name !== 'AbortError' && requestId === matchRequestId) {
+				matchLoadMoreError = true;
+			}
+		} finally {
+			if (requestId === matchRequestId) matchLoadingMore = false;
+		}
+	}
+
+	function retryMoreMatches() {
+		matchLoadMoreError = false;
+		void loadMoreMatches();
+	}
+
+	function loadMoreOnVisible(node: HTMLElement) {
+		const observer = new IntersectionObserver(
+			([entry]) => {
+				if (entry.isIntersecting) void loadMoreMatches();
+			},
+			{ rootMargin: '160px' }
+		);
+		observer.observe(node);
+		return { destroy: () => observer.disconnect() };
+	}
 
 	// Keep the websocket watch path in sync (separate effect so it doesn't
 	// re-trigger directory fetches via fsTick feedback loops)
@@ -524,6 +577,7 @@
 	}
 
 	function navigateTo(path: string) {
+		_searchQueryCache.delete(cwd);
 		searchQuery = '';
 		setFileBrowserCwd(path);
 	}
@@ -1140,9 +1194,16 @@
 			class="flex-1 border-none outline-none bg-transparent text-xs text-gray-900 dark:text-white placeholder:text-gray-400"
 			placeholder={$t('files.searchFilesAndContents')}
 			bind:value={searchQuery}
+			oninput={(event) => _searchQueryCache.set(cwd, event.currentTarget.value)}
 		/>
 		{#if searchQuery}
-			<button class="text-gray-400 flex items-center" onclick={() => (searchQuery = '')}>
+			<button
+				class="text-gray-400 flex items-center"
+				onclick={() => {
+					searchQuery = '';
+					_searchQueryCache.set(cwd, '');
+				}}
+			>
 				<Icon name="xmark" size={11} />
 			</button>
 		{/if}
@@ -1281,10 +1342,17 @@
 					</div>
 					{@render resultRows(contentOnlyMatches)}
 				{/if}
-				{#if matchesTruncated}
-					<p class="px-2 py-2 text-center text-[0.6875rem] text-gray-400 dark:text-gray-600">
-						{$t('files.searchTruncated')}
-					</p>
+				{#if nextMatchOffset !== null}
+					<div use:loadMoreOnVisible class="flex h-8 items-center justify-center">
+						{#if matchLoadingMore}
+							<Spinner size={12} />
+						{:else if matchLoadMoreError}
+							<button
+								class="text-[0.6875rem] text-gray-400 hover:text-gray-600 dark:text-gray-600 dark:hover:text-gray-400 transition-colors duration-75"
+								onclick={retryMoreMatches}>{$t('files.retry')}</button
+							>
+						{/if}
+					</div>
 				{/if}
 			{/if}
 		{:else if visibleEntries.length === 0 && !showNewInput}
