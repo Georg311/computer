@@ -1107,7 +1107,7 @@ class ChromeViewerManager:
                     "width": viewer.session.mobile_viewport[0],
                     "height": viewer.session.mobile_viewport[1],
                 }
-                if not viewer.personal
+                if not viewer.personal and viewer.session.mobile_viewport
                 else None,
             }
         )
@@ -1267,22 +1267,27 @@ class ChromeViewerManager:
         mode = mode if mode in {"auto", "desktop", "mobile"} else "auto"
         requested_mobile_viewport = data.get("mobile_viewport")
         current_mobile_viewport = viewer.session.mobile_viewport
-        if isinstance(requested_mobile_viewport, dict):
+        if "mobile_viewport" not in data:
+            mobile_viewport = current_mobile_viewport
+        elif isinstance(requested_mobile_viewport, dict):
             try:
                 mobile_viewport = (
                     int(requested_mobile_viewport.get("width")),
                     int(requested_mobile_viewport.get("height")),
                 )
             except (TypeError, ValueError):
-                mobile_viewport = current_mobile_viewport
-            if mobile_viewport[0] <= 0 or mobile_viewport[1] <= 0:
-                mobile_viewport = current_mobile_viewport
+                mobile_viewport = None
+            if not mobile_viewport or mobile_viewport[0] <= 0 or mobile_viewport[1] <= 0:
+                mobile_viewport = None
         else:
-            mobile_viewport = current_mobile_viewport
-        profile, _ = _effective_device_profile(
-            requested_profile, mode, mobile_viewport, viewer.host.user_agent
+            mobile_viewport = None
+        emulated_viewport = (
+            mobile_viewport if mode == "mobile" and mobile_viewport else (width, height)
         )
-        layout_viewport = mobile_viewport if mode == "mobile" else (width, height)
+        profile, _ = _effective_device_profile(
+            requested_profile, mode, emulated_viewport, viewer.host.user_agent
+        )
+        layout_viewport = emulated_viewport
         preset, quality = _resolve_quality(
             data.get("quality"),
             viewer.quality_profiles,

@@ -37,7 +37,7 @@ class BrowserSession:
     status: str = "ready"
     device_profile: dict = field(default_factory=dict)
     device_mode: str = "auto"
-    mobile_viewport: tuple[int, int] = (390, 844)
+    mobile_viewport: tuple[int, int] | None = None
     quality_preset: str = "balanced"
     resolved_quality: dict = field(default_factory=dict)
 

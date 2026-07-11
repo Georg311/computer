@@ -102,6 +102,13 @@ export interface WorkspaceState {
 	fileBrowserCwd: string;
 }
 
+export interface HomeState {
+	groups: EditorGroup[];
+	activeGroupId: string;
+	layout: EditorLayout;
+	splitDirection: SplitDirection;
+}
+
 export type ToolApprovalMode = 'ask' | 'auto' | 'full';
 
 export interface UserPreferences {
@@ -123,6 +130,7 @@ export interface UserPreferences {
 	widescreenMode?: boolean;
 	expandToolDetails?: boolean;
 	homeGroup?: EditorGroup;
+	homeState?: HomeState;
 }
 
 // ── ID generation ───────────────────────────────────────────────
@@ -264,10 +272,17 @@ function normalizeLayout(
 
 /** The workspace currently displayed in THIS browser tab. Null = welcome page. */
 export const currentWorkspace = writable<WorkspaceState | null>(null);
-export const homeGroup = writable<EditorGroup>({
-	id: 'home',
-	tabs: [{ id: 'home', type: 'home', label: 'Home', permanent: true }],
-	activeTabId: 'home'
+export const homeState = writable<HomeState>({
+	groups: [
+		{
+			id: 'home',
+			tabs: [{ id: 'home', type: 'home', label: 'Home', permanent: true }],
+			activeTabId: 'home'
+		}
+	],
+	activeGroupId: 'home',
+	layout: { type: 'group', groupId: 'home' },
+	splitDirection: 'horizontal'
 });
 
 /** List of all workspace summaries for the sidebar. */
@@ -426,7 +441,7 @@ function persistPreferences(): void {
 			textScale: get(textScale),
 			widescreenMode: get(widescreenMode),
 			expandToolDetails: get(expandToolDetails),
-			homeGroup: get(homeGroup)
+			homeState: get(homeState)
 		};
 		savePreferences(prefs as unknown as Record<string, unknown>).catch(() => {});
 	}, 300);
@@ -439,7 +454,7 @@ function subscribeForPersistence() {
 	currentWorkspace.subscribe(() => {
 		if (get(stateLoaded)) persistWorkspace();
 	});
-	homeGroup.subscribe(() => {
+	homeState.subscribe(() => {
 		if (get(stateLoaded)) persistPreferences();
 	});
 	theme.subscribe(() => {
@@ -534,33 +549,71 @@ export async function loadPreferences(): Promise<void> {
 		if (prefs.expandToolDetails !== undefined)
 			expandToolDetails.set(prefs.expandToolDetails as boolean);
 		const savedHomeGroup = prefs.homeGroup as EditorGroup | undefined;
-		if (savedHomeGroup && Array.isArray(savedHomeGroup.tabs)) {
+		const savedHomeState =
+			(prefs.homeState as HomeState | undefined) ??
+			(savedHomeGroup
+				? {
+						groups: [savedHomeGroup],
+						activeGroupId: savedHomeGroup.id,
+						layout: { type: 'group' as const, groupId: savedHomeGroup.id },
+						splitDirection: 'horizontal' as const
+					}
+				: undefined);
+		if (savedHomeState && Array.isArray(savedHomeState.groups)) {
 			const [terminalIds, browserIds] = await Promise.all([
 				listSessions().catch(() => []),
 				listBrowserSessions().catch(() => [])
 			]);
 			const aliveTerminals = new Set(terminalIds);
 			const aliveBrowsers = new Set(browserIds);
-			const tabs = savedHomeGroup.tabs.filter(
-				(tab) =>
-					tab.type !== 'terminal' ||
-					(tab.sessionId !== undefined && aliveTerminals.has(tab.sessionId))
-			);
-			const liveTabs = tabs.filter(
-				(tab) =>
-					tab.type !== 'browser' ||
-					(tab.browserSessionId !== undefined && aliveBrowsers.has(tab.browserSessionId))
-			);
-			if (!liveTabs.some((tab) => tab.type === 'home')) {
-				liveTabs.unshift({ id: 'home', type: 'home', label: 'Home', permanent: true });
+			let groups = savedHomeState.groups
+				.map((group) => {
+					const tabs = group.tabs.filter(
+						(tab) =>
+							tab.type !== 'terminal' ||
+							(tab.sessionId !== undefined && aliveTerminals.has(tab.sessionId))
+					);
+					const liveTabs = tabs.filter(
+						(tab) =>
+							tab.type !== 'browser' ||
+							(tab.browserSessionId !== undefined && aliveBrowsers.has(tab.browserSessionId))
+					);
+					return {
+						...group,
+						tabs: liveTabs,
+						activeTabId: liveTabs.some((tab) => tab.id === group.activeTabId)
+							? group.activeTabId
+							: (liveTabs[0]?.id ?? '')
+					};
+				})
+				.filter((group) => group.tabs.length > 0);
+			if (!groups.length) {
+				groups = [
+					{
+						id: 'home',
+						tabs: [{ id: 'home', type: 'home', label: 'Home', permanent: true }],
+						activeTabId: 'home'
+					}
+				];
 			}
-			homeGroup.set({
-				...savedHomeGroup,
-				id: 'home',
-				tabs: liveTabs,
-				activeTabId: liveTabs.some((tab) => tab.id === savedHomeGroup.activeTabId)
-					? savedHomeGroup.activeTabId
-					: 'home'
+			if (!groups.some((group) => group.tabs.some((tab) => tab.type === 'home'))) {
+				groups[0] = {
+					...groups[0],
+					tabs: [{ id: 'home', type: 'home', label: 'Home', permanent: true }, ...groups[0].tabs]
+				};
+			}
+			homeState.set({
+				groups,
+				activeGroupId: groups.some((group) => group.id === savedHomeState.activeGroupId)
+					? savedHomeState.activeGroupId
+					: groups[0].id,
+				layout: normalizeLayout(
+					savedHomeState.layout,
+					groups,
+					savedHomeState.splitDirection ?? 'horizontal',
+					0.5
+				),
+				splitDirection: savedHomeState.splitDirection ?? 'horizontal'
 			});
 		}
 		const pwaPrefs = prefs.pwa;
@@ -1207,6 +1260,12 @@ export function setActiveGroup(groupId: string): void {
 	);
 }
 
+export function setHomeActiveGroup(groupId: string): void {
+	homeState.update((state) =>
+		state.activeGroupId === groupId ? state : { ...state, activeGroupId: groupId }
+	);
+}
+
 export function setFileBrowserCwd(cwd: string): void {
 	currentWorkspace.update((ws) => (ws ? { ...ws, fileBrowserCwd: cwd } : ws));
 }
@@ -1321,6 +1380,24 @@ export function splitCurrentTab(direction?: SplitDirection): void {
 	});
 }
 
+export function splitHomeTab(direction?: SplitDirection): void {
+	homeState.update((state) => {
+		const group = state.groups.find((item) => item.id === state.activeGroupId);
+		const tab = group?.tabs.find((item) => item.id === group.activeTabId);
+		if (!group || !tab) return state;
+		const dir = direction ?? state.splitDirection;
+		const newTab: Tab = { ...tab, id: nextId(), permanent: false };
+		const newGroup: EditorGroup = { id: nextId(), tabs: [newTab], activeTabId: newTab.id };
+		return {
+			...state,
+			groups: [...state.groups, newGroup],
+			activeGroupId: newGroup.id,
+			layout: splitLayout(state.layout, group.id, newGroup.id, dir),
+			splitDirection: dir
+		};
+	});
+}
+
 /** Close an entire editor group */
 export function closeGroup(groupId: string): void {
 	currentWorkspace.update((ws) => {
@@ -1354,6 +1431,34 @@ export function closeGroup(groupId: string): void {
 			groups: newGroups,
 			activeGroupId: targetGroup.id,
 			layout: removeLayoutGroup(ws.layout, groupId) ?? { type: 'group', groupId: targetGroup.id }
+		};
+	});
+}
+
+export function closeHomeGroup(groupId: string): void {
+	homeState.update((state) => {
+		if (state.groups.length < 2) return state;
+		const closingGroup = state.groups.find((group) => group.id === groupId);
+		const remainingGroups = state.groups.filter((group) => group.id !== groupId);
+		const targetGroup =
+			remainingGroups.find((group) => group.id === state.activeGroupId) ?? remainingGroups[0];
+		if (!closingGroup || !targetGroup) return state;
+		const existingTabIds = new Set(targetGroup.tabs.map((tab) => tab.id));
+		const tabs = [
+			...targetGroup.tabs,
+			...closingGroup.tabs.filter((tab) => !existingTabIds.has(tab.id))
+		];
+		const activeTabId =
+			state.activeGroupId === groupId && tabs.some((tab) => tab.id === closingGroup.activeTabId)
+				? closingGroup.activeTabId
+				: targetGroup.activeTabId;
+		return {
+			...state,
+			groups: remainingGroups.map((group) =>
+				group.id === targetGroup.id ? { ...group, tabs, activeTabId } : group
+			),
+			activeGroupId: targetGroup.id,
+			layout: removeLayoutGroup(state.layout, groupId) ?? { type: 'group', groupId: targetGroup.id }
 		};
 	});
 }
@@ -1460,6 +1565,13 @@ export function setSplitRatio(splitId: string, ratio: number): void {
 				}
 			: ws
 	);
+}
+
+export function setHomeSplitRatio(splitId: string, ratio: number): void {
+	homeState.update((state) => ({
+		...state,
+		layout: updateSplitRatio(state.layout, splitId, ratio)
+	}));
 }
 
 function updateSplitRatio(layout: EditorLayout, splitId: string, ratio: number): EditorLayout {

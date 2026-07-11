@@ -50,7 +50,7 @@
 	let canGoForward = $state(false);
 	let chromeQuality = $state<'low' | 'balanced' | 'crisp' | null>(null);
 	let chromeDeviceMode = $state<DeviceMode>('auto');
-	let chromeMobileViewport = $state<MobileViewport>({ width: 390, height: 844 });
+	let chromeMobileViewport = $state<MobileViewport | undefined>();
 	let qualityMenuOpen = $state(false);
 	let qualityMenuAnchor = $state<HTMLElement>();
 
@@ -72,7 +72,17 @@
 
 	function setChromeMobileDimension(key: keyof MobileViewport, value: number) {
 		if (!Number.isFinite(value) || value <= 0) return;
-		chromeMobileViewport = { ...chromeMobileViewport, [key]: Math.round(value) };
+		chromeMobileViewport = {
+			...(chromeMobileViewport ?? { width: 390, height: 844 }),
+			[key]: Math.round(value)
+		};
+		chromeEl?.setMobileViewport(chromeMobileViewport);
+	}
+
+	function setChromeMobileViewport(enabled: boolean) {
+		chromeMobileViewport = enabled
+			? (chromeMobileViewport ?? { width: 390, height: 844 })
+			: undefined;
 		chromeEl?.setMobileViewport(chromeMobileViewport);
 	}
 
@@ -288,31 +298,43 @@
 					{/each}
 				</div>
 				{#if chromeDeviceMode === 'mobile'}
-					<div
-						class="mt-1.5 flex items-center gap-1 text-[0.625rem] text-gray-500 dark:text-gray-400"
+					<label
+						class="mt-1.5 flex items-center justify-between gap-2 px-1 text-[0.625rem] text-gray-500 dark:text-gray-400"
 					>
+						<span>{$t('browser.deviceFixedViewport')}</span>
 						<input
-							type="number"
-							min="1"
-							value={chromeMobileViewport.width}
-							aria-label={$t('browser.deviceWidth')}
-							use:tooltip={$t('browser.deviceWidthHint')}
-							onchange={(event) =>
-								setChromeMobileDimension('width', event.currentTarget.valueAsNumber)}
-							class="h-6 min-w-0 rounded-md border border-gray-200 bg-gray-100 px-1 text-center dark:border-white/8 dark:bg-white/6"
+							type="checkbox"
+							checked={Boolean(chromeMobileViewport)}
+							onchange={(event) => setChromeMobileViewport(event.currentTarget.checked)}
 						/>
-						<span>×</span>
-						<input
-							type="number"
-							min="1"
-							value={chromeMobileViewport.height}
-							aria-label={$t('browser.deviceHeight')}
-							use:tooltip={$t('browser.deviceHeightHint')}
-							onchange={(event) =>
-								setChromeMobileDimension('height', event.currentTarget.valueAsNumber)}
-							class="h-6 min-w-0 rounded-md border border-gray-200 bg-gray-100 px-1 text-center dark:border-white/8 dark:bg-white/6"
-						/>
-					</div>
+					</label>
+					{#if chromeMobileViewport}
+						<div
+							class="mt-1.5 flex items-center gap-1 text-[0.625rem] text-gray-500 dark:text-gray-400"
+						>
+							<input
+								type="number"
+								min="1"
+								value={chromeMobileViewport.width}
+								aria-label={$t('browser.deviceWidth')}
+								use:tooltip={$t('browser.deviceWidthHint')}
+								onchange={(event) =>
+									setChromeMobileDimension('width', event.currentTarget.valueAsNumber)}
+								class="h-6 min-w-0 rounded-md border border-gray-200 bg-gray-100 px-1 text-center dark:border-white/8 dark:bg-white/6"
+							/>
+							<span>×</span>
+							<input
+								type="number"
+								min="1"
+								value={chromeMobileViewport.height}
+								aria-label={$t('browser.deviceHeight')}
+								use:tooltip={$t('browser.deviceHeightHint')}
+								onchange={(event) =>
+									setChromeMobileDimension('height', event.currentTarget.valueAsNumber)}
+								class="h-6 min-w-0 rounded-md border border-gray-200 bg-gray-100 px-1 text-center dark:border-white/8 dark:bg-white/6"
+							/>
+						</div>
+					{/if}
 				{/if}
 			</div>
 		</DropdownMenu>

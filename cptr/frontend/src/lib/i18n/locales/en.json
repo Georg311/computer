@@ -429,6 +429,7 @@
 	"browser.deviceAuto": "Auto",
 	"browser.deviceDesktop": "Desktop",
 	"browser.deviceMobile": "Mobile",
+	"browser.deviceFixedViewport": "Use fixed width × height",
 	"browser.deviceWidth": "Mobile viewport width",
 	"browser.deviceHeight": "Mobile viewport height",
 	"browser.deviceWidthHint": "Viewport width in CSS pixels.",

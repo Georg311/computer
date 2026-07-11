@@ -18,7 +18,11 @@
 		showChangelog,
 		showSearch,
 		pwaPreferences,
-		homeGroup
+		homeState,
+		splitHomeTab,
+		closeHomeGroup,
+		setHomeActiveGroup,
+		setHomeSplitRatio
 	} from '$lib/stores';
 	import type { Tab, EditorGroup, EditorLayout, SplitDirection, WorkspaceState } from '$lib/stores';
 	import { chatEnabled } from '$lib/stores/chat';
@@ -63,17 +67,31 @@
 	});
 	const greetingVariant = $derived(new Date().getDate() % 3);
 	const greetingNameMarker = '\uE000';
+	const activeHomeGroup = $derived(
+		$homeState.groups.find((group) => group.id === $homeState.activeGroupId) ?? $homeState.groups[0]
+	);
 	const activeHomeTab = $derived(
-		$homeGroup.tabs.find((tab) => tab.id === $homeGroup.activeTabId) ?? $homeGroup.tabs[0]
+		activeHomeGroup?.tabs.find((tab) => tab.id === activeHomeGroup.activeTabId) ??
+			activeHomeGroup?.tabs[0]
 	);
 
-	function updateHomeTabs(update: (tabs: Tab[]) => { tabs: Tab[]; activeTabId: string }) {
-		const next = update($homeGroup.tabs);
-		homeGroup.set({ ...$homeGroup, ...next });
+	function updateHomeTabs(
+		groupId: string,
+		update: (tabs: Tab[]) => { tabs: Tab[]; activeTabId: string }
+	) {
+		homeState.update((state) => ({
+			...state,
+			activeGroupId: groupId,
+			groups: state.groups.map((group) =>
+				group.id === groupId ? { ...group, ...update(group.tabs) } : group
+			)
+		}));
 	}
 
-	function openHomeChat(chatId?: string) {
-		const existing = $homeGroup.tabs.find(
+	function openHomeChat(chatId?: string, groupId = $homeState.activeGroupId) {
+		const group = $homeState.groups.find((item) => item.id === groupId);
+		if (!group) return;
+		const existing = group.tabs.find(
 			(tab) =>
 				tab.type === 'chat' &&
 				(chatId
@@ -81,7 +99,7 @@
 					: tab.path?.startsWith('new-') || tab.path?.startsWith('pending-'))
 		);
 		if (existing) {
-			homeGroup.set({ ...$homeGroup, activeTabId: existing.id });
+			updateHomeTabs(groupId, (tabs) => ({ tabs, activeTabId: existing.id }));
 			return;
 		}
 		const tab: Tab = {
@@ -90,10 +108,10 @@
 			label: chatId ? 'Chat' : 'New Chat',
 			path: chatId || `new-${Date.now()}`
 		};
-		updateHomeTabs((tabs) => ({ tabs: [...tabs, tab], activeTabId: tab.id }));
+		updateHomeTabs(groupId, (tabs) => ({ tabs: [...tabs, tab], activeTabId: tab.id }));
 	}
 
-	async function openHomeTerminal() {
+	async function openHomeTerminal(groupId = $homeState.activeGroupId) {
 		try {
 			const session = await createSession();
 			const tab: Tab = {
@@ -102,13 +120,13 @@
 				label: 'Terminal',
 				sessionId: session.session_id
 			};
-			updateHomeTabs((tabs) => ({ tabs: [...tabs, tab], activeTabId: tab.id }));
+			updateHomeTabs(groupId, (tabs) => ({ tabs: [...tabs, tab], activeTabId: tab.id }));
 		} catch (error) {
 			console.error('Failed to create Home terminal:', error);
 		}
 	}
 
-	async function openHomeBrowser(url?: string) {
+	async function openHomeBrowser(url?: string, groupId = $homeState.activeGroupId) {
 		try {
 			const session = await createBrowserSession(url);
 			const tab: Tab = {
@@ -118,37 +136,47 @@
 				path: url,
 				browserSessionId: session.session_id
 			};
-			updateHomeTabs((tabs) => ({ tabs: [...tabs, tab], activeTabId: tab.id }));
+			updateHomeTabs(groupId, (tabs) => ({ tabs: [...tabs, tab], activeTabId: tab.id }));
 		} catch (error) {
 			console.error('Failed to create Home browser:', error);
 		}
 	}
 
-	function closeHomeTab(tabId: string) {
-		const index = $homeGroup.tabs.findIndex((tab) => tab.id === tabId);
-		const tab = $homeGroup.tabs[index];
+	function closeHomeTab(tabId: string, groupId = $homeState.activeGroupId) {
+		const group = $homeState.groups.find((item) => item.id === groupId);
+		if (!group) return;
+		const index = group.tabs.findIndex((tab) => tab.id === tabId);
+		const tab = group.tabs[index];
 		if (!tab || tab.permanent) return;
 		if (tab.type === 'terminal' && tab.sessionId) deleteSession(tab.sessionId);
 		if (tab.type === 'browser' && tab.browserSessionId) deleteBrowserSession(tab.browserSessionId);
-		const tabs = $homeGroup.tabs.filter((item) => item.id !== tabId);
+		const tabs = group.tabs.filter((item) => item.id !== tabId);
 		const activeTabId =
-			$homeGroup.activeTabId === tabId
+			group.activeTabId === tabId
 				? (tabs[Math.max(0, index - 1)]?.id ?? 'home')
-				: $homeGroup.activeTabId;
-		homeGroup.set({ ...$homeGroup, tabs, activeTabId });
+				: group.activeTabId;
+		updateHomeTabs(groupId, () => ({ tabs, activeTabId }));
 	}
 
-	function updateHomeChatTab(tabId: string, chatId: string, label: string) {
-		updateHomeTabs((tabs) => ({
+	function updateHomeChatTab(
+		tabId: string,
+		chatId: string,
+		label: string,
+		groupId = $homeState.activeGroupId
+	) {
+		updateHomeTabs(groupId, (tabs) => ({
 			tabs: tabs.map((tab) => (tab.id === tabId ? { ...tab, path: chatId, label } : tab)),
-			activeTabId: $homeGroup.activeTabId
+			activeTabId:
+				groupId === $homeState.activeGroupId ? (activeHomeGroup?.activeTabId ?? tabId) : tabId
 		}));
 	}
 
-	function updateHomeBrowserTab(tabId: string, label: string) {
-		updateHomeTabs((tabs) => ({
+	function updateHomeBrowserTab(tabId: string, label: string, groupId = $homeState.activeGroupId) {
+		const group = $homeState.groups.find((item) => item.id === groupId);
+		if (!group) return;
+		updateHomeTabs(groupId, (tabs) => ({
 			tabs: tabs.map((tab) => (tab.id === tabId ? { ...tab, label } : tab)),
-			activeTabId: $homeGroup.activeTabId
+			activeTabId: group.activeTabId
 		}));
 	}
 	const INTENT_URL_KEYS = [
@@ -906,209 +934,244 @@
 </script>
 
 {#if !$currentWorkspace}
-	<div class="flex h-full flex-col">
-		<GroupTabBar
-			group={$homeGroup}
-			home
-			isPrimary
-			onHomeSelect={(tabId) => homeGroup.set({ ...$homeGroup, activeTabId: tabId })}
-			onHomeClose={closeHomeTab}
-			onHomeNewChat={openHomeChat}
-			onHomeNewTerminal={openHomeTerminal}
-			onHomeNewBrowser={openHomeBrowser}
-		/>
-		<div class="min-h-0 flex-1">
-			{#if activeHomeTab?.type === 'home'}
-				<div class="h-full overflow-y-auto px-6">
-					<div class="mx-auto flex min-h-full w-full max-w-md flex-col justify-center py-6">
-						<div class="mb-5">
-							<div class="flex items-baseline gap-2">
-								<h1 class="text-lg font-medium tracking-tight text-gray-900 dark:text-white">
-									{#if welcomeName}
-										{@const greeting = $t(`home.greeting.${greetingTime}.${greetingVariant}`, {
-											name: greetingNameMarker
-										})}
-										{@const [beforeName, afterName] = greeting.split(greetingNameMarker)}
-										{beforeName}<span class="capitalize">{welcomeName}</span>{afterName}
-									{:else}
-										Computer
-									{/if}
-								</h1>
-							</div>
-							<div
-								class="mt-0.5 flex items-baseline gap-2 font-mono text-xs text-gray-400 dark:text-gray-600"
-							>
-								{#if welcomeData?.hostname}
-									<span class="text-[0.6875rem]">{welcomeData.hostname}</span>
-								{/if}
-								{#if $appVersion}
-									<button
-										onclick={() => showChangelog.set(true)}
-										class="cursor-pointer text-[0.6875rem] hover:text-gray-500 hover:underline dark:hover:text-gray-400"
-									>
-										v{$appVersion}
-									</button>
-								{/if}
-							</div>
-						</div>
-
-						<div class="mb-6">
-							<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">{$t('home.start')}</h2>
-							<button
-								class="text-[0.8125rem] text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-								onclick={() => (showPicker = true)}
-							>
-								{$t('home.openWorkspace')}
-							</button>
-							{#if $chatEnabled}
-								<button
-									class="mt-1.5 block text-[0.8125rem] text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-									onclick={() => openHomeChat()}
-								>
-									{$t('bar.newChat')}
-								</button>
-							{/if}
-						</div>
-
-						{#if continuation}
-							<div class="mb-6">
-								<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">{$t('home.continue')}</h2>
-								<button
-									class="group w-full min-w-0 py-1.5 text-left transition-colors duration-100"
-									onclick={() => quickOpen(continuation.path)}
-								>
-									<span class="flex min-w-0 items-baseline gap-2">
-										<span
-											class="truncate text-[0.8125rem] text-gray-800 group-hover:text-gray-950 dark:text-gray-200 dark:group-hover:text-white"
+	<div class="split-container" class:flex-col={$homeState.splitDirection === 'vertical'}>
+		{#each $homeState.groups as homePane (homePane.id)}
+			{@const homeTab =
+				homePane.tabs.find((tab) => tab.id === homePane.activeTabId) ?? homePane.tabs[0]}
+			<div class="split-branch-child">
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<div
+					class="split-pane"
+					onpointerdown={() => setHomeActiveGroup(homePane.id)}
+					onfocusin={() => setHomeActiveGroup(homePane.id)}
+				>
+					<GroupTabBar
+						group={homePane}
+						home
+						isPrimary
+						canClose={$homeState.groups.length > 1}
+						homeSplitActive={$homeState.groups.length > 1}
+						homeSplitDirection={$homeState.splitDirection}
+						onHomeSelect={(tabId) =>
+							updateHomeTabs(homePane.id, (tabs) => ({ tabs, activeTabId: tabId }))}
+						onHomeClose={(tabId) => closeHomeTab(tabId, homePane.id)}
+						onHomeNewChat={() => openHomeChat(undefined, homePane.id)}
+						onHomeNewTerminal={() => openHomeTerminal(homePane.id)}
+						onHomeNewBrowser={() => openHomeBrowser(undefined, homePane.id)}
+						onHomeSplit={(direction) => {
+							setHomeActiveGroup(homePane.id);
+							splitHomeTab(direction);
+						}}
+						onHomeCloseGroup={() => closeHomeGroup(homePane.id)}
+					/>
+					<div class="pane-content">
+						{#if homeTab?.type === 'home'}
+							<div class="h-full overflow-y-auto px-6">
+								<div class="mx-auto flex min-h-full w-full max-w-md flex-col justify-center py-6">
+									<div class="mb-5">
+										<div class="flex items-baseline gap-2">
+											<h1 class="text-lg font-medium tracking-tight text-gray-900 dark:text-white">
+												{#if welcomeName}
+													{@const greeting = $t(
+														`home.greeting.${greetingTime}.${greetingVariant}`,
+														{
+															name: greetingNameMarker
+														}
+													)}
+													{@const [beforeName, afterName] = greeting.split(greetingNameMarker)}
+													{beforeName}<span class="capitalize">{welcomeName}</span>{afterName}
+												{:else}
+													Computer
+												{/if}
+											</h1>
+										</div>
+										<div
+											class="mt-0.5 flex items-baseline gap-2 font-mono text-xs text-gray-400 dark:text-gray-600"
 										>
-											{continuation.name}
-										</span>
-										<span
-											class="truncate font-mono text-[0.6875rem] text-gray-400 dark:text-gray-600"
-										>
-											{shortenPath(continuation.path)}
-										</span>
-									</span>
-									{#if continueSignals.length}
-										<span
-											class="mt-0.5 block truncate font-mono text-[0.625rem] text-gray-400 dark:text-gray-600"
-										>
-											{continueSignals.join('  ')}
-										</span>
-									{:else if continueResume?.activeLabels.length}
-										<span
-											class="mt-0.5 block truncate text-[0.6875rem] text-gray-400 dark:text-gray-600"
-										>
-											{continueResume.activeLabels.join(' · ')}
-										</span>
-									{/if}
-								</button>
-							</div>
-						{/if}
-
-						{#if recent.length}
-							<div class="mb-6">
-								<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">{$t('home.recent')}</h2>
-								<div class="flex flex-col">
-									{#each recent as item}
-										{@const resume = workspaceResumes.get(item.path)}
-										{@const signals = resumeSignals(resume)}
-										<button
-											class="group w-full min-w-0 py-1.5 text-left transition-colors duration-100"
-											onclick={() => quickOpen(item.path)}
-										>
-											<span class="flex min-w-0 items-baseline gap-2">
-												<span
-													class="truncate text-[0.8125rem] text-gray-700 group-hover:text-gray-900 dark:text-gray-300 dark:group-hover:text-white"
-												>
-													{item.name}
-												</span>
-												<span
-													class="truncate font-mono text-[0.6875rem] text-gray-400 dark:text-gray-600"
-												>
-													{shortenPath(item.path)}
-												</span>
-											</span>
-											{#if signals.length}
-												<span
-													class="mt-0.5 block truncate font-mono text-[0.625rem] text-gray-400 dark:text-gray-600"
-												>
-													{signals.join('  ')}
-												</span>
-											{:else if resume?.activeLabels.length}
-												<span
-													class="mt-0.5 block truncate text-[0.6875rem] text-gray-400 dark:text-gray-600"
-												>
-													{resume.activeLabels.join(' · ')}
-												</span>
+											{#if welcomeData?.hostname}
+												<span class="text-[0.6875rem]">{welcomeData.hostname}</span>
 											{/if}
-										</button>
-									{/each}
-								</div>
-							</div>
-						{:else if !continuation}
-							<div class="mb-6">
-								<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">{$t('home.recent')}</h2>
-								<button
-									class="text-[0.8125rem] text-gray-500 transition-colors duration-100 hover:text-gray-900 dark:text-gray-500 dark:hover:text-white"
-									onclick={() => (showPicker = true)}
-								>
-									{$t('home.noWorkspaces')}
-								</button>
-							</div>
-						{/if}
+											{#if $appVersion}
+												<button
+													onclick={() => showChangelog.set(true)}
+													class="cursor-pointer text-[0.6875rem] hover:text-gray-500 hover:underline dark:hover:text-gray-400"
+												>
+													v{$appVersion}
+												</button>
+											{/if}
+										</div>
+									</div>
 
-						{#if nearby.length && !welcomeData?.recent?.length}
-							<div>
-								<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">{$t('home.folders')}</h2>
-								<div class="flex flex-col">
-									{#each nearby as item}
+									<div class="mb-6">
+										<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">
+											{$t('home.start')}
+										</h2>
 										<button
-											class="flex min-w-0 items-center gap-2 py-1.5 text-left text-[0.8125rem] text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-											onclick={() => quickOpen(item.path)}
+											class="text-[0.8125rem] text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+											onclick={() => (showPicker = true)}
 										>
-											<Icon
-												name="folder"
-												size={14}
-												strokeWidth={1.3}
-												class="shrink-0 text-gray-400 dark:text-gray-600"
-											/>
-											<span class="truncate">{item.name}</span>
-											<span
-												class="truncate font-mono text-[0.6875rem] text-gray-400 dark:text-gray-600"
-											>
-												{shortenPath(item.path)}
-											</span>
+											{$t('home.openWorkspace')}
 										</button>
-									{/each}
+										{#if $chatEnabled}
+											<button
+												class="mt-1.5 block text-[0.8125rem] text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+												onclick={() => openHomeChat(undefined, homePane.id)}
+											>
+												{$t('bar.newChat')}
+											</button>
+										{/if}
+									</div>
+
+									{#if continuation}
+										<div class="mb-6">
+											<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">
+												{$t('home.continue')}
+											</h2>
+											<button
+												class="group w-full min-w-0 py-1.5 text-left transition-colors duration-100"
+												onclick={() => quickOpen(continuation.path)}
+											>
+												<span class="flex min-w-0 items-baseline gap-2">
+													<span
+														class="truncate text-[0.8125rem] text-gray-800 group-hover:text-gray-950 dark:text-gray-200 dark:group-hover:text-white"
+													>
+														{continuation.name}
+													</span>
+													<span
+														class="truncate font-mono text-[0.6875rem] text-gray-400 dark:text-gray-600"
+													>
+														{shortenPath(continuation.path)}
+													</span>
+												</span>
+												{#if continueSignals.length}
+													<span
+														class="mt-0.5 block truncate font-mono text-[0.625rem] text-gray-400 dark:text-gray-600"
+													>
+														{continueSignals.join('  ')}
+													</span>
+												{:else if continueResume?.activeLabels.length}
+													<span
+														class="mt-0.5 block truncate text-[0.6875rem] text-gray-400 dark:text-gray-600"
+													>
+														{continueResume.activeLabels.join(' · ')}
+													</span>
+												{/if}
+											</button>
+										</div>
+									{/if}
+
+									{#if recent.length}
+										<div class="mb-6">
+											<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">
+												{$t('home.recent')}
+											</h2>
+											<div class="flex flex-col">
+												{#each recent as item}
+													{@const resume = workspaceResumes.get(item.path)}
+													{@const signals = resumeSignals(resume)}
+													<button
+														class="group w-full min-w-0 py-1.5 text-left transition-colors duration-100"
+														onclick={() => quickOpen(item.path)}
+													>
+														<span class="flex min-w-0 items-baseline gap-2">
+															<span
+																class="truncate text-[0.8125rem] text-gray-700 group-hover:text-gray-900 dark:text-gray-300 dark:group-hover:text-white"
+															>
+																{item.name}
+															</span>
+															<span
+																class="truncate font-mono text-[0.6875rem] text-gray-400 dark:text-gray-600"
+															>
+																{shortenPath(item.path)}
+															</span>
+														</span>
+														{#if signals.length}
+															<span
+																class="mt-0.5 block truncate font-mono text-[0.625rem] text-gray-400 dark:text-gray-600"
+															>
+																{signals.join('  ')}
+															</span>
+														{:else if resume?.activeLabels.length}
+															<span
+																class="mt-0.5 block truncate text-[0.6875rem] text-gray-400 dark:text-gray-600"
+															>
+																{resume.activeLabels.join(' · ')}
+															</span>
+														{/if}
+													</button>
+												{/each}
+											</div>
+										</div>
+									{:else if !continuation}
+										<div class="mb-6">
+											<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">
+												{$t('home.recent')}
+											</h2>
+											<button
+												class="text-[0.8125rem] text-gray-500 transition-colors duration-100 hover:text-gray-900 dark:text-gray-500 dark:hover:text-white"
+												onclick={() => (showPicker = true)}
+											>
+												{$t('home.noWorkspaces')}
+											</button>
+										</div>
+									{/if}
+
+									{#if nearby.length && !welcomeData?.recent?.length}
+										<div>
+											<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">
+												{$t('home.folders')}
+											</h2>
+											<div class="flex flex-col">
+												{#each nearby as item}
+													<button
+														class="flex min-w-0 items-center gap-2 py-1.5 text-left text-[0.8125rem] text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+														onclick={() => quickOpen(item.path)}
+													>
+														<Icon
+															name="folder"
+															size={14}
+															strokeWidth={1.3}
+															class="shrink-0 text-gray-400 dark:text-gray-600"
+														/>
+														<span class="truncate">{item.name}</span>
+														<span
+															class="truncate font-mono text-[0.6875rem] text-gray-400 dark:text-gray-600"
+														>
+															{shortenPath(item.path)}
+														</span>
+													</button>
+												{/each}
+											</div>
+										</div>
+									{/if}
 								</div>
 							</div>
+						{:else if homeTab?.type === 'chat'}
+							<ChatPanel
+								chatId={homeTab.path?.startsWith('new-') || homeTab.path?.startsWith('pending-')
+									? undefined
+									: homeTab.path}
+								tabId={homeTab.id}
+								ontabupdate={(tabId, chatId, label) =>
+									updateHomeChatTab(tabId, chatId, label, homePane.id)}
+								onopenchat={(chatId) => openHomeChat(chatId, homePane.id)}
+							/>
+						{:else if homeTab?.type === 'terminal' && homeTab.sessionId}
+							<Terminal sessionId={homeTab.sessionId} />
+						{:else if homeTab?.type === 'browser' && homeTab.browserSessionId}
+							<BrowserPreview
+								sessionId={homeTab.browserSessionId}
+								groupId={homePane.id}
+								tabId={homeTab.id}
+								initialUrl={homeTab.path}
+								onTabUpdate={(label) => updateHomeBrowserTab(homeTab.id, label, homePane.id)}
+								onOpenBrowser={(url) => openHomeBrowser(url, homePane.id)}
+							/>
 						{/if}
 					</div>
 				</div>
-			{:else if activeHomeTab?.type === 'chat'}
-				<ChatPanel
-					chatId={activeHomeTab.path?.startsWith('new-') ||
-					activeHomeTab.path?.startsWith('pending-')
-						? undefined
-						: activeHomeTab.path}
-					tabId={activeHomeTab.id}
-					ontabupdate={updateHomeChatTab}
-					onopenchat={openHomeChat}
-				/>
-			{:else if activeHomeTab?.type === 'terminal' && activeHomeTab.sessionId}
-				<Terminal sessionId={activeHomeTab.sessionId} />
-			{:else if activeHomeTab?.type === 'browser' && activeHomeTab.browserSessionId}
-				<BrowserPreview
-					sessionId={activeHomeTab.browserSessionId}
-					groupId="home"
-					tabId={activeHomeTab.id}
-					initialUrl={activeHomeTab.path}
-					onTabUpdate={(label) => updateHomeBrowserTab(activeHomeTab.id, label)}
-					onOpenBrowser={openHomeBrowser}
-				/>
-			{/if}
-		</div>
+			</div>
+		{/each}
 	</div>
 {:else}
 	<!-- Editor groups layout -->
@@ -1172,58 +1235,58 @@
 		/>
 		<div class="pane-content">
 			{#each group.tabs.filter((tab) => tab.type === 'files') as tab (tab.id)}
-					<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
-						<FileBrowser />
-					</div>
-				{/each}
-				{#each group.tabs.filter((tab) => tab.type === 'file' && tab.filePath) as tab (tab.id)}
-					<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
-						<FileEditor
-							filePath={tab.filePath!}
-							tabId={tab.id}
-							edit={tab.edit === true}
-							searchTarget={tab.searchTarget}
-						/>
-					</div>
-				{/each}
-				{#each group.tabs.filter((tab) => tab.type === 'chat') as tab (tab.id)}
-					<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
-						<ChatPanel
-							workspace={$currentWorkspace!.path}
-							chatId={tab.path?.startsWith('new-') || tab.path?.startsWith('pending-')
-								? undefined
-								: tab.path}
-							tabId={tab.id}
-						/>
-					</div>
-				{/each}
-				{#each group.tabs.filter((tab) => tab.type === 'terminal' && tab.sessionId) as tab (tab.id)}
-					<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
-						<Terminal sessionId={tab.sessionId!} />
-					</div>
-				{/each}
-				{#each group.tabs.filter((tab) => tab.type === 'browser' && tab.browserSessionId) as tab (tab.id)}
-					<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
-						<BrowserPreview
-							sessionId={tab.browserSessionId!}
-							groupId={group.id}
-							tabId={tab.id}
-							initialUrl={tab.path}
-							active={tab.id === group.activeTabId && group.id === activeGroup?.id}
-						/>
-					</div>
-				{/each}
-				{#if !groupTab}
+				<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
 					<FileBrowser />
-				{:else if groupTab.type === 'terminal' && !groupTab.sessionId}
-					<div class="flex items-center justify-center h-full"><Spinner size={20} /></div>
-				{:else if groupTab.type === 'browser' && !groupTab.browserSessionId}
-					<div
-						class="flex h-full items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400"
-					>
-						<Spinner size={16} />
-						<span>{$t('browser.starting')}</span>
-					</div>
+				</div>
+			{/each}
+			{#each group.tabs.filter((tab) => tab.type === 'file' && tab.filePath) as tab (tab.id)}
+				<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
+					<FileEditor
+						filePath={tab.filePath!}
+						tabId={tab.id}
+						edit={tab.edit === true}
+						searchTarget={tab.searchTarget}
+					/>
+				</div>
+			{/each}
+			{#each group.tabs.filter((tab) => tab.type === 'chat') as tab (tab.id)}
+				<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
+					<ChatPanel
+						workspace={$currentWorkspace!.path}
+						chatId={tab.path?.startsWith('new-') || tab.path?.startsWith('pending-')
+							? undefined
+							: tab.path}
+						tabId={tab.id}
+					/>
+				</div>
+			{/each}
+			{#each group.tabs.filter((tab) => tab.type === 'terminal' && tab.sessionId) as tab (tab.id)}
+				<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
+					<Terminal sessionId={tab.sessionId!} />
+				</div>
+			{/each}
+			{#each group.tabs.filter((tab) => tab.type === 'browser' && tab.browserSessionId) as tab (tab.id)}
+				<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
+					<BrowserPreview
+						sessionId={tab.browserSessionId!}
+						groupId={group.id}
+						tabId={tab.id}
+						initialUrl={tab.path}
+						active={tab.id === group.activeTabId && group.id === activeGroup?.id}
+					/>
+				</div>
+			{/each}
+			{#if !groupTab}
+				<FileBrowser />
+			{:else if groupTab.type === 'terminal' && !groupTab.sessionId}
+				<div class="flex items-center justify-center h-full"><Spinner size={20} /></div>
+			{:else if groupTab.type === 'browser' && !groupTab.browserSessionId}
+				<div
+					class="flex h-full items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400"
+				>
+					<Spinner size={16} />
+					<span>{$t('browser.starting')}</span>
+				</div>
 			{/if}
 			{#if $gitReviewOpen && group.id === allGroups[0]?.id}
 				<div class="persisted-tab git-review-tab">

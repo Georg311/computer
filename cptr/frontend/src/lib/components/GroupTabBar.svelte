@@ -43,6 +43,10 @@
 		onHomeNewChat?: () => void;
 		onHomeNewTerminal?: () => void;
 		onHomeNewBrowser?: () => void;
+		onHomeSplit?: (direction: 'horizontal' | 'vertical') => void;
+		onHomeCloseGroup?: () => void;
+		homeSplitDirection?: 'horizontal' | 'vertical';
+		homeSplitActive?: boolean;
 	}
 
 	let {
@@ -55,7 +59,11 @@
 		onHomeClose,
 		onHomeNewChat,
 		onHomeNewTerminal,
-		onHomeNewBrowser
+		onHomeNewBrowser,
+		onHomeSplit,
+		onHomeCloseGroup,
+		homeSplitDirection = 'horizontal',
+		homeSplitActive = false
 	}: Props = $props();
 
 	let tabsEl: HTMLDivElement | undefined = $state();
@@ -119,6 +127,7 @@
 
 	function handleCloseGroup(e: Event) {
 		e.stopPropagation();
+		if (home) return onHomeCloseGroup?.();
 		closeGroup(group.id);
 	}
 
@@ -299,15 +308,20 @@
 	});
 
 	const splitMenuItems = $derived.by(() => {
-		const direction = $activeWorkspace?.splitDirection ?? 'horizontal';
+		const direction = home
+			? homeSplitDirection
+			: ($activeWorkspace?.splitDirection ?? 'horizontal');
 		return [
 			{
 				label: $t('bar.splitRight'),
 				icon: 'split-horizontal',
 				active: direction === 'horizontal',
 				onclick: () => {
-					setSplitDirection('horizontal');
-					splitCurrentTab('horizontal');
+					if (home) onHomeSplit?.('horizontal');
+					else {
+						setSplitDirection('horizontal');
+						splitCurrentTab('horizontal');
+					}
 				}
 			},
 			{
@@ -315,8 +329,11 @@
 				icon: 'split-vertical',
 				active: direction === 'vertical',
 				onclick: () => {
-					setSplitDirection('vertical');
-					splitCurrentTab('vertical');
+					if (home) onHomeSplit?.('vertical');
+					else {
+						setSplitDirection('vertical');
+						splitCurrentTab('vertical');
+					}
 				}
 			}
 		];
@@ -439,11 +456,11 @@
 	<!-- Right-side controls -->
 	<div class="flex items-center gap-0.5 shrink-0">
 		<!-- Split button (wide screens) -->
-		{#if isWideScreen && !home}
+		{#if isWideScreen}
 			<button
 				bind:this={splitBtnEl}
 				class="flex items-center justify-center w-7 h-7 rounded-lg transition-colors duration-100 shrink-0
-					{$splitActive
+					{(home ? homeSplitActive : $splitActive)
 					? 'bg-gray-200/50 text-gray-900 dark:bg-white/8 dark:text-white'
 					: 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}"
 				onclick={() => (showSplitMenu = !showSplitMenu)}
@@ -451,7 +468,7 @@
 				use:tooltip={$t('a11y.splitEditor')}
 			>
 				<Icon
-					name={$activeWorkspace?.splitDirection === 'vertical'
+					name={(home ? homeSplitDirection : $activeWorkspace?.splitDirection) === 'vertical'
 						? 'split-vertical'
 						: 'split-horizontal'}
 					size={14}

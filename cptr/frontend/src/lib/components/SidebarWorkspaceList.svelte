@@ -32,6 +32,7 @@
 
 	let expandedWorkspaces = $state<Set<string>>(new Set());
 	let wsChatsCache = $state<Map<string, ChatInfo[]>>(new Map());
+	let wsChatsHasMore = $state<Map<string, boolean>>(new Map());
 	let wsChatsLoading = $state<Set<string>>(new Set());
 	let currentPath = $derived($page.url.searchParams.get('workspace'));
 
@@ -46,14 +47,20 @@
 		expandedWorkspaces = next;
 	}
 
-	async function fetchWorkspaceChats(path: string) {
+	async function fetchWorkspaceChats(path: string, append = false) {
 		if (wsChatsLoading.has(path)) return;
 		wsChatsLoading = new Set([...wsChatsLoading, path]);
 		try {
-			const data = await getChats(path, 5, 0, 'updated_at', 'desc');
-			wsChatsCache = new Map([...wsChatsCache, [path, data.chats || []]]);
+			const existing = wsChatsCache.get(path) ?? [];
+			const data = await getChats(path, 5, append ? existing.length : 0, 'updated_at', 'desc');
+			wsChatsCache = new Map([
+				...wsChatsCache,
+				[path, append ? [...existing, ...(data.chats || [])] : data.chats || []]
+			]);
+			wsChatsHasMore = new Map([...wsChatsHasMore, [path, data.has_more]]);
 		} catch {
 			wsChatsCache = new Map([...wsChatsCache, [path, []]]);
+			wsChatsHasMore = new Map([...wsChatsHasMore, [path, false]]);
 		} finally {
 			const next = new Set(wsChatsLoading);
 			next.delete(path);
@@ -74,11 +81,6 @@
 
 	function openChat(chatId: string, wsPath: string) {
 		goto(`/?workspace=${encodeURIComponent(wsPath)}&chatId=${encodeURIComponent(chatId)}`);
-		closeMobileSidebar();
-	}
-
-	function showMoreChats(wsPath: string) {
-		goto(`/?workspace=${encodeURIComponent(wsPath)}&chatId`);
 		closeMobileSidebar();
 	}
 
@@ -166,6 +168,7 @@
 		if (!data.done && !data.title && !isNew) return;
 
 		wsChatsCache = new Map();
+		wsChatsHasMore = new Map();
 		for (const path of expandedWorkspaces) fetchWorkspaceChats(path);
 	}
 
@@ -216,6 +219,7 @@
 	{#each $workspaceList as ws (ws.path)}
 		{@const isExpanded = expandedWorkspaces.has(ws.path)}
 		{@const chats = wsChatsCache.get(ws.path)}
+		{@const hasMoreChats = wsChatsHasMore.get(ws.path)}
 		{@const isLoading = wsChatsLoading.has(ws.path)}
 		<div class="ws-item">
 			<div
@@ -295,9 +299,15 @@
 								onmenu={(e) => openChatMenu(e, chat.id, ws.path)}
 							/>
 						{/each}
-						<button class="ws-chat-show-more" onclick={() => showMoreChats(ws.path)}>
-							{$t('sidebar.showMore')}
-						</button>
+						{#if hasMoreChats}
+							<button
+								class="ws-chat-show-more"
+								disabled={isLoading}
+								onclick={() => fetchWorkspaceChats(ws.path, true)}
+							>
+								{$t('sidebar.showMore')}
+							</button>
+						{/if}
 					{/if}
 				</div>
 			{/if}

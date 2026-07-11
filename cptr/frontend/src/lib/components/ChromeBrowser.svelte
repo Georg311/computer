@@ -14,7 +14,7 @@
 		onstate: (state: BrowserState) => void;
 		onstatus: (status: string, message?: string, mode?: 'proxy') => void;
 		onquality: (quality: 'low' | 'balanced' | 'crisp' | null) => void;
-		ondevicemode: (mode: DeviceMode, viewport: MobileViewport) => void;
+		ondevicemode: (mode: DeviceMode, viewport?: MobileViewport) => void;
 	}
 
 	type DeviceMode = 'auto' | 'desktop' | 'mobile';
@@ -69,7 +69,7 @@
 	let mobile = $state(false);
 	let quality = $state<'low' | 'balanced' | 'crisp'>('balanced');
 	let deviceMode = $state<DeviceMode>('auto');
-	let mobileViewport = $state<MobileViewport>({ width: 390, height: 844 });
+	let mobileViewport = $state<MobileViewport | undefined>();
 	let deviceProfile: DeviceProfile | undefined;
 	let editableRegions = $state<EditableRegion[]>([]);
 	let lastViewport = '';
@@ -175,6 +175,7 @@
 					Number.isFinite(message.mobile_viewport?.height)
 				)
 					mobileViewport = message.mobile_viewport;
+				else mobileViewport = undefined;
 				onquality(managed ? quality : null);
 				ondevicemode(deviceMode, mobileViewport);
 				if (active) focusBrowser();
@@ -324,7 +325,7 @@
 			height
 		};
 		if (viewportTimer) clearTimeout(viewportTimer);
-		if (debounce || (mobile && document.activeElement === keyboardAntenna)) {
+		if (debounce || (isMobileInput() && document.activeElement === keyboardAntenna)) {
 			viewportTimer = setTimeout(() => void sendViewport(), 150);
 		} else {
 			void sendViewport();
@@ -342,7 +343,7 @@
 			quality,
 			device,
 			device_mode: deviceMode,
-			mobile_viewport: mobileViewport,
+			mobile_viewport: mobileViewport ?? null,
 			force
 		});
 	}
@@ -370,7 +371,7 @@
 	}
 
 	function focusAntenna() {
-		if (!managed || !mobile) return;
+		if (!isMobileInput()) return;
 		keepKeyboardFocus = true;
 		resetKeyboardAntenna();
 		keyboardAntenna?.focus({ preventScroll: true });
@@ -388,7 +389,7 @@
 	}
 
 	function isEditableTouch(event: PointerEvent) {
-		if (!managed || !mobile) return false;
+		if (!isMobileInput()) return false;
 		const point = coordinates(event);
 		return editableRegions.some(
 			(region) =>
@@ -438,7 +439,7 @@
 	}
 
 	function pointer(event: PointerEvent, type: 'move' | 'down' | 'up' | 'cancel') {
-		if (event.pointerType === 'touch') {
+		if (isMobileInput()) {
 			touch(event, type === 'down' ? 'start' : type === 'up' ? 'end' : type);
 			return;
 		}
@@ -529,7 +530,7 @@
 	}
 
 	function beforeInput(event: InputEvent) {
-		if (!managed || !mobile || composition) return;
+		if (!isMobileInput() || composition) return;
 		const text = event.data || '';
 		if (suppressText && text === suppressText) {
 			event.preventDefault();
@@ -598,12 +599,15 @@
 		ondevicemode(deviceMode, mobileViewport);
 		resize();
 	}
-	export function setMobileViewport(nextViewport: MobileViewport) {
-		if (nextViewport.width <= 0 || nextViewport.height <= 0) return;
+	export function setMobileViewport(nextViewport?: MobileViewport) {
+		if (nextViewport && (nextViewport.width <= 0 || nextViewport.height <= 0)) return;
 		mobileViewport = nextViewport;
 		lastViewport = '';
 		ondevicemode(deviceMode, mobileViewport);
 		resize();
+	}
+	function isMobileInput() {
+		return managed && (deviceMode === 'mobile' || (deviceMode === 'auto' && mobile));
 	}
 	function focusBrowser() {
 		if (!ready) return;
@@ -655,7 +659,7 @@
 		oncompositionend={(event) => {
 			composition = false;
 			const text = event.data || '';
-			if (managed && mobile && text) {
+			if (isMobileInput() && text) {
 				suppressText = text;
 				send({ type: 'text', text });
 				queueMicrotask(() => {
@@ -670,7 +674,7 @@
 	></textarea>
 	<canvas
 		bind:this={canvas}
-		tabindex={managed && mobile ? -1 : 0}
+		tabindex={isMobileInput() ? -1 : 0}
 		onfocus={canvasFocus}
 		onpointermove={(event) => pointer(event, 'move')}
 		onpointerdown={(event) => pointer(event, 'down')}
