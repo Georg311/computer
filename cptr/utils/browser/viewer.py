@@ -87,27 +87,49 @@ async def resolve_cdp_endpoint(cdp_url: str, data_dir: Path | None = None) -> st
         parsed = urlsplit(base)
         if parsed.hostname not in {"localhost", "127.0.0.1", "::1"} or not parsed.port:
             raise RuntimeError("Could not connect to Chrome") from exc
-        if data_dir is None:
+        if data_dir is not None:
+            data_dirs = [data_dir]
+        else:
             home = Path.home()
             if sys.platform == "darwin":
-                data_dir = home / "Library/Application Support/Google/Chrome"
+                support = home / "Library/Application Support"
+                data_dirs = [
+                    support / "Google/Chrome",
+                    support / "Google/Chrome Canary",
+                    support / "Chromium",
+                    support / "BraveSoftware/Brave-Browser",
+                    support / "Microsoft Edge",
+                ]
             elif sys.platform == "win32" and os.environ.get("LOCALAPPDATA"):
-                data_dir = Path(os.environ["LOCALAPPDATA"]) / "Google/Chrome/User Data"
+                local = Path(os.environ["LOCALAPPDATA"])
+                data_dirs = [
+                    local / "Google/Chrome/User Data",
+                    local / "Google/Chrome SxS/User Data",
+                    local / "Chromium/User Data",
+                    local / "BraveSoftware/Brave-Browser/User Data",
+                    local / "Microsoft/Edge/User Data",
+                ]
             else:
-                data_dir = (
-                    Path(os.environ.get("XDG_CONFIG_HOME", home / ".config")) / "google-chrome"
-                )
-        try:
-            port, path = (data_dir / "DevToolsActivePort").read_text().splitlines()[:2]
-        except (OSError, ValueError) as file_exc:
-            raise RuntimeError("Could not connect to Chrome") from file_exc
-        if (
-            not port.isdigit()
-            or int(port) != parsed.port
-            or not path.startswith("/devtools/browser/")
-        ):
-            raise RuntimeError("Could not connect to Chrome") from exc
-        return f"ws://127.0.0.1:{port}{path}"
+                config = Path(os.environ.get("XDG_CONFIG_HOME", home / ".config"))
+                data_dirs = [
+                    config / "google-chrome",
+                    config / "google-chrome-unstable",
+                    config / "chromium",
+                    config / "BraveSoftware/Brave-Browser",
+                    config / "microsoft-edge",
+                ]
+        for directory in data_dirs:
+            try:
+                port, path = (directory / "DevToolsActivePort").read_text().splitlines()[:2]
+            except (OSError, ValueError):
+                continue
+            if (
+                port.isdigit()
+                and int(port) == parsed.port
+                and path.startswith("/devtools/browser/")
+            ):
+                return f"ws://127.0.0.1:{port}{path}"
+        raise RuntimeError("Could not connect to Chrome") from exc
 
 
 class CDPConnection:
@@ -372,6 +394,7 @@ class ChromeViewerManager:
                     if ready.get("result", {}).get("value") is True:
                         break
                     await asyncio.sleep(0.1)
+                await host.browser_cdp.send("Target.activateTarget", {"targetId": controller_id})
                 await controller_cdp.send(
                     "Runtime.evaluate",
                     {
@@ -384,6 +407,7 @@ class ChromeViewerManager:
                 )
                 if viewer.encoder_error:
                     raise RuntimeError(viewer.encoder_error)
+                await host.browser_cdp.send("Target.activateTarget", {"targetId": target_id})
                 if session.url:
                     await target_cdp.send("Page.navigate", {"url": session.url})
                 else:

@@ -246,10 +246,8 @@ async def create_session(request: Request):
             )
             session.mode = "chrome"
         except Exception as exc:
-            if explicit_mode:
-                await manager.close(session.session_id, session.owner)
-                raise HTTPException(status_code=409, detail=str(exc)) from exc
-            session.status = "ready"
+            await manager.close(session.session_id, session.owner)
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
     return _session_payload(session)
 
 
