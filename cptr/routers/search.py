@@ -107,8 +107,9 @@ async def unified_search(
 async def recent_chats(
     request: Request,
     limit: int = Query(9, ge=1, le=20),
+    workspace: Optional[str] = Query(None, description="Scope to one workspace path"),
 ):
-    """Return most recent chats across all workspaces (for empty-query state)."""
+    """Return most recent chats, optionally scoped to one workspace."""
     user_id = _get_user(request)
 
     from sqlalchemy import select
@@ -119,7 +120,12 @@ async def recent_chats(
             select(Chat).where(Chat.user_id == user_id).order_by(Chat.updated_at.desc())
         )
         rows = list(result.scalars().all())
-    rows = [c for c in rows if not (c.meta or {}).get("subagent")][:limit]
+    rows = [
+        c
+        for c in rows
+        if not (c.meta or {}).get("subagent")
+        and (workspace is None or (c.meta or {}).get("workspace") == workspace)
+    ][:limit]
 
     return {
         "chats": [

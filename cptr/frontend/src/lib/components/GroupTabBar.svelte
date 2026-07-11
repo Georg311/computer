@@ -40,6 +40,7 @@
 		onTabDragOver?: () => void;
 		onHomeSelect?: (tabId: string) => void;
 		onHomeClose?: (tabId: string) => void;
+		onHomeReorder?: (oldIndex: number, newIndex: number) => void;
 		onHomeNewChat?: () => void;
 		onHomeNewTerminal?: () => void;
 		onHomeNewBrowser?: () => void;
@@ -47,6 +48,7 @@
 		onHomeCloseGroup?: () => void;
 		homeSplitDirection?: 'horizontal' | 'vertical';
 		homeSplitActive?: boolean;
+		homeActive?: boolean;
 	}
 
 	let {
@@ -57,13 +59,15 @@
 		onTabDragOver,
 		onHomeSelect,
 		onHomeClose,
+		onHomeReorder,
 		onHomeNewChat,
 		onHomeNewTerminal,
 		onHomeNewBrowser,
 		onHomeSplit,
 		onHomeCloseGroup,
 		homeSplitDirection = 'horizontal',
-		homeSplitActive = false
+		homeSplitActive = false,
+		homeActive = true
 	}: Props = $props();
 
 	let tabsEl: HTMLDivElement | undefined = $state();
@@ -89,7 +93,7 @@
 
 	const displayTabs = $derived((group?.tabs ?? []).filter((t) => t.type !== 'git'));
 
-	const isActiveGroup = $derived(home || $activeWorkspace?.activeGroupId === group?.id);
+	const isActiveGroup = $derived(home ? homeActive : $activeWorkspace?.activeGroupId === group?.id);
 
 	function tabIconName(tab: Tab): string {
 		switch (tab.type) {
@@ -344,7 +348,7 @@
 	}
 
 	onMount(() => {
-		if (tabsEl && !home) {
+		if (tabsEl) {
 			sortable = Sortable.create(tabsEl, {
 				animation: 150,
 				ghostClass: 'tab-reorder-preview',
@@ -361,7 +365,8 @@
 				},
 				onEnd: (evt) => {
 					if (evt.oldIndex != null && evt.newIndex != null && evt.oldIndex !== evt.newIndex) {
-						reorderTabs(evt.oldIndex, evt.newIndex, group.id);
+						if (home) onHomeReorder?.(evt.oldIndex, evt.newIndex);
+						else reorderTabs(evt.oldIndex, evt.newIndex, group.id);
 					}
 				}
 			});

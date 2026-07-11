@@ -45,5 +45,8 @@ export const unifiedSearch = (
 	return fetchJSON<UnifiedSearchResponse>(`/api/search?${params}`);
 };
 
-export const getRecentChats = (limit = 9) =>
-	fetchJSON<{ chats: ChatSearchResult[] }>(`/api/search/recent?limit=${limit}`);
+export const getRecentChats = (limit = 9, workspace?: string) => {
+	const params = new URLSearchParams({ limit: String(limit) });
+	if (workspace) params.set('workspace', workspace);
+	return fetchJSON<{ chats: ChatSearchResult[] }>(`/api/search/recent?${params}`);
+};

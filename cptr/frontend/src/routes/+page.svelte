@@ -21,8 +21,7 @@
 		homeState,
 		splitHomeTab,
 		closeHomeGroup,
-		setHomeActiveGroup,
-		setHomeSplitRatio
+		setHomeActiveGroup
 	} from '$lib/stores';
 	import type { Tab, EditorGroup, EditorLayout, SplitDirection, WorkspaceState } from '$lib/stores';
 	import { chatEnabled } from '$lib/stores/chat';
@@ -67,14 +66,6 @@
 	});
 	const greetingVariant = $derived(new Date().getDate() % 3);
 	const greetingNameMarker = '\uE000';
-	const activeHomeGroup = $derived(
-		$homeState.groups.find((group) => group.id === $homeState.activeGroupId) ?? $homeState.groups[0]
-	);
-	const activeHomeTab = $derived(
-		activeHomeGroup?.tabs.find((tab) => tab.id === activeHomeGroup.activeTabId) ??
-			activeHomeGroup?.tabs[0]
-	);
-
 	function updateHomeTabs(
 		groupId: string,
 		update: (tabs: Tab[]) => { tabs: Tab[]; activeTabId: string }
@@ -86,6 +77,16 @@
 				group.id === groupId ? { ...group, ...update(group.tabs) } : group
 			)
 		}));
+	}
+
+	function reorderHomeTabs(groupId: string, oldIndex: number, newIndex: number) {
+		const group = $homeState.groups.find((item) => item.id === groupId);
+		if (!group) return;
+		const tabs = [...group.tabs];
+		const [tab] = tabs.splice(oldIndex, 1);
+		if (!tab) return;
+		tabs.splice(newIndex, 0, tab);
+		updateHomeTabs(groupId, () => ({ tabs, activeTabId: group.activeTabId }));
 	}
 
 	function openHomeChat(chatId?: string, groupId = $homeState.activeGroupId) {
@@ -164,10 +165,11 @@
 		label: string,
 		groupId = $homeState.activeGroupId
 	) {
+		const group = $homeState.groups.find((item) => item.id === groupId);
+		if (!group) return;
 		updateHomeTabs(groupId, (tabs) => ({
 			tabs: tabs.map((tab) => (tab.id === tabId ? { ...tab, path: chatId, label } : tab)),
-			activeTabId:
-				groupId === $homeState.activeGroupId ? (activeHomeGroup?.activeTabId ?? tabId) : tabId
+			activeTabId: group.activeTabId
 		}));
 	}
 
@@ -790,6 +792,11 @@
 
 	// Computed
 	let isWideScreen = $state(typeof window !== 'undefined' ? window.innerWidth >= 1024 : false);
+	const visibleHomeGroups = $derived(
+		isWideScreen
+			? $homeState.groups
+			: $homeState.groups.filter((group) => group.id === $homeState.activeGroupId)
+	);
 
 	$effect(() => {
 		if (typeof window === 'undefined') return;
@@ -934,244 +941,260 @@
 </script>
 
 {#if !$currentWorkspace}
-	<div class="split-container" class:flex-col={$homeState.splitDirection === 'vertical'}>
-		{#each $homeState.groups as homePane (homePane.id)}
-			{@const homeTab =
-				homePane.tabs.find((tab) => tab.id === homePane.activeTabId) ?? homePane.tabs[0]}
-			<div class="split-branch-child">
-				<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="split-container">
+		<div
+			class="split-branch"
+			class:split-branch-horizontal={$homeState.splitDirection === 'horizontal'}
+			class:split-branch-vertical={$homeState.splitDirection === 'vertical'}
+		>
+			{#each visibleHomeGroups as homePane, index (homePane.id)}
+				{@const homeTab =
+					homePane.tabs.find((tab) => tab.id === homePane.activeTabId) ?? homePane.tabs[0]}
 				<div
-					class="split-pane"
-					onpointerdown={() => setHomeActiveGroup(homePane.id)}
-					onfocusin={() => setHomeActiveGroup(homePane.id)}
+					class="split-branch-child border-gray-200 dark:border-white/6"
+					style="flex: 1 1 0%;"
+					class:border-l={index > 0 && $homeState.splitDirection === 'horizontal'}
+					class:border-t={index > 0 && $homeState.splitDirection === 'vertical'}
 				>
-					<GroupTabBar
-						group={homePane}
-						home
-						isPrimary
-						canClose={$homeState.groups.length > 1}
-						homeSplitActive={$homeState.groups.length > 1}
-						homeSplitDirection={$homeState.splitDirection}
-						onHomeSelect={(tabId) =>
-							updateHomeTabs(homePane.id, (tabs) => ({ tabs, activeTabId: tabId }))}
-						onHomeClose={(tabId) => closeHomeTab(tabId, homePane.id)}
-						onHomeNewChat={() => openHomeChat(undefined, homePane.id)}
-						onHomeNewTerminal={() => openHomeTerminal(homePane.id)}
-						onHomeNewBrowser={() => openHomeBrowser(undefined, homePane.id)}
-						onHomeSplit={(direction) => {
-							setHomeActiveGroup(homePane.id);
-							splitHomeTab(direction);
-						}}
-						onHomeCloseGroup={() => closeHomeGroup(homePane.id)}
-					/>
-					<div class="pane-content">
-						{#if homeTab?.type === 'home'}
-							<div class="h-full overflow-y-auto px-6">
-								<div class="mx-auto flex min-h-full w-full max-w-md flex-col justify-center py-6">
-									<div class="mb-5">
-										<div class="flex items-baseline gap-2">
-											<h1 class="text-lg font-medium tracking-tight text-gray-900 dark:text-white">
-												{#if welcomeName}
-													{@const greeting = $t(
-														`home.greeting.${greetingTime}.${greetingVariant}`,
-														{
-															name: greetingNameMarker
-														}
-													)}
-													{@const [beforeName, afterName] = greeting.split(greetingNameMarker)}
-													{beforeName}<span class="capitalize">{welcomeName}</span>{afterName}
-												{:else}
-													Computer
-												{/if}
-											</h1>
-										</div>
-										<div
-											class="mt-0.5 flex items-baseline gap-2 font-mono text-xs text-gray-400 dark:text-gray-600"
-										>
-											{#if welcomeData?.hostname}
-												<span class="text-[0.6875rem]">{welcomeData.hostname}</span>
-											{/if}
-											{#if $appVersion}
-												<button
-													onclick={() => showChangelog.set(true)}
-													class="cursor-pointer text-[0.6875rem] hover:text-gray-500 hover:underline dark:hover:text-gray-400"
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
+					<div
+						class="split-pane"
+						onpointerdown={() => setHomeActiveGroup(homePane.id)}
+						onfocusin={() => setHomeActiveGroup(homePane.id)}
+					>
+						<GroupTabBar
+							group={homePane}
+							home
+							isPrimary
+							canClose={$homeState.groups.length > 1}
+							homeActive={homePane.id === $homeState.activeGroupId}
+							homeSplitActive={$homeState.groups.length > 1}
+							homeSplitDirection={$homeState.splitDirection}
+							onHomeSelect={(tabId) =>
+								updateHomeTabs(homePane.id, (tabs) => ({ tabs, activeTabId: tabId }))}
+							onHomeClose={(tabId) => closeHomeTab(tabId, homePane.id)}
+							onHomeReorder={(oldIndex, newIndex) =>
+								reorderHomeTabs(homePane.id, oldIndex, newIndex)}
+							onHomeNewChat={() => openHomeChat(undefined, homePane.id)}
+							onHomeNewTerminal={() => openHomeTerminal(homePane.id)}
+							onHomeNewBrowser={() => openHomeBrowser(undefined, homePane.id)}
+							onHomeSplit={(direction) => {
+								setHomeActiveGroup(homePane.id);
+								splitHomeTab(direction);
+							}}
+							onHomeCloseGroup={() => closeHomeGroup(homePane.id)}
+						/>
+						<div class="pane-content">
+							{#if homeTab?.type === 'home'}
+								<div class="h-full overflow-y-auto px-6">
+									<div class="mx-auto flex min-h-full w-full max-w-md flex-col justify-center py-6">
+										<div class="mb-5">
+											<div class="flex items-baseline gap-2">
+												<h1
+													class="text-lg font-medium tracking-tight text-gray-900 dark:text-white"
 												>
-													v{$appVersion}
+													{#if welcomeName}
+														{@const greeting = $t(
+															`home.greeting.${greetingTime}.${greetingVariant}`,
+															{
+																name: greetingNameMarker
+															}
+														)}
+														{@const [beforeName, afterName] = greeting.split(greetingNameMarker)}
+														{beforeName}<span class="capitalize">{welcomeName}</span>{afterName}
+													{:else}
+														Computer
+													{/if}
+												</h1>
+											</div>
+											<div
+												class="mt-0.5 flex items-baseline gap-2 font-mono text-xs text-gray-400 dark:text-gray-600"
+											>
+												{#if welcomeData?.hostname}
+													<span class="text-[0.6875rem]">{welcomeData.hostname}</span>
+												{/if}
+												{#if $appVersion}
+													<button
+														onclick={() => showChangelog.set(true)}
+														class="cursor-pointer text-[0.6875rem] hover:text-gray-500 hover:underline dark:hover:text-gray-400"
+													>
+														v{$appVersion}
+													</button>
+												{/if}
+											</div>
+										</div>
+
+										<div class="mb-6">
+											<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">
+												{$t('home.start')}
+											</h2>
+											<button
+												class="text-[0.8125rem] text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+												onclick={() => (showPicker = true)}
+											>
+												{$t('home.openWorkspace')}
+											</button>
+											{#if $chatEnabled}
+												<button
+													class="mt-1.5 block text-[0.8125rem] text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+													onclick={() => openHomeChat(undefined, homePane.id)}
+												>
+													{$t('bar.newChat')}
 												</button>
 											{/if}
 										</div>
-									</div>
 
-									<div class="mb-6">
-										<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">
-											{$t('home.start')}
-										</h2>
-										<button
-											class="text-[0.8125rem] text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-											onclick={() => (showPicker = true)}
-										>
-											{$t('home.openWorkspace')}
-										</button>
-										{#if $chatEnabled}
-											<button
-												class="mt-1.5 block text-[0.8125rem] text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-												onclick={() => openHomeChat(undefined, homePane.id)}
-											>
-												{$t('bar.newChat')}
-											</button>
+										{#if continuation}
+											<div class="mb-6">
+												<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">
+													{$t('home.continue')}
+												</h2>
+												<button
+													class="group w-full min-w-0 py-1.5 text-left transition-colors duration-100"
+													onclick={() => quickOpen(continuation.path)}
+												>
+													<span class="flex min-w-0 items-baseline gap-2">
+														<span
+															class="truncate text-[0.8125rem] text-gray-800 group-hover:text-gray-950 dark:text-gray-200 dark:group-hover:text-white"
+														>
+															{continuation.name}
+														</span>
+														<span
+															class="truncate font-mono text-[0.6875rem] text-gray-400 dark:text-gray-600"
+														>
+															{shortenPath(continuation.path)}
+														</span>
+													</span>
+													{#if continueSignals.length}
+														<span
+															class="mt-0.5 block truncate font-mono text-[0.625rem] text-gray-400 dark:text-gray-600"
+														>
+															{continueSignals.join('  ')}
+														</span>
+													{:else if continueResume?.activeLabels.length}
+														<span
+															class="mt-0.5 block truncate text-[0.6875rem] text-gray-400 dark:text-gray-600"
+														>
+															{continueResume.activeLabels.join(' · ')}
+														</span>
+													{/if}
+												</button>
+											</div>
 										{/if}
-									</div>
 
-									{#if continuation}
-										<div class="mb-6">
-											<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">
-												{$t('home.continue')}
-											</h2>
-											<button
-												class="group w-full min-w-0 py-1.5 text-left transition-colors duration-100"
-												onclick={() => quickOpen(continuation.path)}
-											>
-												<span class="flex min-w-0 items-baseline gap-2">
-													<span
-														class="truncate text-[0.8125rem] text-gray-800 group-hover:text-gray-950 dark:text-gray-200 dark:group-hover:text-white"
-													>
-														{continuation.name}
-													</span>
-													<span
-														class="truncate font-mono text-[0.6875rem] text-gray-400 dark:text-gray-600"
-													>
-														{shortenPath(continuation.path)}
-													</span>
-												</span>
-												{#if continueSignals.length}
-													<span
-														class="mt-0.5 block truncate font-mono text-[0.625rem] text-gray-400 dark:text-gray-600"
-													>
-														{continueSignals.join('  ')}
-													</span>
-												{:else if continueResume?.activeLabels.length}
-													<span
-														class="mt-0.5 block truncate text-[0.6875rem] text-gray-400 dark:text-gray-600"
-													>
-														{continueResume.activeLabels.join(' · ')}
-													</span>
-												{/if}
-											</button>
-										</div>
-									{/if}
-
-									{#if recent.length}
-										<div class="mb-6">
-											<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">
-												{$t('home.recent')}
-											</h2>
-											<div class="flex flex-col">
-												{#each recent as item}
-													{@const resume = workspaceResumes.get(item.path)}
-													{@const signals = resumeSignals(resume)}
-													<button
-														class="group w-full min-w-0 py-1.5 text-left transition-colors duration-100"
-														onclick={() => quickOpen(item.path)}
-													>
-														<span class="flex min-w-0 items-baseline gap-2">
-															<span
-																class="truncate text-[0.8125rem] text-gray-700 group-hover:text-gray-900 dark:text-gray-300 dark:group-hover:text-white"
-															>
-																{item.name}
+										{#if recent.length}
+											<div class="mb-6">
+												<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">
+													{$t('home.recent')}
+												</h2>
+												<div class="flex flex-col">
+													{#each recent as item}
+														{@const resume = workspaceResumes.get(item.path)}
+														{@const signals = resumeSignals(resume)}
+														<button
+															class="group w-full min-w-0 py-1.5 text-left transition-colors duration-100"
+															onclick={() => quickOpen(item.path)}
+														>
+															<span class="flex min-w-0 items-baseline gap-2">
+																<span
+																	class="truncate text-[0.8125rem] text-gray-700 group-hover:text-gray-900 dark:text-gray-300 dark:group-hover:text-white"
+																>
+																	{item.name}
+																</span>
+																<span
+																	class="truncate font-mono text-[0.6875rem] text-gray-400 dark:text-gray-600"
+																>
+																	{shortenPath(item.path)}
+																</span>
 															</span>
+															{#if signals.length}
+																<span
+																	class="mt-0.5 block truncate font-mono text-[0.625rem] text-gray-400 dark:text-gray-600"
+																>
+																	{signals.join('  ')}
+																</span>
+															{:else if resume?.activeLabels.length}
+																<span
+																	class="mt-0.5 block truncate text-[0.6875rem] text-gray-400 dark:text-gray-600"
+																>
+																	{resume.activeLabels.join(' · ')}
+																</span>
+															{/if}
+														</button>
+													{/each}
+												</div>
+											</div>
+										{:else if !continuation}
+											<div class="mb-6">
+												<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">
+													{$t('home.recent')}
+												</h2>
+												<button
+													class="text-[0.8125rem] text-gray-500 transition-colors duration-100 hover:text-gray-900 dark:text-gray-500 dark:hover:text-white"
+													onclick={() => (showPicker = true)}
+												>
+													{$t('home.noWorkspaces')}
+												</button>
+											</div>
+										{/if}
+
+										{#if nearby.length && !welcomeData?.recent?.length}
+											<div>
+												<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">
+													{$t('home.folders')}
+												</h2>
+												<div class="flex flex-col">
+													{#each nearby as item}
+														<button
+															class="flex min-w-0 items-center gap-2 py-1.5 text-left text-[0.8125rem] text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+															onclick={() => quickOpen(item.path)}
+														>
+															<Icon
+																name="folder"
+																size={14}
+																strokeWidth={1.3}
+																class="shrink-0 text-gray-400 dark:text-gray-600"
+															/>
+															<span class="truncate">{item.name}</span>
 															<span
 																class="truncate font-mono text-[0.6875rem] text-gray-400 dark:text-gray-600"
 															>
 																{shortenPath(item.path)}
 															</span>
-														</span>
-														{#if signals.length}
-															<span
-																class="mt-0.5 block truncate font-mono text-[0.625rem] text-gray-400 dark:text-gray-600"
-															>
-																{signals.join('  ')}
-															</span>
-														{:else if resume?.activeLabels.length}
-															<span
-																class="mt-0.5 block truncate text-[0.6875rem] text-gray-400 dark:text-gray-600"
-															>
-																{resume.activeLabels.join(' · ')}
-															</span>
-														{/if}
-													</button>
-												{/each}
+														</button>
+													{/each}
+												</div>
 											</div>
-										</div>
-									{:else if !continuation}
-										<div class="mb-6">
-											<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">
-												{$t('home.recent')}
-											</h2>
-											<button
-												class="text-[0.8125rem] text-gray-500 transition-colors duration-100 hover:text-gray-900 dark:text-gray-500 dark:hover:text-white"
-												onclick={() => (showPicker = true)}
-											>
-												{$t('home.noWorkspaces')}
-											</button>
-										</div>
-									{/if}
-
-									{#if nearby.length && !welcomeData?.recent?.length}
-										<div>
-											<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">
-												{$t('home.folders')}
-											</h2>
-											<div class="flex flex-col">
-												{#each nearby as item}
-													<button
-														class="flex min-w-0 items-center gap-2 py-1.5 text-left text-[0.8125rem] text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-														onclick={() => quickOpen(item.path)}
-													>
-														<Icon
-															name="folder"
-															size={14}
-															strokeWidth={1.3}
-															class="shrink-0 text-gray-400 dark:text-gray-600"
-														/>
-														<span class="truncate">{item.name}</span>
-														<span
-															class="truncate font-mono text-[0.6875rem] text-gray-400 dark:text-gray-600"
-														>
-															{shortenPath(item.path)}
-														</span>
-													</button>
-												{/each}
-											</div>
-										</div>
-									{/if}
+										{/if}
+									</div>
 								</div>
-							</div>
-						{:else if homeTab?.type === 'chat'}
-							<ChatPanel
-								chatId={homeTab.path?.startsWith('new-') || homeTab.path?.startsWith('pending-')
-									? undefined
-									: homeTab.path}
-								tabId={homeTab.id}
-								ontabupdate={(tabId, chatId, label) =>
-									updateHomeChatTab(tabId, chatId, label, homePane.id)}
-								onopenchat={(chatId) => openHomeChat(chatId, homePane.id)}
-							/>
-						{:else if homeTab?.type === 'terminal' && homeTab.sessionId}
-							<Terminal sessionId={homeTab.sessionId} />
-						{:else if homeTab?.type === 'browser' && homeTab.browserSessionId}
-							<BrowserPreview
-								sessionId={homeTab.browserSessionId}
-								groupId={homePane.id}
-								tabId={homeTab.id}
-								initialUrl={homeTab.path}
-								onTabUpdate={(label) => updateHomeBrowserTab(homeTab.id, label, homePane.id)}
-								onOpenBrowser={(url) => openHomeBrowser(url, homePane.id)}
-							/>
-						{/if}
+							{:else if homeTab?.type === 'chat'}
+								<ChatPanel
+									chatId={homeTab.path?.startsWith('new-') || homeTab.path?.startsWith('pending-')
+										? undefined
+										: homeTab.path}
+									tabId={homeTab.id}
+									ontabupdate={(tabId, chatId, label) =>
+										updateHomeChatTab(tabId, chatId, label, homePane.id)}
+									onopenchat={(chatId) => openHomeChat(chatId, homePane.id)}
+								/>
+							{:else if homeTab?.type === 'terminal' && homeTab.sessionId}
+								<Terminal sessionId={homeTab.sessionId} />
+							{:else if homeTab?.type === 'browser' && homeTab.browserSessionId}
+								<BrowserPreview
+									sessionId={homeTab.browserSessionId}
+									groupId={homePane.id}
+									tabId={homeTab.id}
+									initialUrl={homeTab.path}
+									onTabUpdate={(label) => updateHomeBrowserTab(homeTab.id, label, homePane.id)}
+									onOpenBrowser={(url) => openHomeBrowser(url, homePane.id)}
+								/>
+							{/if}
+						</div>
 					</div>
 				</div>
-			</div>
-		{/each}
+			{/each}
+		</div>
 	</div>
 {:else}
 	<!-- Editor groups layout -->

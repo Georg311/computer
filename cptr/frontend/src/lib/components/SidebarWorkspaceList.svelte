@@ -29,6 +29,7 @@
 	let wsListEl: HTMLDivElement | undefined = $state();
 	let sortable: Sortable | null = null;
 	let unbindSocketListener: (() => void) | null = null;
+	let workspacesExpanded = $state(true);
 
 	let expandedWorkspaces = $state<Set<string>>(new Set());
 	let wsChatsCache = $state<Map<string, ChatInfo[]>>(new Map());
@@ -204,7 +205,20 @@
 </script>
 
 <div class="flex items-center justify-between h-8 pl-3.5 pr-1.5 shrink-0">
-	<span class="text-xs text-gray-400 dark:text-gray-500">{$t('sidebar.workspaces')}</span>
+	<button
+		class="flex flex-1 h-full items-center gap-1 text-left text-xs text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400 transition-colors duration-100"
+		onclick={() => (workspacesExpanded = !workspacesExpanded)}
+		aria-expanded={workspacesExpanded}
+		aria-controls="workspace-list"
+	>
+		<span>{$t('sidebar.workspaces')}</span>
+		<span
+			class="flex transition-transform duration-100"
+			style="transform: rotate({workspacesExpanded ? '90deg' : '0deg'})"
+		>
+			<Icon name="chevron-right" size={11} />
+		</span>
+	</button>
 	<button
 		class="flex items-center justify-center w-7 h-7 rounded-lg text-gray-300 hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-400 transition-colors duration-100"
 		onclick={onaddworkspace}
@@ -215,7 +229,12 @@
 	</button>
 </div>
 
-<div bind:this={wsListEl} class="flex-1 overflow-y-auto px-1.5">
+<div
+	id="workspace-list"
+	bind:this={wsListEl}
+	class="flex-1 overflow-y-auto px-1.5"
+	class:invisible={!workspacesExpanded}
+>
 	{#each $workspaceList as ws (ws.path)}
 		{@const isExpanded = expandedWorkspaces.has(ws.path)}
 		{@const chats = wsChatsCache.get(ws.path)}

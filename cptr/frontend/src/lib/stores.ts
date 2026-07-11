@@ -1567,13 +1567,6 @@ export function setSplitRatio(splitId: string, ratio: number): void {
 	);
 }
 
-export function setHomeSplitRatio(splitId: string, ratio: number): void {
-	homeState.update((state) => ({
-		...state,
-		layout: updateSplitRatio(state.layout, splitId, ratio)
-	}));
-}
-
 function updateSplitRatio(layout: EditorLayout, splitId: string, ratio: number): EditorLayout {
 	if (layout.type === 'group') return layout;
 	if (layout.id === splitId) return { ...layout, ratio: Math.max(0.2, Math.min(0.8, ratio)) };

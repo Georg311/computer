@@ -58,7 +58,7 @@
 
 	async function loadRecents() {
 		try {
-			const data = await getRecentChats(9);
+			const data = await getRecentChats(9, effectiveWorkspace?.path);
 			recentChats = data.chats;
 		} catch {
 			// ignore
