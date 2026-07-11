@@ -49,6 +49,7 @@
 			grok: 'grok',
 			opencode: 'opencode',
 			cline: 'cline',
+			gemini: 'gemini',
 			pi: 'pi'
 		}[agent];
 	}
@@ -61,6 +62,7 @@
 			grok: 'Grok',
 			opencode: 'OpenCode',
 			cline: 'Cline',
+			gemini: 'Gemini',
 			pi: 'Pi'
 		}[agent];
 	}
@@ -131,6 +133,7 @@
 					<option value="grok">Grok</option>
 					<option value="opencode">OpenCode</option>
 					<option value="cline">Cline</option>
+					<option value="gemini">Gemini</option>
 					<option value="pi">Pi</option>
 				</select>
 			</div>

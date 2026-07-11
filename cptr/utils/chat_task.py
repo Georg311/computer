@@ -1524,6 +1524,7 @@ async def run_chat_task(
             "grok": run_grok_agent,
             "opencode": run_opencode_agent,
             "cline": run_cline_agent,
+            "gemini": run_cline_agent,
             "pi": run_pi_agent,
         }
         runner = runners.get(agent_target.agent)

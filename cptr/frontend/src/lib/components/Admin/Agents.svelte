@@ -113,6 +113,7 @@
 			grok: 'grok',
 			opencode: 'opencode',
 			cline: 'cline',
+			gemini: 'gemini',
 			pi: 'pi'
 		}[agent];
 	}
@@ -125,6 +126,7 @@
 			grok: 'Grok',
 			opencode: 'OpenCode',
 			cline: 'Cline',
+			gemini: 'Gemini',
 			pi: 'Pi'
 		}[agent];
 	}

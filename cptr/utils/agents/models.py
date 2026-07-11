@@ -81,6 +81,16 @@ DEFAULT_AGENT_PROFILES: list[dict[str, Any]] = [
         "default_model": "",
     },
     {
+        "id": "gemini",
+        "agent": "gemini",
+        "name": "Gemini",
+        "mode": "auto",
+        "command": "gemini",
+        "home": None,
+        "models": [],
+        "default_model": "",
+    },
+    {
         "id": "pi",
         "agent": "pi",
         "name": "Pi",
@@ -93,7 +103,7 @@ DEFAULT_AGENT_PROFILES: list[dict[str, Any]] = [
 ]
 
 _PROFILE_ID_RE = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
-_VALID_AGENTS = {"codex", "claude_code", "cursor", "grok", "opencode", "cline", "pi"}
+_VALID_AGENTS = {"codex", "claude_code", "cursor", "grok", "opencode", "cline", "gemini", "pi"}
 _VALID_MODES = {"auto", "enabled", "disabled"}
 _VALID_CODEX_APPROVAL = {"ask", "auto", "full"}
 _VALID_CODEX_SANDBOX = {"read-only", "workspace-write", "danger-full-access"}
@@ -113,6 +123,7 @@ _AGENT_DEFAULTS: dict[str, dict[str, str]] = {
     "grok": {"name": "Grok", "command": "grok", "model": ""},
     "opencode": {"name": "OpenCode", "command": "opencode", "model": ""},
     "cline": {"name": "Cline", "command": "cline", "model": ""},
+    "gemini": {"name": "Gemini", "command": "gemini", "model": ""},
     "pi": {"name": "Pi", "command": "pi", "model": ""},
 }
 
@@ -130,7 +141,7 @@ def normalize_agent_profile(raw: dict[str, Any]) -> dict[str, Any]:
     agent = str(profile.get("agent") or "").strip()
     if agent not in _VALID_AGENTS:
         raise HTTPException(
-            400, "agent must be codex, claude_code, cursor, grok, opencode, cline, or pi"
+            400, "agent must be codex, claude_code, cursor, grok, opencode, cline, gemini, or pi"
         )
     defaults = _AGENT_DEFAULTS[agent]
 

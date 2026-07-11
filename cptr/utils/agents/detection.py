@@ -159,13 +159,25 @@ async def detect_profile(profile: dict[str, Any]) -> AgentDetection:
         return AgentDetection("ready", command, version, None, models)
 
     if profile.get("agent") == "cline":
-        models = await _probe_cline_models(command, profile)
+        models = await _probe_acp_models(command, profile)
         if not models:
             return AgentDetection(
                 "auth_unknown",
                 command,
                 version,
                 "Could not discover Cline models. Check `cline auth` or add models manually.",
+                [],
+            )
+        return AgentDetection("ready", command, version, None, models)
+
+    if profile.get("agent") == "gemini":
+        models = await _probe_acp_models(command, profile)
+        if not models:
+            return AgentDetection(
+                "auth_unknown",
+                command,
+                version,
+                "Could not discover Gemini models. Check Gemini CLI login or add models manually.",
                 [],
             )
         return AgentDetection("ready", command, version, None, models)
@@ -436,7 +448,7 @@ async def _probe_opencode_models(command: str, profile: dict[str, Any]) -> list[
                 await proc.wait()
 
 
-async def _probe_cline_models(command: str, profile: dict[str, Any]) -> list[str] | None:
+async def _probe_acp_models(command: str, profile: dict[str, Any]) -> list[str] | None:
     from cptr.utils.agents.acp import AcpClient, acp_models_from_setup
 
     env = os.environ.copy()
