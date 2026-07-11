@@ -11,6 +11,7 @@
 		type PersonalChromeStatus
 	} from '$lib/apis/browser';
 	import { t } from '$lib/i18n';
+	import Collapsible from '$lib/components/Collapsible.svelte';
 	import ToggleSwitch from '$lib/components/common/ToggleSwitch.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
 
@@ -49,6 +50,15 @@
 	let firecrawlBaseUrl = $state('https://api.firecrawl.dev');
 	let browserUseApiKey = $state('');
 	let browserUseBaseUrl = $state('https://api.browser-use.com');
+	let browserQualityDefault = $state<'low' | 'balanced' | 'crisp'>('balanced');
+	let browserQualityProfiles = $state({
+		low: { max_height: 720, bitrate: 3000000, device_scale_factor: 1 },
+		balanced: { max_height: 1080, bitrate: 6000000, device_scale_factor: 1 },
+		crisp: { max_height: 1080, bitrate: 12000000, device_scale_factor: 2 }
+	});
+	let browserQualityMaxResolution = $state(1080);
+	let browserQualityMaxBitrate = $state(12000000);
+	let browserQualityAllowDsf2 = $state(true);
 
 	onMount(async () => {
 		try {
@@ -87,6 +97,30 @@
 			browserUseApiKey = (config['browser.browser_use_api_key'] as string) || '';
 			browserUseBaseUrl =
 				(config['browser.browser_use_base_url'] as string) || 'https://api.browser-use.com';
+			if (
+				config['browser.quality.default'] === 'low' ||
+				config['browser.quality.default'] === 'crisp'
+			)
+				browserQualityDefault = config['browser.quality.default'];
+			const qualityProfiles = config['browser.quality.profiles'];
+			if (qualityProfiles && typeof qualityProfiles === 'object') {
+				for (const name of ['low', 'balanced', 'crisp'] as const) {
+					const profile = (qualityProfiles as Record<string, unknown>)[name];
+					if (profile && typeof profile === 'object') {
+						const value = profile as Record<string, unknown>;
+						browserQualityProfiles[name] = {
+							max_height:
+								Number(value.max_height ?? value.resolution) ||
+								browserQualityProfiles[name].max_height,
+							bitrate: Number(value.bitrate) || browserQualityProfiles[name].bitrate,
+							device_scale_factor: Number(value.device_scale_factor) === 2 ? 2 : 1
+						};
+					}
+				}
+			}
+			browserQualityMaxResolution = Number(config['browser.quality.max_resolution']) || 1080;
+			browserQualityMaxBitrate = Number(config['browser.quality.max_bitrate']) || 12000000;
+			browserQualityAllowDsf2 = config['browser.quality.allow_dsf2'] !== false;
 		} catch {
 			toast.error($t('admin.failedToLoadConfig'));
 		}
@@ -126,7 +160,12 @@
 				'browser.firecrawl_api_key': firecrawlApiKey,
 				'browser.firecrawl_base_url': firecrawlBaseUrl,
 				'browser.browser_use_api_key': browserUseApiKey,
-				'browser.browser_use_base_url': browserUseBaseUrl
+				'browser.browser_use_base_url': browserUseBaseUrl,
+				'browser.quality.default': browserQualityDefault,
+				'browser.quality.profiles': browserQualityProfiles,
+				'browser.quality.max_resolution': browserQualityMaxResolution,
+				'browser.quality.max_bitrate': browserQualityMaxBitrate,
+				'browser.quality.allow_dsf2': browserQualityAllowDsf2
 			};
 			await updateConfig(cfg);
 			if (
@@ -471,6 +510,99 @@
 								onclick={clearManagedProfile}>{$t('admin.managedChromeClear')}</button
 							>
 						</div>
+						<div class="flex items-center justify-between gap-4">
+							<div>
+								<span class="text-xs text-gray-600 dark:text-gray-400"
+									>{$t('admin.browserQuality')}</span
+								>
+								<p class="text-[0.625rem] text-gray-400 dark:text-gray-600">
+									{$t('admin.browserQualityHint')}
+								</p>
+							</div>
+							<select
+								bind:value={browserQualityDefault}
+								class="bg-transparent text-xs text-gray-600 dark:text-gray-400 outline-none cursor-pointer"
+							>
+								<option value="low">{$t('admin.browserQualityLow')}</option>
+								<option value="balanced">{$t('admin.browserQualityBalanced')}</option>
+								<option value="crisp">{$t('admin.browserQualityCrisp')}</option>
+							</select>
+						</div>
+						<Collapsible title={$t('admin.advanced')}>
+							<div class="flex flex-col gap-2.5">
+								{#each ['low', 'balanced', 'crisp'] as name}
+									<div class="flex items-center justify-between gap-4">
+										<span class="text-xs capitalize text-gray-600 dark:text-gray-400">{name}</span>
+										<div class="flex items-center gap-1.5">
+											<input
+												type="number"
+												min="240"
+												max="1080"
+												aria-label={`${name} ${$t('admin.browserQualityMaxHeight')}`}
+												bind:value={
+													browserQualityProfiles[name as 'low' | 'balanced' | 'crisp'].max_height
+												}
+												class="h-7 w-16 rounded-lg border border-gray-200 bg-gray-100 px-2 text-xs text-gray-700 outline-none dark:border-white/8 dark:bg-white/6 dark:text-gray-300"
+											/>
+											<input
+												type="number"
+												min="1000000"
+												max="12000000"
+												step="1000000"
+												aria-label={`${name} ${$t('admin.browserQualityMaxBitrate')}`}
+												bind:value={
+													browserQualityProfiles[name as 'low' | 'balanced' | 'crisp'].bitrate
+												}
+												class="h-7 w-20 rounded-lg border border-gray-200 bg-gray-100 px-2 text-xs text-gray-700 outline-none dark:border-white/8 dark:bg-white/6 dark:text-gray-300"
+											/>
+											<select
+												bind:value={
+													browserQualityProfiles[name as 'low' | 'balanced' | 'crisp']
+														.device_scale_factor
+												}
+												aria-label={`${name} DSF`}
+												class="bg-transparent text-xs text-gray-600 dark:text-gray-400 outline-none cursor-pointer"
+												><option value={1}>1x</option><option value={2}>2x</option></select
+											>
+										</div>
+									</div>
+								{/each}
+								<div class="flex items-center justify-between gap-4">
+									<span class="text-xs text-gray-600 dark:text-gray-400"
+										>{$t('admin.browserQualityMaxHeight')}</span
+									>
+									<input
+										type="number"
+										min="240"
+										max="1080"
+										bind:value={browserQualityMaxResolution}
+										class="h-7 w-20 rounded-lg border border-gray-200 bg-gray-100 px-2 text-xs text-gray-700 outline-none dark:border-white/8 dark:bg-white/6 dark:text-gray-300"
+									/>
+								</div>
+								<div class="flex items-center justify-between gap-4">
+									<span class="text-xs text-gray-600 dark:text-gray-400"
+										>{$t('admin.browserQualityMaxBitrate')}</span
+									>
+									<input
+										type="number"
+										min="1000000"
+										max="12000000"
+										step="1000000"
+										bind:value={browserQualityMaxBitrate}
+										class="h-7 w-24 rounded-lg border border-gray-200 bg-gray-100 px-2 text-xs text-gray-700 outline-none dark:border-white/8 dark:bg-white/6 dark:text-gray-300"
+									/>
+								</div>
+								<label class="flex items-center justify-between cursor-pointer">
+									<span class="text-xs text-gray-600 dark:text-gray-400"
+										>{$t('admin.browserQualityAllowDsf2')}</span
+									>
+									<ToggleSwitch
+										value={browserQualityAllowDsf2}
+										onchange={(value) => (browserQualityAllowDsf2 = value)}
+									/>
+								</label>
+							</div>
+						</Collapsible>
 					{:else}
 						<div>
 							<label class="text-xs text-gray-600 dark:text-gray-400" for="tab-cdp-url"

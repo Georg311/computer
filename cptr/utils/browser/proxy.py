@@ -6,7 +6,7 @@ import asyncio
 import html
 import re
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from urllib.parse import quote, urljoin, urlsplit, urlunsplit
 
@@ -35,6 +35,9 @@ class BrowserSession:
     origin: str = ""
     mode: str = "proxy"
     status: str = "ready"
+    device_profile: dict = field(default_factory=dict)
+    quality_preset: str = "balanced"
+    resolved_quality: dict = field(default_factory=dict)
 
 
 @dataclass

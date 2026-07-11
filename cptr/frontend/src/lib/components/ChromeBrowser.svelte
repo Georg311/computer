@@ -13,15 +13,46 @@
 		active: boolean;
 		onstate: (state: BrowserState) => void;
 		onstatus: (status: string, message?: string, mode?: 'proxy') => void;
+		onquality: (quality: 'low' | 'balanced' | 'crisp' | null) => void;
 	}
 
-	let { sessionId, active, onstate, onstatus }: Props = $props();
+	interface DeviceProfile {
+		userAgent: string;
+		language: string;
+		maxTouchPoints: number;
+		screenWidth: number;
+		screenHeight: number;
+		devicePixelRatio: number;
+		orientation: 'portraitPrimary' | 'landscapePrimary';
+		mobile: boolean;
+		userAgentMetadata?: Record<string, unknown>;
+	}
+
+	interface UserAgentData {
+		brands?: Array<{ brand: string; version: string }>;
+		mobile?: boolean;
+		platform?: string;
+		getHighEntropyValues?: (hints: string[]) => Promise<Record<string, unknown>>;
+	}
+
+	interface EditableRegion {
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+	}
+
+	let { sessionId, active, onstate, onstatus, onquality }: Props = $props();
 	let canvas: HTMLCanvasElement;
 	let container: HTMLDivElement;
+	let keyboardAntenna: HTMLTextAreaElement;
 	let socket: WebSocket | undefined;
 	let decoder: VideoDecoder | undefined;
+	let audioDecoder: AudioDecoder | undefined;
+	let audioContext: AudioContext | undefined;
 	let observer: ResizeObserver | undefined;
 	let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+	let viewportTimer: ReturnType<typeof setTimeout> | undefined;
 	let reconnectAttempt = 0;
 	let disposed = false;
 	let viewport = { width: 1280, height: 720 };
@@ -29,15 +60,79 @@
 	let pointerFrame = 0;
 	let hasFrame = false;
 	let awaitingFrame = true;
+	let ready = $state(false);
+	let managed = $state(false);
+	let mobile = $state(false);
+	let quality = $state<'low' | 'balanced' | 'crisp'>('balanced');
+	let deviceProfile: DeviceProfile | undefined;
+	let editableRegions = $state<EditableRegion[]>([]);
+	let lastViewport = '';
+	let composition = false;
+	let suppressText = '';
+	let keepKeyboardFocus = false;
+	let audioClockOrigin: number | undefined;
 	const pressedKeys = new Map<string, Record<string, unknown>>();
+	const touchPoints = new Map<number, Record<string, unknown>>();
 	const macClient = /Mac|iPhone|iPad/.test(navigator.userAgent);
 
 	function send(message: Record<string, unknown>) {
 		if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
 	}
 
+	async function collectDeviceProfile(): Promise<DeviceProfile> {
+		const uaData = (navigator as Navigator & { userAgentData?: UserAgentData }).userAgentData;
+		let highEntropy: Record<string, unknown> = {};
+		if (uaData?.getHighEntropyValues) {
+			try {
+				highEntropy = await uaData.getHighEntropyValues([
+					'architecture',
+					'bitness',
+					'fullVersionList',
+					'model',
+					'platformVersion'
+				]);
+			} catch {
+				// User agent client hints are optional.
+			}
+		}
+		const maxTouchPoints = Math.min(10, Math.max(0, navigator.maxTouchPoints || 0));
+		const uaMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+		const mobileProfile =
+			uaData?.mobile ?? (uaMobile || (/Mac/.test(navigator.userAgent) && maxTouchPoints > 1));
+		const orientation = screen.orientation?.type?.startsWith('landscape')
+			? 'landscapePrimary'
+			: 'portraitPrimary';
+		const metadata = uaData
+			? {
+					brands: uaData.brands || [],
+					mobile: Boolean(uaData.mobile),
+					platform: uaData.platform || '',
+					...highEntropy
+				}
+			: undefined;
+		return {
+			userAgent: navigator.userAgent,
+			language: navigator.language,
+			maxTouchPoints,
+			screenWidth: screen.width,
+			screenHeight: screen.height,
+			devicePixelRatio: window.devicePixelRatio || 1,
+			orientation,
+			mobile: mobileProfile,
+			userAgentMetadata: metadata
+		};
+	}
+
+	const deviceProfilePromise = collectDeviceProfile().then((profile) => {
+		deviceProfile = profile;
+		mobile = profile.mobile;
+		return profile;
+	});
+
 	function connect() {
 		if (disposed) return;
+		ready = false;
+		lastViewport = '';
 		awaitingFrame = true;
 		onstatus(hasFrame ? 'playing' : 'reconnecting');
 		const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -46,8 +141,6 @@
 		socket.onopen = () => {
 			reconnectAttempt = 0;
 			send({ type: 'visibility', visible: active });
-			if (active) focusBrowser();
-			else resize();
 		};
 		socket.onmessage = receive;
 		socket.onclose = () => {
@@ -61,25 +154,64 @@
 	function receive(event: MessageEvent) {
 		if (typeof event.data === 'string') {
 			const message = JSON.parse(event.data);
+			if (message.type === 'ready') {
+				ready = true;
+				managed = message.managed === true;
+				if (message.quality?.preset in { low: true, balanced: true, crisp: true })
+					quality = message.quality.preset;
+				onquality(managed ? quality : null);
+				if (active) focusBrowser();
+				else resize();
+			}
 			if (message.type === 'state') onstate(message);
 			if (message.type === 'status' && (message.status !== 'playing' || hasFrame))
 				onstatus(message.status, message.message, message.mode);
 			if (message.type === 'config') configureDecoder(message);
+			if (message.type === 'audio_config') configureAudio(message);
+			if (message.type === 'editable_regions' && Array.isArray(message.regions)) {
+				editableRegions = message.regions.filter(
+					(region: unknown): region is EditableRegion =>
+						typeof region === 'object' &&
+						region !== null &&
+						Number.isFinite((region as EditableRegion).x) &&
+						Number.isFinite((region as EditableRegion).y) &&
+						Number.isFinite((region as EditableRegion).width) &&
+						Number.isFinite((region as EditableRegion).height)
+				);
+			}
+			if (
+				message.type === 'quality' &&
+				message.preset in { low: true, balanced: true, crisp: true }
+			) {
+				quality = message.preset;
+				onquality(quality);
+			}
 			return;
 		}
-		if (!(event.data instanceof ArrayBuffer) || event.data.byteLength < 14 || !decoder) return;
+		if (!(event.data instanceof ArrayBuffer) || event.data.byteLength < 14) return;
 		const view = new DataView(event.data);
-		if (view.getUint8(0) !== 1 || decoder.state !== 'configured') return;
-		try {
-			decoder.decode(
-				new EncodedVideoChunk({
-					type: view.getUint8(1) & 1 ? 'key' : 'delta',
-					timestamp: Number(view.getBigUint64(6)),
-					data: new Uint8Array(event.data, 14)
-				})
-			);
-		} catch {
-			send({ type: 'request_keyframe' });
+		const media = view.getUint8(0);
+		const timestamp = Number(view.getBigUint64(6));
+		if (media === 1 && decoder?.state === 'configured') {
+			try {
+				decoder.decode(
+					new EncodedVideoChunk({
+						type: view.getUint8(1) & 1 ? 'key' : 'delta',
+						timestamp,
+						data: new Uint8Array(event.data, 14)
+					})
+				);
+			} catch {
+				send({ type: 'request_keyframe' });
+			}
+		} else if (media === 2 && audioDecoder?.state === 'configured') {
+			try {
+				audioDecoder.decode(
+					new EncodedAudioChunk({ type: 'key', timestamp, data: new Uint8Array(event.data, 14) })
+				);
+			} catch {
+				audioClockOrigin = undefined;
+			}
 		}
 	}
 
@@ -105,14 +237,83 @@
 		decoder.configure({ codec: config.codec, optimizeForLatency: true });
 	}
 
-	function resize() {
-		if (!container) return;
+	function configureAudio(config: { codec: string; sampleRate: number; numberOfChannels: number }) {
+		if (!('AudioDecoder' in window)) return;
+		audioDecoder?.close();
+		audioClockOrigin = undefined;
+		audioDecoder = new AudioDecoder({
+			output(data) {
+				playAudio(data);
+				data.close();
+			},
+			error() {
+				audioClockOrigin = undefined;
+			}
+		});
+		try {
+			audioDecoder.configure({
+				codec: config.codec,
+				sampleRate: config.sampleRate,
+				numberOfChannels: config.numberOfChannels
+			});
+		} catch {
+			audioDecoder.close();
+			audioDecoder = undefined;
+		}
+	}
+
+	function unlockAudio() {
+		if (!('AudioContext' in window)) return;
+		audioContext ??= new AudioContext();
+		if (audioContext.state !== 'running') void audioContext.resume();
+	}
+
+	function playAudio(data: AudioData) {
+		const context = audioContext;
+		if (!context || context.state !== 'running') return;
+		const mediaTime = data.timestamp / 1_000_000;
+		audioClockOrigin ??= context.currentTime + 0.1 - mediaTime;
+		let start = audioClockOrigin + mediaTime;
+		if (start < context.currentTime - 0.05) {
+			audioClockOrigin = context.currentTime + 0.1 - mediaTime;
+			start = context.currentTime + 0.1;
+		}
+		const buffer = context.createBuffer(
+			data.numberOfChannels,
+			data.numberOfFrames,
+			data.sampleRate
+		);
+		for (let channel = 0; channel < data.numberOfChannels; channel += 1) {
+			data.copyTo(buffer.getChannelData(channel), { planeIndex: channel, format: 'f32-planar' });
+		}
+		const source = context.createBufferSource();
+		source.buffer = buffer;
+		source.connect(context.destination);
+		source.start(Math.max(context.currentTime, start));
+	}
+
+	function resize(debounce = false) {
+		if (!container || !ready) return;
+		if (mobile && document.activeElement === keyboardAntenna) return;
 		const rect = container.getBoundingClientRect();
 		viewport = {
 			width: Math.max(320, Math.min(1920, Math.round(rect.width))),
 			height: Math.max(240, Math.min(1080, Math.round(rect.height)))
 		};
-		send({ type: 'viewport', ...viewport });
+		if (viewportTimer) clearTimeout(viewportTimer);
+		if (debounce) {
+			viewportTimer = setTimeout(() => void sendViewport(), 150);
+		} else {
+			void sendViewport();
+		}
+	}
+
+	async function sendViewport() {
+		const device = deviceProfile || (await deviceProfilePromise);
+		const key = JSON.stringify([viewport, quality, device]);
+		if (key === lastViewport) return;
+		lastViewport = key;
+		send({ type: 'viewport', ...viewport, quality, device });
 	}
 
 	function modifiers(event: MouseEvent | KeyboardEvent | WheelEvent) {
@@ -137,8 +338,75 @@
 		return value === 0 ? 'left' : value === 1 ? 'middle' : value === 2 ? 'right' : 'none';
 	}
 
-	function pointer(event: PointerEvent, type: 'move' | 'down' | 'up') {
+	function focusAntenna() {
+		if (!managed || !mobile) return;
+		keepKeyboardFocus = true;
+		keyboardAntenna?.focus({ preventScroll: true });
+		unlockAudio();
+	}
+
+	function canvasFocus() {
+		if (keepKeyboardFocus) focusAntenna();
+	}
+
+	function isEditableTouch(event: PointerEvent) {
+		if (!managed || !mobile) return false;
+		const point = coordinates(event);
+		return editableRegions.some(
+			(region) =>
+				point.x >= region.x &&
+				point.x <= region.x + region.width &&
+				point.y >= region.y &&
+				point.y <= region.y + region.height
+		);
+	}
+
+	function touch(event: PointerEvent, type: 'start' | 'move' | 'end' | 'cancel') {
+		if (type === 'start') {
+			event.preventDefault();
+			unlockAudio();
+			keepKeyboardFocus = isEditableTouch(event);
+			if (keepKeyboardFocus) focusAntenna();
+			canvas.setPointerCapture(event.pointerId);
+			touchPoints.set(event.pointerId, {
+				id: event.pointerId,
+				...coordinates(event),
+				radiusX: event.width / 2,
+				radiusY: event.height / 2,
+				force: event.pressure
+			});
+		} else if (type === 'move') {
+			if (!touchPoints.has(event.pointerId)) return;
+			touchPoints.set(event.pointerId, {
+				id: event.pointerId,
+				...coordinates(event),
+				radiusX: event.width / 2,
+				radiusY: event.height / 2,
+				force: event.pressure
+			});
+		} else {
+			touchPoints.delete(event.pointerId);
+		}
+		send({
+			type: 'touch',
+			event: type,
+			...coordinates(event),
+			points: [...touchPoints.values()],
+			button: type === 'move' ? 'none' : 'left',
+			buttons: event.buttons,
+			click_count: event.detail || 1,
+			modifiers: modifiers(event)
+		});
+	}
+
+	function pointer(event: PointerEvent, type: 'move' | 'down' | 'up' | 'cancel') {
+		if (event.pointerType === 'touch') {
+			touch(event, type === 'down' ? 'start' : type === 'up' ? 'end' : type);
+			return;
+		}
+		if (type === 'cancel') return;
 		if (type === 'down') {
+			unlockAudio();
 			focusBrowser();
 			canvas.focus();
 			canvas.setPointerCapture(event.pointerId);
@@ -205,6 +473,60 @@
 		send(message);
 	}
 
+	function mobileKey(key: string, code: string, virtualKey: number) {
+		for (const event of ['keyDown', 'keyUp']) {
+			send({
+				type: 'key',
+				event,
+				key,
+				code,
+				text: '',
+				unmodified_text: '',
+				modifiers: 0,
+				location: 0,
+				is_keypad: false,
+				windows_virtual_key_code: virtualKey
+			});
+		}
+	}
+
+	function beforeInput(event: InputEvent) {
+		if (!managed || !mobile || composition) return;
+		const text = event.data || '';
+		if (suppressText && text === suppressText) {
+			event.preventDefault();
+			suppressText = '';
+			keyboardAntenna.value = '';
+			return;
+		}
+		switch (event.inputType) {
+			case 'insertText':
+				event.preventDefault();
+				if (text) send({ type: 'text', text });
+				break;
+			case 'insertFromPaste':
+				event.preventDefault();
+				if (text) send({ type: 'paste', text });
+				break;
+			case 'insertLineBreak':
+			case 'insertParagraph':
+				event.preventDefault();
+				mobileKey('Enter', 'Enter', 13);
+				break;
+			case 'deleteContentBackward':
+				event.preventDefault();
+				mobileKey('Backspace', 'Backspace', 8);
+				break;
+			case 'deleteContentForward':
+				event.preventDefault();
+				mobileKey('Delete', 'Delete', 46);
+				break;
+			default:
+				return;
+		}
+		keyboardAntenna.value = '';
+	}
+
 	function releaseKeys() {
 		for (const message of pressedKeys.values()) send({ ...message, event: 'keyUp', text: '' });
 		pressedKeys.clear();
@@ -226,20 +548,26 @@
 		focusBrowser();
 		send({ type: 'reload' });
 	}
+	export function setQuality(nextQuality: 'low' | 'balanced' | 'crisp') {
+		quality = nextQuality;
+		lastViewport = '';
+		onquality(quality);
+		resize();
+	}
 	function focusBrowser() {
+		if (!ready) return;
 		send({ type: 'focus' });
 		resize();
 	}
 
 	$effect(() => {
-		if (socket?.readyState === WebSocket.OPEN) {
+		if (socket?.readyState === WebSocket.OPEN && ready) {
 			send({ type: 'visibility', visible: active });
 			if (active) focusBrowser();
 		}
 	});
-
 	onMount(() => {
-		observer = new ResizeObserver(resize);
+		observer = new ResizeObserver(() => resize());
 		observer.observe(container);
 		connect();
 	});
@@ -249,19 +577,47 @@
 		releaseKeys();
 		observer?.disconnect();
 		if (reconnectTimer) clearTimeout(reconnectTimer);
+		if (viewportTimer) clearTimeout(viewportTimer);
 		if (pointerFrame) cancelAnimationFrame(pointerFrame);
 		socket?.close();
 		decoder?.close();
+		audioDecoder?.close();
+		if (audioContext) void audioContext.close();
 	});
 </script>
 
 <div class="chrome-container" bind:this={container}>
+	<textarea
+		bind:this={keyboardAntenna}
+		class="keyboard-antenna"
+		aria-label="Remote browser keyboard"
+		onbeforeinput={beforeInput}
+		oncompositionstart={() => (composition = true)}
+		oncompositionupdate={() => {}}
+		oncompositionend={(event) => {
+			composition = false;
+			const text = event.data || '';
+			if (managed && mobile && text) {
+				suppressText = text;
+				send({ type: 'text', text });
+				queueMicrotask(() => {
+					if (suppressText === text) suppressText = '';
+				});
+			}
+			keyboardAntenna.value = '';
+		}}
+		oninput={() => {
+			if (!composition) keyboardAntenna.value = '';
+		}}
+	></textarea>
 	<canvas
 		bind:this={canvas}
-		tabindex="0"
+		tabindex={managed && mobile ? -1 : 0}
+		onfocus={canvasFocus}
 		onpointermove={(event) => pointer(event, 'move')}
 		onpointerdown={(event) => pointer(event, 'down')}
 		onpointerup={(event) => pointer(event, 'up')}
+		onpointercancel={(event) => pointer(event, 'cancel')}
 		onwheel={wheel}
 		onkeydown={(event) => key(event, 'keyDown')}
 		onkeyup={(event) => key(event, 'keyUp')}
@@ -283,9 +639,21 @@
 		display: block;
 		background: white;
 	}
+	.chrome-container {
+		position: relative;
+	}
 	canvas {
 		outline: none;
 		object-fit: fill;
 		touch-action: none;
+	}
+	.keyboard-antenna {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 1px;
+		height: 1px;
+		opacity: 0;
+		pointer-events: none;
 	}
 </style>

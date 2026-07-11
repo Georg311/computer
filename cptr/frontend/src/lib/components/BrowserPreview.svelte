@@ -11,6 +11,7 @@
 	import { openBrowserTab, updateTabLabel } from '$lib/stores';
 	import Icon from './Icon.svelte';
 	import ChromeBrowser from './ChromeBrowser.svelte';
+	import DropdownMenu from './DropdownMenu.svelte';
 	import Spinner from './common/Spinner.svelte';
 	import { t } from '$lib/i18n';
 
@@ -34,6 +35,35 @@
 	let chromeStatus = $state('');
 	let canGoBack = $state(false);
 	let canGoForward = $state(false);
+	let chromeQuality = $state<'low' | 'balanced' | 'crisp' | null>(null);
+	let qualityMenuOpen = $state(false);
+	let qualityMenuAnchor = $state<HTMLElement>();
+
+	function setChromeQuality(quality: 'low' | 'balanced' | 'crisp') {
+		chromeEl?.setQuality(quality);
+		chromeQuality = quality;
+	}
+
+	const qualityMenuItems = $derived([
+		{
+			label: $t('admin.browserQualityLow'),
+			onclick: () => setChromeQuality('low'),
+			active: chromeQuality === 'low',
+			check: true
+		},
+		{
+			label: $t('admin.browserQualityBalanced'),
+			onclick: () => setChromeQuality('balanced'),
+			active: chromeQuality === 'balanced',
+			check: true
+		},
+		{
+			label: $t('admin.browserQualityCrisp'),
+			onclick: () => setChromeQuality('crisp'),
+			active: chromeQuality === 'crisp',
+			check: true
+		}
+	]);
 
 	function publicUrl(value: string) {
 		const proxyUrl = new URL(value, location.origin);
@@ -193,7 +223,26 @@
 				use:tooltip={$t('port.openInNewTab')}>↗</a
 			>
 		</div>
+		{#if mode === 'chrome' && chromeQuality}
+			<button
+				bind:this={qualityMenuAnchor}
+				class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/6 dark:hover:text-gray-300"
+				aria-label={$t('admin.browserQuality')}
+				use:tooltip={$t('admin.browserQuality')}
+				onclick={() => (qualityMenuOpen = !qualityMenuOpen)}
+			>
+				<Icon name="three-dots" size={12} />
+			</button>
+		{/if}
 	</div>
+	{#if qualityMenuOpen && qualityMenuAnchor}
+		<DropdownMenu
+			items={qualityMenuItems}
+			anchor={qualityMenuAnchor}
+			align="end"
+			onclose={() => (qualityMenuOpen = false)}
+		/>
+	{/if}
 	<div class="preview-content">
 		{#if error}
 			<div class="preview-error">
@@ -218,9 +267,11 @@
 					else if (status === 'playing') modeError = '';
 					if (nextMode === 'proxy') {
 						mode = 'proxy';
+						chromeQuality = null;
 						if (urlInput) frameSrc = browserFrameUrl(sessionId, urlInput);
 					}
 				}}
+				onquality={(quality) => (chromeQuality = quality)}
 			/>
 			{#if chromeStatus === 'reconnecting'}
 				<div
