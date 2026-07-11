@@ -339,6 +339,7 @@
 						? 'bg-gray-200/50 text-gray-900 dark:bg-white/8 dark:text-white'
 						: 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}"
 					data-tab-id={tab.id}
+					onpointerdown={() => handleTabClick(tab)}
 					onclick={() => handleTabClick(tab)}
 					oncontextmenu={(e) => handleContextMenu(e, tab)}
 				>
@@ -355,6 +356,7 @@
 						<!-- svelte-ignore a11y_no_static_element_interactions -->
 						<span
 							class="flex items-center justify-center w-4 h-4 rounded text-gray-400 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-white"
+							onpointerdown={(e) => e.stopPropagation()}
 							onclick={(e) => handleClose(e, tab.id)}
 							onkeydown={(e) => {
 								if (e.key === 'Enter') handleClose(e, tab.id);

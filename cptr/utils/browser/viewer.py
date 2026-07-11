@@ -287,6 +287,7 @@ class ChromeViewer:
     first_keyframe: asyncio.Event = field(default_factory=asyncio.Event)
     encoder_error: str = ""
     config: dict[str, Any] | None = None
+    keyframe: bytes | None = None
     peers: set[ViewerPeer] = field(default_factory=set)
     controller: ViewerPeer | None = None
     viewport: tuple[int, int] = (1280, 720)
@@ -714,6 +715,7 @@ class ChromeViewerManager:
                     data = json.loads(message["text"])
                     if data.get("type") == "config":
                         viewer.config = data
+                        viewer.keyframe = None
                         await self._broadcast_json(viewer, data)
                     elif data.get("type") == "error":
                         viewer.encoder_error = str(data.get("message", "Chrome encoder failed"))
@@ -773,7 +775,6 @@ class ChromeViewerManager:
                     if tab := personal.tabs.get(personal.active_session_id):
                         if frame[1] & 1:
                             tab.config = personal.config
-                            tab.keyframe = frame
                         await self._broadcast_frame(tab, frame)
                 else:
                     break
@@ -883,7 +884,7 @@ class ChromeViewerManager:
         )
         if config:
             await peer.queue.put(config)
-        if viewer.personal and viewer.keyframe:
+        if viewer.keyframe:
             peer.waiting_keyframe = False
             await peer.queue.put(viewer.keyframe)
         await self._refresh_state(viewer)
@@ -1205,6 +1206,8 @@ class ChromeViewerManager:
 
     async def _broadcast_frame(self, viewer: ChromeViewer | PersonalTab, frame: bytes) -> None:
         keyframe = bool(frame[1] & 1)
+        if keyframe:
+            viewer.keyframe = frame
         for peer in tuple(viewer.peers):
             if not peer.visible or (peer.waiting_keyframe and not keyframe):
                 continue
