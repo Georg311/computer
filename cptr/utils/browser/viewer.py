@@ -53,7 +53,7 @@ def _number(value: object, default: float, minimum: float, maximum: float) -> fl
         return default
 
 
-async def _quality_settings() -> tuple[str, dict[str, dict[str, int]], int]:
+async def _quality_settings() -> tuple[str, dict[str, dict[str, int]], int, int]:
     configured = await Config.get("browser.quality.profiles")
     profiles: dict[str, dict[str, int]] = {}
     for name, fallback in DEFAULT_QUALITY_PROFILES.items():
@@ -67,15 +67,19 @@ async def _quality_settings() -> tuple[str, dict[str, dict[str, int]], int]:
         }
     default = await Config.get("browser.quality.default")
     default = default if default in QUALITY_PRESETS else "balanced"
+    max_capture_height = _integer(
+        await Config.get("browser.quality.max_resolution"), 1080, 240, 2160
+    )
     max_bitrate = _integer(
         await Config.get("browser.quality.max_bitrate"), 12_000_000, 1_000_000, 12_000_000
     )
-    return default, profiles, max_bitrate
+    return default, profiles, max_capture_height, max_bitrate
 
 
 def _resolve_quality(
     preset: object,
     profiles: dict[str, dict[str, int]],
+    max_capture_height: int,
     max_bitrate: int,
     default: str,
 ) -> tuple[str, dict[str, int]]:
@@ -84,6 +88,7 @@ def _resolve_quality(
     return name, {
         "bitrate": min(value["bitrate"], max_bitrate),
         "frame_rate": value["frame_rate"],
+        "max_height": max_capture_height,
     }
 
 
@@ -442,6 +447,7 @@ class ChromeViewer:
     initial_navigation_pending: bool = True
     quality_default: str = "balanced"
     quality_profiles: dict[str, dict[str, int]] = field(default_factory=dict)
+    max_capture_height: int = 1080
     max_bitrate: int = 12_000_000
     personal: bool = False
 
@@ -582,9 +588,9 @@ class ChromeViewerManager:
             return self.viewers[session.session_id]
         host = await self._host(session.owner, cdp_url)
         async with host.start_lock:
-            default, profiles, max_bitrate = await _quality_settings()
+            default, profiles, max_capture_height, max_bitrate = await _quality_settings()
             preset, quality = _resolve_quality(
-                session.quality_preset, profiles, max_bitrate, default
+                session.quality_preset, profiles, max_capture_height, max_bitrate, default
             )
             session.quality_preset = preset
             session.resolved_quality = quality
@@ -622,6 +628,7 @@ class ChromeViewerManager:
             )
             viewer.quality_default = default
             viewer.quality_profiles = profiles
+            viewer.max_capture_height = max_capture_height
             viewer.max_bitrate = max_bitrate
             self.viewers[session.session_id] = viewer
             self._wire_events(viewer)
@@ -933,6 +940,7 @@ class ChromeViewerManager:
                         await self._broadcast_json(viewer, data)
                     elif data.get("type") == "error":
                         viewer.encoder_error = str(data.get("message", "Chrome encoder failed"))
+                        viewer.encoder_configured.set()
                         viewer.first_keyframe.set()
                 elif message.get("bytes") is not None:
                     frame = message["bytes"]
@@ -1291,6 +1299,7 @@ class ChromeViewerManager:
         preset, quality = _resolve_quality(
             data.get("quality"),
             viewer.quality_profiles,
+            viewer.max_capture_height,
             viewer.max_bitrate,
             viewer.quality_default,
         )

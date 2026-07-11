@@ -17,6 +17,7 @@
  */
 
 import { writable, derived, get } from 'svelte/store';
+import { toast } from 'svelte-sonner';
 import {
 	getPreferences,
 	savePreferences,
@@ -1122,6 +1123,7 @@ export async function openBrowserTab(
 		if (!attached) deleteBrowserSession(session.session_id);
 	} catch (error) {
 		console.error('Failed to create browser session:', error);
+		toast.error(error instanceof Error ? error.message : 'Failed to open Browser');
 		closeTab(tabId, gid);
 	}
 }

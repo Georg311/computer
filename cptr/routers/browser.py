@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from collections.abc import AsyncIterator
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit, urlunsplit
@@ -32,6 +33,7 @@ from cptr.utils.browser.viewer import (
 from cptr.utils.config import AuthResult, check_access
 
 router = APIRouter(prefix="/api/browser", tags=["browser"])
+logger = logging.getLogger(__name__)
 
 _HOP_BY_HOP = {
     "connection",
@@ -257,6 +259,7 @@ async def create_session(request: Request):
                 await chrome_viewer_manager.start(session, local_origin(str(request.base_url)))
             session.mode = "chrome"
         except Exception as exc:
+            logger.warning("Managed Chrome startup failed: %s", exc)
             await manager.close(session.session_id, session.owner)
             raise HTTPException(status_code=409, detail=str(exc)) from exc
     return _session_payload(session)
@@ -325,6 +328,7 @@ async def update_session(session_id: str, request: Request):
             else:
                 await chrome_viewer_manager.start(session, local_origin(str(request.base_url)))
         except Exception as exc:
+            logger.warning("Managed Chrome startup failed: %s", exc)
             session.status = "ready"
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         session.mode = "chrome"

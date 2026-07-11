@@ -17,7 +17,7 @@
   let configured = '';
   let resolveInitialQuality;
   const initialQuality = new Promise(resolve => { resolveInitialQuality = resolve; });
-  let quality = { bitrate: 12_000_000, frame_rate: 30 };
+  let quality = { bitrate: 12_000_000, frame_rate: 30, max_height: 1080 };
   let lastEncodedTimestamp = -Infinity;
 
   function sendError(error) {
@@ -29,7 +29,8 @@
   function normalizedQuality(value) {
     const bitrate = Math.max(1_000_000, Math.min(12_000_000, Number(value?.bitrate) || 12_000_000));
     const frameRate = Math.max(1, Math.min(60, Number(value?.frame_rate ?? value?.fps) || 30));
-    return { bitrate: Math.round(bitrate), frame_rate: Math.round(frameRate) };
+    const maxHeight = Math.max(240, Math.min(2160, Number(value?.max_height) || 1080));
+    return { bitrate: Math.round(bitrate), frame_rate: Math.round(frameRate), max_height: Math.round(maxHeight) };
   }
 
   function receiveControl(event) {
@@ -77,7 +78,7 @@
       avc: { format: 'annexb' }
     };
     const support = await VideoEncoder.isConfigSupported(config);
-    if (!support.supported) throw new Error(`H.264 WebCodecs encoding is unavailable at ${width}×${height}`);
+    if (!support.supported) throw new Error(`H.264 WebCodecs encoding is unavailable at ${width}×${height}; lower Admin > Web > Streaming quality > Advanced > Max height`);
     if (encoder) {
       try { await encoder.flush(); } catch {}
       encoder.close();
@@ -159,12 +160,18 @@
       const stream = await navigator.mediaDevices.getDisplayMedia({
         audio: audioEnabled ? { suppressLocalAudioPlayback: true } : false,
         video: {
-          ...(windowCapture ? { displaySurface: 'window' } : {})
+          ...(windowCapture ? { displaySurface: 'window' } : {}),
+          height: { ideal: quality.max_height, max: quality.max_height },
+          frameRate: { ideal: quality.frame_rate, max: quality.frame_rate }
         },
         preferCurrentTab: false,
         ...(windowCapture ? { selfBrowserSurface: 'include', surfaceSwitching: 'exclude' } : {})
       });
       videoTrack = stream.getVideoTracks()[0];
+      await videoTrack.applyConstraints({
+        height: { ideal: quality.max_height, max: quality.max_height },
+        frameRate: { ideal: quality.frame_rate, max: quality.frame_rate }
+      }).catch(() => {});
       if (windowCapture && videoTrack.getSettings().displaySurface !== 'window') {
         videoTrack.stop();
         throw new Error('Select the Open WebUI Computer Browser window');

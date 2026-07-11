@@ -31,6 +31,7 @@
 	import { t } from '$lib/i18n';
 	import { session } from '$lib/session';
 	import { get } from 'svelte/store';
+	import { toast } from 'svelte-sonner';
 	import { getWelcome, getWorkspaceState } from '$lib/apis/state';
 	import { createSession, deleteSession } from '$lib/apis/terminal';
 	import { createBrowserSession, deleteBrowserSession } from '$lib/apis/browser';
@@ -164,6 +165,7 @@
 			updateHomeTabs(groupId, (tabs) => ({ tabs: [...tabs, tab], activeTabId: tab.id }));
 		} catch (error) {
 			console.error('Failed to create Home browser:', error);
+			toast.error(error instanceof Error ? error.message : 'Failed to open Browser');
 		}
 	}
 

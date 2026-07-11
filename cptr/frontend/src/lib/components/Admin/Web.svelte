@@ -57,6 +57,7 @@
 		balanced: { bitrate: 6000000, frame_rate: 24 },
 		crisp: { bitrate: 12000000, frame_rate: 30 }
 	});
+	let browserQualityMaxResolution = $state(1080);
 	let browserQualityMaxBitrate = $state(12000000);
 
 	onMount(async () => {
@@ -115,6 +116,7 @@
 					}
 				}
 			}
+			browserQualityMaxResolution = Number(config['browser.quality.max_resolution']) || 1080;
 			browserQualityMaxBitrate = Number(config['browser.quality.max_bitrate']) || 12000000;
 		} catch {
 			toast.error($t('admin.failedToLoadConfig'));
@@ -158,6 +160,7 @@
 				'browser.browser_use_base_url': browserUseBaseUrl,
 				'browser.quality.default': browserQualityDefault,
 				'browser.quality.profiles': browserQualityProfiles,
+				'browser.quality.max_resolution': browserQualityMaxResolution,
 				'browser.quality.max_bitrate': browserQualityMaxBitrate
 			};
 			await updateConfig(cfg);
@@ -555,6 +558,22 @@
 											</div>
 										</div>
 									{/each}
+									<div class="flex items-center justify-between gap-4">
+										<span class="text-xs text-gray-600 dark:text-gray-400"
+											>{$t('admin.browserQualityMaxHeight')}</span
+										>
+										<input
+											type="number"
+											min="240"
+											max="2160"
+											list="browser-quality-heights"
+											bind:value={browserQualityMaxResolution}
+											class="h-7 w-24 rounded-lg border border-gray-200 bg-gray-100 px-2 text-xs text-gray-700 outline-none dark:border-white/8 dark:bg-white/6 dark:text-gray-300"
+										/>
+										<datalist id="browser-quality-heights">
+											<option value="720"></option><option value="1080"></option><option value="1440"></option><option value="2160"></option>
+										</datalist>
+									</div>
 									<div class="flex items-center justify-between gap-4">
 										<span class="text-xs text-gray-600 dark:text-gray-400"
 											>{$t('admin.browserQualityMaxBitrate')}</span
