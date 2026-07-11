@@ -55,6 +55,7 @@
 	let qualityMenuAnchor = $state<HTMLElement>();
 
 	function updateLabel(label: string) {
+		if (!label.trim()) return;
 		if (onTabUpdate) onTabUpdate(label);
 		else updateTabLabel(tabId, label);
 	}
