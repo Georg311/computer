@@ -1116,7 +1116,9 @@ export function setActiveTab(tabId: string, groupId?: string): void {
 }
 
 export function setActiveGroup(groupId: string): void {
-	currentWorkspace.update((ws) => (ws ? { ...ws, activeGroupId: groupId } : ws));
+	currentWorkspace.update((ws) =>
+		ws && ws.activeGroupId !== groupId ? { ...ws, activeGroupId: groupId } : ws
+	);
 }
 
 export function setFileBrowserCwd(cwd: string): void {

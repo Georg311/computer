@@ -46,7 +46,7 @@
 		socket.onopen = () => {
 			reconnectAttempt = 0;
 			send({ type: 'visibility', visible: active });
-			if (active) activate();
+			if (active) focusBrowser();
 			else resize();
 		};
 		socket.onmessage = receive;
@@ -139,7 +139,7 @@
 
 	function pointer(event: PointerEvent, type: 'move' | 'down' | 'up') {
 		if (type === 'down') {
-			activate();
+			focusBrowser();
 			canvas.focus();
 			canvas.setPointerCapture(event.pointerId);
 		}
@@ -165,7 +165,7 @@
 
 	function wheel(event: WheelEvent) {
 		event.preventDefault();
-		activate();
+		focusBrowser();
 		send({
 			type: 'wheel',
 			...coordinates(event),
@@ -178,7 +178,6 @@
 	function key(event: KeyboardEvent, type: 'keyDown' | 'keyUp') {
 		event.preventDefault();
 		event.stopPropagation();
-		if (type === 'keyDown') activate();
 		const message = {
 			type: 'key',
 			event: type,
@@ -212,30 +211,30 @@
 	}
 
 	export function navigate(url: string) {
-		activate();
+		focusBrowser();
 		send({ type: 'navigate', url });
 	}
 	export function back() {
-		activate();
+		focusBrowser();
 		send({ type: 'back' });
 	}
 	export function forward() {
-		activate();
+		focusBrowser();
 		send({ type: 'forward' });
 	}
 	export function reload() {
-		activate();
+		focusBrowser();
 		send({ type: 'reload' });
 	}
-	export function activate() {
-		send({ type: 'activate' });
+	function focusBrowser() {
+		send({ type: 'focus' });
 		resize();
 	}
 
 	$effect(() => {
 		if (socket?.readyState === WebSocket.OPEN) {
 			send({ type: 'visibility', visible: active });
-			if (active) activate();
+			if (active) focusBrowser();
 		}
 	});
 

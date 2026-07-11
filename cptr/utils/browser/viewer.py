@@ -588,7 +588,7 @@ class ChromeViewerManager:
         session.status = "playing"
         self._wire_events(tab)
         await self._refresh_state(tab)
-        await self._activate_personal(tab)
+        await self._focus_personal(tab)
         return tab
 
     def viewer_for(self, session_id: str) -> ChromeViewer | PersonalTab | None:
@@ -927,18 +927,18 @@ class ChromeViewerManager:
         if kind == "visibility":
             await self._set_visibility(viewer, peer, bool(data.get("visible")))
             return
-        if kind == "activate" and viewer.personal:
+        if kind == "focus" and viewer.personal:
             became_visible = not peer.visible
             peer.visible = True
             if became_visible:
                 await self._send_personal({"type": "resume"})
-            await self._activate_personal(viewer, peer)
+            await self._focus_personal(viewer, peer)
             if became_visible:
                 await self._request_keyframe(viewer)
             return
         if viewer.controller is not peer:
             return
-        if kind == "activate":
+        if kind == "focus":
             return
         if kind == "viewport":
             width = max(320, min(1920, int(data.get("width", 1280))))
@@ -1019,51 +1019,55 @@ class ChromeViewerManager:
         elif kind == "request_keyframe":
             await self._request_keyframe(viewer)
 
-    async def _activate_personal(
+    async def _focus_personal(
         self, tab: PersonalTab, peer: ViewerPeer | None = None
     ) -> None:
-        personal = self.personal
-        if not personal or personal.tabs.get(tab.session.session_id) is not tab:
-            return
-        already_active = personal.active_session_id == tab.session.session_id
-        if already_active and (peer is None or tab.controller is peer):
-            return
-        previous = personal.tabs.get(personal.active_session_id)
-        if previous and previous is not tab and previous.controller:
-            with contextlib.suppress(asyncio.QueueFull):
-                previous.controller.queue.put_nowait(
-                    {"type": "ready", "mode": "chrome", "controller": False}
-                )
-        for item in tab.peers:
-            while not item.queue.empty():
-                with contextlib.suppress(asyncio.QueueEmpty):
-                    item.queue.get_nowait()
-            item.waiting_keyframe = True
-            if personal.config:
+        async with self.lock:
+            personal = self.personal
+            if not personal or personal.tabs.get(tab.session.session_id) is not tab:
+                return
+            already_active = personal.active_session_id == tab.session.session_id
+            if already_active and (peer is None or tab.controller is peer):
+                await asyncio.wait_for(tab.target_cdp.send("Page.bringToFront"), 5)
+                return
+            previous = personal.tabs.get(personal.active_session_id)
+            if previous and previous is not tab and previous.controller:
                 with contextlib.suppress(asyncio.QueueFull):
-                    item.queue.put_nowait(personal.config)
-        if peer:
-            previous = tab.controller
-            tab.controller = peer
-            if previous is not peer:
-                if previous and previous in tab.peers:
-                    with contextlib.suppress(asyncio.QueueFull):
-                        previous.queue.put_nowait(
-                            {"type": "ready", "mode": "chrome", "controller": False}
-                        )
-                with contextlib.suppress(asyncio.QueueFull):
-                    peer.queue.put_nowait(
-                        {"type": "ready", "mode": "chrome", "controller": True}
+                    previous.controller.queue.put_nowait(
+                        {"type": "ready", "mode": "chrome", "controller": False}
                     )
-        personal.active_session_id = tab.session.session_id
-        with contextlib.suppress(Exception):
+            for item in tab.peers:
+                while not item.queue.empty():
+                    with contextlib.suppress(asyncio.QueueEmpty):
+                        item.queue.get_nowait()
+                item.waiting_keyframe = True
+                if tab.config and tab.keyframe:
+                    with contextlib.suppress(asyncio.QueueFull):
+                        item.queue.put_nowait(tab.config)
+                        item.queue.put_nowait(tab.keyframe)
+                    item.waiting_keyframe = False
+                elif personal.config:
+                    with contextlib.suppress(asyncio.QueueFull):
+                        item.queue.put_nowait(personal.config)
+            if peer:
+                previous = tab.controller
+                tab.controller = peer
+                if previous is not peer:
+                    if previous and previous in tab.peers:
+                        with contextlib.suppress(asyncio.QueueFull):
+                            previous.queue.put_nowait(
+                                {"type": "ready", "mode": "chrome", "controller": False}
+                            )
+                    with contextlib.suppress(asyncio.QueueFull):
+                        peer.queue.put_nowait(
+                            {"type": "ready", "mode": "chrome", "controller": True}
+                        )
             await asyncio.wait_for(
-                personal.host.browser_cdp.send(
-                    "Target.activateTarget", {"targetId": tab.target_id}
-                ),
-                2,
+                tab.target_cdp.send("Page.bringToFront"),
+                5,
             )
-        await self._resize_personal(tab)
+            personal.active_session_id = tab.session.session_id
+            await self._resize_personal(tab)
 
     async def _resize_personal(self, tab: PersonalTab) -> None:
         personal = self.personal

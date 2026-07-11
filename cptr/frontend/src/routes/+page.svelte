@@ -954,7 +954,8 @@
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		class="split-pane"
-		onclick={() => setActiveGroup(group.id)}
+		onpointerdown={() => setActiveGroup(group.id)}
+		onfocusin={() => setActiveGroup(group.id)}
 		ondragover={(event) => handlePaneDragOver(event, group.id)}
 		ondragleave={(event) => handlePaneDragLeave(event, group.id)}
 		ondrop={(event) => handlePaneDrop(event, group.id)}
@@ -999,7 +1000,7 @@
 							groupId={group.id}
 							tabId={tab.id}
 							initialUrl={tab.path}
-							active={tab.id === group.activeTabId}
+							active={tab.id === group.activeTabId && group.id === activeGroup?.id}
 						/>
 					</div>
 				{/each}
