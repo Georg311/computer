@@ -58,6 +58,10 @@
 		const selected = { ...selections, [questionId]: answer };
 		selections = selected;
 		if (answer === '__other__') return;
+		advance(selected);
+	}
+
+	function advance(selected = selections) {
 		if (questionIndex < questions.length - 1) {
 			questionIndex += 1;
 		} else if (hasAnswers(selected)) {
@@ -100,6 +104,7 @@
 								] === option.label
 									? 'bg-white shadow-sm dark:bg-white/[0.1]'
 									: 'hover:bg-white/70 dark:hover:bg-white/[0.06]'}"
+								onclick={() => selections[question.id] === option.label && advance(selections)}
 							>
 								<input
 									class="sr-only"
