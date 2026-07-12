@@ -173,14 +173,26 @@
 		active?: boolean;
 		updated_at?: number;
 		last_read_at?: number;
+		workspace_unread_count?: number;
 	}) {
 		if (
 			!data.title &&
 			typeof data.active !== 'boolean' &&
 			typeof data.updated_at !== 'number' &&
-			typeof data.last_read_at !== 'number'
+			typeof data.last_read_at !== 'number' &&
+			typeof data.workspace_unread_count !== 'number'
 		) {
 			return;
+		}
+		const unreadCount = data.workspace_unread_count;
+		if (data.workspace && typeof unreadCount === 'number') {
+			workspaceList.update((workspaces) =>
+				workspaces.map((workspace) =>
+					workspace.path === data.workspace
+						? { ...workspace, unread_count: unreadCount }
+						: workspace
+				)
+			);
 		}
 
 		let known = false;
@@ -310,9 +322,17 @@
 					{:else}
 						<Icon name="folder" size={14} />
 					{/if}
-					<span class="flex-1 text-left overflow-hidden text-ellipsis whitespace-nowrap"
-						>{ws.name}</span
-					>
+					<span class="min-w-0 truncate text-left">{ws.name}</span>
+					{#if ws.unread_count > 0}
+						<span
+							class="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-md bg-sky-500/10 px-1 text-[0.625rem] font-semibold text-sky-600 dark:bg-sky-400/10 dark:text-sky-300"
+						>
+							{new Intl.NumberFormat(undefined, {
+								notation: 'compact',
+								compactDisplay: 'short'
+							}).format(ws.unread_count)}
+						</span>
+					{/if}
 				</a>
 				<span
 					class="flex items-center justify-center w-4 h-4 shrink-0 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-75"

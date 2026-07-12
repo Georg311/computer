@@ -281,7 +281,7 @@ export const homeState = writable<HomeState>({
 });
 
 /** List of all workspace summaries for the sidebar. */
-export const workspaceList = writable<{ path: string; name: string }[]>([]);
+export const workspaceList = writable<{ path: string; name: string; unread_count: number }[]>([]);
 
 /** Global user preferences. */
 export const sidebarOpen = writable(
@@ -825,7 +825,7 @@ export function addWorkspace(path: string): void {
 	// Update workspace list for sidebar
 	workspaceList.update((list) => {
 		if (list.some((w) => w.path === path)) return list;
-		return [...list, { path, name }];
+		return [...list, { path, name, unread_count: 0 }];
 	});
 
 	// Append to order

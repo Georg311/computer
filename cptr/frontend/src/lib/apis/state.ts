@@ -17,8 +17,13 @@ export const savePreferences = (data: Record<string, unknown>) =>
 
 // ── Workspace list (sidebar) ────────────────────────────────────
 
-export const getWorkspaceList = () =>
-	fetchJSON<{ path: string; name: string }[]>('/api/state/workspaces');
+export interface WorkspaceListItem {
+	path: string;
+	name: string;
+	unread_count: number;
+}
+
+export const getWorkspaceList = () => fetchJSON<WorkspaceListItem[]>('/api/state/workspaces');
 
 // ── Single workspace CRUD ───────────────────────────────────────
 

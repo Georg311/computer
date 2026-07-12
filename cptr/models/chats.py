@@ -5,7 +5,18 @@ from __future__ import annotations
 import re
 import uuid
 
-from sqlalchemy import BigInteger, Boolean, Column, ForeignKey, Text, delete, or_, select, update
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Column,
+    ForeignKey,
+    Text,
+    delete,
+    func,
+    or_,
+    select,
+    update,
+)
 from sqlalchemy.dialects.sqlite import JSON
 
 from cptr.models.base import Base
@@ -120,6 +131,32 @@ class Chat(Base):
             )
             await db.commit()
             return result.rowcount > 0
+
+    @staticmethod
+    async def unread_counts_by_workspace(
+        user_id: str, workspace_paths: list[str], active_chat_ids: set[str]
+    ) -> dict[str, int]:
+        """Derive unread counts from chats; do not persist a second read-state."""
+        paths = list(dict.fromkeys(path for path in workspace_paths if path))
+        if not paths:
+            return {}
+
+        workspace = Chat.meta["workspace"].as_string()
+        statement = (
+            select(workspace, func.count(Chat.id))
+            .where(
+                Chat.user_id == user_id,
+                workspace.in_(paths),
+                Chat.updated_at > func.coalesce(Chat.last_read_at, 0),
+            )
+            .group_by(workspace)
+        )
+        if active_chat_ids:
+            statement = statement.where(Chat.id.not_in(active_chat_ids))
+
+        async with await get_db() as db:
+            result = await db.execute(statement)
+            return {workspace: count for workspace, count in result.all() if workspace}
 
     @staticmethod
     async def update_last_read_at(chat_id: str, user_id: str, last_read_at: int) -> bool:

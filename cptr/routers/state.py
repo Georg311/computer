@@ -13,7 +13,7 @@ from pathlib import Path, PureWindowsPath
 
 from fastapi import APIRouter, HTTPException, Request, Query
 from cptr.env import DATA_DIR
-from cptr.models import UserStates, Workspace
+from cptr.models import Chat, UserStates, Workspace
 from cptr.utils.config import get_or_create_user
 
 router = APIRouter(prefix="/api/state", tags=["state"])
@@ -84,11 +84,21 @@ def _workspace_display_name(path: str) -> str:
     return name or path
 
 
-async def _workspace_summaries(user_id: str) -> list[dict[str, str]]:
+async def _workspace_summaries(user_id: str) -> list[dict[str, str | int]]:
     workspaces = await Workspace.get_by_user(user_id)
+    summaries = _dedupe_workspaces(workspaces)
+    from cptr.utils.chat_task import get_active_chat_ids
+
+    unread_counts = await Chat.unread_counts_by_workspace(
+        user_id, [path for path, _ in summaries], get_active_chat_ids()
+    )
     return [
-        {"path": path, "name": workspace.name or _workspace_display_name(path)}
-        for path, workspace in _dedupe_workspaces(workspaces)
+        {
+            "path": path,
+            "name": workspace.name or _workspace_display_name(path),
+            "unread_count": unread_counts.get(path, 0),
+        }
+        for path, workspace in summaries
     ]
 
 

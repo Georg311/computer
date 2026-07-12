@@ -89,7 +89,22 @@ async def on_chat_read(sid, data):
 
     last_read_at = now_ms()
     if await Chat.update_last_read_at(chat_id, user_id, last_read_at):
-        await emit_to_user(user_id, {"chat_id": chat_id, "last_read_at": last_read_at})
+        chat = await Chat.get_by_id(chat_id)
+        workspace = (chat.meta or {}).get("workspace", "") if chat else ""
+        from cptr.utils.chat_task import get_active_chat_ids
+
+        unread_counts = await Chat.unread_counts_by_workspace(
+            user_id, [workspace], get_active_chat_ids()
+        )
+        await emit_to_user(
+            user_id,
+            {
+                "chat_id": chat_id,
+                "workspace": workspace,
+                "last_read_at": last_read_at,
+                "workspace_unread_count": unread_counts.get(workspace, 0),
+            },
+        )
 
 
 async def emit_to_user(user_id: str, data: dict):
