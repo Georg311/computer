@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.2] - 2026-07-11
+
+### Added
+
+- 💬 **Helpful planning questions.** When a plan needs your input, Computer can now ask a few focused questions with clear choices and a recommended answer.
+
+### Changed
+
+- 🧠 **Each chat remembers its own choices.** Your selected model and chat options now stay with that conversation instead of carrying over from another one.
+- 🏠 **A more capable Home.** Open files from conversations while using Home, and keep those file tabs available as you move between tabs.
+- 🎨 **A more consistent look.** Your appearance choice now carries through to browsers, terminals, editors, previews, menus, and other everyday parts of the app.
+
 ## [0.9.1] - 2026-07-11
 
 ### Fixed
