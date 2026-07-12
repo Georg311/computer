@@ -1055,7 +1055,14 @@ async def approve_tool(chat_id: str, message_id: str, body: ApproveRequest, requ
         result = await execute_tool(
             call["name"],
             call.get("arguments", {}),
-            {"workspace": chat.meta.get("workspace", ""), "user_id": user_id, "model_id": model_id},
+            {
+                "workspace": chat.meta.get("workspace", ""),
+                "user_id": user_id,
+                "model_id": model_id,
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "call_id": body.call_id,
+            },
         )
         call["status"] = "completed"
         output.append(
