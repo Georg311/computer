@@ -8,7 +8,7 @@
 	import MessageTimestamp from './MessageTimestamp.svelte';
 	import ReasoningCollapsible from './ReasoningCollapsible.svelte';
 	import ToolCallCollapsible from './ToolCallCollapsible.svelte';
-	import { currentWorkspace, openArtifactTab, openFileTab } from '$lib/stores';
+	import { currentWorkspace, openFileTab } from '$lib/stores';
 	import { ttsConfigured, ttsEnabled } from '$lib/stores/audio';
 	import { tooltip } from '$lib/tooltip';
 	import { fileIconName } from '$lib/utils/fileIcon';
@@ -159,7 +159,12 @@
 	}
 
 	function openArtifact(artifact: any) {
-		openArtifactTab(artifact.title || 'Artifact', artifact.content || '');
+		const workspace = get(currentWorkspace);
+		const path =
+			workspace && artifact.path
+				? `${workspace.path.replace(/\/$/, '')}/${artifact.path}`
+				: artifact.path;
+		if (path) openFileTab(path);
 	}
 
 	/** Human-readable label for a tool call */

@@ -53,19 +53,9 @@ export interface FileSearchTarget {
 
 export interface Tab {
 	id: string;
-	type:
-		| 'home'
-		| 'files'
-		| 'terminal'
-		| 'file'
-		| 'artifact'
-		| 'git'
-		| 'chat'
-		| 'preview'
-		| 'browser'; // preview is migrated on load
+	type: 'home' | 'files' | 'terminal' | 'file' | 'git' | 'chat' | 'preview' | 'browser'; // preview is migrated on load
 	label: string;
 	filePath?: string;
-	content?: string;
 	edit?: boolean;
 	path?: string; // generic path (e.g. for chat)
 	sessionId?: string;
@@ -955,7 +945,10 @@ export function openFileTab(
 	options: { edit?: boolean; searchTarget?: FileSearchTarget } = {}
 ): void {
 	const ws = get(currentWorkspace);
-	if (!ws) return;
+	if (!ws) {
+		openHomeFileTab(filePath, targetGroupId, options);
+		return;
+	}
 
 	const gid = targetGroupId ?? ws.activeGroupId;
 	const group = ws.groups.find((g) => g.id === gid);
@@ -995,26 +988,35 @@ export function openFileTab(
 	}));
 }
 
-export function openArtifactTab(title: string, content: string): void {
-	const workspace = get(currentWorkspace);
-	const state = workspace ?? get(homeState);
-	const group = state.groups.find((item) => item.id === state.activeGroupId);
+function openHomeFileTab(
+	filePath: string,
+	targetGroupId?: string,
+	options: { edit?: boolean; searchTarget?: FileSearchTarget } = {}
+): void {
+	const state = get(homeState);
+	const groupId = targetGroupId ?? state.activeGroupId;
+	const group = state.groups.find((item) => item.id === groupId);
 	if (!group) return;
 
-	const existing = group.tabs.find((tab) => tab.type === 'artifact' && tab.content === content);
-	const tab: Tab = existing ?? { id: nextId(), type: 'artifact', label: title, content };
+	const existing = group.tabs.find((tab) => tab.type === 'file' && tab.filePath === filePath);
+	const tab: Tab = existing ?? {
+		id: nextId(),
+		type: 'file',
+		label: getPathDisplayName(filePath, filePath),
+		filePath,
+		edit: options.edit,
+		searchTarget: options.searchTarget
+	};
 	const updateGroup = (group: EditorGroup) =>
-		group.id === state.activeGroupId
+		group.id === groupId
 			? { ...group, tabs: existing ? group.tabs : [...group.tabs, tab], activeTabId: tab.id }
 			: group;
 
-	if (workspace) {
-		currentWorkspace.update((current) =>
-			current ? { ...current, groups: current.groups.map(updateGroup) } : current
-		);
-	} else {
-		homeState.update((current) => ({ ...current, groups: current.groups.map(updateGroup) }));
-	}
+	homeState.update((current) => ({
+		...current,
+		activeGroupId: groupId,
+		groups: current.groups.map(updateGroup)
+	}));
 }
 
 export function openUntitledFileTab(targetGroupId?: string): void {

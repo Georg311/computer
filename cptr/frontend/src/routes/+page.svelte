@@ -43,7 +43,6 @@
 	import FileEditor from '$lib/components/FileEditor.svelte';
 	import GitView from '$lib/components/GitView.svelte';
 	import Terminal from '$lib/components/Terminal.svelte';
-	import ArtifactViewer from '$lib/components/ArtifactViewer.svelte';
 	import BrowserPreview from '$lib/components/BrowserPreview.svelte';
 	import ChatPanel from '$lib/components/chat/ChatPanel.svelte';
 	import DirectoryPicker from '$lib/components/DirectoryPicker.svelte';
@@ -1050,9 +1049,14 @@
 						/>
 					</div>
 				{/each}
-				{#each homePane.tabs.filter((tab) => tab.type === 'artifact') as tab (tab.id)}
+				{#each homePane.tabs.filter((tab) => tab.type === 'file' && tab.filePath) as tab (tab.id)}
 					<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== homePane.activeTabId}>
-						<ArtifactViewer content={tab.content || ''} />
+						<FileEditor
+							filePath={tab.filePath!}
+							tabId={tab.id}
+							edit={tab.edit === true}
+							searchTarget={tab.searchTarget}
+						/>
 					</div>
 				{/each}
 				{#each homePane.tabs.filter((tab) => tab.type === 'terminal' && tab.sessionId) as tab (tab.id)}
@@ -1370,11 +1374,6 @@
 						edit={tab.edit === true}
 						searchTarget={tab.searchTarget}
 					/>
-				</div>
-			{/each}
-			{#each group.tabs.filter((tab) => tab.type === 'artifact') as tab (tab.id)}
-				<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== group.activeTabId}>
-					<ArtifactViewer content={tab.content || ''} />
 				</div>
 			{/each}
 			{#each group.tabs.filter((tab) => tab.type === 'chat') as tab (tab.id)}
