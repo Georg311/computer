@@ -1,4 +1,6 @@
+import asyncio
 import time
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -31,11 +33,10 @@ from cptr.utils.config import check_access, load_config
 from cptr.utils.db import init_db
 
 START_TIME = time.time()
-app = FastAPI()
 
 
-@app.on_event("startup")
-async def startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     from cptr.utils.logger import setup_logging
 
     setup_logging()
@@ -49,6 +50,7 @@ async def startup():
     _logging.getLogger(__name__).info("truststore: using system certificate store")
 
     await init_db()
+    app.state.MODELS = {}
     from cptr.env import STARTUP_TOKEN
 
     app.state.startup_token = STARTUP_TOKEN
@@ -60,50 +62,62 @@ async def startup():
 
         await reconcile_chat_state()
 
+    from cptr.routers.chat import warm_model_cache
+
+    await warm_model_cache(app.state)
+
     # Start automation scheduler
-    import asyncio
     from cptr.utils.automations import scheduler_worker_loop
 
-    asyncio.create_task(scheduler_worker_loop(app))
+    app.state.scheduler_task = asyncio.create_task(scheduler_worker_loop(app))
 
     # Start messaging bots
     from cptr.utils.bridge import BotManager
 
     app.state.bot_manager = BotManager()
-    asyncio.create_task(app.state.bot_manager.start_all())
+    await app.state.bot_manager.start_all()
 
-
-@app.on_event("shutdown")
-async def shutdown():
-    bot_manager = getattr(app.state, "bot_manager", None)
-    if bot_manager:
-        await bot_manager.stop_all()
     try:
-        from cptr.utils.async_subagents import cancel_all_async_subagents
+        yield
+    finally:
+        scheduler_task = getattr(app.state, "scheduler_task", None)
+        if scheduler_task:
+            scheduler_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await scheduler_task
 
-        await cancel_all_async_subagents(reason="shutdown")
-    except Exception:
-        pass
-    # Clean up browser sessions and launched Chrome used by agent tools.
-    try:
-        from cptr.utils.browser.session import session_manager
-        from cptr.utils.browser.launcher import shutdown_browser
-        from cptr.utils.browser.proxy import manager as browser_proxy_manager
-        from cptr.utils.browser.viewer import manager as chrome_viewer_manager
+        bot_manager = getattr(app.state, "bot_manager", None)
+        if bot_manager:
+            await bot_manager.stop_all()
+        try:
+            from cptr.utils.async_subagents import cancel_all_async_subagents
 
-        await chrome_viewer_manager.close_all()
-        await browser_proxy_manager.close_all()
-        await session_manager.close_all()
-        await shutdown_browser()
-    except Exception:
-        pass
-    # Clean up stdio MCP server processes
-    try:
-        from cptr.utils.mcp.stdio_manager import stdio_manager
+            await cancel_all_async_subagents(reason="shutdown")
+        except Exception:
+            pass
+        # Clean up browser sessions and launched Chrome used by agent tools.
+        try:
+            from cptr.utils.browser.session import session_manager
+            from cptr.utils.browser.launcher import shutdown_browser
+            from cptr.utils.browser.proxy import manager as browser_proxy_manager
+            from cptr.utils.browser.viewer import manager as chrome_viewer_manager
 
-        await stdio_manager.disconnect_all()
-    except Exception:
-        pass
+            await chrome_viewer_manager.close_all()
+            await browser_proxy_manager.close_all()
+            await session_manager.close_all()
+            await shutdown_browser()
+        except Exception:
+            pass
+        # Clean up stdio MCP server processes
+        try:
+            from cptr.utils.mcp.stdio_manager import stdio_manager
+
+            await stdio_manager.disconnect_all()
+        except Exception:
+            pass
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 # Auth middleware

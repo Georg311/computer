@@ -243,8 +243,21 @@ async def _get_connection_models(conn: dict, app_state) -> list[str]:
         return cache[conn_id]
 
     models = await _fetch_provider_models(conn)
-    cache[conn_id] = models
-    return models
+    if models is not None:
+        cache[conn_id] = models
+        return models
+    return cache.get(conn_id, [])
+
+
+async def warm_model_cache(app_state) -> None:
+    """Pre-fetch chat model sources before the application accepts requests."""
+    connections = [c for c in await _get_connections() if c.get("enabled", True)]
+    tasks = [_get_connection_models(conn, app_state) for conn in connections]
+
+    from cptr.utils.agents.detection import get_available_agent_model_entries
+
+    tasks.append(get_available_agent_model_entries(app_state))
+    await asyncio.gather(*tasks)
 
 
 def invalidate_model_cache(app_state):
@@ -294,18 +307,18 @@ async def get_models(request: Request):
     return {"models": models, "default": default_model}
 
 
-async def _fetch_provider_models(conn: dict) -> list[str]:
+async def _fetch_provider_models(conn: dict) -> list[str] | None:
     """Discover models from a provider's /models endpoint."""
     import httpx
 
     from cptr.utils.ai import _openrouter_headers
 
-    secret = _get_jwt_secret()
-    api_key = decrypt_key(conn.get("api_key", ""), secret) if conn.get("api_key") else None
-    provider = conn.get("provider", "")
-    base_url = conn.get("base_url")
-
     try:
+        secret = _get_jwt_secret()
+        api_key = decrypt_key(conn.get("api_key", ""), secret) if conn.get("api_key") else None
+        provider = conn.get("provider", "")
+        base_url = conn.get("base_url")
+
         if provider == "anthropic":
             url = (base_url or "https://api.anthropic.com/v1") + "/models"
             async with httpx.AsyncClient(timeout=10) as client:
@@ -357,7 +370,7 @@ async def _fetch_provider_models(conn: dict) -> list[str]:
     except Exception:
         log.exception("Model auto-discovery error for connection %s", conn.get("id", "?"))
 
-    return []
+    return None
 
 
 # ── Get a chat with all messages ────────────────────────────
