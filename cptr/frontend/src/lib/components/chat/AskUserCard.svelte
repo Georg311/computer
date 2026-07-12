@@ -66,7 +66,7 @@
 	}
 </script>
 
-<section class="my-1 rounded-2xl bg-gray-100/70 px-3 py-3 dark:bg-white/[0.055]">
+<section class="my-1 rounded-2xl bg-gray-100/70 px-3.5 py-3 dark:bg-white/[0.055]">
 	<div class="mb-3 flex items-center justify-between gap-3">
 		<div class="text-[0.6875rem] font-medium tracking-wide text-gray-500 dark:text-gray-400">
 			Planning question
