@@ -184,6 +184,14 @@ async def detect_profile(profile: dict[str, Any]) -> AgentDetection:
 
     if profile.get("agent") == "pi":
         models = await _probe_pi_models(command, profile)
+        if models is None:
+            return AgentDetection(
+                "error",
+                command,
+                version,
+                "Pi RPC is unavailable; the resolved command may not be Pi.",
+                [],
+            )
         if not models:
             return AgentDetection(
                 "auth_unknown",
@@ -277,7 +285,7 @@ async def _probe_pi_models(command: str, profile: dict[str, Any]) -> list[str] |
             provider, model = item.get("provider"), item.get("id")
             if isinstance(provider, str) and provider and isinstance(model, str) and model:
                 models.append(f"{provider}/{model}")
-        return models or None
+        return models
     except Exception:
         return None
     finally:
@@ -527,7 +535,7 @@ async def get_agent_status(app_state=None, refresh: bool = False) -> dict[str, A
     candidates = profiles if not implicit_defaults else default_agent_profiles()
     for profile in candidates:
         detected = await detect_profile(profile)
-        if implicit_defaults and detected.status == "not_found":
+        if implicit_defaults and detected.status in {"not_found", "error"}:
             continue
         mode = profile.get("mode", "auto")
         models = detected.models or profile.get("models") or []
