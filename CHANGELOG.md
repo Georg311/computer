@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-07-11
+
+### Added
+
+- 🌐 **A browser in your workspace.** Open websites and local app previews in their own tabs, with back and forward navigation, mobile views, and display-quality choices.
+- 🤖 **More coding agents.** Add Gemini or Pi alongside the coding tools you already use.
+- 🔎 **Search inside files.** Find file names and matching text, then jump straight to the right line.
+- 💬 **A more useful home screen.** Start a chat, terminal, or browser before opening a workspace, and arrange them side by side.
+
+### Changed
+
+- 🗂️ **Easier chat organization.** Rename chats, copy their saved location, and load more of a workspace's chats without leaving the sidebar.
+- ✨ **More control over the view.** Choose a wider layout and decide whether tool details stay expanded.
+
 ## [0.8.8] - 2026-07-09
 
 ### Added
