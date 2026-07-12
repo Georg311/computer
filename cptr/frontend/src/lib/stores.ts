@@ -53,9 +53,19 @@ export interface FileSearchTarget {
 
 export interface Tab {
 	id: string;
-	type: 'home' | 'files' | 'terminal' | 'file' | 'git' | 'chat' | 'preview' | 'browser'; // preview is migrated on load
+	type:
+		| 'home'
+		| 'files'
+		| 'terminal'
+		| 'file'
+		| 'artifact'
+		| 'git'
+		| 'chat'
+		| 'preview'
+		| 'browser'; // preview is migrated on load
 	label: string;
 	filePath?: string;
+	content?: string;
 	edit?: boolean;
 	path?: string; // generic path (e.g. for chat)
 	sessionId?: string;
@@ -983,6 +993,28 @@ export function openFileTab(
 		tabs: [...tabs, newTab],
 		activeTabId: newTab.id
 	}));
+}
+
+export function openArtifactTab(title: string, content: string): void {
+	const workspace = get(currentWorkspace);
+	const state = workspace ?? get(homeState);
+	const group = state.groups.find((item) => item.id === state.activeGroupId);
+	if (!group) return;
+
+	const existing = group.tabs.find((tab) => tab.type === 'artifact' && tab.content === content);
+	const tab: Tab = existing ?? { id: nextId(), type: 'artifact', label: title, content };
+	const updateGroup = (group: EditorGroup) =>
+		group.id === state.activeGroupId
+			? { ...group, tabs: existing ? group.tabs : [...group.tabs, tab], activeTabId: tab.id }
+			: group;
+
+	if (workspace) {
+		currentWorkspace.update((current) =>
+			current ? { ...current, groups: current.groups.map(updateGroup) } : current
+		);
+	} else {
+		homeState.update((current) => ({ ...current, groups: current.groups.map(updateGroup) }));
+	}
 }
 
 export function openUntitledFileTab(targetGroupId?: string): void {

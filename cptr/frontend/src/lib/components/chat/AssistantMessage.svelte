@@ -8,7 +8,7 @@
 	import MessageTimestamp from './MessageTimestamp.svelte';
 	import ReasoningCollapsible from './ReasoningCollapsible.svelte';
 	import ToolCallCollapsible from './ToolCallCollapsible.svelte';
-	import { currentWorkspace, openFileTab } from '$lib/stores';
+	import { currentWorkspace, openArtifactTab, openFileTab } from '$lib/stores';
 	import { ttsConfigured, ttsEnabled } from '$lib/stores/audio';
 	import { tooltip } from '$lib/tooltip';
 	import { fileIconName } from '$lib/utils/fileIcon';
@@ -156,6 +156,10 @@
 
 	function toggleFile(key: string) {
 		collapsedFiles = { ...collapsedFiles, [key]: !collapsedFiles[key] };
+	}
+
+	function openArtifact(artifact: any) {
+		openArtifactTab(artifact.title || 'Artifact', artifact.content || '');
 	}
 
 	/** Human-readable label for a tool call */
@@ -464,13 +468,7 @@
 						hover:border-gray-300 dark:hover:border-white/12
 						hover:bg-gray-50/50 dark:hover:bg-white/[0.03]
 						transition-colors duration-150 {preview ? 'h-[4.375rem]' : 'h-[2.375rem]'}"
-							onclick={() => {
-								const ws = get(currentWorkspace);
-								if (ws && artifact.path) {
-									const fullPath = ws.path.replace(/\/$/, '') + '/' + artifact.path;
-									openFileTab(fullPath);
-								}
-							}}
+							onclick={() => openArtifact(artifact)}
 						>
 							<div class="h-full min-w-0 overflow-hidden px-3 py-2.5">
 								<div
