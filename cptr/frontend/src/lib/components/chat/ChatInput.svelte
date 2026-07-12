@@ -95,6 +95,7 @@
 		onqueueedit?: (id: string) => void;
 		onqueuedelete?: (id: string) => void;
 		onsettingschange?: () => void;
+		ontoolapprovalchange?: (mode: ToolApprovalMode) => void;
 	}
 	let {
 		inputText = $bindable(),
@@ -123,7 +124,8 @@
 		onqueuesendnow,
 		onqueueedit,
 		onqueuedelete,
-		onsettingschange
+		onsettingschange,
+		ontoolapprovalchange
 	}: Props = $props();
 
 	let editorEl: HTMLDivElement | undefined = $state();
@@ -1507,6 +1509,7 @@
 					bind:planMode
 					bind:requestParams
 					onchange={onsettingschange}
+					{ontoolapprovalchange}
 					onfiles={(files) => {
 						if (files) processFiles(Array.from(files));
 					}}

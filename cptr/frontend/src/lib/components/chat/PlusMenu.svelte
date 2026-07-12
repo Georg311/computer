@@ -13,6 +13,7 @@
 		planMode?: boolean;
 		requestParams?: Record<string, unknown>;
 		onchange?: () => void;
+		ontoolapprovalchange?: (mode: ToolApprovalMode) => void;
 	}
 	let {
 		onfiles,
@@ -20,7 +21,8 @@
 		toolApprovalMode = $bindable('auto'),
 		planMode = $bindable(false),
 		requestParams = $bindable({}),
-		onchange
+		onchange,
+		ontoolapprovalchange
 	}: Props = $props();
 
 	let open = $state(false);
@@ -108,7 +110,8 @@
 
 	function selectMode(mode: ToolApprovalMode) {
 		toolApprovalMode = mode;
-		onchange?.();
+		if (ontoolapprovalchange) ontoolapprovalchange(mode);
+		else onchange?.();
 	}
 
 	function triggerUpload() {

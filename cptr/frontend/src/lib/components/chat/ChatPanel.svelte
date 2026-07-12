@@ -35,7 +35,13 @@
 	import { socketStore } from '$lib/stores/socket.svelte';
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { get } from 'svelte/store';
-	import { currentWorkspace, openChatTab, streamingBehavior, widescreenMode } from '$lib/stores';
+	import {
+		currentWorkspace,
+		openChatTab,
+		streamingBehavior,
+		toolApprovalMode as defaultToolApprovalMode,
+		widescreenMode
+	} from '$lib/stores';
 	import { getPathDisplayName } from '$lib/utils/paths';
 	import {
 		ttsEnabled,
@@ -663,7 +669,7 @@
 		const dm = get(defaultModel);
 		if (dm) selectedModel = dm;
 		else if (models.length) selectedModel = models[0].id;
-		toolApprovalMode = 'auto';
+		toolApprovalMode = get(defaultToolApprovalMode);
 		planMode = false;
 		requestParams = {};
 		voiceModeEnabled = false;
@@ -1059,6 +1065,12 @@
 
 	function handlePlanCommand() {
 		planMode = !planMode;
+		persistChatSettings();
+	}
+
+	function handleToolApprovalModeChange(mode: ToolApprovalMode) {
+		toolApprovalMode = mode;
+		defaultToolApprovalMode.set(mode);
 		persistChatSettings();
 	}
 
@@ -1705,6 +1717,7 @@
 					onsend={send}
 					onplan={handlePlanCommand}
 					onsettingschange={persistChatSettings}
+					ontoolapprovalchange={handleToolApprovalModeChange}
 					{queuedMessages}
 					onqueuesendnow={handleQueueSendNow}
 					onqueueedit={handleQueueEdit}
@@ -1834,6 +1847,7 @@
 					onfork={handleForkChat}
 					onplan={handlePlanCommand}
 					onsettingschange={persistChatSettings}
+					ontoolapprovalchange={handleToolApprovalModeChange}
 					onstatus={handleStatusCommand}
 					onskillslist={handleSkillsListCommand}
 					oncancel={handleCancel}

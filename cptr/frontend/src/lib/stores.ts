@@ -110,11 +110,14 @@ export interface HomeState {
 	splitDirection: SplitDirection;
 }
 
+export type ToolApprovalMode = 'ask' | 'auto' | 'full';
+
 export interface UserPreferences {
 	theme?: Theme;
 	appearance?: AppearancePreferences;
 	sidebarOpen: boolean;
 	sidebarWidth: number;
+	toolApprovalMode?: ToolApprovalMode;
 	locale: string;
 	workspaceOrder?: string[]; // ordered paths for sidebar drag-reorder
 	keybindings?: Record<string, string>; // user-customised keyboard shortcuts
@@ -298,6 +301,7 @@ if (typeof window !== 'undefined') {
 }
 export const sidebarWidth = writable(220);
 export const theme = writable<Theme>('dark');
+export const toolApprovalMode = writable<ToolApprovalMode>('auto');
 export const appVersion = writable('');
 export const lastSeenVersion = writable('');
 export const latestVersion = writable('');
@@ -422,6 +426,7 @@ function persistPreferences(): void {
 			},
 			sidebarOpen: get(sidebarOpen),
 			sidebarWidth: get(sidebarWidth),
+			toolApprovalMode: get(toolApprovalMode),
 			locale: i18next.language,
 			workspaceOrder: get(workspaceOrder),
 			keybindings: get(keybindings),
@@ -457,6 +462,9 @@ function subscribeForPersistence() {
 		if (get(stateLoaded)) persistPreferences();
 	});
 	sidebarWidth.subscribe(() => {
+		if (get(stateLoaded)) persistPreferences();
+	});
+	toolApprovalMode.subscribe(() => {
 		if (get(stateLoaded)) persistPreferences();
 	});
 	workspaceOrder.subscribe(() => {
@@ -500,6 +508,15 @@ export async function loadPreferences(): Promise<void> {
 		themeConfig.set(sanitizeThemeConfig(appearance.themeConfig));
 		if (prefs.sidebarOpen !== undefined) sidebarOpen.set(prefs.sidebarOpen as boolean);
 		if (prefs.sidebarWidth !== undefined) sidebarWidth.set(prefs.sidebarWidth as number);
+		if (
+			prefs.toolApprovalMode === 'ask' ||
+			prefs.toolApprovalMode === 'auto' ||
+			prefs.toolApprovalMode === 'full'
+		) {
+			toolApprovalMode.set(prefs.toolApprovalMode);
+		} else if (prefs.autoApproveTools !== undefined) {
+			toolApprovalMode.set((prefs.autoApproveTools as boolean) ? 'full' : 'ask');
+		}
 		if (prefs.locale) changeLocale(prefs.locale as string);
 		if (Array.isArray(prefs.workspaceOrder)) workspaceOrder.set(prefs.workspaceOrder as string[]);
 		if (prefs.keybindings) loadKeybindings(prefs.keybindings as Record<string, string>);
