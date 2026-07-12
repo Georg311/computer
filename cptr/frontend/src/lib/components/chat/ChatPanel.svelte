@@ -7,6 +7,7 @@
 		forkChat as apiForkChat,
 		sendMessage as apiSendMessage,
 		approveToolCall,
+		answerAskUser,
 		cancelTask,
 		compactChat as apiCompactChat,
 		updateCurrentMessage,
@@ -1115,6 +1116,19 @@
 		});
 	}
 
+	function handleAskUserAnswer(
+		messageId: string,
+		callId: string,
+		answers: Record<string, string>,
+		timedOut: boolean
+	) {
+		if (!chatId) return;
+		answerAskUser(chatId, messageId, callId, answers, timedOut).catch((err) => {
+			console.error('[chat] ask_user answer error', err);
+			loadChat(chatId!);
+		});
+	}
+
 	function handleNavigate(messageId: string, direction: -1 | 1) {
 		const entry = activePath.find((p) => p.msg.id === messageId);
 		if (!entry) return;
@@ -1654,6 +1668,7 @@
 								onedit={(c, o, submit) => handleEditMessage(msg.id, c, o, submit)}
 								onspeak={() => speakMessage(msg.id)}
 								onapprove={handleApprove}
+								onanswer={handleAskUserAnswer}
 							/>
 						{/if}
 					{/each}

@@ -8,6 +8,7 @@
 	import MessageTimestamp from './MessageTimestamp.svelte';
 	import ReasoningCollapsible from './ReasoningCollapsible.svelte';
 	import ToolCallCollapsible from './ToolCallCollapsible.svelte';
+	import AskUserCard from './AskUserCard.svelte';
 	import { currentWorkspace, openFileTab } from '$lib/stores';
 	import { ttsConfigured, ttsEnabled } from '$lib/stores/audio';
 	import { tooltip } from '$lib/tooltip';
@@ -27,6 +28,12 @@
 		siblingTotal?: number;
 		speaking?: boolean;
 		onapprove: (messageId: string, callId: string, approved: boolean) => void;
+		onanswer: (
+			messageId: string,
+			callId: string,
+			answers: Record<string, string>,
+			timedOut: boolean
+		) => void;
 		onnavigate?: (direction: -1 | 1) => void;
 		onfork?: () => void;
 		onregenerate?: () => void;
@@ -45,6 +52,7 @@
 		siblingTotal = 1,
 		speaking = false,
 		onapprove,
+		onanswer,
 		onnavigate,
 		onfork,
 		onregenerate,
@@ -262,7 +270,19 @@
 		index: number;
 	}
 
-	type DisplayItem = ActivityGroup | MessageItem | ArtifactItem | ImageItem | FileItem;
+	interface AskUserItem {
+		type: 'ask_user_item';
+		item: any;
+		output: any;
+	}
+
+	type DisplayItem =
+		| ActivityGroup
+		| MessageItem
+		| ArtifactItem
+		| ImageItem
+		| FileItem
+		| AskUserItem;
 
 	const outputText = $derived.by((): string => {
 		return (output || [])
@@ -343,9 +363,14 @@
 
 		for (const [index, item] of output.entries()) {
 			if (item.type === 'function_call') {
-				ensureGroup();
-				currentGroup!.entries.push(item);
-				currentGroup!.calls.push(item);
+				if (item.name === 'ask_user') {
+					flushGroup();
+					items.push({ type: 'ask_user_item', item, output: outputMap.get(item.call_id) });
+				} else {
+					ensureGroup();
+					currentGroup!.entries.push(item);
+					currentGroup!.calls.push(item);
+				}
 			} else if (item.type === 'reasoning') {
 				ensureGroup();
 				currentGroup!.entries.push(item);
@@ -547,6 +572,14 @@
 								<ChatFilePreview {file} {filePath} />
 							{/if}
 						</div>
+					{:else if displayItem.type === 'ask_user_item'}
+						<AskUserCard
+							item={displayItem.item}
+							pairedOutput={displayItem.output}
+							{chatId}
+							{messageId}
+							{onanswer}
+						/>
 					{:else if displayItem.type === 'activity_group'}
 						{#if displayItem.entries.length === 1}
 							{@const item = displayItem.entries[0]}

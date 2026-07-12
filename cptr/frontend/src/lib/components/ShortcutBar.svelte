@@ -224,16 +224,11 @@
 		align-items: center;
 		gap: 0.25rem;
 		padding: 0.25rem 0.5rem;
-		background: var(--color-gray-100);
-		border-top: 1px solid var(--color-gray-200);
+		background: var(--app-bg);
+		border-top: 1px solid var(--app-border);
 		overflow-x: auto;
 		flex-shrink: 0;
 		scrollbar-width: none;
-	}
-
-	:global(.dark) .shortcut-bar {
-		background: #0a0a0a;
-		border-top-color: rgba(255, 255, 255, 0.06);
 	}
 
 	.shortcut-bar::-webkit-scrollbar {
@@ -246,8 +241,8 @@
 		font-family: var(--font-mono);
 		font-weight: 500;
 		border-radius: 0.3125rem;
-		color: var(--color-gray-600);
-		background: var(--color-gray-200);
+		color: var(--app-fg-muted);
+		background: var(--app-hover);
 		white-space: nowrap;
 		flex-shrink: 0;
 		transition: all 0.1s ease;
@@ -256,22 +251,12 @@
 		-webkit-tap-highlight-color: transparent;
 	}
 
-	:global(.dark) .key {
-		background: rgba(255, 255, 255, 0.08);
-		color: var(--color-gray-400);
-	}
-
 	.key:active {
 		transform: scale(0.95);
 	}
 
 	.key.active {
-		background: var(--color-gray-900);
-		color: white;
-	}
-
-	:global(.dark) .key.active {
-		background: white;
-		color: black;
+		background: var(--app-fg);
+		color: var(--app-bg);
 	}
 </style>

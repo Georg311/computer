@@ -699,7 +699,7 @@
 		width: 100%;
 		height: 100%;
 		display: block;
-		background: white;
+		background: var(--app-bg);
 	}
 	.chrome-container {
 		position: relative;

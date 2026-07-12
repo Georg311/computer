@@ -411,7 +411,7 @@
 		transition:
 			opacity 0.1s,
 			transform 0.1s;
-		color: #9ca3af;
+		color: var(--app-fg-subtle);
 	}
 
 	:global(.dark) .ws-icon-chevron {
@@ -458,12 +458,12 @@
 		width: 0.25rem;
 		height: 0.25rem;
 		border-radius: 50%;
-		background: #9ca3af;
+		background: var(--app-fg-subtle);
 		animation: dotPulse 1s ease-in-out infinite;
 	}
 
 	:global(.dark) .ws-chat-loading-dot {
-		background: #6b7280;
+		background: var(--app-fg-muted);
 	}
 
 	.ws-chat-loading-dot:nth-child(2) {

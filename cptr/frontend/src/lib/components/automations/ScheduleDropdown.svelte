@@ -282,20 +282,12 @@
 		padding: 0.25rem 0.625rem;
 		border-radius: 1rem;
 		font-size: 0.75rem;
-		color: var(--color-gray-600);
+		color: var(--app-fg-muted);
 		transition: background 0.1s;
 	}
 
-	:global(.dark) .schedule-trigger {
-		color: var(--color-gray-400);
-	}
-
 	.schedule-trigger:hover {
-		background: rgba(0, 0, 0, 0.05);
-	}
-
-	:global(.dark) .schedule-trigger:hover {
-		background: rgba(255, 255, 255, 0.05);
+		background: var(--app-hover);
 	}
 
 	.schedule-panel {
@@ -304,15 +296,10 @@
 		width: 12rem;
 		padding: 0.25rem;
 		border-radius: 1rem;
-		background: white;
-		border: 1px solid var(--color-gray-200);
+		background: var(--app-bg);
+		border: 1px solid var(--app-border);
 		box-shadow:
-			0 0.25rem 0.375rem -0.0625rem rgba(0, 0, 0, 0.1),
-			0 0.125rem 0.25rem -0.125rem rgba(0, 0, 0, 0.1);
-	}
-
-	:global(.dark) .schedule-panel {
-		background: #0a0a0a;
-		border-color: rgba(255, 255, 255, 0.08);
+			0 0.25rem 0.375rem -0.0625rem color-mix(in oklab, var(--app-fg) 10%, transparent),
+			0 0.125rem 0.25rem -0.125rem color-mix(in oklab, var(--app-fg) 10%, transparent);
 	}
 </style>

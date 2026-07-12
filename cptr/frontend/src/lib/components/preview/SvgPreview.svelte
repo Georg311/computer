@@ -125,12 +125,8 @@
 		justify-content: space-between;
 		height: 2.25rem;
 		padding: 0 0.75rem;
-		border-bottom: 1px solid var(--color-gray-200);
+		border-bottom: 1px solid var(--app-border);
 		flex-shrink: 0;
-	}
-
-	:global(.dark) .toolbar {
-		border-bottom-color: rgba(255, 255, 255, 0.06);
 	}
 
 	.toolbar-left {
@@ -147,7 +143,7 @@
 	.file-label {
 		font-size: 0.6875rem;
 		font-weight: 500;
-		color: var(--color-gray-500);
+		color: var(--app-fg-muted);
 	}
 
 	.toolbar-btn {
@@ -158,24 +154,16 @@
 		height: 1.5rem;
 		padding: 0 0.25rem;
 		border-radius: 0.375rem;
-		color: var(--color-gray-400);
+		color: var(--app-fg-subtle);
 		transition: all 0.1s;
 	}
 
 	.toolbar-btn:hover {
-		color: var(--color-gray-600);
-	}
-
-	:global(.dark) .toolbar-btn:hover {
-		color: var(--color-gray-300);
+		color: var(--app-fg-muted);
 	}
 
 	.toolbar-btn.active {
-		color: var(--color-gray-900);
-	}
-
-	:global(.dark) .toolbar-btn.active {
-		color: white;
+		color: var(--app-fg);
 	}
 
 	.zoom-text {
@@ -193,12 +181,7 @@
 		width: 100%;
 		height: 100%;
 		overflow: hidden;
-		background: repeating-conic-gradient(var(--color-gray-100) 0% 25%, transparent 0% 50%) 50% /
-			1rem 1rem;
-	}
-
-	:global(.dark) .visual-container {
-		background: repeating-conic-gradient(rgba(255, 255, 255, 0.04) 0% 25%, transparent 0% 50%) 50% /
+		background: repeating-conic-gradient(var(--app-hover) 0% 25%, transparent 0% 50%) 50% /
 			1rem 1rem;
 	}
 
@@ -225,12 +208,9 @@
 		font-family: var(--font-mono);
 		font-size: 0.78125rem;
 		line-height: 1.6;
-		color: var(--color-gray-800);
+		color: var(--app-fg);
 		white-space: pre-wrap;
 		word-break: break-all;
 	}
 
-	:global(.dark) .source-view {
-		color: var(--color-gray-200);
-	}
 </style>

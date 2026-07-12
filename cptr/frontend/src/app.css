@@ -8,19 +8,19 @@
 	--font-sans: 'Inter', -apple-system, BlinkMacSystemFont, ui-sans-serif, system-ui, sans-serif;
 	--font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 
-	/* Exact Open WebUI gray scale - pure neutral, zero chroma */
-	--color-gray-50: oklch(0.98 0 0);
-	--color-gray-100: oklch(0.94 0 0);
-	--color-gray-200: oklch(0.92 0 0);
-	--color-gray-300: oklch(0.85 0 0);
-	--color-gray-400: oklch(0.77 0 0);
-	--color-gray-500: oklch(0.69 0 0);
-	--color-gray-600: oklch(0.51 0 0);
-	--color-gray-700: oklch(0.42 0 0);
-	--color-gray-800: oklch(0.32 0 0);
-	--color-gray-850: oklch(0.27 0 0);
-	--color-gray-900: oklch(0.2 0 0);
-	--color-gray-950: oklch(0.16 0 0);
+	/* Keep Tailwind's neutral utilities on the selected appearance. */
+	--color-gray-50: color-mix(in oklab, var(--app-bg) 96%, var(--app-fg));
+	--color-gray-100: color-mix(in oklab, var(--app-bg) 92%, var(--app-fg));
+	--color-gray-200: color-mix(in oklab, var(--app-bg) 85%, var(--app-fg));
+	--color-gray-300: color-mix(in oklab, var(--app-bg) 75%, var(--app-fg));
+	--color-gray-400: color-mix(in oklab, var(--app-bg) 65%, var(--app-fg));
+	--color-gray-500: color-mix(in oklab, var(--app-bg) 55%, var(--app-fg));
+	--color-gray-600: color-mix(in oklab, var(--app-bg) 45%, var(--app-fg));
+	--color-gray-700: color-mix(in oklab, var(--app-bg) 35%, var(--app-fg));
+	--color-gray-800: color-mix(in oklab, var(--app-bg) 25%, var(--app-fg));
+	--color-gray-850: color-mix(in oklab, var(--app-bg) 20%, var(--app-fg));
+	--color-gray-900: color-mix(in oklab, var(--app-bg) 15%, var(--app-fg));
+	--color-gray-950: color-mix(in oklab, var(--app-bg) 10%, var(--app-fg));
 }
 
 :root {
@@ -76,17 +76,10 @@
 
 /* Scrollbar - Open WebUI style */
 ::-webkit-scrollbar-thumb {
-	--tw-border-opacity: 1;
-	background-color: rgba(215, 215, 215, 0.6);
-	border-color: rgba(255, 255, 255, var(--tw-border-opacity));
+	background-color: color-mix(in oklab, var(--app-fg) 32%, transparent);
+	border-color: var(--app-bg);
 	border-radius: 624.9375rem;
 	border-width: 1px;
-}
-
-/* Dark theme scrollbar styles */
-.dark ::-webkit-scrollbar-thumb {
-	background-color: rgba(67, 67, 67, 0.6);
-	border-color: rgba(0, 0, 0, var(--tw-border-opacity));
 }
 
 ::-webkit-scrollbar {
@@ -293,20 +286,20 @@
 }
 
 .dark .cm-editor {
-	background-color: #000 !important;
+	background-color: var(--app-bg) !important;
 }
 
 .dark .cm-gutters {
-	background-color: #000 !important;
+	background-color: var(--app-bg) !important;
 	border: none !important;
 }
 
 .dark .cm-activeLine {
-	background-color: rgba(255, 255, 255, 0.04) !important;
+	background-color: var(--app-hover) !important;
 }
 
 .dark .cm-activeLineGutter {
-	background-color: rgba(255, 255, 255, 0.04) !important;
+	background-color: var(--app-hover) !important;
 }
 
 :not(.dark) .cm-gutters {
@@ -338,45 +331,33 @@
 .shimmer {
 	background: linear-gradient(
 		110deg,
-		#b4b4b4 0%,
-		#b4b4b4 43%,
-		#e8e8e8 50%,
-		#b4b4b4 57%,
-		#b4b4b4 100%
+		var(--app-fg-subtle) 0%,
+		var(--app-fg-subtle) 43%,
+		var(--app-fg) 50%,
+		var(--app-fg-subtle) 57%,
+		var(--app-fg-subtle) 100%
 	);
 	background-size: 200% 100%;
 	background-clip: text;
 	-webkit-background-clip: text;
 	-webkit-text-fill-color: transparent;
 	animation: shimmer 1.5s cubic-bezier(0.7, 0, 1, 0.4) infinite;
-	color: #b4b4b4;
-}
-
-.dark .shimmer {
-	background: linear-gradient(
-		110deg,
-		#9a9a9a 0%,
-		#9a9a9a 43%,
-		#5e5e5e 50%,
-		#9a9a9a 57%,
-		#9a9a9a 100%
-	);
-	background-size: 200% 100%;
-	background-clip: text;
-	-webkit-background-clip: text;
-	-webkit-text-fill-color: transparent;
-	animation: shimmer 1.5s cubic-bezier(0.7, 0, 1, 0.4) infinite;
-	color: #9a9a9a;
+	color: var(--app-fg-subtle);
 }
 
 /* Inline code (codespan), Open WebUI style */
 .codespan {
 	padding: 0.15rem 0.3rem;
 	font-size: 0.85em;
-	@apply font-mono rounded-md text-gray-800 bg-gray-100 dark:text-gray-200 dark:bg-gray-800 mx-0.5;
+	@apply font-mono rounded-md mx-0.5;
+	background: var(--app-hover);
+	color: var(--app-fg);
 }
 
 /* Tippy tooltip theme */
 .tippy-box[data-theme~='cptr'] {
-	@apply rounded-lg bg-gray-950 text-xs border border-gray-900 shadow-xl;
+	@apply rounded-lg text-xs border shadow-xl;
+	background: var(--app-bg);
+	color: var(--app-fg);
+	border-color: var(--app-border);
 }

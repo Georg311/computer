@@ -1530,11 +1530,11 @@
 		height: 100%;
 		left: 50%;
 		transform: translateX(-50%);
-		background: oklch(0.92 0 0);
+		background: var(--app-divider);
 	}
 
 	:global(.dark) .split-divider-h::before {
-		background: rgba(255, 255, 255, 0.06);
+		background: var(--app-divider);
 	}
 
 	.split-divider-v::before {
@@ -1542,16 +1542,16 @@
 		width: 100%;
 		top: 50%;
 		transform: translateY(-50%);
-		background: oklch(0.92 0 0);
+		background: var(--app-divider);
 	}
 
 	:global(.dark) .split-divider-v::before {
-		background: rgba(255, 255, 255, 0.06);
+		background: var(--app-divider);
 	}
 
 	.split-divider:hover,
 	.is-dragging .split-divider {
-		background: rgba(150, 150, 150, 0.12);
+		background: var(--app-active);
 	}
 
 	/* Drag state */

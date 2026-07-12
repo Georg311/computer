@@ -54,23 +54,15 @@
 		margin: 0 0 0.75rem;
 		border-radius: 0.5rem;
 		overflow: hidden;
-		border: 1px solid var(--color-gray-200);
-	}
-
-	:global(.dark) .mermaid-block {
-		border-color: rgba(255, 255, 255, 0.06);
+		border: 1px solid var(--app-border);
 	}
 
 	.mermaid-container {
 		display: flex;
 		justify-content: center;
 		padding: 1rem;
-		background: var(--color-gray-50);
+		background: var(--app-hover);
 		overflow-x: auto;
-	}
-
-	:global(.dark) .mermaid-container {
-		background: rgba(255, 255, 255, 0.02);
 	}
 
 	.mermaid-container :global(svg) {
@@ -101,14 +93,10 @@
 		margin: 0;
 		padding: 0.5rem 0.75rem;
 		font-size: 0.75rem;
-		background: var(--color-gray-100);
+		background: var(--app-hover);
 		border-radius: 0.25rem;
-		color: var(--color-gray-600);
+		color: var(--app-fg-muted);
 		font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 	}
 
-	:global(.dark) .mermaid-source {
-		background: rgba(255, 255, 255, 0.04);
-		color: var(--color-gray-400);
-	}
 </style>

@@ -155,25 +155,27 @@
 		resizeTimeout = setTimeout(() => doFit(), 350);
 	}
 
-	function isDarkMode(): boolean {
-		return document.documentElement.classList.contains('dark');
+	function themeColor(name: '--app-bg' | '--app-fg') {
+		return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 	}
 
-	const darkTheme = {
-		background: '#000000',
-		foreground: '#e0e0e0',
-		cursor: '#e0e0e0',
-		cursorAccent: '#000000',
-		selectionBackground: 'rgba(255, 255, 255, 0.2)'
-	};
+	function withAlpha(color: string, alpha: number) {
+		const hex = /^#([0-9a-f]{6})$/i.exec(color)?.[1];
+		if (!hex) return color;
+		return `rgba(${parseInt(hex.slice(0, 2), 16)}, ${parseInt(hex.slice(2, 4), 16)}, ${parseInt(hex.slice(4, 6), 16)}, ${alpha})`;
+	}
 
-	const lightTheme = {
-		background: '#ffffff',
-		foreground: '#1a1a1a',
-		cursor: '#1a1a1a',
-		cursorAccent: '#ffffff',
-		selectionBackground: 'rgba(0, 0, 0, 0.15)'
-	};
+	function terminalTheme() {
+		const background = themeColor('--app-bg');
+		const foreground = themeColor('--app-fg');
+		return {
+			background,
+			foreground,
+			cursor: foreground,
+			cursorAccent: background,
+			selectionBackground: withAlpha(foreground, 0.2)
+		};
+	}
 
 	// Send input to PTY via WebSocket (binary prefix protocol).
 	// Writes directly into the pre-allocated buffer. Zero allocation
@@ -256,16 +258,19 @@
 			scrollback: 10000,
 			macOptionClickForceSelection: true,
 			disableStdin: readOnly,
-			theme: isDarkMode() ? darkTheme : lightTheme
+			theme: terminalTheme()
 		});
 
 		// Watch for theme changes
 		const observer = new MutationObserver(() => {
 			if (term) {
-				term.options.theme = isDarkMode() ? darkTheme : lightTheme;
+				term.options.theme = terminalTheme();
 			}
 		});
-		observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+		observer.observe(document.documentElement, {
+			attributes: true,
+			attributeFilter: ['class', 'style']
+		});
 
 		// Handle macOS key combos that need special escape sequences
 		term.attachCustomKeyEventHandler((e: KeyboardEvent) => {
@@ -521,7 +526,7 @@
 	:global(.xterm-viewport) {
 		overflow-y: auto !important;
 		scrollbar-width: thin;
-		scrollbar-color: rgba(75, 85, 99, 0.4) transparent;
+		scrollbar-color: color-mix(in oklab, var(--app-fg) 40%, transparent) transparent;
 		overscroll-behavior: contain;
 	}
 	/* When moved to flex sibling on mobile, override xterm's offscreen

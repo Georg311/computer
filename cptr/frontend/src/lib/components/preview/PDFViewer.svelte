@@ -319,17 +319,11 @@
 		gap: 0.125rem;
 		padding: 0.125rem;
 		border-radius: 0.5rem;
-		background: rgba(255, 255, 255, 0.9);
+		background: color-mix(in oklab, var(--app-bg) 90%, transparent);
 		backdrop-filter: blur(0.5rem);
-		border: 1px solid rgba(0, 0, 0, 0.08);
-		box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.1);
+		border: 1px solid var(--app-border);
+		box-shadow: 0 0.125rem 0.5rem color-mix(in oklab, var(--app-fg) 10%, transparent);
 		z-index: 10;
-	}
-
-	:global(.dark) .zoom-toolbar {
-		background: rgba(30, 30, 30, 0.9);
-		border-color: rgba(255, 255, 255, 0.1);
-		box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.3);
 	}
 
 	.zoom-btn {
@@ -339,18 +333,13 @@
 		width: 1.75rem;
 		height: 1.75rem;
 		border-radius: 0.375rem;
-		color: var(--color-gray-500);
+		color: var(--app-fg-muted);
 		transition: all 0.1s;
 	}
 
 	.zoom-btn:hover {
-		background: rgba(0, 0, 0, 0.06);
-		color: var(--color-gray-700);
-	}
-
-	:global(.dark) .zoom-btn:hover {
-		background: rgba(255, 255, 255, 0.1);
-		color: var(--color-gray-300);
+		background: var(--app-hover);
+		color: var(--app-fg);
 	}
 
 	.zoom-level {
@@ -359,20 +348,15 @@
 		font-size: 0.6875rem;
 		font-weight: 500;
 		text-align: center;
-		color: var(--color-gray-500);
+		color: var(--app-fg-muted);
 		border-radius: 0.375rem;
 		font-variant-numeric: tabular-nums;
 		transition: all 0.1s;
 	}
 
 	.zoom-level:hover {
-		background: rgba(0, 0, 0, 0.06);
-		color: var(--color-gray-700);
-	}
-
-	:global(.dark) .zoom-level:hover {
-		background: rgba(255, 255, 255, 0.1);
-		color: var(--color-gray-300);
+		background: var(--app-hover);
+		color: var(--app-fg);
 	}
 
 	/* ── pdfjs TextLayer styles ─────────────────────────────────── */
@@ -421,7 +405,7 @@
 	}
 
 	:global(.textLayer ::selection) {
-		background: rgba(0, 100, 255, 0.25);
+		background: color-mix(in oklab, var(--app-fg) 25%, transparent);
 	}
 
 	:global(.textLayer br::selection) {

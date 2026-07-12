@@ -849,6 +849,93 @@ class ApproveRequest(BaseModel):
     approved: bool = True
 
 
+class AskUserAnswerRequest(BaseModel):
+    call_id: str
+    answers: dict[str, str]
+    timed_out: bool = False
+
+
+class AskUserNotPendingError(ValueError):
+    pass
+
+
+async def resolve_ask_user(
+    app,
+    chat_id: str,
+    message_id: str,
+    call_id: str,
+    answers: dict[str, str] | None,
+    timed_out: bool,
+):
+    chat = await Chat.get_by_id(chat_id)
+    msg = await ChatMessage.get_by_id(message_id)
+    if not chat or not msg or msg.chat_id != chat_id:
+        raise AskUserNotPendingError("ask_user request is no longer pending")
+    output = list(msg.output or [])
+    call = next(
+        (
+            item
+            for item in output
+            if item.get("type") == "function_call"
+            and item.get("name") == "ask_user"
+            and item.get("call_id") == call_id
+            and item.get("status") == "pending"
+        ),
+        None,
+    )
+    if not call:
+        raise AskUserNotPendingError("ask_user request is no longer pending")
+    if timed_out and now_ms() < int(call.get("expires_at") or 0):
+        raise AskUserNotPendingError("ask_user request has not timed out")
+
+    from cptr.utils.chat_task import ask_user_answers, start_task
+    from cptr.utils.model_targets import resolve_model_target
+    from cptr.socket.main import emit_to_user
+
+    result = ask_user_answers(call.get("arguments") or {}, None if timed_out else answers)
+    if timed_out:
+        result["timed_out"] = True
+    call["status"] = "completed"
+    call["timed_out"] = timed_out
+    output.append(
+        {"type": "function_call_output", "call_id": call_id, "output": json.dumps(result)}
+    )
+    await ChatMessage.update(message_id, output=output, done=False)
+    await emit_to_user(chat.user_id, {"chat_id": chat_id, "message_id": message_id, "output": call})
+    await emit_to_user(
+        chat.user_id, {"chat_id": chat_id, "message_id": message_id, "output": output[-1]}
+    )
+    target = await resolve_model_target(msg.model or "", app.state)
+    start_task(
+        message_id=message_id,
+        chat_id=chat_id,
+        user_id=chat.user_id,
+        workspace=(chat.meta or {}).get("workspace", ""),
+        target=target,
+    )
+
+
+@router.post("/{chat_id}/messages/{message_id}/answer")
+async def answer_ask_user(
+    chat_id: str, message_id: str, body: AskUserAnswerRequest, request: Request
+):
+    """Resolve a pending Plan-mode ask_user request and resume the chat."""
+    user_id = _get_user(request)
+    chat = await Chat.get_by_id(chat_id)
+    if not chat or chat.user_id != user_id:
+        raise HTTPException(404, "chat not found")
+
+    try:
+        await resolve_ask_user(
+            request.app, chat_id, message_id, body.call_id, body.answers, body.timed_out
+        )
+    except AskUserNotPendingError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return {"ok": True}
+
+
 @router.post("/{chat_id}/messages/{message_id}/approve")
 async def approve_tool(chat_id: str, message_id: str, body: ApproveRequest, request: Request):
     """Execute or reject a pending tool call, then continue."""

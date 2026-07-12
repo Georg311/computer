@@ -360,11 +360,7 @@
 		padding: 1.5rem 2rem;
 		font-size: 0.875rem;
 		line-height: 1.7;
-		color: var(--color-gray-800);
-	}
-
-	:global(.dark) .docx-content {
-		color: var(--color-gray-200);
+		color: var(--app-fg);
 	}
 
 	.docx-content :global(h1) {
@@ -392,7 +388,7 @@
 	}
 	.docx-content :global(td),
 	.docx-content :global(th) {
-		border: 1px solid var(--color-gray-200);
+		border: 1px solid var(--app-border);
 		padding: 0.25rem 0.5rem;
 	}
 	.docx-content :global(img) {
@@ -405,34 +401,25 @@
 	.sheet-tabs {
 		display: flex;
 		gap: 0;
-		border-bottom: 1px solid var(--color-gray-200);
+		border-bottom: 1px solid var(--app-border);
 		padding: 0 0.25rem;
 		flex-shrink: 0;
 		overflow-x: auto;
-	}
-
-	:global(.dark) .sheet-tabs {
-		border-bottom-color: rgba(255, 255, 255, 0.06);
 	}
 
 	.sheet-tab {
 		padding: 0.375rem 0.75rem;
 		font-size: 0.6875rem;
 		font-weight: 500;
-		color: var(--color-gray-500);
+		color: var(--app-fg-muted);
 		border-bottom: 0.125rem solid transparent;
 		white-space: nowrap;
 		transition: all 0.1s;
 	}
 
 	.sheet-tab.active {
-		color: var(--color-gray-900);
-		border-bottom-color: var(--color-gray-900);
-	}
-
-	:global(.dark) .sheet-tab.active {
-		color: white;
-		border-bottom-color: white;
+		color: var(--app-fg);
+		border-bottom-color: var(--app-fg);
 	}
 
 	.xlsx-content {
@@ -455,48 +442,30 @@
 	}
 
 	.xlsx-content :global(th) {
-		background: var(--color-gray-50);
-		color: var(--color-gray-500);
+		background: var(--app-hover);
+		color: var(--app-fg-muted);
 		font-weight: 600;
 		font-size: 0.625rem;
 		padding: 0.25rem 0.5rem;
 		text-align: center;
-		border-bottom: 1px solid var(--color-gray-200);
-	}
-
-	:global(.dark) .xlsx-content :global(th) {
-		background: rgba(255, 255, 255, 0.04);
-		color: var(--color-gray-400);
-		border-bottom-color: rgba(255, 255, 255, 0.06);
+		border-bottom: 1px solid var(--app-border);
 	}
 
 	.xlsx-content :global(td) {
 		padding: 0.1875rem 0.5rem;
-		color: var(--color-gray-800);
-		border-bottom: 1px solid var(--color-gray-100);
-		border-right: 1px solid var(--color-gray-100);
-	}
-
-	:global(.dark) .xlsx-content :global(td) {
-		color: var(--color-gray-200);
-		border-bottom-color: rgba(255, 255, 255, 0.04);
-		border-right-color: rgba(255, 255, 255, 0.04);
+		color: var(--app-fg);
+		border-bottom: 1px solid var(--app-divider);
+		border-right: 1px solid var(--app-divider);
 	}
 
 	.xlsx-content :global(.rn) {
-		color: var(--color-gray-400);
+		color: var(--app-fg-subtle);
 		font-size: 0.625rem;
 		text-align: right;
 		user-select: none;
 		min-width: 1.75rem;
-		border-right: 1px solid var(--color-gray-200);
-		background: var(--color-gray-50);
-	}
-
-	:global(.dark) .xlsx-content :global(.rn) {
-		border-right-color: rgba(255, 255, 255, 0.06);
-		background: rgba(255, 255, 255, 0.02);
-		color: var(--color-gray-600);
+		border-right: 1px solid var(--app-border);
+		background: var(--app-hover);
 	}
 
 	.xlsx-content :global(.num) {
@@ -517,18 +486,14 @@
 		flex-direction: column;
 		gap: 0.5rem;
 		align-items: center;
-		background: var(--color-gray-100);
-	}
-
-	:global(.dark) .pptx-content {
-		background: rgba(255, 255, 255, 0.02);
+		background: var(--app-hover);
 	}
 
 	.slide {
 		position: relative;
 		width: 100%;
 		max-width: 50rem;
-		box-shadow: 0 0.0625rem 0.25rem rgba(0, 0, 0, 0.12);
+		box-shadow: 0 0.0625rem 0.25rem color-mix(in oklab, var(--app-fg) 12%, transparent);
 		border-radius: 0.25rem;
 		overflow: hidden;
 	}

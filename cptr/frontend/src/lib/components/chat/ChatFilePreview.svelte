@@ -130,11 +130,7 @@
 		min-height: 10rem;
 		overflow: hidden;
 		resize: vertical;
-		background: white;
-	}
-
-	:global(.dark) .preview-box {
-		background: black;
+		background: var(--app-bg);
 	}
 
 	.preview-box.tall {
@@ -152,11 +148,7 @@
 		overflow: auto;
 		resize: vertical;
 		padding: 0.875rem 1rem;
-		background: white;
-	}
-
-	:global(.dark) .text-preview {
-		background: rgba(0, 0, 0, 0.25);
+		background: var(--app-bg);
 	}
 
 	.mono-preview {
@@ -166,16 +158,12 @@
 		font-family: var(--font-mono);
 		font-size: 0.75rem;
 		line-height: 1.35;
-		color: var(--color-gray-800);
-	}
-
-	:global(.dark) .mono-preview {
-		color: var(--color-gray-200);
+		color: var(--app-fg);
 	}
 
 	.media-preview {
 		padding: 0.75rem 1rem;
-		background: white;
+		background: var(--app-bg);
 	}
 
 	.video-preview {
@@ -184,10 +172,6 @@
 		min-height: 6rem;
 		overflow: auto;
 		resize: vertical;
-	}
-
-	:global(.dark) .media-preview {
-		background: rgba(0, 0, 0, 0.25);
 	}
 
 	.media-preview audio,
@@ -201,10 +185,6 @@
 	.preview-state {
 		padding: 0.75rem 1rem;
 		font-size: 0.75rem;
-		color: var(--color-gray-500);
-	}
-
-	:global(.dark) .preview-state {
-		color: var(--color-gray-400);
+		color: var(--app-fg-muted);
 	}
 </style>

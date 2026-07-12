@@ -222,15 +222,10 @@
 		align-items: center;
 		height: 2.25rem;
 		padding: 0 0.5rem;
-		border-bottom: 1px solid var(--color-gray-200);
-		background: white;
+		border-bottom: 1px solid var(--app-border);
+		background: var(--app-bg);
 		flex-shrink: 0;
 		overflow: hidden;
-	}
-
-	:global(.dark) .editor-toolbar {
-		background: #000;
-		border-bottom-color: rgba(255, 255, 255, 0.06);
 	}
 
 	.toolbar-scroll {
@@ -258,7 +253,7 @@
 		border: none;
 		border-radius: 0.3125rem;
 		background: transparent;
-		color: var(--color-gray-500);
+		color: var(--app-fg-muted);
 		font-size: 0.75rem;
 		font-weight: 500;
 		cursor: pointer;
@@ -268,32 +263,18 @@
 	}
 
 	.tb-btn:hover {
-		background: var(--color-gray-100);
-		color: var(--color-gray-700);
+		background: var(--app-hover);
+		color: var(--app-fg);
 	}
 
 	.tb-btn.active {
-		background: var(--color-gray-200);
-		color: var(--color-gray-900);
+		background: var(--app-active);
+		color: var(--app-fg);
 	}
 
 	.tb-btn:disabled {
 		opacity: 0.3;
 		cursor: default;
-	}
-
-	:global(.dark) .tb-btn {
-		color: var(--color-gray-500);
-	}
-
-	:global(.dark) .tb-btn:hover {
-		background: rgba(255, 255, 255, 0.06);
-		color: var(--color-gray-300);
-	}
-
-	:global(.dark) .tb-btn.active {
-		background: rgba(255, 255, 255, 0.1);
-		color: white;
 	}
 
 	.heading-btn {
@@ -305,13 +286,9 @@
 	.tb-divider {
 		width: 1px;
 		height: 1rem;
-		background: var(--color-gray-200);
+		background: var(--app-divider);
 		margin: 0 0.25rem;
 		flex-shrink: 0;
-	}
-
-	:global(.dark) .tb-divider {
-		background: rgba(255, 255, 255, 0.08);
 	}
 
 	.highlight-icon {
@@ -337,8 +314,8 @@
 			padding-bottom: env(safe-area-inset-bottom, 0);
 		}
 
-		:global(.dark) .editor-toolbar {
-			border-top-color: rgba(255, 255, 255, 0.06);
+		.editor-toolbar {
+			border-top-color: var(--app-border);
 			border-bottom: none;
 		}
 

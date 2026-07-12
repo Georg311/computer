@@ -463,7 +463,7 @@
 
 	.notification-target-row {
 		@apply flex items-center gap-3 px-1 py-1.5;
-		border-bottom: 1px solid rgba(128, 128, 128, 0.04);
+		border-bottom: 1px solid var(--app-divider);
 	}
 
 	.notification-target-row:last-child {

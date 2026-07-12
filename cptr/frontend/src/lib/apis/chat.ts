@@ -147,6 +147,18 @@ export const approveToolCall = (
 		jsonBody({ call_id: callId, approved })
 	);
 
+export const answerAskUser = (
+	chatId: string,
+	messageId: string,
+	callId: string,
+	answers: Record<string, string>,
+	timedOut = false
+) =>
+	fetchJSON(
+		`/api/chats/${chatId}/messages/${messageId}/answer`,
+		jsonBody({ call_id: callId, answers, timed_out: timedOut })
+	);
+
 export const cancelTask = (chatId: string, messageId: string) =>
 	fetchJSON(`/api/chats/${chatId}/messages/${messageId}/cancel`, { method: 'POST' });
 

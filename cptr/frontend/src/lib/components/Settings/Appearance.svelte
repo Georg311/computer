@@ -348,7 +348,7 @@
 	.appearance-swatch {
 		width: 1.5rem;
 		height: 1.5rem;
-		border: 1px solid rgb(156 163 175 / 0.35);
+		border: 1px solid var(--app-border);
 		border-radius: 624.9375rem;
 		background: transparent;
 		padding: 0.125rem;
@@ -364,7 +364,7 @@
 	.ui-scale-range::-webkit-slider-runnable-track {
 		height: 0.125rem;
 		border-radius: 624.9375rem;
-		background: rgb(209 213 219 / 0.7);
+		background: var(--app-divider);
 	}
 
 	.ui-scale-range::-webkit-slider-thumb {
@@ -373,32 +373,22 @@
 		height: 0.75rem;
 		margin-top: -0.3125rem;
 		border-radius: 624.9375rem;
-		border: 1px solid rgb(156 163 175 / 0.45);
-		background: rgb(255 255 255);
+		border: 1px solid var(--app-border);
+		background: var(--app-bg);
 	}
 
 	.ui-scale-range::-moz-range-track {
 		height: 0.125rem;
 		border-radius: 624.9375rem;
-		background: rgb(209 213 219 / 0.7);
+		background: var(--app-divider);
 	}
 
 	.ui-scale-range::-moz-range-thumb {
 		width: 0.75rem;
 		height: 0.75rem;
 		border-radius: 624.9375rem;
-		border: 1px solid rgb(156 163 175 / 0.45);
-		background: rgb(255 255 255);
+		border: 1px solid var(--app-border);
+		background: var(--app-bg);
 	}
 
-	:global(.dark) .ui-scale-range::-webkit-slider-runnable-track,
-	:global(.dark) .ui-scale-range::-moz-range-track {
-		background: rgb(255 255 255 / 0.12);
-	}
-
-	:global(.dark) .ui-scale-range::-webkit-slider-thumb,
-	:global(.dark) .ui-scale-range::-moz-range-thumb {
-		border-color: rgb(255 255 255 / 0.18);
-		background: rgb(229 231 235);
-	}
 </style>

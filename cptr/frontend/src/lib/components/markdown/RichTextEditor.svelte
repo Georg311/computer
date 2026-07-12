@@ -220,15 +220,14 @@
 		min-height: 100%;
 		font-size: 0.875rem;
 		line-height: 1.7;
-		color: var(--color-gray-800);
+		color: var(--app-fg);
 		outline: none;
 		word-wrap: break-word;
 		overflow-wrap: break-word;
 	}
 
 	.rte-container.dark-mode :global(.rte-prosemirror) {
-		color: var(--color-gray-200);
-		caret-color: white;
+		caret-color: var(--app-fg);
 	}
 
 	/* ── Placeholder ──────────────────────────────── */
@@ -236,13 +235,9 @@
 	.rte-container :global(.rte-prosemirror p.is-editor-empty:first-child::before) {
 		content: attr(data-placeholder);
 		float: left;
-		color: var(--color-gray-400);
+		color: var(--app-fg-subtle);
 		pointer-events: none;
 		height: 0;
-	}
-
-	.rte-container.dark-mode :global(.rte-prosemirror p.is-editor-empty:first-child::before) {
-		color: var(--color-gray-600);
 	}
 
 	/* ── Headings (match MarkdownRenderer sizes) ──── */
@@ -328,55 +323,38 @@
 	.rte-container :global(.rte-prosemirror blockquote) {
 		margin: 0 0 0.75rem;
 		padding: 0.25rem 1rem;
-		border-left: 0.1875rem solid var(--color-gray-300);
-		color: var(--color-gray-600);
-	}
-
-	.rte-container.dark-mode :global(.rte-prosemirror blockquote) {
-		border-left-color: rgba(255, 255, 255, 0.15);
-		color: var(--color-gray-400);
+		border-left: 0.1875rem solid var(--app-border);
+		color: var(--app-fg-muted);
 	}
 
 	/* ── Horizontal rule ──────────────────────────── */
 
 	.rte-container :global(.rte-prosemirror hr) {
 		border: none;
-		border-top: 1px solid var(--color-gray-200);
+		border-top: 1px solid var(--app-border);
 		margin: 1.25rem 0;
-	}
-
-	.rte-container.dark-mode :global(.rte-prosemirror hr) {
-		border-top-color: rgba(255, 255, 255, 0.08);
 	}
 
 	/* ── Code (inline) ─────────────────────────────── */
 
 	.rte-container :global(.rte-prosemirror code) {
-		background: var(--color-gray-100);
+		background: var(--app-hover);
 		border-radius: 0.1875rem;
 		padding: 0.0625rem 0.3125rem;
 		font-size: 0.78125rem;
 		font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 	}
 
-	.rte-container.dark-mode :global(.rte-prosemirror code) {
-		background: rgba(255, 255, 255, 0.08);
-	}
-
 	/* ── Code blocks ───────────────────────────────── */
 
 	.rte-container :global(.rte-prosemirror pre) {
-		background: var(--color-gray-100);
+		background: var(--app-hover);
 		border-radius: 0.375rem;
 		padding: 0.75rem 1rem;
 		overflow-x: auto;
 		margin: 0 0 0.75rem;
 		font-size: 0.8125rem;
 		font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
-	}
-
-	.rte-container.dark-mode :global(.rte-prosemirror pre) {
-		background: rgba(255, 255, 255, 0.04);
 	}
 
 	.rte-container :global(.rte-prosemirror pre code) {
@@ -397,29 +375,20 @@
 
 	.rte-container :global(.rte-prosemirror th),
 	.rte-container :global(.rte-prosemirror td) {
-		border: 1px solid var(--color-gray-200);
+		border: 1px solid var(--app-border);
 		padding: 0.375rem 0.625rem;
 		text-align: left;
 	}
 
 	.rte-container :global(.rte-prosemirror th) {
 		font-weight: 600;
-		background: var(--color-gray-50);
-	}
-
-	.rte-container.dark-mode :global(.rte-prosemirror th) {
-		background: rgba(255, 255, 255, 0.04);
-	}
-
-	.rte-container.dark-mode :global(.rte-prosemirror th),
-	.rte-container.dark-mode :global(.rte-prosemirror td) {
-		border-color: rgba(255, 255, 255, 0.08);
+		background: var(--app-hover);
 	}
 
 	/* ── Links ──────────────────────────────────────── */
 
 	.rte-container :global(.rte-prosemirror a) {
-		color: #3b82f6;
+		color: var(--app-fg);
 		text-decoration: none;
 		cursor: pointer;
 	}

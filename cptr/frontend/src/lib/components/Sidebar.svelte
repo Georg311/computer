@@ -151,7 +151,7 @@
 
 		.resize-handle:hover,
 		.resize-handle.active {
-			background: rgba(150, 150, 150, 0.12);
+			background: var(--app-active);
 		}
 	}
 </style>

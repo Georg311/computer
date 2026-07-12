@@ -955,16 +955,17 @@
 				'&': {
 					height: '100%',
 					fontSize: '0.8125rem',
-					backgroundColor: dark ? '#000' : '#ffffff'
+					backgroundColor: 'var(--app-bg)',
+					color: 'var(--app-fg)'
 				},
 				'.cm-scroller': { fontFamily: '"JetBrains Mono", "Fira Code", ui-monospace, monospace' },
 				'.cm-gutters': {
-					backgroundColor: dark ? '#000' : '#ffffff',
-					color: dark ? '#555' : '#999',
+					backgroundColor: 'var(--app-bg)',
+					color: 'var(--app-fg-subtle)',
 					border: 'none'
 				},
-				'.cm-activeLineGutter': { backgroundColor: dark ? '#1a1a1a' : '#f3f4f6' },
-				'.cm-activeLine': { backgroundColor: dark ? '#1a1a1a' : '#f9fafb' },
+				'.cm-activeLineGutter': { backgroundColor: 'var(--app-hover)' },
+				'.cm-activeLine': { backgroundColor: 'var(--app-hover)' },
 				'.cm-lineNumbers .cm-gutterElement.cm-git-line-added': {
 					boxShadow: `inset 0.125rem 0 0 ${dark ? 'rgba(52, 211, 153, 0.75)' : 'rgba(5, 150, 105, 0.65)'}`
 				},
@@ -1306,8 +1307,8 @@
 		flex-shrink: 0;
 	}
 
-	:global(.dark) .toolbar {
-		border-bottom-color: rgba(255, 255, 255, 0.06);
+	.toolbar {
+		border-bottom-color: var(--app-border);
 	}
 
 	.toolbar-left {
@@ -1353,7 +1354,7 @@
 	}
 
 	:global(.dark) .file-name {
-		color: var(--color-gray-300);
+		color: var(--app-fg);
 	}
 
 	.file-git-stats {
@@ -1436,7 +1437,7 @@
 	}
 
 	:global(.dark) .toolbar-btn.active {
-		color: white;
+		color: var(--app-fg);
 	}
 
 	.editor-area {
@@ -1463,7 +1464,7 @@
 		max-width: 100%;
 		max-height: 100%;
 		border-radius: 0.5rem;
-		background: #000;
+		background: var(--app-bg);
 	}
 
 	.media-container audio {

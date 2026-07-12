@@ -10,6 +10,7 @@ import json
 import logging
 import re
 import uuid
+from typing import Any
 
 from cptr.events import EVENTS, publish_event
 from cptr.env import CHAT_MAX_ITERATIONS, CHAT_TOOL_COMMAND_MAX_CHARS, CHAT_TOOL_MAX_CHARS
@@ -58,10 +59,103 @@ from cptr.utils.model_targets import AgentModelTarget, ApiModelTarget, ModelTarg
 
 logger = logging.getLogger(__name__)
 
+ASK_USER_NAME = "ask_user"
+DEFAULT_AUTO_RESOLUTION_MS = 120_000
+ASK_USER_SCHEMA = {
+    "name": ASK_USER_NAME,
+    "description": "Ask the user one to three material planning questions and wait for their answers.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "questions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "header": {"type": "string"},
+                        "question": {"type": "string"},
+                        "options": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "label": {"type": "string"},
+                                    "description": {"type": "string"},
+                                },
+                                "required": ["label", "description"],
+                            },
+                        },
+                    },
+                    "required": ["id", "header", "question", "options"],
+                },
+            },
+            "autoResolutionMs": {"type": "integer"},
+        },
+        "required": ["questions"],
+    },
+}
+
+
+def validate_ask_user_request(arguments: dict[str, Any]) -> dict[str, Any]:
+    questions = arguments.get("questions")
+    if not isinstance(questions, list) or not 1 <= len(questions) <= 3:
+        raise ValueError("ask_user requires one to three questions")
+    ids: set[str] = set()
+    for question in questions:
+        if not isinstance(question, dict):
+            raise ValueError("each question must be an object")
+        if not all(
+            isinstance(question.get(key), str) and question[key].strip()
+            for key in ("id", "header", "question")
+        ):
+            raise ValueError("each question needs an id, header, and question")
+        if question["id"] in ids:
+            raise ValueError("question ids must be unique")
+        ids.add(question["id"])
+        options = question.get("options")
+        if not isinstance(options, list) or not 2 <= len(options) <= 3:
+            raise ValueError("each question requires two or three options")
+        if any(
+            not isinstance(option, dict)
+            or not isinstance(option.get("label"), str)
+            or not option["label"].strip()
+            or not isinstance(option.get("description"), str)
+            or not option["description"].strip()
+            for option in options
+        ):
+            raise ValueError("each option needs a label and description")
+    timeout = arguments.get("autoResolutionMs", DEFAULT_AUTO_RESOLUTION_MS)
+    if (
+        isinstance(timeout, bool)
+        or not isinstance(timeout, int)
+        or not 60_000 <= timeout <= 240_000
+    ):
+        raise ValueError("autoResolutionMs must be between 60000 and 240000")
+    return {"questions": questions, "autoResolutionMs": timeout}
+
+
+def ask_user_answers(
+    arguments: dict[str, Any], answers: dict[str, str] | None = None
+) -> dict[str, Any]:
+    request = validate_ask_user_request(arguments)
+    result: dict[str, Any] = {}
+    for question in request["questions"]:
+        answer = question["options"][0]["label"] if answers is None else answers.get(question["id"])
+        if not isinstance(answer, str) or not answer.strip():
+            raise ValueError(f"missing answer for {question['id']}")
+        result[question["id"]] = {"answers": [answer.strip()]}
+    if answers is not None and set(answers) != set(result):
+        raise ValueError("answers must match the requested question ids")
+    return {"answers": result}
+
+
 PLAN_MODE_PROMPT = (
-    "[Plan Mode] Research the codebase with read-only tools, then present your plan "
-    "using create_artifact. Then wait for an explicit approval message before using "
-    "tools or implementing."
+    "[Plan Mode] Research with read-only tools before planning. When a material decision "
+    "cannot be discovered, use ask_user with one to three questions, two to three options "
+    "each, and the recommended option first. Ask only after research and never alongside "
+    "another tool call. Then present your plan using create_artifact. Wait for an explicit "
+    "approval message before using write tools or implementing."
 )
 
 SKILLS_CREATE_RE = re.compile(r"^/skills:create(?:\s+(.*))?$", re.IGNORECASE | re.DOTALL)
@@ -1850,6 +1944,7 @@ async def run_chat_task(
             tools = [t for t in tools if t["name"] not in {"delegate_task", "update_memory"}]
             # Inject create_artifact (only available in plan mode)
             tools.append(_fn_to_schema("create_artifact", create_artifact))
+            tools.append(ASK_USER_SCHEMA)
             messages.append({"role": "user", "content": PLAN_MODE_PROMPT})
             logger.info(
                 "[task %s] plan mode active, %d tools available", message_id[:8], len(tools)
@@ -2112,6 +2207,92 @@ async def run_chat_task(
                     "connection": connection,
                     "builtin_tools": builtin_tools,
                 }
+
+                ask_user_calls = [tc for tc in pending_calls if tc["name"] == ASK_USER_NAME]
+                if ask_user_calls:
+                    tc = ask_user_calls[0]
+                    error = None
+                    if len(pending_calls) != 1:
+                        error = "Error: ask_user must be called by itself after research."
+                    elif len(ask_user_calls) != 1:
+                        error = "Error: only one ask_user call is allowed per turn."
+                    else:
+                        try:
+                            arguments = validate_ask_user_request(tc["arguments"])
+                        except ValueError as exc:
+                            error = f"Error: {exc}"
+
+                    if error:
+                        item = {
+                            "type": "function_call",
+                            "id": str(uuid.uuid4()),
+                            "call_id": tc["call_id"],
+                            "fc_id": tc.get("id", ""),
+                            "name": ASK_USER_NAME,
+                            "arguments": tc["arguments"],
+                            "status": "completed",
+                        }
+                        result_item = {
+                            "type": "function_call_output",
+                            "call_id": tc["call_id"],
+                            "output": error,
+                        }
+                        output_items.extend((item, result_item))
+                        if flushed_item:
+                            await emit(output=flushed_item)
+                        await emit(output=item)
+                        await emit(output=result_item)
+                        _sync_state()
+                        _append_batch_to_messages(
+                            messages,
+                            [(tc, error)],
+                            provider,
+                            reasoning_items=response_reasoning_items,
+                        )
+                        new_messages_since += 2
+                        await _save_message(
+                            "invalid ask_user", content=content, output=output_items
+                        )
+                        continue
+
+                    expires_at = now_ms() + arguments["autoResolutionMs"]
+                    item = {
+                        "type": "function_call",
+                        "id": str(uuid.uuid4()),
+                        "call_id": tc["call_id"],
+                        "fc_id": tc.get("id", ""),
+                        "name": ASK_USER_NAME,
+                        "arguments": arguments,
+                        "status": "pending",
+                        "expires_at": expires_at,
+                    }
+                    output_items.append(item)
+                    await _save_message(
+                        "pending ask_user",
+                        content=content,
+                        output=output_items,
+                        done=False,
+                    )
+                    if flushed_item:
+                        await emit(output=flushed_item)
+                    await emit(output=item)
+                    _task_state.pop(message_id, None)
+
+                    async def auto_answer():
+                        await asyncio.sleep(arguments["autoResolutionMs"] / 1000)
+                        from cptr.app import app
+                        from cptr.routers.chat import AskUserNotPendingError, resolve_ask_user
+
+                        try:
+                            await resolve_ask_user(
+                                app, chat_id, message_id, tc["call_id"], None, True
+                            )
+                        except AskUserNotPendingError:
+                            pass
+
+                    asyncio.create_task(auto_answer())
+                    await emit(done=True)
+                    return
 
                 # Check if any call needs approval
                 needs_approval = None

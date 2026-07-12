@@ -416,7 +416,7 @@
 		height: 100%;
 		border: 0;
 		display: block;
-		background: white;
+		background: var(--app-bg);
 	}
 	.preview-error {
 		height: 100%;

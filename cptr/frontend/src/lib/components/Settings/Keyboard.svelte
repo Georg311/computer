@@ -168,7 +168,7 @@
 
 	.shortcut-row {
 		@apply flex items-center gap-2 px-1 py-1.5;
-		border-bottom: 1px solid rgba(128, 128, 128, 0.04);
+		border-bottom: 1px solid var(--app-divider);
 	}
 
 	.shortcut-row:last-child {
@@ -183,8 +183,8 @@
 		border-radius: 0.25rem;
 		font-size: 0.625rem;
 		font-weight: 500;
-		background: rgba(59, 130, 246, 0.1);
-		color: rgba(59, 130, 246, 0.7);
+		background: var(--app-active);
+		color: var(--app-fg);
 		animation: pulse-subtle 1.5s ease-in-out infinite;
 	}
 
