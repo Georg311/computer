@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- ⏰ **Follow-up timers for chats.** Computer can now return to a chat at the right time to continue work, check again, or follow up.
+
+### Changed
+
+- ✨ **Clearer change reviews.** Changes in files are easier to spot, including larger edits.
 
 ## [0.9.5] - 2026-07-11
 
