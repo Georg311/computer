@@ -27,6 +27,12 @@ def _uuid() -> str:
     return str(uuid.uuid4())
 
 
+def is_internal_chat(meta: dict | None) -> bool:
+    """Whether a chat is harness-owned and should stay out of normal chat surfaces."""
+    meta = meta or {}
+    return bool(meta.get("internal") or meta.get("subagent"))
+
+
 class Chat(Base):
     """A chat conversation. Workspace association lives in the filesystem."""
 
@@ -58,6 +64,71 @@ class Chat(Base):
         async with await get_db() as db:
             result = await db.execute(select(Chat).where(Chat.id.in_(chat_ids)))
             return list(result.scalars().all())
+
+    @staticmethod
+    async def get_due_timers(now_ns: int, limit: int = 10) -> list[Chat]:
+        """Return pending internal timer chats whose due time has arrived."""
+        async with await get_db() as db:
+            result = await db.execute(select(Chat).where(Chat.meta.is_not(None)))
+            timers = [
+                chat
+                for chat in result.scalars().all()
+                if (chat.meta or {}).get("internal") is True
+                and (chat.meta or {}).get("type") == "timer"
+                and (chat.meta or {}).get("timer_status") == "pending"
+                and int((chat.meta or {}).get("timer_at") or 0) <= now_ns
+            ]
+            timers.sort(key=lambda chat: int((chat.meta or {}).get("timer_at") or 0))
+            return timers[:limit]
+
+    @staticmethod
+    async def get_pending_timers(parent_chat_id: str) -> list[Chat]:
+        """Return pending timer children for a parent chat."""
+        async with await get_db() as db:
+            result = await db.execute(select(Chat).where(Chat.meta.is_not(None)))
+            return [
+                chat
+                for chat in result.scalars().all()
+                if (chat.meta or {}).get("internal") is True
+                and (chat.meta or {}).get("type") == "timer"
+                and (chat.meta or {}).get("parent_chat_id") == parent_chat_id
+                and (chat.meta or {}).get("timer_status") == "pending"
+            ]
+
+    @staticmethod
+    async def get_timers(status: str | None = None) -> list[Chat]:
+        """Return internal timer chats, optionally in one lifecycle state."""
+        async with await get_db() as db:
+            result = await db.execute(select(Chat).where(Chat.meta.is_not(None)))
+            return [
+                chat
+                for chat in result.scalars().all()
+                if (chat.meta or {}).get("internal") is True
+                and (chat.meta or {}).get("type") == "timer"
+                and (status is None or (chat.meta or {}).get("timer_status") == status)
+            ]
+
+    @staticmethod
+    async def get_internal_descendants(parent_chat_id: str) -> list[Chat]:
+        """Return every internal child below a chat, including nested timers."""
+        async with await get_db() as db:
+            result = await db.execute(select(Chat).where(Chat.meta.is_not(None)))
+            candidates = list(result.scalars().all())
+        children: list[Chat] = []
+        parent_ids = {parent_chat_id}
+        while parent_ids:
+            found = [
+                chat
+                for chat in candidates
+                if is_internal_chat(chat.meta)
+                and (chat.meta or {}).get("parent_chat_id") in parent_ids
+            ]
+            if not found:
+                break
+            children.extend(found)
+            parent_ids = {chat.id for chat in found}
+            candidates = [chat for chat in candidates if chat not in found]
+        return children
 
     @staticmethod
     async def create(
@@ -173,9 +244,21 @@ class Chat(Base):
     @staticmethod
     async def delete(chat_id: str) -> bool:
         async with await get_db() as db:
+            result = await db.execute(select(Chat).where(Chat.meta.is_not(None)))
+            candidates = list(result.scalars().all())
+            delete_ids = {chat_id}
+            frontier = {chat_id}
+            while frontier:
+                frontier = {
+                    chat.id
+                    for chat in candidates
+                    if is_internal_chat(chat.meta)
+                    and (chat.meta or {}).get("parent_chat_id") in frontier
+                }
+                delete_ids.update(frontier)
             # Messages cascade via FK, but be explicit
-            await db.execute(delete(ChatMessage).where(ChatMessage.chat_id == chat_id))
-            result = await db.execute(delete(Chat).where(Chat.id == chat_id))
+            await db.execute(delete(ChatMessage).where(ChatMessage.chat_id.in_(delete_ids)))
+            result = await db.execute(delete(Chat).where(Chat.id.in_(delete_ids)))
             await db.commit()
             return result.rowcount > 0
 
@@ -237,7 +320,7 @@ class Chat(Base):
 
         def allowed(chat: Chat) -> bool:
             meta = chat.meta or {}
-            if not include_subagents and meta.get("subagent"):
+            if not include_subagents and is_internal_chat(meta):
                 return False
             if workspace and meta.get("workspace") != workspace:
                 return False

@@ -89,6 +89,15 @@ async def on_chat_read(sid, data):
 
     last_read_at = now_ms()
     if await Chat.update_last_read_at(chat_id, user_id, last_read_at):
+        from cptr.events import EVENTS, publish_event
+
+        await publish_event(
+            EVENTS.CHAT_READ,
+            actor={"id": user_id},
+            subject_id=chat_id,
+            subject_type="chat",
+            source="socket",
+        )
         chat = await Chat.get_by_id(chat_id)
         workspace = (chat.meta or {}).get("workspace", "") if chat else ""
         from cptr.utils.chat_task import get_active_chat_ids

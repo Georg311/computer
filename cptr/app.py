@@ -71,6 +71,11 @@ async def lifespan(app: FastAPI):
 
     app.state.scheduler_task = asyncio.create_task(scheduler_worker_loop(app))
 
+    from cptr.utils.timers import recover_timers, timer_worker_loop
+
+    await recover_timers()
+    app.state.timer_task = asyncio.create_task(timer_worker_loop(app))
+
     # Start messaging bots
     from cptr.utils.bridge import BotManager
 
@@ -80,6 +85,12 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        timer_task = getattr(app.state, "timer_task", None)
+        if timer_task:
+            timer_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await timer_task
+
         scheduler_task = getattr(app.state, "scheduler_task", None)
         if scheduler_task:
             scheduler_task.cancel()

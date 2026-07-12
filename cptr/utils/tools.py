@@ -1997,7 +1997,7 @@ async def search_chats(
     """
     from sqlalchemy import select
 
-    from cptr.models import Chat, ChatMessage
+    from cptr.models import Chat, ChatMessage, is_internal_chat
     from cptr.utils.db import get_db
 
     user_id = __context__.get("user_id")
@@ -2022,8 +2022,8 @@ async def search_chats(
         if not chat or chat.user_id != user_id:
             return None, "chat not found"
         meta = chat.meta or {}
-        if not include_subagents and meta.get("subagent"):
-            return None, "chat is a sub-agent chat"
+        if not include_subagents and is_internal_chat(meta):
+            return None, "chat is an internal chat"
         if workspace and meta.get("workspace") != workspace:
             return None, "chat is outside the current workspace"
         return chat, None
@@ -2124,7 +2124,7 @@ async def search_chats(
         meta = chat.meta or {}
         if chat.id == current_chat_id:
             continue
-        if not include_subagents and meta.get("subagent"):
+        if not include_subagents and is_internal_chat(meta):
             continue
         if workspace and meta.get("workspace") != workspace:
             continue
@@ -2299,7 +2299,7 @@ async def delegate_task(
 
         delegation_id = reserve["delegation_id"]
         try:
-            chat, assistant_msg = await _create_subagent_chat(
+            chat, _, assistant_msg = await _create_subagent_chat(
                 task=task,
                 context=context,
                 workspace=__context__["workspace"],
@@ -2369,6 +2369,76 @@ async def delegate_task(
         )
 
 
+async def timer(
+    prompt: str,
+    at: str,
+    cancel_on: list[Literal["chat.read", "chat.user_message"]] | None = None,
+    *,
+    __context__: dict,
+) -> str:
+    """Set a one-shot timer for this chat.
+
+    Use it when time is the missing input: wait for a deployment, retry after
+    backoff, revisit work after a deadline, or follow up after silence. At
+    `at`, the agent receives `prompt` and the latest thread context; it may
+    act, set another timer, or finish silently.
+
+    `cancel_on` prevents launch when `chat.read` or `chat.user_message`
+    happens first in this chat. Omit it when timed work must run regardless.
+    """
+    from cptr.utils.timers import parse_timer_at
+
+    if not prompt.strip():
+        return "Error: prompt must not be empty."
+
+    try:
+        due_at = parse_timer_at(at)
+    except ValueError as exc:
+        return f"Error: {exc}"
+
+    selected_events = cancel_on or []
+    allowed_events = {"chat.read", "chat.user_message"}
+    if any(event not in allowed_events for event in selected_events):
+        return "Error: cancel_on accepts only chat.read and chat.user_message."
+    selected_events = list(dict.fromkeys(selected_events))
+
+    config = await _get_subagent_config()
+    if not config["background_enabled"]:
+        return "Error: background sub-agents are disabled in settings."
+
+    full_model_id = __context__.get("full_model_id") or __context__["model_id"]
+    chat, _, _ = await _create_subagent_chat(
+        task=prompt,
+        context="",
+        workspace=__context__["workspace"],
+        model=full_model_id,
+        user_id=__context__["user_id"],
+        parent_chat_id=__context__["chat_id"],
+        config=config,
+        child_type="timer",
+        deferred=True,
+        extra_meta={
+            "timer_at": due_at,
+            "cancel_on": selected_events,
+            "timer_status": "pending",
+            "timer_parent_message_id": __context__.get("message_id"),
+            "timer_model_id": full_model_id,
+        },
+    )
+
+    from datetime import datetime, timezone
+
+    return json.dumps(
+        {
+            "status": "set",
+            "at": datetime.fromtimestamp(due_at / 1_000_000_000, timezone.utc)
+            .isoformat()
+            .replace("+00:00", "Z"),
+            "cancel_on": selected_events,
+        }
+    )
+
+
 async def _create_subagent_chat(
     task: str,
     context: str,
@@ -2378,6 +2448,10 @@ async def _create_subagent_chat(
     parent_chat_id: str,
     config: dict,
     delegation_id: str | None = None,
+    *,
+    child_type: str = "subagent",
+    deferred: bool = False,
+    extra_meta: dict | None = None,
 ):
     """Create the real chat/messages used by a sub-agent."""
     from cptr.models import Chat, ChatMessage
@@ -2387,7 +2461,8 @@ async def _create_subagent_chat(
     user_content = f"{task}\n\n## Context\n{context}" if context else task
     meta = {
         "workspace": workspace,
-        "subagent": True,
+        "internal": True,
+        "type": child_type,
         "parent_chat_id": parent_chat_id,
         "params": {
             "tool_approval_mode": "full",  # auto-approve all tools
@@ -2395,10 +2470,12 @@ async def _create_subagent_chat(
     }
     if delegation_id:
         meta["delegation_id"] = delegation_id
+    if extra_meta:
+        meta.update(extra_meta)
 
     chat = await Chat.create(
         user_id=user_id,
-        title=f"Sub-agent: {task[:60]}",
+        title=f"{child_type.title()}: {task[:60]}",
         meta=meta,
         created_at=now_ms(),
     )
@@ -2410,19 +2487,22 @@ async def _create_subagent_chat(
         created_at=now_ms(),
     )
 
-    assistant_msg = await ChatMessage.create(
-        chat_id=chat.id,
-        role="assistant",
-        content="",
-        parent_id=user_msg.id,
-        model=model,
-        done=False,
-        created_at=now_ms(),
-    )
-
-    await Chat.update_current_message(chat.id, assistant_msg.id, now_ms())
+    assistant_msg = None
+    if deferred:
+        await Chat.update_current_message(chat.id, user_msg.id, now_ms())
+    else:
+        assistant_msg = await ChatMessage.create(
+            chat_id=chat.id,
+            role="assistant",
+            content="",
+            parent_id=user_msg.id,
+            model=model,
+            done=False,
+            created_at=now_ms(),
+        )
+        await Chat.update_current_message(chat.id, assistant_msg.id, now_ms())
     await export_chat_to_file(chat.id)
-    return chat, assistant_msg
+    return chat, user_msg, assistant_msg
 
 
 async def _run_existing_subagent_chat(
@@ -2469,7 +2549,7 @@ async def _run_subagent_chat(
     config: dict,
 ) -> str:
     """Create a real chat and run the agent loop on it."""
-    chat, assistant_msg = await _create_subagent_chat(
+    chat, _, assistant_msg = await _create_subagent_chat(
         task=task,
         context=context,
         workspace=workspace,
@@ -2491,6 +2571,7 @@ async def _run_subagent_chat(
 
 SUBAGENT_TOOLS: dict[str, dict] = {
     "delegate_task": {"fn": delegate_task, "auto": True},
+    "timer": {"fn": timer, "auto": False},
 }
 
 # Combined lookup for execution and approval (always available regardless of config)
@@ -2811,7 +2892,7 @@ def _parse_param_descriptions(docstring: str) -> dict[str, str]:
 def _fn_to_schema(name: str, fn) -> dict:
     """Introspect function → {name, description, parameters} for LLM."""
     doc = inspect.getdoc(fn) or ""
-    description = doc.split("\n")[0]
+    description = doc if name == "timer" else doc.split("\n")[0]
     param_descs = _parse_param_descriptions(doc)
     hints = get_type_hints(fn)
     sig = inspect.signature(fn)
@@ -2895,6 +2976,8 @@ async def get_tool_list(builtin_tools: dict | None = None, workspace: str = "") 
                 "true",
                 "1",
             )
+            if not background_subagents_enabled:
+                tools.pop("timer", None)
         images_generation_enabled = (await Config.get("images.generation_enabled")) in (
             True,
             "true",

@@ -23,7 +23,7 @@ from cptr.utils.skills import (
     load_skill,
 )
 from cptr.utils.summarize import summarize_messages
-from cptr.models import Chat, ChatMessage, Config
+from cptr.models import Chat, ChatMessage, Config, is_internal_chat
 from cptr.socket.main import emit_to_user
 from cptr.utils.ai import (
     ChatCompletionForm,
@@ -1936,7 +1936,7 @@ async def run_chat_task(
             tools = [t for t in tools if t["name"] != "view_skill"]
 
         # Strip delegate_task from sub-agent chats (depth limit = 1)
-        if chat_obj and (chat_obj.meta or {}).get("subagent"):
+        if chat_obj and is_internal_chat(chat_obj.meta):
             tools = [t for t in tools if t["name"] not in {"delegate_task", "update_memory"}]
 
         # Parse $skill-name mentions from the user message to auto-activate skills

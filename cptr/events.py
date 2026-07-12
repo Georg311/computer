@@ -26,6 +26,16 @@ class EventDefinition:
 
 
 class EventDefinitions:
+    CHAT_READ = EventDefinition(
+        "chat.read",
+        "The user explicitly marked a chat as read.",
+        "Chat read",
+    )
+    CHAT_USER_MESSAGE = EventDefinition(
+        "chat.user_message",
+        "A user message was added to a chat.",
+        "User message",
+    )
     CHAT_FINISHED = EventDefinition(
         "chat.finished",
         "A chat run finished successfully.",
@@ -191,7 +201,16 @@ class NotificationEventSink:
         await dispatch_notification_event(event)
 
 
-EVENT_SINKS = [NotificationEventSink()]
+class TimerEventSink:
+    async def handle_event(self, event: Event) -> None:
+        if event.event not in {EVENTS.CHAT_READ.name, EVENTS.CHAT_USER_MESSAGE.name}:
+            return
+        from cptr.utils.timers import cancel_timers_for_event
+
+        await cancel_timers_for_event(event)
+
+
+EVENT_SINKS = [TimerEventSink(), NotificationEventSink()]
 
 
 async def publish_event(

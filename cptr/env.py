@@ -82,6 +82,7 @@ STREAM_WRITE_TIMEOUT_SECONDS = float(os.environ.get("CPTR_STREAM_WRITE_TIMEOUT",
 
 # ── Automation scheduler ────────────────────────────────────
 AUTOMATION_POLL_INTERVAL = int(os.environ.get("AUTOMATION_POLL_INTERVAL", "10"))
+TIMER_POLL_INTERVAL = int(os.environ.get("TIMER_POLL_INTERVAL", "10"))
 
 # ── CORS ────────────────────────────────────────────────────
 # Socket.IO CORS allowed origins.

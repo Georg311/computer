@@ -11,7 +11,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 
-from cptr.models import Chat, ChatMessage, Config
+from cptr.models import Chat, ChatMessage, Config, is_internal_chat
 from cptr.utils.config import check_access, now_ms, _get_jwt_secret
 from cptr.utils.crypto import decrypt_key
 from cptr.utils.workspace import ensure_cptr_gitignored
@@ -97,6 +97,8 @@ async def list_chats(
             continue
 
         chat_meta = chat.meta if isinstance(chat.meta, dict) else {}
+        if is_internal_chat(chat_meta):
+            continue
         if chat.meta is not None and not isinstance(chat.meta, dict):
             log.warning(
                 "chat.list.bad_meta workspace=%r chat_id=%s title=%r meta_type=%s",
@@ -581,10 +583,14 @@ async def delete_chat(chat_id: str, request: Request):
     if not chat or chat.user_id != user_id:
         raise HTTPException(404, "chat not found")
 
-    # Remove the workspace chat file.
+    # Remove the workspace chat file and durable internal children.
     workspace = chat.meta.get("workspace") if chat.meta else None
     chat_file = chat_directory(workspace) / f"{chat_id}.json"
     await asyncio.to_thread(chat_file.unlink, True)  # missing_ok=True
+    for child in await Chat.get_internal_descendants(chat_id):
+        child_workspace = (child.meta or {}).get("workspace")
+        child_file = chat_directory(child_workspace) / f"{child.id}.json"
+        await asyncio.to_thread(child_file.unlink, True)
 
     await Chat.delete(chat_id)
     from cptr.socket.main import emit_to_user
@@ -800,6 +806,18 @@ async def send_message(body: SendMessageRequest, request: Request):
 
             # Update chat pointer to new leaf while still holding the input lock.
             await Chat.update_current_message(chat.id, assistant_msg.id, now_ms())
+
+    submitted_message = queued_msg or user_msg
+    if submitted_message:
+        from cptr.events import EVENTS, publish_event
+
+        await publish_event(
+            EVENTS.CHAT_USER_MESSAGE,
+            actor={"id": user_id},
+            subject_id=chat.id,
+            subject_type="chat",
+            source="chat",
+        )
 
     if queued_msg:
         await process_pending_chat_inputs(chat.id, user_id, workspace or "")

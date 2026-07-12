@@ -5,7 +5,7 @@ from cptr.models.users import User, Auth, UserStates
 from cptr.models.workspaces import Workspace
 from cptr.models.config import Config
 from cptr.models.files import File
-from cptr.models.chats import Chat, ChatMessage
+from cptr.models.chats import Chat, ChatMessage, is_internal_chat
 from cptr.models.automations import Automation, AutomationRun
 
 __all__ = [
@@ -18,7 +18,7 @@ __all__ = [
     "File",
     "Chat",
     "ChatMessage",
+    "is_internal_chat",
     "Automation",
     "AutomationRun",
 ]
-
