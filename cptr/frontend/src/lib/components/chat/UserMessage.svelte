@@ -54,7 +54,9 @@
 	let copied = $state(false);
 	let textareaEl: HTMLTextAreaElement;
 	let asyncExpanded = $state(false);
+	let timerExpanded = $state(false);
 	const isAsyncSubagentResult = $derived(meta?.async_subagent_result === true);
+	const isTimer = $derived(meta?.internal === true && meta?.type === 'timer');
 	const delegationId = $derived(meta?.delegation_id || '');
 	const delegationIds = $derived(Array.isArray(meta?.delegation_ids) ? meta.delegation_ids : []);
 	const delegationLabel = $derived(
@@ -121,7 +123,33 @@
 </script>
 
 <div class="group">
-	{#if isAsyncSubagentResult}
+	{#if isTimer}
+		<div class="w-full min-w-0">
+			<button
+				type="button"
+				class="w-full min-w-0 flex items-center gap-2 text-left text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+				aria-expanded={timerExpanded}
+				onclick={() => (timerExpanded = !timerExpanded)}
+			>
+				<span class="text-[0.75rem] font-medium shrink-0">Timer</span>
+				<span class="text-[0.75rem] truncate min-w-0 flex-1">{content}</span>
+				<Icon
+					name="chevron-down"
+					size={12}
+					class="text-gray-400 dark:text-gray-600 shrink-0 transition-transform duration-150 {timerExpanded
+						? 'rotate-180'
+						: ''}"
+				/>
+			</button>
+			{#if timerExpanded}
+				<div
+					class="mt-2 ml-3 border-l border-gray-100 dark:border-white/8 pl-3 text-[0.78125rem] leading-relaxed text-gray-600 dark:text-gray-400 whitespace-pre-wrap break-words"
+				>
+					{content}
+				</div>
+			{/if}
+		</div>
+	{:else if isAsyncSubagentResult}
 		<div class="w-full min-w-0">
 			<button
 				type="button"

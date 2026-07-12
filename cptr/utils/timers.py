@@ -143,14 +143,22 @@ async def _launch_timer(timer, app) -> None:
             parent_id = (
                 done_assistants[-1].id if done_assistants else meta.get("timer_parent_message_id")
             )
+            prompt_msg = await ChatMessage.create(
+                chat_id=parent.id,
+                role="user",
+                content=task_message.content,
+                parent_id=parent_id,
+                model=target.full_model_id,
+                meta={"internal": True, "type": "timer"},
+                created_at=now_ms(),
+            )
             assistant_msg = await ChatMessage.create(
                 chat_id=parent.id,
                 role="assistant",
                 content="",
-                parent_id=parent_id,
+                parent_id=prompt_msg.id,
                 model=target.full_model_id,
                 done=False,
-                meta={"internal": True, "type": "timer"},
                 created_at=now_ms(),
             )
             await Chat.update_current_message(parent.id, assistant_msg.id, now_ms())
@@ -180,7 +188,6 @@ async def _launch_timer(timer, app) -> None:
             user_id=timer.user_id,
             workspace=meta.get("workspace", ""),
             target=target,
-            regeneration_prompt=task_message.content,
         )
 
 

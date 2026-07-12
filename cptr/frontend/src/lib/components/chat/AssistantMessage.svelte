@@ -61,7 +61,6 @@
 	let showUsageTooltip = $state(false);
 	let collapsedFiles = $state<Record<string, boolean>>({});
 	let textareaEl: HTMLTextAreaElement;
-	const isTimer = $derived(meta?.internal === true && meta?.type === 'timer');
 
 	async function startEdit() {
 		edit = true;
@@ -453,12 +452,6 @@
 	{:else}
 		<!-- Normal display -->
 		<div>
-			{#if isTimer}
-				<div class="mb-2 flex items-center gap-2 text-[0.6875rem] font-medium text-gray-400 dark:text-gray-600">
-					<span>Timer</span>
-					<span class="h-px flex-1 bg-gray-100 dark:bg-white/8"></span>
-				</div>
-			{/if}
 			{#if !done && (!output || output.length === 0)}
 				<MarkdownRenderer {content} /><span
 					class="inline-block w-[0.125rem] h-3.5 bg-gray-400 dark:bg-gray-500 ml-0.5 animate-pulse align-text-bottom"
