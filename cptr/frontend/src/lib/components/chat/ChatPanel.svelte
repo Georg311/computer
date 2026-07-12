@@ -26,9 +26,11 @@
 	import {
 		chatModels,
 		defaultModel,
+		setChatReadAt,
 		streamingChatTabs,
 		registerStreamingChat,
-		unregisterStreamingChat
+		unregisterStreamingChat,
+		updateChatStatuses
 	} from '$lib/stores/chat';
 	import { socketStore } from '$lib/stores/socket.svelte';
 	import { onMount, onDestroy, tick } from 'svelte';
@@ -386,6 +388,7 @@
 	let loadedChatId = $state<string | null>(null);
 
 	function markChatRead(id: string) {
+		setChatReadAt(id);
 		socketStore.getSocket()?.emit('chat:read', { chat_id: id });
 	}
 
@@ -423,6 +426,7 @@
 				updateTab(tabId, id, data.chat.title);
 			}
 			loadedChatId = id;
+			updateChatStatuses([data.chat], workspace);
 		} finally {
 			if (isInitialLoad && gen === loadGeneration) loading = false;
 		}
@@ -760,7 +764,7 @@
 	$effect(() => {
 		if (!chatId || !tabId) return;
 		registerStreamingChat(chatId, tabId);
-		return () => unregisterStreamingChat(chatId!);
+		return () => unregisterStreamingChat(chatId!, tabId!);
 	});
 
 	// ── Persist read state separately from visibility tracking ──

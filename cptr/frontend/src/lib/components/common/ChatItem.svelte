@@ -5,6 +5,7 @@
 	 * and an optional context menu button.
 	 */
 	import type { ChatInfo } from '$lib/apis/chat';
+	import { chatStatuses, isChatUnread } from '$lib/stores/chat';
 	import Spinner from './Spinner.svelte';
 	import { t } from '$lib/i18n';
 
@@ -16,10 +17,13 @@
 		onmenu?: (e: MouseEvent) => void;
 	}
 	let { chat, isSelected = false, onclick, onmenu }: Props = $props();
+	let status = $derived($chatStatuses.get(chat.id));
+	let active = $derived(status?.active ?? chat.is_active ?? false);
 	let unread = $derived(
 		!isSelected &&
-			!chat.is_active &&
-			(chat.last_read_at === null || chat.updated_at > chat.last_read_at)
+			(status
+				? isChatUnread(status)
+				: !active && (chat.last_read_at === null || chat.updated_at > chat.last_read_at))
 	);
 
 	function formatTime(ts: number): string {
@@ -50,7 +54,7 @@
 	}}
 	title={chat.title}
 >
-	{#if chat.is_active}
+	{#if active}
 		<Spinner size={10} borderWidth={1.5} class="opacity-50" />
 	{/if}
 	{#if unread}

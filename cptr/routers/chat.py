@@ -391,6 +391,7 @@ async def get_chat(
 
     messages = await ChatMessage.get_all_by_chat(chat_id)
     context_usage = await _get_chat_context_usage(chat, model_id)
+    from cptr.utils.chat_task import get_active_chat_ids
     from cptr.utils.tools import _normalize_tasks
 
     tasks = _normalize_tasks((chat.meta or {}).get("tasks"))
@@ -404,6 +405,7 @@ async def get_chat(
             "created_at": chat.created_at,
             "updated_at": chat.updated_at,
             "last_read_at": chat.last_read_at,
+            "is_active": chat_id in get_active_chat_ids(),
         },
         "messages": [_message_dict(m) for m in messages],
         "tasks": tasks,
@@ -534,10 +536,11 @@ async def update_chat(chat_id: str, body: UpdateChatRequest, request: Request):
     if not title:
         raise HTTPException(422, "title cannot be empty")
 
-    await Chat.update_title(chat_id, title, now_ms())
+    updated_at = now_ms()
+    await Chat.update_title(chat_id, title, updated_at)
     from cptr.socket.main import emit_to_user
 
-    await emit_to_user(user_id, {"chat_id": chat_id, "title": title})
+    await emit_to_user(user_id, {"chat_id": chat_id, "title": title, "updated_at": updated_at})
     return {"ok": True, "title": title}
 
 

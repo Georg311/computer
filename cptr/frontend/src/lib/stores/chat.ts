@@ -10,21 +10,99 @@ import { getPathDisplayName, isSupportedWorkspacePath } from '$lib/utils/paths';
 
 export const chatEnabled = writable<boolean>(false);
 
+export interface ChatStatus {
+	workspace: string;
+	updatedAt: number | null;
+	lastReadAt: number | null;
+	active: boolean;
+}
+
+type ChatStatusSource = {
+	id: string;
+	workspace?: string;
+	updated_at: number;
+	last_read_at: number | null;
+	is_active?: boolean;
+};
+
+/** Shared chat state for sidebar rows, workspace summaries, and chat tabs. */
+export const chatStatuses = writable<Map<string, ChatStatus>>(new Map());
+
+function statusFrom(
+	source: ChatStatusSource,
+	current?: ChatStatus,
+	workspace?: string
+): ChatStatus {
+	return {
+		workspace: workspace ?? source.workspace ?? current?.workspace ?? '',
+		updatedAt: source.updated_at,
+		lastReadAt: source.last_read_at,
+		active: source.is_active ?? current?.active ?? false
+	};
+}
+
+export function updateChatStatuses(sources: ChatStatusSource[], workspace?: string) {
+	chatStatuses.update((statuses) => {
+		const next = new Map(statuses);
+		for (const source of sources)
+			next.set(source.id, statusFrom(source, next.get(source.id), workspace));
+		return next;
+	});
+}
+
+export function setChatActive(chatId: string, active: boolean, workspace = '') {
+	chatStatuses.update((statuses) => {
+		const current = statuses.get(chatId);
+		const next = new Map(statuses);
+		next.set(chatId, {
+			workspace: workspace || current?.workspace || '',
+			updatedAt: current?.updatedAt ?? null,
+			lastReadAt: current?.lastReadAt ?? null,
+			active
+		});
+		return next;
+	});
+}
+
+export function setChatReadAt(chatId: string, lastReadAt = Date.now()) {
+	chatStatuses.update((statuses) => {
+		const current = statuses.get(chatId);
+		if (!current) return statuses;
+		const next = new Map(statuses);
+		next.set(chatId, { ...current, lastReadAt });
+		return next;
+	});
+}
+
+export function isChatUnread(status: ChatStatus | undefined): boolean {
+	return (
+		!!status &&
+		!status.active &&
+		status.updatedAt !== null &&
+		(status.lastReadAt === null || status.updatedAt > status.lastReadAt)
+	);
+}
+
 /** Set of tab IDs whose chat is currently streaming (assistant message not done). */
 export const streamingChatTabs = writable<Set<string>>(new Set());
 
 /**
- * Maps chatId -> tabId so we can clear streamingChatTabs from a global
+ * Maps chatId -> tab IDs so we can clear streamingChatTabs from a global
  * socket listener even when the ChatPanel component is unmounted.
  */
-const chatToTab = new Map<string, string>();
+const chatToTabs = new Map<string, Set<string>>();
 
 export function registerStreamingChat(chatId: string, tabId: string) {
-	chatToTab.set(chatId, tabId);
+	const tabIds = chatToTabs.get(chatId) ?? new Set<string>();
+	tabIds.add(tabId);
+	chatToTabs.set(chatId, tabIds);
 }
 
-export function unregisterStreamingChat(chatId: string) {
-	chatToTab.delete(chatId);
+export function unregisterStreamingChat(chatId: string, tabId: string) {
+	const tabIds = chatToTabs.get(chatId);
+	if (!tabIds) return;
+	tabIds.delete(tabId);
+	if (tabIds.size === 0) chatToTabs.delete(chatId);
 }
 
 /**
@@ -59,21 +137,41 @@ export function bindGlobalChatListener() {
 	socketStore.on(
 		'events:chat',
 		(data: {
+			type?: string;
 			chat_id: string;
 			done?: boolean;
 			title?: string;
 			content?: string;
 			workspace?: string;
 			workspace_name?: string;
+			active?: boolean;
+			updated_at?: number;
+			last_read_at?: number;
 		}) => {
+			if (data.type === 'chat:active' && typeof data.active === 'boolean') {
+				setChatActive(data.chat_id, data.active, data.workspace);
+			}
+			if (typeof data.updated_at === 'number') {
+				const updatedAt = data.updated_at;
+				chatStatuses.update((statuses) => {
+					const current = statuses.get(data.chat_id);
+					if (!current) return statuses;
+					const next = new Map(statuses);
+					next.set(data.chat_id, { ...current, updatedAt });
+					return next;
+				});
+			}
+			if (typeof data.last_read_at === 'number') {
+				setChatReadAt(data.chat_id, data.last_read_at);
+			}
 			if (!data.done) return;
 
 			// Clear streaming indicator for the tab
-			const tabId = chatToTab.get(data.chat_id);
-			if (tabId) {
+			const tabIds = chatToTabs.get(data.chat_id);
+			if (tabIds) {
 				streamingChatTabs.update((s) => {
 					const next = new Set(s);
-					next.delete(tabId);
+					for (const tabId of tabIds) next.delete(tabId);
 					return next;
 				});
 			}
