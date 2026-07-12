@@ -86,102 +86,104 @@
 
 	<div class="space-y-2.5">
 		{#if question}
-			<div class="space-y-2.5">
-				<div>
-					<div class="text-sm font-medium tracking-[-0.01em] text-gray-900 dark:text-gray-100">
-						{question.header}
+			{#key question.id}
+				<div class="space-y-2.5">
+					<div>
+						<div class="text-sm font-medium tracking-[-0.01em] text-gray-900 dark:text-gray-100">
+							{question.header}
+						</div>
+						<div class="mt-1 text-xs leading-relaxed text-gray-600 dark:text-gray-300">
+							{question.question}
+						</div>
 					</div>
-					<div class="mt-1 text-xs leading-relaxed text-gray-600 dark:text-gray-300">
-						{question.question}
-					</div>
-				</div>
-				{#if pending}
-					<div class="space-y-0.5">
-						{#each question.options || [] as option, optionIndex}
+					{#if pending}
+						<div class="space-y-0.5">
+							{#each question.options || [] as option, optionIndex}
+								<label
+									class="flex cursor-pointer items-start gap-2.5 rounded-xl px-2.5 py-1.5 transition-colors {selections[
+										question.id
+									] === option.label
+										? 'bg-white shadow-sm dark:bg-white/[0.1]'
+										: 'hover:bg-white/70 dark:hover:bg-white/[0.06]'}"
+									onclick={() => selections[question.id] === option.label && advance(selections)}
+								>
+									<input
+										class="sr-only"
+										type="radio"
+										name={question.id}
+										value={option.label}
+										checked={selections[question.id] === option.label}
+										onchange={() => selectAnswer(question.id, option.label)}
+									/>
+									<span
+										class="mt-1 flex size-3.5 shrink-0 items-center justify-center rounded-full border {selections[
+											question.id
+										] === option.label
+											? 'border-gray-900 dark:border-white'
+											: 'border-gray-300 dark:border-white/25'}"
+									>
+										{#if selections[question.id] === option.label}
+											<span class="size-1.5 rounded-full bg-gray-900 dark:bg-white"></span>
+										{/if}
+									</span>
+									<span class="min-w-0 text-xs">
+										<span class="text-gray-800 dark:text-gray-100">{option.label}</span>
+										{#if optionIndex === 0}
+											<span class="ml-1.5 text-[0.625rem] text-gray-400 dark:text-gray-500"
+												>Recommended</span
+											>
+										{/if}
+										<span class="mt-0.5 block leading-relaxed text-gray-500 dark:text-gray-400">
+											{option.description}
+										</span>
+									</span>
+								</label>
+							{/each}
 							<label
-								class="flex cursor-pointer items-start gap-2.5 rounded-xl px-2.5 py-1.5 transition-colors {selections[
+								class="flex cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs transition-colors {selections[
 									question.id
-								] === option.label
+								] === '__other__'
 									? 'bg-white shadow-sm dark:bg-white/[0.1]'
 									: 'hover:bg-white/70 dark:hover:bg-white/[0.06]'}"
-								onclick={() => selections[question.id] === option.label && advance(selections)}
 							>
 								<input
 									class="sr-only"
 									type="radio"
 									name={question.id}
-									value={option.label}
-									checked={selections[question.id] === option.label}
-									onchange={() => selectAnswer(question.id, option.label)}
+									value="__other__"
+									checked={selections[question.id] === '__other__'}
+									onchange={() => selectAnswer(question.id, '__other__')}
 								/>
 								<span
-									class="mt-1 flex size-3.5 shrink-0 items-center justify-center rounded-full border {selections[
+									class="flex size-3.5 shrink-0 items-center justify-center rounded-full border {selections[
 										question.id
-									] === option.label
+									] === '__other__'
 										? 'border-gray-900 dark:border-white'
 										: 'border-gray-300 dark:border-white/25'}"
 								>
-									{#if selections[question.id] === option.label}
+									{#if selections[question.id] === '__other__'}
 										<span class="size-1.5 rounded-full bg-gray-900 dark:bg-white"></span>
 									{/if}
 								</span>
-								<span class="min-w-0 text-xs">
-									<span class="text-gray-800 dark:text-gray-100">{option.label}</span>
-									{#if optionIndex === 0}
-										<span class="ml-1.5 text-[0.625rem] text-gray-400 dark:text-gray-500"
-											>Recommended</span
-										>
-									{/if}
-									<span class="mt-0.5 block leading-relaxed text-gray-500 dark:text-gray-400">
-										{option.description}
-									</span>
-								</span>
+								<span class="text-gray-700 dark:text-gray-200">Other</span>
 							</label>
-						{/each}
-						<label
-							class="flex cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs transition-colors {selections[
-								question.id
-							] === '__other__'
-								? 'bg-white shadow-sm dark:bg-white/[0.1]'
-								: 'hover:bg-white/70 dark:hover:bg-white/[0.06]'}"
-						>
-							<input
-								class="sr-only"
-								type="radio"
-								name={question.id}
-								value="__other__"
-								checked={selections[question.id] === '__other__'}
-								onchange={() => selectAnswer(question.id, '__other__')}
-							/>
-							<span
-								class="flex size-3.5 shrink-0 items-center justify-center rounded-full border {selections[
-									question.id
-								] === '__other__'
-									? 'border-gray-900 dark:border-white'
-									: 'border-gray-300 dark:border-white/25'}"
-							>
-								{#if selections[question.id] === '__other__'}
-									<span class="size-1.5 rounded-full bg-gray-900 dark:bg-white"></span>
-								{/if}
-							</span>
-							<span class="text-gray-700 dark:text-gray-200">Other</span>
-						</label>
-						{#if selections[question.id] === '__other__'}
-							<input
-								class="w-full rounded-xl bg-transparent px-2.5 py-1.5 text-xs text-gray-800 outline-none placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500"
-								placeholder="Type your answer"
-								value={otherAnswers[question.id] || ''}
-								oninput={(event) =>
-									(otherAnswers = { ...otherAnswers, [question.id]: event.currentTarget.value })}
-							/>
-						{/if}
-					</div>
-				{:else}
-					<div class="text-xs leading-relaxed text-gray-600 dark:text-gray-300">
-						{resolved.answers?.[question.id]?.answers?.join(', ') || 'No answer recorded'}
-					</div>
-				{/if}
-			</div>
+							{#if selections[question.id] === '__other__'}
+								<input
+									class="w-full rounded-xl bg-transparent px-2.5 py-1.5 text-xs text-gray-800 outline-none placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500"
+									placeholder="Type your answer"
+									value={otherAnswers[question.id] || ''}
+									oninput={(event) =>
+										(otherAnswers = { ...otherAnswers, [question.id]: event.currentTarget.value })}
+								/>
+							{/if}
+						</div>
+					{:else}
+						<div class="text-xs leading-relaxed text-gray-600 dark:text-gray-300">
+							{resolved.answers?.[question.id]?.answers?.join(', ') || 'No answer recorded'}
+						</div>
+					{/if}
+				</div>
+			{/key}
 		{/if}
 
 		<div class="flex items-center justify-between gap-2 pt-0.5">
