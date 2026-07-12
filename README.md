@@ -170,6 +170,7 @@ docker run --rm -it \
 Then open the URL printed in the logs, usually `http://localhost:8000/?token=...`.
 
 Open WebUI Computer stores its state in `/data`. Mount your project into the container, like `-v "$PWD:/workspace"`, so Open WebUI Computer can access it.
+The default image includes Git and GitHub CLI (`gh`). Use `ghcr.io/open-webui/computer:browser` when agent browser automation needs Chromium.
 
 If you bind-mount a host directory to `/data`, make sure that directory is writable by the container user. SQLite needs to create and update `/data/app.db`, and host directory permissions take precedence over the image's built-in `/data` ownership.
 

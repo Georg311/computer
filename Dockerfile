@@ -22,15 +22,15 @@ COPY --from=frontend-builder /build/frontend/build cptr/frontend/build
 RUN uv build --wheel --out-dir /dist
 
 
-# ── Stage 3: Minimal runtime image ─────────────────────────
+# ── Stage 3: Shared runtime ────────────────────────────────
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS runtime
 
 LABEL org.opencontainers.image.source="https://github.com/open-webui/computer"
-LABEL org.opencontainers.image.description="cptr: your computer, from anywhere"
+LABEL org.opencontainers.image.description="Open WebUI Computer"
 
-# Runtime deps: git for git operations, tini for PID 1
+# Runtime deps shared by default and browser images.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends git tini && \
+    apt-get install -y --no-install-recommends gh git tini && \
     rm -rf /var/lib/apt/lists/*
 
 # Create non-root user and writable data directory
@@ -55,3 +55,17 @@ VOLUME ["/data"]
 
 ENTRYPOINT ["tini", "--"]
 CMD ["cptr", "run", "--host", "0.0.0.0", "--port", "8000", "--headless"]
+
+
+# ── Browser image: Chromium for agent browser automation ───
+FROM runtime AS browser
+
+USER root
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends chromium && \
+    rm -rf /var/lib/apt/lists/*
+USER cptr
+
+
+# ── Default image ──────────────────────────────────────────
+FROM runtime AS default

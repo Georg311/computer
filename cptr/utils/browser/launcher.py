@@ -134,8 +134,10 @@ async def ensure_browser(port: int = 9222) -> str:
         "--disable-translate",
         "--disable-extensions",
         f"--user-data-dir={_user_data_dir}",
-        "about:blank",
     ]
+    if Path("/.dockerenv").exists():
+        args.append("--no-sandbox")
+    args.append("about:blank")
 
     logger.info("Launching Chrome: %s", " ".join(args[:3]))
 

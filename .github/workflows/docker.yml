@@ -47,9 +47,23 @@ jobs:
           - platform: linux/amd64
             runner: ubuntu-latest
             arch: amd64
+            target: default
+            flavor: default
           - platform: linux/arm64
             runner: ubuntu-24.04-arm
             arch: arm64
+            target: default
+            flavor: default
+          - platform: linux/amd64
+            runner: ubuntu-latest
+            arch: amd64
+            target: browser
+            flavor: browser
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
+            target: browser
+            flavor: browser
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
@@ -70,10 +84,11 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          target: ${{ matrix.target }}
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
-          cache-from: type=gha,scope=dev-${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=dev-${{ matrix.arch }}
+          cache-from: type=gha,scope=dev-${{ matrix.flavor }}-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=dev-${{ matrix.flavor }}-${{ matrix.arch }}
 
       - name: Export digest
         run: |
@@ -84,7 +99,7 @@ jobs:
       - name: Upload digest
         uses: actions/upload-artifact@v4
         with:
-          name: digests-dev-${{ matrix.arch }}
+          name: digests-dev-${{ matrix.flavor }}-${{ matrix.arch }}
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
@@ -92,13 +107,16 @@ jobs:
   merge-dev:
     if: github.ref == 'refs/heads/main'
     needs: build-dev
+    strategy:
+      matrix:
+        flavor: [default, browser]
     runs-on: ubuntu-latest
     steps:
       - name: Download digests
         uses: actions/download-artifact@v4
         with:
           path: /tmp/digests
-          pattern: digests-dev-*
+          pattern: digests-dev-${{ matrix.flavor }}-*
           merge-multiple: true
 
       - name: Set up Docker Buildx
@@ -115,9 +133,12 @@ jobs:
         working-directory: /tmp/digests
         run: |
           SHORT_SHA="${GITHUB_SHA::7}"
-          docker buildx imagetools create \
-            -t "${{ env.IMAGE }}:dev" \
-            -t "${{ env.IMAGE }}:dev-${SHORT_SHA}" \
+          if [ "${{ matrix.flavor }}" = default ]; then
+            tags=("${{ env.IMAGE }}:dev" "${{ env.IMAGE }}:dev-${SHORT_SHA}")
+          else
+            tags=("${{ env.IMAGE }}:browser-dev" "${{ env.IMAGE }}:browser-dev-${SHORT_SHA}")
+          fi
+          docker buildx imagetools create $(printf -- '-t %s ' "${tags[@]}") \
             $(printf '${{ env.IMAGE }}@sha256:%s ' *)
 
   # ── Release builds (release branch) ───────────────────────────────────────
@@ -131,9 +152,23 @@ jobs:
           - platform: linux/amd64
             runner: ubuntu-latest
             arch: amd64
+            target: default
+            flavor: default
           - platform: linux/arm64
             runner: ubuntu-24.04-arm
             arch: arm64
+            target: default
+            flavor: default
+          - platform: linux/amd64
+            runner: ubuntu-latest
+            arch: amd64
+            target: browser
+            flavor: browser
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
+            target: browser
+            flavor: browser
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
@@ -154,10 +189,11 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          target: ${{ matrix.target }}
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
-          cache-from: type=gha,scope=release-${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=release-${{ matrix.arch }}
+          cache-from: type=gha,scope=release-${{ matrix.flavor }}-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=release-${{ matrix.flavor }}-${{ matrix.arch }}
 
       - name: Export digest
         run: |
@@ -168,7 +204,7 @@ jobs:
       - name: Upload digest
         uses: actions/upload-artifact@v4
         with:
-          name: digests-release-${{ matrix.arch }}
+          name: digests-release-${{ matrix.flavor }}-${{ matrix.arch }}
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
@@ -176,13 +212,16 @@ jobs:
   merge-release:
     needs: [read-version, build-release]
     if: github.ref == 'refs/heads/release'
+    strategy:
+      matrix:
+        flavor: [default, browser]
     runs-on: ubuntu-latest
     steps:
       - name: Download digests
         uses: actions/download-artifact@v4
         with:
           path: /tmp/digests
-          pattern: digests-release-*
+          pattern: digests-release-${{ matrix.flavor }}-*
           merge-multiple: true
 
       - name: Set up Docker Buildx
@@ -200,8 +239,10 @@ jobs:
         run: |
           VERSION="${{ needs.read-version.outputs.version }}"
           MAJOR_MINOR="${VERSION%.*}"
-          docker buildx imagetools create \
-            -t "${{ env.IMAGE }}:latest" \
-            -t "${{ env.IMAGE }}:${VERSION}" \
-            -t "${{ env.IMAGE }}:${MAJOR_MINOR}" \
+          if [ "${{ matrix.flavor }}" = default ]; then
+            tags=("${{ env.IMAGE }}:latest" "${{ env.IMAGE }}:${VERSION}" "${{ env.IMAGE }}:${MAJOR_MINOR}")
+          else
+            tags=("${{ env.IMAGE }}:browser" "${{ env.IMAGE }}:${VERSION}-browser" "${{ env.IMAGE }}:${MAJOR_MINOR}-browser")
+          fi
+          docker buildx imagetools create $(printf -- '-t %s ' "${tags[@]}") \
             $(printf '${{ env.IMAGE }}@sha256:%s ' *)
