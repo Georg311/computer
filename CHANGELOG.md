@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.3] - 2026-07-11
+
+### Changed
+
+- 🎨 **Your appearance choice follows you.** Sign-in and setup now use the same look you picked for Computer.
+
+### Fixed
+
+- 🤖 **Pi only appears when it is really there.** A different program with a similar name will no longer show up as Pi.
+
 ## [0.9.2] - 2026-07-11
 
 ### Added
