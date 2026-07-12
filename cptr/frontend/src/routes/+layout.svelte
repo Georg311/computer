@@ -351,16 +351,23 @@
 		});
 	}
 
-	// Connect system events when workspace is active
+	// Chat events belong to the authenticated user, not a workspace.
+	$effect(() => {
+		if (authState === 'authenticated') {
+			socketStore.connect();
+			bindGlobalChatListener();
+		} else {
+			socketStore.disconnect();
+		}
+	});
+
+	// Filesystem events remain workspace-scoped.
 	$effect(() => {
 		const ws = $currentWorkspace;
 		if (ws) {
 			systemEvents.connect(ws.fileBrowserCwd || ws.path);
-			socketStore.connect();
-			bindGlobalChatListener();
 		} else {
 			systemEvents.disconnect();
-			socketStore.disconnect();
 		}
 	});
 

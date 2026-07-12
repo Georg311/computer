@@ -423,7 +423,7 @@ def discover_skills(workspace: str) -> list[SkillMeta]:
     ws = Path(workspace)
 
     # 1. Workspace-level skills (project-specific, git-trackable)
-    if ws.is_dir():
+    if workspace and ws.is_dir():
         for rel_dir in WORKSPACE_SKILL_DIRS:
             skills_dir = ws / rel_dir
             for skill in _scan_skills_dir(skills_dir, source="workspace", workspace=workspace):
