@@ -2279,7 +2279,13 @@ async def run_chat_task(
                     _task_state.pop(message_id, None)
 
                     async def auto_answer():
-                        await asyncio.sleep(arguments["autoResolutionMs"] / 1000)
+                        from cptr.socket.main import is_chat_visible
+
+                        remaining = arguments["autoResolutionMs"] / 1000
+                        while remaining > 0:
+                            await asyncio.sleep(1)
+                            if not is_chat_visible(user_id, chat_id):
+                                remaining -= 1
                         from cptr.app import app
                         from cptr.routers.chat import AskUserNotPendingError, resolve_ask_user
 

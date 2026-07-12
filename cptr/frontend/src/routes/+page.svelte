@@ -1042,6 +1042,7 @@
 								? undefined
 								: tab.path}
 							tabId={tab.id}
+							active={tab.id === homePane.activeTabId}
 							ontabupdate={(tabId, chatId, label) =>
 								updateHomeChatTab(tabId, chatId, label, homePane.id)}
 							onopenchat={(chatId) => openHomeChat(chatId, homePane.id)}
@@ -1373,6 +1374,7 @@
 							? undefined
 							: tab.path}
 						tabId={tab.id}
+						active={tab.id === group.activeTabId}
 					/>
 				</div>
 			{/each}

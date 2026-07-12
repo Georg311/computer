@@ -138,7 +138,7 @@
 	}
 
 	function handleContextMenu(e: MouseEvent, tab: Tab) {
-		if (!isWideScreen) return;
+		if (!isWideScreen || tab.permanent) return;
 		e.preventDefault();
 		contextMenu = { tab, x: e.clientX, y: e.clientY };
 	}

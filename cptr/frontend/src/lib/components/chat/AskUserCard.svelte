@@ -15,12 +15,12 @@
 	let { item, pairedOutput, chatId, messageId, onanswer }: Props = $props();
 	let selections = $state<Record<string, string>>({});
 	let otherAnswers = $state<Record<string, string>>({});
-	let now = $state(Date.now());
 	let submitting = $state(false);
+	let questionIndex = $state(0);
 	const request = $derived(item.arguments || {});
 	const questions = $derived(Array.isArray(request.questions) ? request.questions : []);
+	const question = $derived(questions[questionIndex]);
 	const pending = $derived(item.status === 'pending');
-	const secondsRemaining = $derived(Math.max(0, Math.ceil((Number(item.expires_at) - now) / 1000)));
 	const canSubmit = $derived(
 		questions.length > 0 &&
 			questions.every((question: any) => {
@@ -35,17 +35,6 @@
 			return {};
 		}
 	});
-
-	$effect(() => {
-		if (!pending) return;
-		now = Date.now();
-		const timer = window.setInterval(() => (now = Date.now()), 1000);
-		return () => window.clearInterval(timer);
-	});
-
-	function timeLabel(seconds: number) {
-		return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
-	}
 
 	function submit(timedOut = false) {
 		if (!chatId || (!canSubmit && !timedOut)) return;
@@ -72,7 +61,7 @@
 		<div class="text-xs font-medium text-gray-800 dark:text-gray-100">Planning question</div>
 		{#if pending}
 			<div class="text-[0.6875rem] text-gray-500 dark:text-gray-400">
-				Continuing with recommendations in {timeLabel(secondsRemaining)}
+				{questionIndex + 1} / {questions.length} · paused while this chat is visible
 			</div>
 		{:else if item.timed_out || resolved.timed_out}
 			<div class="text-[0.6875rem] text-gray-500 dark:text-gray-400">Used recommendations</div>
@@ -80,7 +69,7 @@
 	</div>
 
 	<div class="space-y-4 px-3 py-3">
-		{#each questions as question}
+		{#if question}
 			<div class="space-y-2">
 				<div>
 					<div class="text-xs font-medium text-gray-800 dark:text-gray-100">{question.header}</div>
@@ -136,17 +125,35 @@
 					</div>
 				{/if}
 			</div>
-		{/each}
+		{/if}
 
-		{#if pending}
+		<div class="flex items-center justify-between gap-2">
 			<button
 				type="button"
-				class="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-black"
-				disabled={!canSubmit || submitting}
-				onclick={() => submit()}
+				class="rounded-lg px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-100 disabled:opacity-30 dark:text-gray-300 dark:hover:bg-white/10"
+				disabled={questionIndex === 0}
+				onclick={() => (questionIndex -= 1)}
 			>
-				Submit answers
+				Previous
 			</button>
-		{/if}
+			{#if questionIndex < questions.length - 1}
+				<button
+					type="button"
+					class="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white dark:bg-white dark:text-black"
+					onclick={() => (questionIndex += 1)}
+				>
+					Next
+				</button>
+			{:else if pending}
+				<button
+					type="button"
+					class="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-black"
+					disabled={!canSubmit || submitting}
+					onclick={() => submit()}
+				>
+					Submit answers
+				</button>
+			{/if}
+		</div>
 	</div>
 </section>

@@ -16,6 +16,8 @@ sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=CORS_ALLOWED_
 
 # user_id → set of connected sids
 _user_sids: dict[str, set[str]] = {}
+# (user_id, chat_id) → visible panel instances
+_chat_view_sids: dict[tuple[str, str], set[tuple[str, str]]] = {}
 
 
 @sio.on("connect")
@@ -47,12 +49,42 @@ async def on_disconnect(sid):
         _user_sids[uid].discard(sid)
         if not _user_sids[uid]:
             del _user_sids[uid]
+    for key, views in list(_chat_view_sids.items()):
+        views_copy = {view for view in views if view[0] != sid}
+        if views_copy:
+            _chat_view_sids[key] = views_copy
+        else:
+            del _chat_view_sids[key]
+
+
+@sio.on("chat:view")
+async def on_chat_view(sid, data):
+    """Track which chat panels are currently visible for timeout pausing."""
+    session = await sio.get_session(sid)
+    user_id = session.get("user_id")
+    chat_id = data.get("chat_id") if isinstance(data, dict) else None
+    view_id = data.get("view_id") if isinstance(data, dict) else None
+    if not user_id or not isinstance(chat_id, str) or not isinstance(view_id, str):
+        return
+
+    views = _chat_view_sids.setdefault((user_id, chat_id), set())
+    view = (sid, view_id)
+    if data.get("visible"):
+        views.add(view)
+    else:
+        views.discard(view)
+        if not views:
+            del _chat_view_sids[(user_id, chat_id)]
 
 
 async def emit_to_user(user_id: str, data: dict):
     """Send events:chat to all of a user's connected tabs/windows."""
     for sid in list(_user_sids.get(user_id, set())):
         await sio.emit("events:chat", data, to=sid)
+
+
+def is_chat_visible(user_id: str, chat_id: str) -> bool:
+    return bool(_chat_view_sids.get((user_id, chat_id)))
 
 
 def is_user_active(user_id: str) -> bool:

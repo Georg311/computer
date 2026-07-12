@@ -27,6 +27,7 @@
 	import DictateButton from './DictateButton.svelte';
 	import QueuedMessageItem from './QueuedMessageItem.svelte';
 	import Tasks from './Tasks.svelte';
+	import AskUserCard from './AskUserCard.svelte';
 	import Icon from '../Icon.svelte';
 	import { planMode } from '$lib/stores';
 	import {
@@ -71,6 +72,7 @@
 		placeholder?: string;
 		contextUsage?: ContextUsage | null;
 		tasks?: ChatTask[];
+		askUser?: any;
 		queuedMessages?: { id: string; content: string }[];
 		hasChatContent?: boolean;
 		onsend: () => void;
@@ -80,6 +82,12 @@
 		onstatus?: () => void;
 		onskillslist?: () => void;
 		oncancel?: () => void;
+		onaskuseranswer?: (
+			messageId: string,
+			callId: string,
+			answers: Record<string, string>,
+			timedOut: boolean
+		) => void;
 		onqueuesendnow?: (id: string) => void;
 		onqueueedit?: (id: string) => void;
 		onqueuedelete?: (id: string) => void;
@@ -93,6 +101,7 @@
 		placeholder = 'Message...',
 		contextUsage = null,
 		tasks = [],
+		askUser = null,
 		queuedMessages = [],
 		hasChatContent = false,
 		onsend,
@@ -102,6 +111,7 @@
 		onstatus,
 		onskillslist,
 		oncancel,
+		onaskuseranswer,
 		onqueuesendnow,
 		onqueueedit,
 		onqueuedelete
@@ -1108,6 +1118,18 @@
 	}}
 	role="presentation"
 >
+	{#if askUser && onaskuseranswer}
+		<div class="mx-1">
+			<AskUserCard
+				item={askUser.item}
+				pairedOutput={askUser.output}
+				chatId={askUser.chatId}
+				messageId={askUser.messageId}
+				onanswer={onaskuseranswer}
+			/>
+		</div>
+	{/if}
+
 	{#if tasks.length > 0}
 		<div class="mx-1">
 			<Tasks {tasks} />

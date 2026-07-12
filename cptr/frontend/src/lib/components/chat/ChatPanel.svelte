@@ -77,15 +77,45 @@
 		workspace?: string;
 		chatId?: string;
 		tabId?: string;
+		active?: boolean;
 		ontabupdate?: (tabId: string, chatId: string, label: string) => void;
 		onopenchat?: (chatId?: string) => void;
 	}
-	let { workspace = '', chatId: initialChatId, tabId, ontabupdate, onopenchat }: Props = $props();
+	let {
+		workspace = '',
+		chatId: initialChatId,
+		tabId,
+		active = true,
+		ontabupdate,
+		onopenchat
+	}: Props = $props();
 
 	let inputText = $state('');
 	let chatId = $state<string | null>(initialChatId ?? null);
 	let selectedModel = $state('');
 	let allMessages = $state<ChatMessageRow[]>([]);
+	const pendingAskUser = $derived.by(() => {
+		for (const message of [...allMessages].reverse()) {
+			const item = message.output?.find(
+				(output: any) =>
+					output.type === 'function_call' &&
+					output.name === 'ask_user' &&
+					output.status === 'pending'
+			);
+			if (item) {
+				return {
+					item,
+					output: message.output?.find(
+						(output: any) =>
+							output.type === 'function_call_output' && output.call_id === item.call_id
+					),
+					chatId,
+					messageId: message.id
+				};
+			}
+		}
+		return null;
+	});
 	let currentMessageId = $state<string | null>(null);
 	let contextUsage = $state<ContextUsage | null>(null);
 	let chatTasks = $state<ChatTask[]>([]);
@@ -697,6 +727,22 @@
 		if (!chatId || !tabId) return;
 		registerStreamingChat(chatId, tabId);
 		return () => unregisterStreamingChat(chatId!);
+	});
+
+	$effect(() => {
+		if (!chatId || !tabId) return;
+		const send = () =>
+			socketStore
+				.getSocket()
+				?.emit('chat:view', { chat_id: chatId, view_id: tabId, visible: active });
+		send();
+		const off = socketStore.on('connect', send);
+		return () => {
+			off();
+			socketStore
+				.getSocket()
+				?.emit('chat:view', { chat_id: chatId, view_id: tabId, visible: false });
+		};
 	});
 
 	// ── Auto-scroll ─────────────────────────────────────────────
@@ -1595,6 +1641,8 @@
 					{workspace}
 					placeholder={$t('chat.placeholder', { name: workspaceDisplayName })}
 					tasks={chatTasks}
+					askUser={pendingAskUser}
+					onaskuseranswer={handleAskUserAnswer}
 					onsend={send}
 					onplan={handlePlanCommand}
 					{queuedMessages}
@@ -1668,7 +1716,6 @@
 								onedit={(c, o, submit) => handleEditMessage(msg.id, c, o, submit)}
 								onspeak={() => speakMessage(msg.id)}
 								onapprove={handleApprove}
-								onanswer={handleAskUserAnswer}
 							/>
 						{/if}
 					{/each}
@@ -1716,6 +1763,8 @@
 					{contextUsage}
 					{hasChatContent}
 					tasks={chatTasks}
+					askUser={pendingAskUser}
+					onaskuseranswer={handleAskUserAnswer}
 					onsend={send}
 					oncompact={handleManualCompact}
 					onfork={handleForkChat}
