@@ -1035,6 +1035,37 @@
 				}}
 			/>
 			<div class="pane-content">
+				{#each homePane.tabs.filter((tab) => tab.type === 'chat') as tab (tab.id)}
+					<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== homePane.activeTabId}>
+						<ChatPanel
+							chatId={tab.path?.startsWith('new-') || tab.path?.startsWith('pending-')
+								? undefined
+								: tab.path}
+							tabId={tab.id}
+							ontabupdate={(tabId, chatId, label) =>
+								updateHomeChatTab(tabId, chatId, label, homePane.id)}
+							onopenchat={(chatId) => openHomeChat(chatId, homePane.id)}
+						/>
+					</div>
+				{/each}
+				{#each homePane.tabs.filter((tab) => tab.type === 'terminal' && tab.sessionId) as tab (tab.id)}
+					<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== homePane.activeTabId}>
+						<Terminal sessionId={tab.sessionId!} />
+					</div>
+				{/each}
+				{#each homePane.tabs.filter((tab) => tab.type === 'browser' && tab.browserSessionId) as tab (tab.id)}
+					<div class="persisted-tab" class:persisted-tab-hidden={tab.id !== homePane.activeTabId}>
+						<BrowserPreview
+							sessionId={tab.browserSessionId!}
+							groupId={homePane.id}
+							tabId={tab.id}
+							initialUrl={tab.path}
+							active={tab.id === homePane.activeTabId && homePane.id === $homeState.activeGroupId}
+							onTabUpdate={(label) => updateHomeBrowserTab(tab.id, label, homePane.id)}
+							onOpenBrowser={(url) => openHomeBrowser(url, homePane.id)}
+						/>
+					</div>
+				{/each}
 				{#if homeTab?.type === 'home'}
 					<div class="h-full overflow-y-auto px-6">
 						<div class="mx-auto flex min-h-full w-full max-w-md flex-col justify-center py-6">
@@ -1213,27 +1244,6 @@
 							{/if}
 						</div>
 					</div>
-				{:else if homeTab?.type === 'chat'}
-					<ChatPanel
-						chatId={homeTab.path?.startsWith('new-') || homeTab.path?.startsWith('pending-')
-							? undefined
-							: homeTab.path}
-						tabId={homeTab.id}
-						ontabupdate={(tabId, chatId, label) =>
-							updateHomeChatTab(tabId, chatId, label, homePane.id)}
-						onopenchat={(chatId) => openHomeChat(chatId, homePane.id)}
-					/>
-				{:else if homeTab?.type === 'terminal' && homeTab.sessionId}
-					<Terminal sessionId={homeTab.sessionId} />
-				{:else if homeTab?.type === 'browser' && homeTab.browserSessionId}
-					<BrowserPreview
-						sessionId={homeTab.browserSessionId}
-						groupId={homePane.id}
-						tabId={homeTab.id}
-						initialUrl={homeTab.path}
-						onTabUpdate={(label) => updateHomeBrowserTab(homeTab.id, label, homePane.id)}
-						onOpenBrowser={(url) => openHomeBrowser(url, homePane.id)}
-					/>
 				{/if}
 			</div>
 			{#if dragOverZone?.groupId === homePane.id}
