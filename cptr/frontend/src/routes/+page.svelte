@@ -1079,8 +1079,8 @@
 				{/each}
 				{#if homeTab?.type === 'home'}
 					<div class="h-full overflow-y-auto px-6">
-						<div class="mx-auto flex min-h-full w-full max-w-md flex-col justify-center py-6">
-							<div class="mb-5">
+						<div class="mx-auto flex min-h-full w-full max-w-md flex-col justify-center py-5">
+							<div class="mb-4">
 								<div class="flex items-baseline gap-2">
 									<h1 class="text-lg font-medium tracking-tight text-gray-900 dark:text-white">
 										{#if welcomeName}
@@ -1112,18 +1112,18 @@
 							</div>
 
 							<div class="mb-5">
-								<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">
+								<h2 class="mb-1.5 text-[0.6875rem] text-gray-400 dark:text-gray-600">
 									{$t('home.start')}
 								</h2>
 								<button
-									class="text-[0.8125rem] text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+									class="text-xs text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
 									onclick={() => (showPicker = true)}
 								>
 									{$t('home.openWorkspace')}
 								</button>
 								{#if $chatEnabled}
 									<button
-										class="mt-1.5 block text-[0.8125rem] text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+										class="mt-1 block text-xs text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
 										onclick={() => openHomeChat(undefined, homePane.id)}
 									>
 										{$t('bar.newChat')}
@@ -1132,17 +1132,17 @@
 							</div>
 
 							{#if continuation}
-								<div class="mb-5">
-									<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">
+								<div class="mb-4">
+									<h2 class="mb-1.5 text-[0.6875rem] text-gray-400 dark:text-gray-600">
 										{$t('home.continue')}
 									</h2>
 									<button
-										class="group w-full min-w-0 py-1.5 text-left transition-colors duration-100"
+										class="group w-full min-w-0 py-1 text-left transition-colors duration-100"
 										onclick={() => quickOpen(continuation.path)}
 									>
 										<span class="flex min-w-0 items-baseline gap-2">
 											<span
-												class="truncate text-[0.8125rem] text-gray-800 group-hover:text-gray-950 dark:text-gray-200 dark:group-hover:text-white"
+												class="truncate text-xs text-gray-800 group-hover:text-gray-950 dark:text-gray-200 dark:group-hover:text-white"
 											>
 												{continuation.name}
 											</span>
@@ -1170,8 +1170,8 @@
 							{/if}
 
 							{#if recent.length}
-								<div class="mb-5">
-									<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">
+								<div class="mb-4">
+									<h2 class="mb-1.5 text-[0.6875rem] text-gray-400 dark:text-gray-600">
 										{$t('home.recent')}
 									</h2>
 									<div class="flex flex-col">
@@ -1179,12 +1179,12 @@
 											{@const resume = workspaceResumes.get(item.path)}
 											{@const signals = resumeSignals(resume)}
 											<button
-												class="group w-full min-w-0 py-1.5 text-left transition-colors duration-100"
+												class="group w-full min-w-0 py-1 text-left transition-colors duration-100"
 												onclick={() => quickOpen(item.path)}
 											>
 												<span class="flex min-w-0 items-baseline gap-2">
 													<span
-														class="truncate text-[0.8125rem] text-gray-700 group-hover:text-gray-900 dark:text-gray-300 dark:group-hover:text-white"
+														class="truncate text-xs text-gray-700 group-hover:text-gray-900 dark:text-gray-300 dark:group-hover:text-white"
 													>
 														{item.name}
 													</span>
@@ -1212,12 +1212,12 @@
 									</div>
 								</div>
 							{:else if !continuation}
-								<div class="mb-5">
-									<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">
+								<div class="mb-4">
+									<h2 class="mb-1.5 text-[0.6875rem] text-gray-400 dark:text-gray-600">
 										{$t('home.recent')}
 									</h2>
 									<button
-										class="text-[0.8125rem] text-gray-500 transition-colors duration-100 hover:text-gray-900 dark:text-gray-500 dark:hover:text-white"
+										class="text-xs text-gray-500 transition-colors duration-100 hover:text-gray-900 dark:text-gray-500 dark:hover:text-white"
 										onclick={() => (showPicker = true)}
 									>
 										{$t('home.noWorkspaces')}
@@ -1227,13 +1227,13 @@
 
 							{#if nearby.length && !welcomeData?.recent?.length}
 								<div>
-									<h2 class="mb-2 text-xs text-gray-400 dark:text-gray-600">
+									<h2 class="mb-1.5 text-[0.6875rem] text-gray-400 dark:text-gray-600">
 										{$t('home.folders')}
 									</h2>
 									<div class="flex flex-col">
 										{#each nearby as item}
 											<button
-												class="flex min-w-0 items-center gap-2 py-1.5 text-left text-[0.8125rem] text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+												class="flex min-w-0 items-center gap-2 py-1 text-left text-xs text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
 												onclick={() => quickOpen(item.path)}
 											>
 												<Icon
