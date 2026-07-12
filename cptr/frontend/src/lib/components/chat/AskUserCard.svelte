@@ -163,7 +163,7 @@
 						</label>
 						{#if selections[question.id] === '__other__'}
 							<input
-								class="w-full rounded-xl bg-transparent px-2.5 py-1.5 text-xs text-gray-800 outline-none placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900/10 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:ring-white/10"
+								class="w-full rounded-xl bg-transparent px-2.5 py-1.5 text-xs text-gray-800 outline-none placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500"
 								placeholder="Type your answer"
 								value={otherAnswers[question.id] || ''}
 								oninput={(event) =>
