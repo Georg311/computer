@@ -112,6 +112,16 @@ class Chat(Base):
             return result.rowcount > 0
 
     @staticmethod
+    async def touch(chat_id: str, updated_at: int) -> bool:
+        """Record a completed background update without changing chat content."""
+        async with await get_db() as db:
+            result = await db.execute(
+                update(Chat).where(Chat.id == chat_id).values(updated_at=updated_at)
+            )
+            await db.commit()
+            return result.rowcount > 0
+
+    @staticmethod
     async def update_last_read_at(chat_id: str, user_id: str, last_read_at: int) -> bool:
         """Mark a chat read without changing its activity timestamp."""
         async with await get_db() as db:

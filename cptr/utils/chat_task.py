@@ -2638,6 +2638,7 @@ async def run_chat_task(
         _task_chat.pop(message_id, None)
         if chat_id not in get_active_chat_ids():
             try:
+                await Chat.touch(chat_id, now_ms())
                 chat = await Chat.get_by_id(chat_id)
                 await emit_to_user(
                     user_id,
