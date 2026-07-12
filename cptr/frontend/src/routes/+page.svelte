@@ -1132,6 +1132,9 @@
 							</div>
 
 							{#if continuation}
+								{@const unreadCount =
+									$workspaceList.find((workspace) => workspace.path === continuation.path)
+										?.unread_count ?? 0}
 								<div class="mb-4">
 									<h2 class="mb-1.5 text-[0.6875rem] text-gray-400 dark:text-gray-600">
 										{$t('home.continue')}
@@ -1141,10 +1144,22 @@
 										onclick={() => quickOpen(continuation.path)}
 									>
 										<span class="flex min-w-0 items-baseline gap-2">
-											<span
-												class="truncate text-xs text-gray-800 group-hover:text-gray-950 dark:text-gray-200 dark:group-hover:text-white"
-											>
-												{continuation.name}
+											<span class="flex min-w-0 items-center gap-1.5">
+												<span
+													class="truncate text-xs text-gray-800 group-hover:text-gray-950 dark:text-gray-200 dark:group-hover:text-white"
+												>
+													{continuation.name}
+												</span>
+												{#if unreadCount > 0}
+													<span
+														class="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-md bg-sky-500/10 px-1 text-[0.625rem] font-semibold text-sky-600 dark:bg-sky-400/10 dark:text-sky-300"
+													>
+														{new Intl.NumberFormat(undefined, {
+															notation: 'compact',
+															compactDisplay: 'short'
+														}).format(unreadCount)}
+													</span>
+												{/if}
 											</span>
 											<span
 												class="truncate font-mono text-[0.6875rem] text-gray-400 dark:text-gray-600"
@@ -1178,15 +1193,30 @@
 										{#each recent as item}
 											{@const resume = workspaceResumes.get(item.path)}
 											{@const signals = resumeSignals(resume)}
+											{@const unreadCount =
+												$workspaceList.find((workspace) => workspace.path === item.path)
+													?.unread_count ?? 0}
 											<button
 												class="group w-full min-w-0 py-1 text-left transition-colors duration-100"
 												onclick={() => quickOpen(item.path)}
 											>
 												<span class="flex min-w-0 items-baseline gap-2">
-													<span
-														class="truncate text-xs text-gray-700 group-hover:text-gray-900 dark:text-gray-300 dark:group-hover:text-white"
-													>
-														{item.name}
+													<span class="flex min-w-0 items-center gap-1.5">
+														<span
+															class="truncate text-xs text-gray-700 group-hover:text-gray-900 dark:text-gray-300 dark:group-hover:text-white"
+														>
+															{item.name}
+														</span>
+														{#if unreadCount > 0}
+															<span
+																class="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-md bg-sky-500/10 px-1 text-[0.625rem] font-semibold text-sky-600 dark:bg-sky-400/10 dark:text-sky-300"
+															>
+																{new Intl.NumberFormat(undefined, {
+																	notation: 'compact',
+																	compactDisplay: 'short'
+																}).format(unreadCount)}
+															</span>
+														{/if}
 													</span>
 													<span
 														class="truncate font-mono text-[0.6875rem] text-gray-400 dark:text-gray-600"
@@ -1232,6 +1262,9 @@
 									</h2>
 									<div class="flex flex-col">
 										{#each nearby as item}
+											{@const unreadCount =
+												$workspaceList.find((workspace) => workspace.path === item.path)
+													?.unread_count ?? 0}
 											<button
 												class="flex min-w-0 items-center gap-2 py-1 text-left text-xs text-gray-600 transition-colors duration-100 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
 												onclick={() => quickOpen(item.path)}
@@ -1242,7 +1275,19 @@
 													strokeWidth={1.3}
 													class="shrink-0 text-gray-400 dark:text-gray-600"
 												/>
-												<span class="truncate">{item.name}</span>
+												<span class="flex min-w-0 items-center gap-1.5">
+													<span class="truncate">{item.name}</span>
+													{#if unreadCount > 0}
+														<span
+															class="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-md bg-sky-500/10 px-1 text-[0.625rem] font-semibold text-sky-600 dark:bg-sky-400/10 dark:text-sky-300"
+														>
+															{new Intl.NumberFormat(undefined, {
+																notation: 'compact',
+																compactDisplay: 'short'
+															}).format(unreadCount)}
+														</span>
+													{/if}
+												</span>
 												<span
 													class="truncate font-mono text-[0.6875rem] text-gray-400 dark:text-gray-600"
 												>
