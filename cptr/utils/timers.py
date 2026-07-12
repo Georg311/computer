@@ -82,45 +82,6 @@ async def cancel_timers_for_event(event) -> None:
             await Chat.update_meta(timer.id, meta, now_ms())
 
 
-def _pack_parent_context(parent, messages, checkpoint_id: str | None) -> str:
-    """Build a small launch-time view of the parent without changing its history."""
-    message_by_id = {message.id: message for message in messages}
-    branch = []
-    current = message_by_id.get(parent.current_message_id)
-    while current:
-        branch.append(current)
-        current = message_by_id.get(current.parent_id)
-    branch.reverse()
-
-    checkpoint_index = next(
-        (index for index, message in enumerate(branch) if message.id == checkpoint_id), -1
-    )
-    changes = branch[checkpoint_index + 1 :] if checkpoint_index >= 0 else branch[-12:]
-    changes = changes[-12:]
-
-    parts = []
-    summary = next(
-        (message.chat_summary for message in reversed(branch) if message.chat_summary), None
-    )
-    if summary:
-        parts.append(f"## Parent summary\n{summary[-4_000:]}")
-    if changes:
-        lines = []
-        remaining = 6_000
-        for message in changes:
-            content = (message.content or "").strip()
-            if not content:
-                continue
-            content = content[: min(len(content), remaining)]
-            lines.append(f"{message.role}: {content}")
-            remaining -= len(content)
-            if remaining <= 0:
-                break
-        if lines:
-            parts.append("## Changes since timer was set\n" + "\n\n".join(lines))
-    return "\n\n".join(parts)
-
-
 async def _set_timer_status(chat_id: str, status: str, **fields) -> None:
     from cptr.models import Chat
     from cptr.utils.config import now_ms
@@ -134,31 +95,13 @@ async def _set_timer_status(chat_id: str, status: str, **fields) -> None:
     await Chat.update_meta(chat_id, meta, now_ms())
 
 
-async def set_timer_completion(record: dict, status: str, error: str | None) -> None:
-    """Persist completion before the normal async-subagent result reaches the parent."""
-    timer_chat_id = record.get("timer_chat_id")
-    if not timer_chat_id:
-        return
-    final_status = "completed" if status == "completed" else "error"
-    await _set_timer_status(
-        timer_chat_id,
-        final_status,
-        timer_completed_at=time.time_ns(),
-        timer_error=error,
-    )
-
-
 async def _launch_timer(timer, app) -> None:
     from cptr.models import Chat, ChatMessage
-    from cptr.utils.async_subagents import (
-        attach_subagent_chat,
-        reserve_async_subagent,
-        start_async_subagent,
-    )
+    from cptr.socket.main import emit_to_user
     from cptr.utils.chat_export import export_chat_to_file
+    from cptr.utils.chat_task import get_pending_input_lock, start_task
     from cptr.utils.config import now_ms
-    from cptr.utils.model_targets import ApiModelTarget, resolve_model_target
-    from cptr.utils.tools import _get_subagent_config, _run_existing_subagent_chat
+    from cptr.utils.model_targets import resolve_model_target
 
     async with _manager_lock:
         timer = await Chat.get_by_id(timer.id)
@@ -173,93 +116,76 @@ async def _launch_timer(timer, app) -> None:
             await _set_timer_status(timer.id, "error", timer_error="parent chat no longer exists")
             return
 
-        config = await _get_subagent_config()
-        if not config["background_enabled"]:
-            return
-
-        try:
-            target = await resolve_model_target(meta["timer_model_id"], app.state)
-        except Exception as exc:  # model configuration can change while a timer waits
-            await _set_timer_status(timer.id, "error", timer_error=f"model unavailable: {exc}")
-            return
-        if not isinstance(target, ApiModelTarget):
-            await _set_timer_status(
-                timer.id, "error", timer_error="background timers require an API model"
-            )
-            return
-
         task_message = await ChatMessage.get_by_id(timer.current_message_id)
         if not task_message:
             await _set_timer_status(timer.id, "error", timer_error="timer task message is missing")
             return
 
-        reserve = await reserve_async_subagent(
-            config["max_async"],
-            task=task_message.content,
-            context="",
-            workspace=meta.get("workspace", ""),
-            user_id=timer.user_id,
-            parent_chat_id=parent.id,
-            parent_message_id=meta.get("timer_parent_message_id"),
-            connection=target.connection,
-            model=target.runtime_model,
-            model_id=target.full_model_id,
-            timer_chat_id=timer.id,
-        )
-        if reserve.get("status") == "rejected":
-            return
-
-        parent_messages = await ChatMessage.get_all_by_chat(parent.id)
-        parent_context = _pack_parent_context(
-            parent, parent_messages, meta.get("timer_parent_message_id")
-        )
-        content = task_message.content
-        if parent_context:
-            content = f"{content}\n\n## Parent context at launch\n{parent_context}"
-        await ChatMessage.update(task_message.id, content=content)
-
-        assistant_msg = await ChatMessage.create(
-            chat_id=timer.id,
-            role="assistant",
-            content="",
-            parent_id=task_message.id,
-            model=target.full_model_id,
-            done=False,
-            created_at=now_ms(),
-        )
-        meta.update(
-            {
-                "timer_status": "running",
-                "timer_started_at": time.time_ns(),
-                "timer_assistant_message_id": assistant_msg.id,
-                "delegation_id": reserve["delegation_id"],
-            }
-        )
-        await Chat.update_meta(timer.id, meta, now_ms())
-        await Chat.update_current_message(timer.id, assistant_msg.id, now_ms())
-        await export_chat_to_file(timer.id)
-        await attach_subagent_chat(
-            reserve["delegation_id"],
-            subagent_chat_id=timer.id,
-            subagent_message_id=assistant_msg.id,
-        )
-
-        async def runner() -> str:
-            return await _run_existing_subagent_chat(
-                assistant_msg_id=assistant_msg.id,
-                chat_id=timer.id,
-                workspace=meta.get("workspace", ""),
-                connection=target.connection,
-                model=target.runtime_model,
-                user_id=timer.user_id,
-                config=config,
+        async with get_pending_input_lock(parent.id):
+            parent_messages = await ChatMessage.get_all_by_chat(parent.id)
+            active = any(
+                message.role == "assistant" and not message.done for message in parent_messages
             )
+            if active:
+                return
 
-        await start_async_subagent(reserve["delegation_id"], runner)
+            try:
+                target = await resolve_model_target(meta["timer_model_id"], app.state)
+            except Exception as exc:  # model configuration can change while a timer waits
+                await _set_timer_status(timer.id, "error", timer_error=f"model unavailable: {exc}")
+                return
+
+            done_assistants = [
+                message
+                for message in parent_messages
+                if message.role == "assistant" and message.done
+            ]
+            parent_id = (
+                done_assistants[-1].id if done_assistants else meta.get("timer_parent_message_id")
+            )
+            assistant_msg = await ChatMessage.create(
+                chat_id=parent.id,
+                role="assistant",
+                content="",
+                parent_id=parent_id,
+                model=target.full_model_id,
+                done=False,
+                meta={"timer": True},
+                created_at=now_ms(),
+            )
+            await Chat.update_current_message(parent.id, assistant_msg.id, now_ms())
+
+            meta.update(
+                {
+                    "timer_status": "completed",
+                    "timer_completed_at": time.time_ns(),
+                }
+            )
+            await Chat.update_meta(timer.id, meta, now_ms())
+
+        await export_chat_to_file(timer.id)
+        await export_chat_to_file(parent.id)
+
+        await emit_to_user(
+            timer.user_id,
+            {
+                "chat_id": parent.id,
+                "message_id": assistant_msg.id,
+                "pending_inputs_processed": True,
+            },
+        )
+        start_task(
+            message_id=assistant_msg.id,
+            chat_id=parent.id,
+            user_id=timer.user_id,
+            workspace=meta.get("workspace", ""),
+            target=target,
+            regeneration_prompt=task_message.content,
+        )
 
 
 async def timer_worker_loop(app) -> None:
-    """Poll durable pending timers; a capacity miss simply waits for the next pass."""
+    """Poll durable pending timers and wake their parent chats."""
     from cptr.models import Chat
 
     logger.info("Timer worker started (poll interval: %ds)", TIMER_POLL_INTERVAL)

@@ -2306,7 +2306,6 @@ async def delegate_task(
                 model=__context__["model_id"],
                 user_id=__context__["user_id"],
                 parent_chat_id=__context__["chat_id"],
-                config=config,
                 delegation_id=delegation_id,
             )
         except Exception as e:
@@ -2406,10 +2405,6 @@ async def timer(
         return "Error: cancel_on accepts only chat.read and chat.user_message."
     selected_events = list(dict.fromkeys(selected_events))
 
-    config = await _get_subagent_config()
-    if not config["background_enabled"]:
-        return "Error: background sub-agents are disabled in settings."
-
     full_model_id = __context__.get("full_model_id") or __context__["model_id"]
     chat, _, _ = await _create_subagent_chat(
         task=prompt,
@@ -2418,7 +2413,6 @@ async def timer(
         model=full_model_id,
         user_id=__context__["user_id"],
         parent_chat_id=__context__["chat_id"],
-        config=config,
         child_type="timer",
         deferred=True,
         extra_meta={
@@ -2450,7 +2444,6 @@ async def _create_subagent_chat(
     model: str,
     user_id: str,
     parent_chat_id: str,
-    config: dict,
     delegation_id: str | None = None,
     *,
     child_type: str = "subagent",
@@ -2560,7 +2553,6 @@ async def _run_subagent_chat(
         model=model,
         user_id=user_id,
         parent_chat_id=parent_chat_id,
-        config=config,
     )
     return await _run_existing_subagent_chat(
         assistant_msg_id=assistant_msg.id,
@@ -2979,8 +2971,6 @@ async def get_tool_list(builtin_tools: dict | None = None, workspace: str = "") 
                 "true",
                 "1",
             )
-            if not background_subagents_enabled:
-                tools.pop("timer", None)
         images_generation_enabled = (await Config.get("images.generation_enabled")) in (
             True,
             "true",

@@ -160,14 +160,6 @@ async def _finalize(
         snapshot = {k: v for k, v in record.items() if k != "task"}
         _prune_completed_locked()
 
-    if snapshot.get("timer_chat_id"):
-        from cptr.utils.timers import set_timer_completion
-
-        try:
-            await set_timer_completion(snapshot, status, error)
-        except Exception:
-            logger.exception("Failed to record timer completion %s", delegation_id)
-
     injector = _completion_injector_override or _inject_completion
     try:
         await injector(snapshot)

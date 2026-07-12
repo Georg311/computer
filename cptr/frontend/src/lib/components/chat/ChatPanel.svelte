@@ -1664,9 +1664,13 @@
 >
 	{#if !isLanding}
 		<div
-			class="flex h-7 shrink-0 items-center gap-2 border-b border-gray-100 px-3 dark:border-white/6"
+			class="relative z-30 -mb-12 flex h-7 shrink-0 items-center gap-2 px-3 dark:border-white/6"
 			style="border-color: color-mix(in oklab, var(--app-fg) 8%, transparent);"
 		>
+			<div
+				aria-hidden="true"
+				class="pointer-events-none absolute inset-0 -bottom-10 -z-10 bg-linear-to-b from-white/90 via-40% via-white/50 to-97% to-transparent dark:from-gray-900/90 dark:via-gray-900/50 dark:to-transparent"
+			></div>
 			<div
 				class="min-w-0 flex-1 truncate text-[0.6875rem] font-medium text-gray-600 dark:text-gray-400"
 			>
@@ -1755,7 +1759,7 @@
 				<div
 					class="{$widescreenMode
 						? 'max-w-full'
-						: 'max-w-2xl'} mx-auto w-full px-4 pt-4 pb-16 flex flex-col gap-4"
+						: 'max-w-2xl'} mx-auto w-full px-4 pt-12 pb-16 flex flex-col gap-4"
 				>
 					{#if hasHiddenMessages}
 						<div bind:this={loadSentinelEl} class="h-1 w-full" aria-hidden="true"></div>
@@ -1774,6 +1778,7 @@
 						{:else}
 							<AssistantMessage
 								content={msg.content}
+								meta={msg.meta}
 								done={msg.done}
 								output={msg.output}
 								usage={msg.usage}
