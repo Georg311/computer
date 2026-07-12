@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import socketio
 
-from cptr.utils.config import check_access
+from cptr.models import Chat
+from cptr.utils.config import check_access, now_ms
 from cptr.env import CORS_ALLOWED_ORIGINS
 
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=CORS_ALLOWED_ORIGINS)
@@ -75,6 +76,20 @@ async def on_chat_view(sid, data):
         views.discard(view)
         if not views:
             del _chat_view_sids[(user_id, chat_id)]
+
+
+@sio.on("chat:read")
+async def on_chat_read(sid, data):
+    """Persist a user's explicit read acknowledgement for a chat."""
+    session = await sio.get_session(sid)
+    user_id = session.get("user_id")
+    chat_id = data.get("chat_id") if isinstance(data, dict) else None
+    if not user_id or not isinstance(chat_id, str):
+        return
+
+    last_read_at = now_ms()
+    if await Chat.update_last_read_at(chat_id, user_id, last_read_at):
+        await emit_to_user(user_id, {"chat_id": chat_id, "last_read_at": last_read_at})
 
 
 async def emit_to_user(user_id: str, data: dict):

@@ -36,6 +36,7 @@
 	let wsChatsHasMore = $state<Map<string, boolean>>(new Map());
 	let wsChatsLoading = $state<Set<string>>(new Set());
 	let currentPath = $derived($page.url.searchParams.get('workspace'));
+	let currentChatId = $derived($page.url.searchParams.get('chatId'));
 
 	function toggleWorkspaceExpand(path: string) {
 		const next = new Set(expandedWorkspaces);
@@ -163,7 +164,20 @@
 		title?: string;
 		delta?: string;
 		workspace?: string;
+		last_read_at?: number;
 	}) {
+		if (typeof data.last_read_at === 'number') {
+			wsChatsCache = new Map(
+				[...wsChatsCache].map(([path, chats]) => [
+					path,
+					chats.map((chat) =>
+						chat.id === data.chat_id ? { ...chat, last_read_at: data.last_read_at! } : chat
+					)
+				])
+			);
+			return;
+		}
+
 		const isNew = !seenChatIds.has(data.chat_id);
 		seenChatIds.add(data.chat_id);
 		if (!data.done && !data.title && !isNew) return;
@@ -314,6 +328,7 @@
 						{#each chats as chat (chat.id)}
 							<ChatItem
 								{chat}
+								isSelected={chat.id === currentChatId}
 								onclick={() => openChat(chat.id, ws.path)}
 								onmenu={(e) => openChatMenu(e, chat.id, ws.path)}
 							/>

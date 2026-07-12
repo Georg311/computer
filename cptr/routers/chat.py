@@ -180,6 +180,7 @@ async def list_chats(
                 "current_message_id": chat.current_message_id,
                 "created_at": chat.created_at,
                 "updated_at": listing_updated_at,
+                "last_read_at": chat.last_read_at,
                 "is_active": chat.id in active_ids,
             }
         )
@@ -402,6 +403,7 @@ async def get_chat(
             "current_message_id": chat.current_message_id,
             "created_at": chat.created_at,
             "updated_at": chat.updated_at,
+            "last_read_at": chat.last_read_at,
         },
         "messages": [_message_dict(m) for m in messages],
         "tasks": tasks,

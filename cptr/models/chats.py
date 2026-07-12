@@ -29,6 +29,7 @@ class Chat(Base):
     meta = Column(JSON, nullable=True)  # {model_id, connection_id, pinned, archived, ...}
     created_at = Column(BigInteger, nullable=False)
     updated_at = Column(BigInteger, nullable=False)
+    last_read_at = Column(BigInteger, nullable=True)
 
     # ── Class methods ────────────────────────────────────────
 
@@ -61,6 +62,7 @@ class Chat(Base):
                 meta=meta,
                 created_at=created_at,
                 updated_at=created_at,
+                last_read_at=created_at,
             )
             db.add(chat)
             await db.commit()
@@ -105,6 +107,18 @@ class Chat(Base):
                 update(Chat)
                 .where(Chat.id == chat_id)
                 .values(current_message_id=message_id, updated_at=updated_at)
+            )
+            await db.commit()
+            return result.rowcount > 0
+
+    @staticmethod
+    async def update_last_read_at(chat_id: str, user_id: str, last_read_at: int) -> bool:
+        """Mark a chat read without changing its activity timestamp."""
+        async with await get_db() as db:
+            result = await db.execute(
+                update(Chat)
+                .where(Chat.id == chat_id, Chat.user_id == user_id)
+                .values(last_read_at=last_read_at)
             )
             await db.commit()
             return result.rowcount > 0
