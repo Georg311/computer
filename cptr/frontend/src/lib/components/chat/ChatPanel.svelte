@@ -1669,7 +1669,8 @@
 		>
 			<div
 				aria-hidden="true"
-				class="pointer-events-none absolute inset-0 -bottom-10 -z-10 bg-linear-to-b from-white via-40% via-white/90 to-97% to-transparent dark:from-gray-900 dark:via-gray-900/90 dark:to-transparent"
+				class="pointer-events-none absolute inset-0 -bottom-10 -z-10"
+				style="background: linear-gradient(to bottom, var(--app-bg), color-mix(in oklab, var(--app-bg) 95%, transparent) 40%, transparent 97%);"
 			></div>
 			<div
 				class="min-w-0 flex-1 truncate text-[0.6875rem] font-medium text-gray-600 dark:text-gray-400"
