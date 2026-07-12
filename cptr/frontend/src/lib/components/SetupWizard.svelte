@@ -91,7 +91,10 @@
 	let searchShortcut = $derived(formatChord($keybindings.quickOpen));
 </script>
 
-<div class="flex items-center justify-center h-dvh bg-white dark:bg-black p-6">
+<div
+	class="app-theme flex items-center justify-center h-dvh bg-white dark:bg-black p-6"
+	style="background: var(--app-bg); color: var(--app-fg);"
+>
 	<div class="w-full max-w-md">
 		<!-- Progress dots -->
 		<div class="flex gap-1.5 mb-6">

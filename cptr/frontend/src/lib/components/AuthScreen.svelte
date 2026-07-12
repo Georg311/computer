@@ -70,7 +70,10 @@
 	}
 </script>
 
-<div class="flex items-center justify-center h-dvh bg-white dark:bg-black p-6">
+<div
+	class="app-theme flex items-center justify-center h-dvh bg-white dark:bg-black p-6"
+	style="background: var(--app-bg); color: var(--app-fg);"
+>
 	<div class="w-full max-w-md">
 		<h1 class="text-lg font-semibold tracking-tight text-gray-900 dark:text-white mb-3">
 			Computer
