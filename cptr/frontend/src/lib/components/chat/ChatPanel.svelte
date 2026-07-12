@@ -1759,7 +1759,7 @@
 				<div
 					class="{$widescreenMode
 						? 'max-w-full'
-						: 'max-w-2xl'} mx-auto w-full px-4 pt-12 pb-16 flex flex-col gap-4"
+						: 'max-w-2xl'} mx-auto w-full px-4 pt-16 pb-16 flex flex-col gap-4"
 				>
 					{#if hasHiddenMessages}
 						<div bind:this={loadSentinelEl} class="h-1 w-full" aria-hidden="true"></div>
