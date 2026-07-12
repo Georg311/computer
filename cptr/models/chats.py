@@ -218,6 +218,8 @@ class Chat(Base):
             .where(
                 Chat.user_id == user_id,
                 workspace.in_(paths),
+                Chat.meta["internal"].as_boolean().is_not(True),
+                Chat.meta["subagent"].as_boolean().is_not(True),
                 Chat.updated_at > func.coalesce(Chat.last_read_at, 0),
             )
             .group_by(workspace)

@@ -2620,7 +2620,6 @@ GLOBAL_CHAT_DISABLED_TOOLS = {
     *BUILTIN_TOOL_GROUPS["browser"],
     *BUILTIN_TOOL_GROUPS["automations"],
     *BUILTIN_TOOL_GROUPS["images"],
-    *BUILTIN_TOOL_GROUPS["subagents"],
     "manage_skill",
 }
 
