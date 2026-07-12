@@ -108,8 +108,10 @@ ASK_USER_SCHEMA = {
 
 def validate_ask_user_request(arguments: dict[str, Any]) -> dict[str, Any]:
     questions = arguments.get("questions")
-    if not isinstance(questions, list) or not 1 <= len(questions) <= 3:
+    if not isinstance(questions, list) or not questions:
         raise ValueError("ask_user requires one to three questions")
+    questions = questions[:3]
+    normalized_questions = []
     ids: set[str] = set()
     for question in questions:
         if not isinstance(question, dict):
@@ -123,8 +125,9 @@ def validate_ask_user_request(arguments: dict[str, Any]) -> dict[str, Any]:
             raise ValueError("question ids must be unique")
         ids.add(question["id"])
         options = question.get("options")
-        if not isinstance(options, list) or not 2 <= len(options) <= 3:
+        if not isinstance(options, list) or len(options) < 2:
             raise ValueError("each question requires two or three options")
+        options = options[:3]
         if any(
             not isinstance(option, dict)
             or not isinstance(option.get("label"), str)
@@ -134,14 +137,15 @@ def validate_ask_user_request(arguments: dict[str, Any]) -> dict[str, Any]:
             for option in options
         ):
             raise ValueError("each option needs a label and description")
+        normalized_questions.append({**question, "options": options})
     timeout = arguments.get("autoResolutionMs", DEFAULT_AUTO_RESOLUTION_MS)
     if (
         isinstance(timeout, bool)
         or not isinstance(timeout, int)
         or not 60_000 <= timeout <= 240_000
     ):
-        raise ValueError("autoResolutionMs must be between 60000 and 240000")
-    return {"questions": questions, "autoResolutionMs": timeout}
+        timeout = DEFAULT_AUTO_RESOLUTION_MS
+    return {"questions": normalized_questions, "autoResolutionMs": timeout}
 
 
 def ask_user_answers(
