@@ -17,7 +17,7 @@
 	"home.greeting.evening.2": "Хорошее время что-то закончить, {{name}}.",
 	"home.greeting.night.0": "Ночная смена, {{name}}?",
 	"home.greeting.night.1": "День ещё не закончился, {{name}}.",
-	"home.greeting.night.2": "Ещё одно дело, {{name}}?",
+	"home.greeting.night.2": "Всё ещё в деле, {{name}}?",
 	"home.greeting.lateNight.0": "Всё ещё здесь, {{name}}?",
 	"home.greeting.lateNight.1": "Ночная сова снова здесь, {{name}}.",
 	"home.greeting.lateNight.2": "Не забудьте сохранить, {{name}}.",

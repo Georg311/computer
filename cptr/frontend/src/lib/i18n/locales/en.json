@@ -17,7 +17,7 @@
 	"home.greeting.evening.2": "A good time to finish something, {{name}}.",
 	"home.greeting.night.0": "Night shift, {{name}}?",
 	"home.greeting.night.1": "The day is not over yet, {{name}}.",
-	"home.greeting.night.2": "One more thing, {{name}}?",
+	"home.greeting.night.2": "Still going, {{name}}?",
 	"home.greeting.lateNight.0": "Still here, {{name}}?",
 	"home.greeting.lateNight.1": "The night owl is back, {{name}}.",
 	"home.greeting.lateNight.2": "Save your work, {{name}}.",

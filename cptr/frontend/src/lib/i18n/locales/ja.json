@@ -17,7 +17,7 @@
 	"home.greeting.evening.2": "何かを終えるのにいい時間です、{{name}}さん。",
 	"home.greeting.night.0": "夜の時間ですね、{{name}}さん？",
 	"home.greeting.night.1": "まだ一日は終わっていません、{{name}}さん。",
-	"home.greeting.night.2": "あと一つだけ、{{name}}さん？",
+	"home.greeting.night.2": "まだ続けてるんですか、{{name}}さん？",
 	"home.greeting.lateNight.0": "まだ起きてますか、{{name}}さん？",
 	"home.greeting.lateNight.1": "夜型ですね、{{name}}さん。",
 	"home.greeting.lateNight.2": "保存を忘れずに、{{name}}さん。",

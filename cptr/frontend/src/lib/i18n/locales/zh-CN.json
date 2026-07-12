@@ -17,7 +17,7 @@
 	"home.greeting.evening.2": "是完成一件事的好时候，{{name}}。",
 	"home.greeting.night.0": "夜间模式，{{name}}？",
 	"home.greeting.night.1": "这一天还没结束，{{name}}。",
-	"home.greeting.night.2": "再做一件事，{{name}}？",
+	"home.greeting.night.2": "还在忙吗，{{name}}？",
 	"home.greeting.lateNight.0": "还在这里，{{name}}？",
 	"home.greeting.lateNight.1": "夜猫子来了，{{name}}。",
 	"home.greeting.lateNight.2": "别忘了保存，{{name}}。",
