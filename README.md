@@ -65,7 +65,7 @@ Open WebUI Computer is the real workstation surface: files, shell, git state, wo
 | ✏️ **Editor** | Syntax-highlighted editing with tabs. Open multiple files side by side. |
 | 🔀 **Git** | Stage, commit, diff, branch, push. Visual changes view. No command line required. |
 | ⌨️ **Terminal** | Full shell in the browser. Run your tools, your scripts, or your favourite coding agent. |
-| 🌐 **Browser** | Open websites and local app previews beside your work. Browse back and forward, switch to a mobile view, and choose the picture quality that fits your connection. |
+| 🌐 **Browser** | Open websites and local app previews beside your work. Choose Proxy for lightweight browsing, Managed Chrome for a private profile, or Personal Chrome to use your own session, then browse back and forward, switch to a mobile view, and choose the picture quality that fits your connection. |
 | 🔄 **Sessions persist** | Terminal keeps running when you close the tab. Come back on any device. |
 | 🗂️ **Tabs** | Open browsers, terminals, files, chats, and tools in separate tabs. Rearrange or split your layout. |
 | 📂 **Workspaces** | Multiple projects, one instance. Switch without losing your place. |
