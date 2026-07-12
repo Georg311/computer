@@ -12,7 +12,9 @@ from cptr.env import TIMER_POLL_INTERVAL
 
 logger = logging.getLogger(__name__)
 
-_RELATIVE_TIME = re.compile(r"^\+(\d+)([smhd])$")
+_RELATIVE_TIME = re.compile(
+    r"^(?:\+|in\s+)?(\d+)\s*(s|sec(?:onds?)?|m|min(?:utes?)?|h|hours?|d|days?)$"
+)
 _RFC3339_TIME = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$")
 _TIME_UNITS_NS = {
     "s": 1_000_000_000,
@@ -27,20 +29,24 @@ def parse_timer_at(value: str) -> int:
     """Normalize a relative offset or timezone-aware RFC 3339 timestamp."""
     raw = value.strip()
     now = time.time_ns()
-    relative = _RELATIVE_TIME.fullmatch(raw)
+    relative = _RELATIVE_TIME.fullmatch(raw.lower())
     if relative:
         count = int(relative.group(1))
         if count <= 0:
             raise ValueError("at must be in the future.")
-        return now + count * _TIME_UNITS_NS[relative.group(2)]
+        return now + count * _TIME_UNITS_NS[relative.group(2)[0]]
 
     if not _RFC3339_TIME.fullmatch(raw):
-        raise ValueError("at must be +5s, +5m, +1h, +2d, or an RFC 3339 timestamp with a timezone.")
+        raise ValueError(
+            "at must be a relative time such as 10s or in 10 seconds, "
+            "or an RFC 3339 timestamp with a timezone."
+        )
     try:
         parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
     except ValueError as exc:
         raise ValueError(
-            "at must be +5s, +5m, +1h, +2d, or an RFC 3339 timestamp with a timezone."
+            "at must be a relative time such as 10s or in 10 seconds, "
+            "or an RFC 3339 timestamp with a timezone."
         ) from exc
     if parsed.tzinfo is None or parsed.utcoffset() is None:
         raise ValueError("absolute at values must include an explicit timezone.")

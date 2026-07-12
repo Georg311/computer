@@ -2379,9 +2379,13 @@ async def timer(
     """Set a one-shot timer for this chat.
 
     Use it when time is the missing input: wait for a deployment, retry after
-    backoff, revisit work after a deadline, or follow up after silence. At
-    `at`, the agent receives `prompt` and the latest thread context; it may
+    backoff, revisit work after a deadline, or follow up after silence. When
+    it fires, the agent receives `prompt` and the latest thread context; it may
     act, set another timer, or finish silently.
+
+    `at` is normally relative to now. Prefer `10s`, `5m`, `1h`, or `2d`; plain
+    language such as `in 10 seconds` also works. Use an RFC 3339 timestamp
+    with a timezone only for a real calendar deadline.
 
     `cancel_on` prevents launch when `chat.read` or `chat.user_message`
     happens first in this chat. Omit it when timed work must run regardless.
