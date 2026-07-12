@@ -160,7 +160,6 @@
 	}
 
 	async function processFiles(files: File[]) {
-		if (!workspace) return;
 		for (const file of files) {
 			const id = Math.random().toString(36).substring(7);
 			const isImage = file.type.startsWith('image/');
@@ -1471,16 +1470,14 @@
 			onmousedown={(e) => e.stopPropagation()}
 		>
 			<div class="ml-0.5 self-end flex items-center gap-1">
-				{#if workspace}
-					<PlusMenu
-						onfiles={(files) => {
-							if (files) processFiles(Array.from(files));
-						}}
-						oncapture={(file) => {
-							processFiles([file]);
-						}}
-					/>
-				{/if}
+				<PlusMenu
+					onfiles={(files) => {
+						if (files) processFiles(Array.from(files));
+					}}
+					oncapture={(file) => {
+						processFiles([file]);
+					}}
+				/>
 				{#if $planMode}
 					<button
 						type="button"
