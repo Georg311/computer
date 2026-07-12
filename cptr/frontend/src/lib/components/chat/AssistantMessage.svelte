@@ -16,9 +16,9 @@
 	import { t } from '$lib/i18n';
 
 	interface Props {
-	content: string;
-	meta?: Record<string, any> | null;
-	done: boolean;
+		content: string;
+		meta?: Record<string, any> | null;
+		done: boolean;
 		output: any[] | null;
 		usage: Record<string, number> | null;
 		chatId: string | null;
@@ -35,9 +35,9 @@
 		onspeak?: () => void;
 	}
 	let {
-	content,
-	meta = null,
-	done,
+		content,
+		meta = null,
+		done,
 		output,
 		usage,
 		chatId,
@@ -61,7 +61,7 @@
 	let showUsageTooltip = $state(false);
 	let collapsedFiles = $state<Record<string, boolean>>({});
 	let textareaEl: HTMLTextAreaElement;
-	const isTimer = $derived(meta?.timer === true);
+	const isTimer = $derived(meta?.internal === true && meta?.type === 'timer');
 
 	async function startEdit() {
 		edit = true;
@@ -454,7 +454,10 @@
 		<!-- Normal display -->
 		<div>
 			{#if isTimer}
-				<div class="mb-1 text-[0.75rem] font-medium text-gray-500 dark:text-gray-400">Timer</div>
+				<div class="mb-2 flex items-center gap-2 text-[0.6875rem] font-medium text-gray-400 dark:text-gray-600">
+					<span>Timer</span>
+					<span class="h-px flex-1 bg-gray-100 dark:bg-white/8"></span>
+				</div>
 			{/if}
 			{#if !done && (!output || output.length === 0)}
 				<MarkdownRenderer {content} /><span

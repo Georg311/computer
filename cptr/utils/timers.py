@@ -150,7 +150,7 @@ async def _launch_timer(timer, app) -> None:
                 parent_id=parent_id,
                 model=target.full_model_id,
                 done=False,
-                meta={"timer": True},
+                meta={"internal": True, "type": "timer"},
                 created_at=now_ms(),
             )
             await Chat.update_current_message(parent.id, assistant_msg.id, now_ms())
