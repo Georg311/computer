@@ -9,6 +9,9 @@ export type DiffLineGroup<T extends { type: string }> = { type: T['type']; lines
 export type SplitDiffRow = { oldLine: InlineDiffLine | null; newLine: InlineDiffLine | null };
 export type DiffStats = { additions: number; deletions: number };
 
+// GitHub Desktop uses the same cutoff for intraline highlighting.
+const MAX_INTRA_LINE_DIFF_STRING_LENGTH = 1024;
+
 export function countDiffStats(files: DiffFile[]): DiffStats {
 	let additions = 0;
 	let deletions = 0;
@@ -105,11 +108,16 @@ export function withInlineDiffSegments(lines: NumberedDiffLine[]): InlineDiffLin
 
 		const removed = block.filter((item) => item.type === 'removed');
 		const added = block.filter((item) => item.type === 'added');
+		const canHighlightChanges = removed.length === added.length;
 		const removedSegments = removed.map((item, index) =>
-			segmentsForPair(item.content, added[index]?.content, 'removed')
+			canHighlightChanges
+				? segmentsForPair(item.content, added[index].content, 'removed')
+				: unchangedSegments(item.content)
 		);
 		const addedSegments = added.map((item, index) =>
-			segmentsForPair(removed[index]?.content, item.content, 'added')
+			canHighlightChanges
+				? segmentsForPair(removed[index].content, item.content, 'added')
+				: unchangedSegments(item.content)
 		);
 
 		for (const item of block) {
@@ -162,15 +170,17 @@ export function splitDiffRows(lines: InlineDiffLine[]): SplitDiffRow[] {
 }
 
 function segmentsForPair(
-	oldText: string | undefined,
-	newText: string | undefined,
+	oldText: string,
+	newText: string,
 	side: 'removed' | 'added'
 ): InlineDiffSegment[] {
 	const text = side === 'removed' ? oldText : newText;
-	if (text === undefined) return [];
-	if (oldText === undefined || newText === undefined)
-		return [{ text: text || ' ', changed: false }];
-	if (oldText === newText) return [{ text: text || ' ', changed: false }];
+	if (
+		oldText === newText ||
+		oldText.length >= MAX_INTRA_LINE_DIFF_STRING_LENGTH ||
+		newText.length >= MAX_INTRA_LINE_DIFF_STRING_LENGTH
+	)
+		return unchangedSegments(text);
 
 	let prefix = 0;
 	const maxPrefix = Math.min(oldText.length, newText.length);
@@ -187,31 +197,16 @@ function segmentsForPair(
 		newSuffix -= 1;
 	}
 
-	const oldChangedLength = oldSuffix - prefix;
-	const newChangedLength = newSuffix - prefix;
-	const sharedLength = Math.max(
-		oldText.length - oldChangedLength,
-		newText.length - newChangedLength
-	);
-	const similarity = sharedLength / Math.max(oldText.length, newText.length, 1);
-	const changedLength = side === 'removed' ? oldChangedLength : newChangedLength;
-	if (similarity < 0.55 || changedLength / Math.max(text.length, 1) > 0.45) {
-		return [{ text: text || ' ', changed: false }];
-	}
-
 	const end = side === 'removed' ? oldSuffix : newSuffix;
-	const changed = text.slice(prefix, end);
-	const tokenStart = changed.search(/[A-Za-z0-9_$]/);
-	if (tokenStart < 0) return [{ text: text || ' ', changed: false }];
-
-	const tokenEnd = changed.search(/[A-Za-z0-9_$][^A-Za-z0-9_$]*$/);
-	const highlightStart = tokenStart >= 0 ? prefix + tokenStart : prefix;
-	const highlightEnd = tokenEnd >= 0 ? prefix + tokenEnd + 1 : end;
 	const segments = [
-		{ text: text.slice(0, highlightStart), changed: false },
-		{ text: text.slice(highlightStart, highlightEnd), changed: true },
-		{ text: text.slice(highlightEnd), changed: false }
+		{ text: text.slice(0, prefix), changed: false },
+		{ text: text.slice(prefix, end), changed: true },
+		{ text: text.slice(end), changed: false }
 	].filter((segment) => segment.text.length > 0);
 
-	return segments.length ? segments : [{ text: ' ', changed: false }];
+	return segments.length ? segments : unchangedSegments(text);
+}
+
+function unchangedSegments(text: string): InlineDiffSegment[] {
+	return [{ text: text || ' ', changed: false }];
 }
