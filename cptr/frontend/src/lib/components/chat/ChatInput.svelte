@@ -29,13 +29,12 @@
 	import Tasks from './Tasks.svelte';
 	import AskUserCard from './AskUserCard.svelte';
 	import Icon from '../Icon.svelte';
-	import { planMode } from '$lib/stores';
+	import type { ToolApprovalMode } from '$lib/apis/chat';
 	import {
 		sttConfigured,
 		ttsConfigured,
 		ttsEnabled,
 		unlockTtsAudioPlayback,
-		voiceModeEnabled,
 		voiceModeSttMode
 	} from '$lib/stores/audio';
 	import Spinner from '$lib/components/common/Spinner.svelte';
@@ -66,6 +65,10 @@
 	interface Props {
 		inputText: string;
 		selectedModel: string;
+		toolApprovalMode?: ToolApprovalMode;
+		planMode?: boolean;
+		requestParams?: Record<string, unknown>;
+		voiceModeEnabled?: boolean;
 		sending: boolean;
 		streaming?: boolean;
 		workspace?: string;
@@ -91,10 +94,15 @@
 		onqueuesendnow?: (id: string) => void;
 		onqueueedit?: (id: string) => void;
 		onqueuedelete?: (id: string) => void;
+		onsettingschange?: () => void;
 	}
 	let {
 		inputText = $bindable(),
 		selectedModel = $bindable(),
+		toolApprovalMode = $bindable('auto'),
+		planMode = $bindable(false),
+		requestParams = $bindable({}),
+		voiceModeEnabled = $bindable(false),
 		sending,
 		streaming = false,
 		workspace = '',
@@ -114,7 +122,8 @@
 		onaskuseranswer,
 		onqueuesendnow,
 		onqueueedit,
-		onqueuedelete
+		onqueuedelete,
+		onsettingschange
 	}: Props = $props();
 
 	let editorEl: HTMLDivElement | undefined = $state();
@@ -137,7 +146,7 @@
 	const voiceStatusLabel = $derived(
 		voiceWaitingForResponse || streaming || sending
 			? $t('chat.voiceWaiting')
-			: voiceListening || voiceRearming || $voiceModeEnabled
+			: voiceListening || voiceRearming || voiceModeEnabled
 				? $t('chat.voiceListening')
 				: $t('chat.voiceModeOn')
 	);
@@ -678,7 +687,7 @@
 		clearVoiceRestartTimer();
 		if (
 			!voiceModeAvailable ||
-			!$voiceModeEnabled ||
+			!voiceModeEnabled ||
 			voiceWaitingForResponse ||
 			voiceListening ||
 			voiceRecognition ||
@@ -822,7 +831,7 @@
 		clearVoiceRestartTimer(false);
 		if (
 			!voiceModeAvailable ||
-			!$voiceModeEnabled ||
+			!voiceModeEnabled ||
 			voiceWaitingForResponse ||
 			voiceListening ||
 			voiceRecognition ||
@@ -838,7 +847,7 @@
 			(window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 		if (!SpeechRecognition) {
 			alert($t('chat.dictate.unsupported'));
-			voiceModeEnabled.set(false);
+			voiceModeEnabled = false;
 			voiceRearming = false;
 			return;
 		}
@@ -890,7 +899,7 @@
 		recognition.onerror = (event: any) => {
 			voiceListening = false;
 			if (event?.error === 'not-allowed' || event?.error === 'service-not-allowed') {
-				voiceModeEnabled.set(false);
+				voiceModeEnabled = false;
 				stopVoiceRecognition();
 			}
 		};
@@ -922,8 +931,9 @@
 			alert($t('chat.ttsNotConfigured'));
 			return;
 		}
-		const next = !$voiceModeEnabled;
-		voiceModeEnabled.set(next);
+		const next = !voiceModeEnabled;
+		voiceModeEnabled = next;
+		onsettingschange?.();
 		if (next) {
 			void unlockTtsAudioPlayback();
 			void acquireVoiceWakeLock();
@@ -939,11 +949,11 @@
 	}
 
 	$effect(() => {
-		if (!voiceModeAvailable && $voiceModeEnabled) {
-			voiceModeEnabled.set(false);
+		if (!voiceModeAvailable && voiceModeEnabled) {
+			voiceModeEnabled = false;
 			stopVoiceRecognition();
 		}
-		if (!$voiceModeEnabled) return;
+		if (!voiceModeEnabled) return;
 		if (streaming) voiceSawStreaming = true;
 		if (voiceSawStreaming && !streaming && !sending) {
 			voiceWaitingForResponse = false;
@@ -953,7 +963,7 @@
 	});
 
 	$effect(() => {
-		if ($voiceModeEnabled && inputText.trim()) {
+		if (voiceModeEnabled && inputText.trim()) {
 			stopVoiceRecognition();
 		}
 	});
@@ -1247,7 +1257,7 @@
 					<span class="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
 						<span class="truncate">{$t('chat.commandPlan')}</span>
 						<span class="app-muted text-[0.625rem] truncate shrink-0">
-							{$planMode ? $t('chat.commandPlanOn') : $t('chat.commandPlanOff')}
+							{planMode ? $t('chat.commandPlanOn') : $t('chat.commandPlanOff')}
 						</span>
 					</span>
 				</button>
@@ -1464,7 +1474,7 @@
 		{/if}
 		<!-- Editor area -->
 		<div class="px-2.5">
-			{#if $voiceModeEnabled}
+			{#if voiceModeEnabled}
 				<div class="app-muted pt-2 flex items-center gap-2 text-[0.6875rem] font-medium">
 					<span class="relative flex size-2">
 						<span
@@ -1493,6 +1503,10 @@
 		>
 			<div class="ml-0.5 self-end flex items-center gap-1">
 				<PlusMenu
+					bind:toolApprovalMode
+					bind:planMode
+					bind:requestParams
+					onchange={onsettingschange}
 					onfiles={(files) => {
 						if (files) processFiles(Array.from(files));
 					}}
@@ -1500,13 +1514,13 @@
 						processFiles([file]);
 					}}
 				/>
-				{#if $planMode}
+				{#if planMode}
 					<button
 						type="button"
 						aria-label={$t('chat.commandPlanOff')}
 						title={$t('chat.commandPlanOff')}
 						class="app-surface app-interactive group p-[0.3125rem] flex gap-1 items-center text-xs rounded-full transition-colors duration-150 border"
-						onclick={() => planMode.set(false)}
+						onclick={() => onplan?.()}
 					>
 						<svg
 							class="size-3 shrink-0 group-hover:hidden"
@@ -1538,7 +1552,7 @@
 				{/if}
 			</div>
 			<div class="self-end mr-1 flex items-center gap-2">
-				<ModelSelector bind:selectedModel />
+				<ModelSelector bind:selectedModel onchange={onsettingschange} />
 				<DictateButton
 					ontext={(text) => {
 						inputText += text;
@@ -1550,7 +1564,7 @@
 					onsend={handleSubmit}
 					{oncancel}
 					onvoice={voiceModeAvailable ? toggleVoiceMode : undefined}
-					voiceActive={$voiceModeEnabled || voiceListening}
+					voiceActive={voiceModeEnabled || voiceListening}
 				/>
 			</div>
 		</div>

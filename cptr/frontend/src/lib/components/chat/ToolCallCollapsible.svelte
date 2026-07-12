@@ -16,9 +16,9 @@
 
 	let { item, pairedOutput, done, chatId, messageId, toolLabel, onapprove }: Props = $props();
 
-	let expanded = $state($expandToolDetails);
+	let expanded = $state($expandToolDetails || item.name === 'ask_user');
 	$effect(() => {
-		expanded = $expandToolDetails;
+		expanded = $expandToolDetails || item.name === 'ask_user';
 	});
 
 	const args = $derived(item.arguments || {});
@@ -30,6 +30,15 @@
 	const isDone = $derived(item.status === 'completed');
 	const isRejected = $derived(item.status === 'rejected');
 	const isPending = $derived(item.status === 'pending');
+	const isAskUser = $derived(toolName === 'ask_user');
+	const askUserQuestions = $derived(Array.isArray(args.questions) ? args.questions : []);
+	const askUserAnswers = $derived.by(() => {
+		try {
+			return JSON.parse(pairedOutput?.output || '{}').answers || {};
+		} catch {
+			return {};
+		}
+	});
 	const imageToolOutput = $derived.by(() => {
 		if (toolName !== 'image_generate' || !pairedOutput?.output) {
 			return null;
@@ -101,6 +110,20 @@
 							d="M10.14,1.16a11,11,0,0,0-9,8.92A1.59,1.59,0,0,0,2.46,12,1.52,1.52,0,0,0,4.11,10.7a8,8,0,0,1,6.66-6.61A1.42,1.42,0,0,0,12,2.69h0A1.57,1.57,0,0,0,10.14,1.16Z"
 							class="spinner_inner"
 						/>
+					</svg>
+				</div>
+			{:else if isAskUser}
+				<div class="text-gray-400 dark:text-gray-500">
+					<svg
+						aria-hidden="true"
+						class="size-3.5"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.75"
+					>
+						<path stroke-linecap="round" stroke-linejoin="round" d="m5 12 3 3 5-7" />
+						<path stroke-linecap="round" stroke-linejoin="round" d="M13 7h6M13 12h6M13 17h6" />
 					</svg>
 				</div>
 			{:else if isDone}
@@ -202,97 +225,115 @@
 	{#if expanded}
 		<div id={callId} transition:slide={{ duration: 300, easing: quintOut, axis: 'y' }}>
 			<div
-				class="border border-gray-50 dark:border-gray-850/30 rounded-2xl my-1.5 p-3 space-y-3 overflow-hidden"
+				class={isAskUser
+					? 'ml-5 mt-1.5 space-y-1.5 text-xs leading-relaxed'
+					: 'border border-gray-50 dark:border-gray-850/30 rounded-2xl my-1.5 p-3 space-y-3 overflow-hidden'}
 			>
-				{#if Object.keys(args).length > 0}
-					<div>
-						<div
-							class="text-[0.625rem] uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1.5 px-1"
-						>
-							{$t('chat.toolInput')}
+				{#if isAskUser}
+					{#each askUserQuestions as question}
+						{@const answer = askUserAnswers[question.id]?.answers?.join(', ')}
+						<div>
+							<div class="text-gray-600 dark:text-gray-300">{question.question}</div>
+							<div class="text-gray-400 dark:text-gray-500">
+								{answer || 'No answer recorded'}{answer === question.options?.[0]?.label
+									? ' (Recommended)'
+									: ''}
+							</div>
 						</div>
-						{#if toolName === 'edit_file' && args.target}
+					{/each}
+				{:else}
+					{#if Object.keys(args).length > 0}
+						<div>
 							<div
-								class="text-[0.6875rem] font-mono rounded-lg overflow-hidden border border-gray-200/60 dark:border-white/6"
+								class="text-[0.625rem] uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1.5 px-1"
 							>
-								<div
-									class="bg-red-50/80 dark:bg-red-950/20 text-red-700 dark:text-red-400 px-2.5 py-1 whitespace-pre-wrap break-all leading-relaxed"
-								>
-									<span class="select-none text-red-400 dark:text-red-600 mr-1">-</span>{args.target
-										.length > 500
-										? args.target.slice(0, 500) + '...'
-										: args.target}
-								</div>
-								<div
-									class="bg-green-50/80 dark:bg-green-950/20 text-green-700 dark:text-green-400 px-2.5 py-1 whitespace-pre-wrap break-all leading-relaxed"
-								>
-									<span class="select-none text-green-400 dark:text-green-600 mr-1">+</span>{(
-										args.replacement || ''
-									).length > 500
-										? args.replacement.slice(0, 500) + '...'
-										: args.replacement || ''}
-								</div>
+								{$t('chat.toolInput')}
 							</div>
-							{#if args.start_line}
-								<div class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-1 px-1">
-									{$t('chat.toolLines', {
-										start: args.start_line,
-										end: args.end_line || 'end'
-									})}
-								</div>
-							{/if}
-						{:else if toolName === 'run_command'}
-							<code
-								class="block text-xs font-mono text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900 rounded-lg px-2.5 py-1.5 overflow-x-auto break-all whitespace-pre-wrap"
-								>{args.command}</code
-							>
-						{:else}
-							<div class="px-1 space-y-0.5">
-								{#each Object.entries(args) as [key, value]}
-									<div class="flex gap-2 text-xs py-0.5">
-										<span class="text-gray-600 dark:text-gray-400 shrink-0">{key}</span>
-										<span class="text-gray-800 dark:text-gray-200 break-all whitespace-pre-wrap">
-											{typeof value === 'object' ? JSON.stringify(value, null, 2) : value}
-										</span>
+							{#if toolName === 'edit_file' && args.target}
+								<div
+									class="text-[0.6875rem] font-mono rounded-lg overflow-hidden border border-gray-200/60 dark:border-white/6"
+								>
+									<div
+										class="bg-red-50/80 dark:bg-red-950/20 text-red-700 dark:text-red-400 px-2.5 py-1 whitespace-pre-wrap break-all leading-relaxed"
+									>
+										<span class="select-none text-red-400 dark:text-red-600 mr-1">-</span>{args
+											.target.length > 500
+											? args.target.slice(0, 500) + '...'
+											: args.target}
 									</div>
-								{/each}
-							</div>
-						{/if}
-					</div>
-				{/if}
-
-				{#if pairedOutput?.output}
-					<div>
-						<div
-							class="text-[0.625rem] uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1.5 px-1"
-						>
-							{$t('chat.toolOutput')}
-						</div>
-						<div class="w-full min-w-0 overflow-hidden">
-							{#if imageToolOutput?.length}
-								<div class="px-1 space-y-1">
-									{#each imageToolOutput as image}
-										<div class="text-xs text-gray-600 dark:text-gray-300 break-all leading-relaxed">
-											{image.path || image.url || image.id}
+									<div
+										class="bg-green-50/80 dark:bg-green-950/20 text-green-700 dark:text-green-400 px-2.5 py-1 whitespace-pre-wrap break-all leading-relaxed"
+									>
+										<span class="select-none text-green-400 dark:text-green-600 mr-1">+</span>{(
+											args.replacement || ''
+										).length > 500
+											? args.replacement.slice(0, 500) + '...'
+											: args.replacement || ''}
+									</div>
+								</div>
+								{#if args.start_line}
+									<div class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-1 px-1">
+										{$t('chat.toolLines', {
+											start: args.start_line,
+											end: args.end_line || 'end'
+										})}
+									</div>
+								{/if}
+							{:else if toolName === 'run_command'}
+								<code
+									class="block text-xs font-mono text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900 rounded-lg px-2.5 py-1.5 overflow-x-auto break-all whitespace-pre-wrap"
+									>{args.command}</code
+								>
+							{:else}
+								<div class="px-1 space-y-0.5">
+									{#each Object.entries(args) as [key, value]}
+										<div class="flex gap-2 text-xs py-0.5">
+											<span class="text-gray-600 dark:text-gray-400 shrink-0">{key}</span>
+											<span class="text-gray-800 dark:text-gray-200 break-all whitespace-pre-wrap">
+												{typeof value === 'object' ? JSON.stringify(value, null, 2) : value}
+											</span>
 										</div>
 									{/each}
 								</div>
-							{:else}
-								<pre
-									class="text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap break-words font-mono max-h-64 overflow-auto leading-relaxed">{formattedOutput.length >
-									10000
-										? formattedOutput.slice(0, 10000)
-										: formattedOutput}</pre>
-							{/if}
-							{#if !imageToolOutput?.length && formattedOutput.length > 10000}
-								<div class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-1 px-1">
-									{$t('chat.totalChars', {
-										count: formattedOutput.length.toLocaleString()
-									})}
-								</div>
 							{/if}
 						</div>
-					</div>
+					{/if}
+
+					{#if pairedOutput?.output}
+						<div>
+							<div
+								class="text-[0.625rem] uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1.5 px-1"
+							>
+								{$t('chat.toolOutput')}
+							</div>
+							<div class="w-full min-w-0 overflow-hidden">
+								{#if imageToolOutput?.length}
+									<div class="px-1 space-y-1">
+										{#each imageToolOutput as image}
+											<div
+												class="text-xs text-gray-600 dark:text-gray-300 break-all leading-relaxed"
+											>
+												{image.path || image.url || image.id}
+											</div>
+										{/each}
+									</div>
+								{:else}
+									<pre
+										class="text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap break-words font-mono max-h-64 overflow-auto leading-relaxed">{formattedOutput.length >
+										10000
+											? formattedOutput.slice(0, 10000)
+											: formattedOutput}</pre>
+								{/if}
+								{#if !imageToolOutput?.length && formattedOutput.length > 10000}
+									<div class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-1 px-1">
+										{$t('chat.totalChars', {
+											count: formattedOutput.length.toLocaleString()
+										})}
+									</div>
+								{/if}
+							</div>
+						</div>
+					{/if}
 				{/if}
 			</div>
 		</div>

@@ -59,8 +59,10 @@ export interface SendMessageResult {
 	assistant_message?: ChatMessageRow;
 }
 
+export type ToolApprovalMode = 'ask' | 'auto' | 'full';
+
 export interface ChatSendParams {
-	tool_approval_mode?: string;
+	tool_approval_mode?: ToolApprovalMode;
 	plan_mode?: boolean;
 	request_params?: Record<string, unknown>;
 	voice_mode?: boolean;
@@ -103,6 +105,12 @@ export const updateChatTitle = (chatId: string, title: string) =>
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ title })
 	});
+
+export const updateChatSettings = (chatId: string, modelId: string, params: ChatSendParams) =>
+	fetchJSON<{ ok: boolean }>(
+		`/api/chats/${chatId}/settings`,
+		jsonBody({ model_id: modelId, params })
+	);
 
 export const forkChat = (chatId: string, messageId?: string | null) =>
 	fetchJSON<{ ok: boolean; chat_id: string }>(

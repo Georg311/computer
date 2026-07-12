@@ -15,9 +15,11 @@
 		createMessage,
 		queueSendNow as apiQueueSendNow,
 		queueDelete as apiQueueDelete,
+		updateChatSettings,
 		type ChatMessageRow,
 		type ChatSendParams,
 		type ChatInfo,
+		type ToolApprovalMode,
 		type ContextUsage,
 		type ChatTask
 	} from '$lib/apis/chat';
@@ -31,16 +33,7 @@
 	import { socketStore } from '$lib/stores/socket.svelte';
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { get } from 'svelte/store';
-	import {
-		currentWorkspace,
-		openChatTab,
-		toolApprovalMode,
-		planMode,
-		streamingBehavior,
-		selectedModelId,
-		requestParams,
-		widescreenMode
-	} from '$lib/stores';
+	import { currentWorkspace, openChatTab, streamingBehavior, widescreenMode } from '$lib/stores';
 	import { getPathDisplayName } from '$lib/utils/paths';
 	import {
 		ttsEnabled,
@@ -50,8 +43,7 @@
 		ttsAutoStreamEnabled,
 		ttsPlaybackEnabled,
 		ttsVoice,
-		unlockTtsAudioPlayback,
-		voiceModeEnabled
+		unlockTtsAudioPlayback
 	} from '$lib/stores/audio';
 
 	import ChatInput from './ChatInput.svelte';
@@ -93,6 +85,10 @@
 	let inputText = $state('');
 	let chatId = $state<string | null>(initialChatId ?? null);
 	let selectedModel = $state('');
+	let toolApprovalMode = $state<ToolApprovalMode>('auto');
+	let planMode = $state(false);
+	let requestParams = $state<Record<string, unknown>>({});
+	let voiceModeEnabled = $state(false);
 	let allMessages = $state<ChatMessageRow[]>([]);
 	const pendingAskUser = $derived.by(() => {
 		for (const message of [...allMessages].reverse()) {
@@ -401,10 +397,11 @@
 		const savedScroll = !isInitialLoad && messagesEl ? messagesEl.scrollTop : -1;
 
 		try {
-			const data = await getChat(id, selectedModel || undefined);
+			const data = await getChat(id);
 			// Discard stale response if a newer loadChat was called while we waited
 			if (gen !== loadGeneration) return;
 			allMessages = data.messages;
+			loadChatSettings(data.chat.meta);
 			currentMessageId = data.chat.current_message_id;
 			contextUsage = data.context_usage ?? null;
 			setChatTasks(
@@ -650,13 +647,49 @@
 		if (chatId) loadChat(chatId);
 	}
 
-	onMount(() => {
+	function resetChatSettings() {
 		const models = get(chatModels);
-		const saved = get(selectedModelId);
 		const dm = get(defaultModel);
-		if (saved && models.some((m) => m.id === saved)) selectedModel = saved;
-		else if (dm) selectedModel = dm;
+		if (dm) selectedModel = dm;
 		else if (models.length) selectedModel = models[0].id;
+		toolApprovalMode = 'auto';
+		planMode = false;
+		requestParams = {};
+		voiceModeEnabled = false;
+	}
+
+	function loadChatSettings(meta: Record<string, any> | null) {
+		resetChatSettings();
+		const params = meta?.params;
+		if (!params || typeof params !== 'object') return;
+		if (
+			params.tool_approval_mode === 'ask' ||
+			params.tool_approval_mode === 'auto' ||
+			params.tool_approval_mode === 'full'
+		) {
+			toolApprovalMode = params.tool_approval_mode;
+		}
+		planMode = params.plan_mode === true;
+		if (params.request_params && typeof params.request_params === 'object') {
+			requestParams = params.request_params;
+		}
+		voiceModeEnabled = params.voice_mode === true;
+		const models = get(chatModels);
+		if (
+			typeof meta?.last_model === 'string' &&
+			models.some((model) => model.id === meta.last_model)
+		) {
+			selectedModel = meta.last_model;
+		}
+	}
+
+	async function persistChatSettings() {
+		if (!chatId || !selectedModel) return;
+		await updateChatSettings(chatId, selectedModel, getChatSendParams()).catch(() => {});
+	}
+
+	onMount(() => {
+		resetChatSettings();
 
 		if (chatId) {
 			loadChat(chatId);
@@ -691,21 +724,15 @@
 
 	$effect(() => {
 		if (!$ttsEnabled || !$ttsConfigured) {
-			voiceModeEnabled.set(false);
+			voiceModeEnabled = false;
 			ttsPlaybackEnabled.set(false);
 			stopTtsPlayback();
 		} else if (
-			(!$ttsPlaybackEnabled && !$voiceModeEnabled && !$ttsAutoStreamEnabled) ||
+			(!$ttsPlaybackEnabled && !voiceModeEnabled && !$ttsAutoStreamEnabled) ||
 			!$ttsConfigured
 		) {
 			stopTtsPlayback();
 		}
-	});
-
-	// ── Persist model selection ─────────────────────────────────
-
-	$effect(() => {
-		if (selectedModel) selectedModelId.set(selectedModel);
 	});
 
 	// ── Sync streaming state to shared store for tab icon ────
@@ -787,11 +814,11 @@
 
 	function getChatSendParams(): ChatSendParams {
 		const params: ChatSendParams = {
-			tool_approval_mode: get(toolApprovalMode),
-			plan_mode: get(planMode),
-			request_params: get(requestParams)
+			tool_approval_mode: toolApprovalMode,
+			plan_mode: planMode,
+			request_params: requestParams
 		};
-		if (get(voiceModeEnabled)) params.voice_mode = true;
+		if (voiceModeEnabled) params.voice_mode = true;
 		return params;
 	}
 
@@ -1004,7 +1031,8 @@
 	}
 
 	function handlePlanCommand() {
-		planMode.set(!get(planMode));
+		planMode = !planMode;
+		persistChatSettings();
 	}
 
 	function firstUserMessageTitle(): string {
@@ -1288,12 +1316,12 @@
 		return (
 			$ttsEnabled &&
 			$ttsConfigured &&
-			($ttsPlaybackEnabled || $voiceModeEnabled || $ttsAutoStreamEnabled)
+			($ttsPlaybackEnabled || voiceModeEnabled || $ttsAutoStreamEnabled)
 		);
 	}
 
 	function shouldStreamTts() {
-		return $ttsEnabled && $ttsConfigured && ($voiceModeEnabled || $ttsAutoStreamEnabled);
+		return $ttsEnabled && $ttsConfigured && (voiceModeEnabled || $ttsAutoStreamEnabled);
 	}
 
 	function resetTtsBuffer() {
@@ -1483,7 +1511,7 @@
 			toast.error($t('admin.audio.tts') + ': ' + detail);
 		}
 		ttsPlaybackEnabled.set(false);
-		voiceModeEnabled.set(false);
+		voiceModeEnabled = false;
 	}
 
 	function scheduleTtsPrepare(generation: number) {
@@ -1586,7 +1614,7 @@
 			if (generation === ttsGeneration) ttsPlaying = false;
 			if (generation === ttsGeneration) speakingMessageId = null;
 			if (generation === ttsGeneration) ttsStopRequested = false;
-			if (generation === ttsGeneration && !$voiceModeEnabled) ttsPlaybackEnabled.set(false);
+			if (generation === ttsGeneration && !voiceModeEnabled) ttsPlaybackEnabled.set(false);
 		}
 	}
 </script>
@@ -1637,6 +1665,10 @@
 					bind:this={chatInputEl}
 					bind:inputText
 					bind:selectedModel
+					bind:toolApprovalMode
+					bind:planMode
+					bind:requestParams
+					bind:voiceModeEnabled
 					{sending}
 					{workspace}
 					placeholder={$t('chat.placeholder', { name: workspaceDisplayName })}
@@ -1645,6 +1677,7 @@
 					onaskuseranswer={handleAskUserAnswer}
 					onsend={send}
 					onplan={handlePlanCommand}
+					onsettingschange={persistChatSettings}
 					{queuedMessages}
 					onqueuesendnow={handleQueueSendNow}
 					onqueueedit={handleQueueEdit}
@@ -1757,6 +1790,10 @@
 					bind:this={chatInputEl}
 					bind:inputText
 					bind:selectedModel
+					bind:toolApprovalMode
+					bind:planMode
+					bind:requestParams
+					bind:voiceModeEnabled
 					{sending}
 					{streaming}
 					{workspace}
@@ -1769,6 +1806,7 @@
 					oncompact={handleManualCompact}
 					onfork={handleForkChat}
 					onplan={handlePlanCommand}
+					onsettingschange={persistChatSettings}
 					onstatus={handleStatusCommand}
 					onskillslist={handleSkillsListCommand}
 					oncancel={handleCancel}

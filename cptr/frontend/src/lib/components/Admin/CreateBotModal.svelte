@@ -7,7 +7,8 @@
 	import Icon from '../Icon.svelte';
 	import DropdownMenu from '../DropdownMenu.svelte';
 	import ModelSelector from '../common/ModelSelector.svelte';
-	import { selectedModelId, workspaceList } from '$lib/stores';
+	import { workspaceList } from '$lib/stores';
+	import { defaultModel } from '$lib/stores/chat';
 	import { getPathDisplayName } from '$lib/utils/paths';
 	import { createBot, updateBot, verifyBotToken, type BotData, type BotForm } from '$lib/apis/bots';
 	import { toast } from 'svelte-sonner';
@@ -25,7 +26,7 @@
 	let platform = $state(bot?.platform || 'telegram');
 	let name = $state(bot?.name || '');
 	let token = $state('');
-	let modelId = $state(bot?.model_id || $selectedModelId || '');
+	let modelId = $state(bot?.model_id || $defaultModel || '');
 	let workspace = $state(bot?.workspace || '');
 	let allowedSenders = $state(bot?.allowed_senders?.join(', ') || '');
 	let saving = $state(false);

@@ -8,8 +8,14 @@
 		selectedModel: string;
 		preferAbove?: boolean;
 		align?: 'start' | 'end';
+		onchange?: (model: string) => void;
 	}
-	let { selectedModel = $bindable(), preferAbove = true, align = 'end' }: Props = $props();
+	let {
+		selectedModel = $bindable(),
+		preferAbove = true,
+		align = 'end',
+		onchange
+	}: Props = $props();
 
 	let btnEl: HTMLButtonElement | undefined = $state();
 	let searchInputEl: HTMLInputElement | undefined = $state();
@@ -33,6 +39,7 @@
 			check: true,
 			onclick: () => {
 				selectedModel = m.id;
+				onchange?.(m.id);
 			}
 		}))
 	);

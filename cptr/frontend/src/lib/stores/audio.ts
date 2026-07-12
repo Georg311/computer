@@ -23,7 +23,6 @@ export const ttsVoice = writable<string>('alloy');
 export const ttsFormat = writable<string>('mp3');
 export const ttsPlaybackSpeed = writable<number>(1);
 export const ttsAutoStreamEnabled = writable<boolean>(false);
-export const voiceModeEnabled = writable<boolean>(false);
 export const voiceModeSttMode = writable<'browser' | 'provider'>('browser');
 export const ttsPlaybackEnabled = writable<boolean>(
 	typeof localStorage !== 'undefined'

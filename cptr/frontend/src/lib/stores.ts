@@ -110,21 +110,15 @@ export interface HomeState {
 	splitDirection: SplitDirection;
 }
 
-export type ToolApprovalMode = 'ask' | 'auto' | 'full';
-
 export interface UserPreferences {
 	theme?: Theme;
 	appearance?: AppearancePreferences;
 	sidebarOpen: boolean;
 	sidebarWidth: number;
-	toolApprovalMode: ToolApprovalMode;
-	planMode: boolean;
 	locale: string;
 	workspaceOrder?: string[]; // ordered paths for sidebar drag-reorder
 	keybindings?: Record<string, string>; // user-customised keyboard shortcuts
 	version?: string; // last seen app version for changelog
-	selectedModelId?: string; // last selected chat model, synced across browsers
-	requestParams?: Record<string, unknown>; // arbitrary params merged into API request body
 	showUpdateToast?: boolean; // show version update notifications (default true)
 	pwa?: PwaPreferences;
 	textScale?: number | null;
@@ -304,9 +298,6 @@ if (typeof window !== 'undefined') {
 }
 export const sidebarWidth = writable(220);
 export const theme = writable<Theme>('dark');
-export const toolApprovalMode = writable<ToolApprovalMode>('auto');
-export const planMode = writable(false);
-export const requestParams = writable<Record<string, unknown>>({});
 export const appVersion = writable('');
 export const lastSeenVersion = writable('');
 export const latestVersion = writable('');
@@ -323,19 +314,11 @@ export const updateAvailable = derived([appVersion, latestVersion], ([$app, $lat
 export const showChangelog = writable(false);
 export const showUpdateToastPref = writable(true);
 export const showSearch = writable(false);
-/** @deprecated Use toolApprovalMode */
-export const autoApproveTools = {
-	subscribe: toolApprovalMode.subscribe,
-	set: (v: boolean) => toolApprovalMode.set(v ? 'full' : 'ask'),
-	update: (fn: (v: boolean) => boolean) =>
-		toolApprovalMode.update((m) => (fn(m === 'full') ? 'full' : 'ask'))
-};
 export const stateLoaded = writable(false);
 export const gitReviewOpen = writable(false);
 export const isGitRepo = writable(false);
 export type StreamingBehavior = 'queue' | 'interrupt';
 export const streamingBehavior = writable<StreamingBehavior>('queue');
-export const selectedModelId = writable<string>('');
 export const pwaPreferences = writable<PwaPreferences>(defaultPwaPreferences);
 export const themeConfig = writable<ThemeConfig | null>(null);
 export const textScale = writable<number | null>(null);
@@ -439,14 +422,10 @@ function persistPreferences(): void {
 			},
 			sidebarOpen: get(sidebarOpen),
 			sidebarWidth: get(sidebarWidth),
-			toolApprovalMode: get(toolApprovalMode),
-			planMode: get(planMode),
 			locale: i18next.language,
 			workspaceOrder: get(workspaceOrder),
 			keybindings: get(keybindings),
 			version: get(lastSeenVersion),
-			selectedModelId: get(selectedModelId) || undefined,
-			requestParams: Object.keys(get(requestParams)).length ? get(requestParams) : undefined,
 			showUpdateToast: get(showUpdateToastPref),
 			pwa: get(pwaPreferences),
 			textScale: get(textScale),
@@ -480,15 +459,6 @@ function subscribeForPersistence() {
 	sidebarWidth.subscribe(() => {
 		if (get(stateLoaded)) persistPreferences();
 	});
-	toolApprovalMode.subscribe(() => {
-		if (get(stateLoaded)) persistPreferences();
-	});
-	planMode.subscribe(() => {
-		if (get(stateLoaded)) persistPreferences();
-	});
-	requestParams.subscribe(() => {
-		if (get(stateLoaded)) persistPreferences();
-	});
 	workspaceOrder.subscribe(() => {
 		if (get(stateLoaded)) persistPreferences();
 	});
@@ -496,9 +466,6 @@ function subscribeForPersistence() {
 		if (get(stateLoaded)) persistPreferences();
 	});
 	lastSeenVersion.subscribe(() => {
-		if (get(stateLoaded)) persistPreferences();
-	});
-	selectedModelId.subscribe(() => {
 		if (get(stateLoaded)) persistPreferences();
 	});
 	showUpdateToastPref.subscribe(() => {
@@ -533,20 +500,10 @@ export async function loadPreferences(): Promise<void> {
 		themeConfig.set(sanitizeThemeConfig(appearance.themeConfig));
 		if (prefs.sidebarOpen !== undefined) sidebarOpen.set(prefs.sidebarOpen as boolean);
 		if (prefs.sidebarWidth !== undefined) sidebarWidth.set(prefs.sidebarWidth as number);
-		// Support new toolApprovalMode and legacy boolean autoApproveTools
-		if (prefs.toolApprovalMode) {
-			toolApprovalMode.set(prefs.toolApprovalMode as ToolApprovalMode);
-		} else if (prefs.autoApproveTools !== undefined) {
-			// Legacy boolean migration
-			toolApprovalMode.set((prefs.autoApproveTools as unknown as boolean) ? 'full' : 'ask');
-		}
-		if (prefs.planMode !== undefined) planMode.set(prefs.planMode as boolean);
 		if (prefs.locale) changeLocale(prefs.locale as string);
 		if (Array.isArray(prefs.workspaceOrder)) workspaceOrder.set(prefs.workspaceOrder as string[]);
 		if (prefs.keybindings) loadKeybindings(prefs.keybindings as Record<string, string>);
 		if (prefs.version) lastSeenVersion.set(prefs.version as string);
-		if (prefs.selectedModelId) selectedModelId.set(prefs.selectedModelId as string);
-		if (prefs.requestParams) requestParams.set(prefs.requestParams as Record<string, unknown>);
 		if (prefs.showUpdateToast !== undefined)
 			showUpdateToastPref.set(prefs.showUpdateToast as boolean);
 		textScale.set(

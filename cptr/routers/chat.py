@@ -502,6 +502,11 @@ class UpdateChatRequest(BaseModel):
     title: str
 
 
+class UpdateChatSettingsRequest(BaseModel):
+    model_id: str
+    params: dict = {}
+
+
 @router.patch("/{chat_id}")
 async def update_chat(chat_id: str, body: UpdateChatRequest, request: Request):
     """Rename a chat."""
@@ -519,6 +524,21 @@ async def update_chat(chat_id: str, body: UpdateChatRequest, request: Request):
 
     await emit_to_user(user_id, {"chat_id": chat_id, "title": title})
     return {"ok": True, "title": title}
+
+
+@router.patch("/{chat_id}/settings")
+async def update_chat_settings(chat_id: str, body: UpdateChatSettingsRequest, request: Request):
+    """Save composer settings for one chat."""
+    user_id = _get_user(request)
+    chat = await Chat.get_by_id(chat_id)
+    if not chat or chat.user_id != user_id:
+        raise HTTPException(404, "chat not found")
+
+    meta = dict(chat.meta or {})
+    meta["last_model"] = body.model_id
+    meta["params"] = body.params
+    await Chat.update_meta(chat_id, meta, now_ms())
+    return {"ok": True}
 
 
 @router.delete("/{chat_id}")

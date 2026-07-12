@@ -69,6 +69,8 @@ ASK_USER_SCHEMA = {
         "properties": {
             "questions": {
                 "type": "array",
+                "minItems": 1,
+                "maxItems": 3,
                 "items": {
                     "type": "object",
                     "properties": {
@@ -77,6 +79,8 @@ ASK_USER_SCHEMA = {
                         "question": {"type": "string"},
                         "options": {
                             "type": "array",
+                            "minItems": 2,
+                            "maxItems": 3,
                             "items": {
                                 "type": "object",
                                 "properties": {
@@ -90,7 +94,12 @@ ASK_USER_SCHEMA = {
                     "required": ["id", "header", "question", "options"],
                 },
             },
-            "autoResolutionMs": {"type": "integer"},
+            "autoResolutionMs": {
+                "type": "integer",
+                "minimum": 60_000,
+                "maximum": 240_000,
+                "default": DEFAULT_AUTO_RESOLUTION_MS,
+            },
         },
         "required": ["questions"],
     },

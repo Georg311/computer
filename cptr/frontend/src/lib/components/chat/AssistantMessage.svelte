@@ -201,6 +201,10 @@
 				return _t('chat.tool.killTask', { id: args.task_id || '?' });
 			case 'image_generate':
 				return args.image || args.images?.length ? 'Edit image' : 'Generate image';
+			case 'ask_user': {
+				const count = Array.isArray(args.questions) ? args.questions.length : 0;
+				return `Asked ${count} question${count === 1 ? '' : 's'}`;
+			}
 			case 'web_search':
 				return _t('chat.tool.webSearch', { query: args.query || '?' });
 			case 'read_url': {
@@ -343,7 +347,7 @@
 
 		for (const [index, item] of output.entries()) {
 			if (item.type === 'function_call') {
-				if (item.name !== 'ask_user') {
+				if (item.name !== 'ask_user' || item.status !== 'pending') {
 					ensureGroup();
 					currentGroup!.entries.push(item);
 					currentGroup!.calls.push(item);

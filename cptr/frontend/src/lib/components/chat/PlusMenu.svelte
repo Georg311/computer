@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { toolApprovalMode, planMode, requestParams, type ToolApprovalMode } from '$lib/stores';
+	import type { ToolApprovalMode } from '$lib/apis/chat';
 	import { tooltip } from '$lib/tooltip';
 	import { t } from '$lib/i18n';
 	import Icon from '../Icon.svelte';
@@ -9,8 +9,19 @@
 	interface Props {
 		onfiles: (files: FileList) => void;
 		oncapture?: (file: File) => void;
+		toolApprovalMode?: ToolApprovalMode;
+		planMode?: boolean;
+		requestParams?: Record<string, unknown>;
+		onchange?: () => void;
 	}
-	let { onfiles, oncapture }: Props = $props();
+	let {
+		onfiles,
+		oncapture,
+		toolApprovalMode = $bindable('auto'),
+		planMode = $bindable(false),
+		requestParams = $bindable({}),
+		onchange
+	}: Props = $props();
 
 	let open = $state(false);
 	let tab = $state<'' | 'tools' | 'request_params'>('');
@@ -28,12 +39,12 @@
 	]);
 
 	const currentModeLabel = $derived(
-		modes.find((m) => m.value === $toolApprovalMode)?.label ?? $t('plusMenu.toolPermissions')
+		modes.find((m) => m.value === toolApprovalMode)?.label ?? $t('plusMenu.toolPermissions')
 	);
 
 	// ── Request params state ────────────────────────
 	let paramRows = $state<Array<{ key: string; value: string }>>(
-		Object.entries($requestParams).map(([key, value]) => ({
+		Object.entries(requestParams).map(([key, value]) => ({
 			key,
 			value: typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)
 		}))
@@ -64,8 +75,16 @@
 				result[key.trim()] = value;
 			}
 		}
-		requestParams.set(result);
+		requestParams = result;
+		onchange?.();
 	}
+
+	$effect(() => {
+		paramRows = Object.entries(requestParams).map(([key, value]) => ({
+			key,
+			value: typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)
+		}));
+	});
 
 	function toggle() {
 		open = !open;
@@ -88,7 +107,8 @@
 	}
 
 	function selectMode(mode: ToolApprovalMode) {
-		toolApprovalMode.set(mode);
+		toolApprovalMode = mode;
+		onchange?.();
 	}
 
 	function triggerUpload() {
@@ -282,7 +302,10 @@
 				<!-- Plan mode toggle -->
 				<button
 					class="flex items-center gap-2 w-full h-7 px-2 rounded-xl text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors duration-75"
-					onclick={() => planMode.update((v) => !v)}
+					onclick={() => {
+						planMode = !planMode;
+						onchange?.();
+					}}
 				>
 					<svg
 						class="size-3.5 shrink-0"
@@ -299,7 +322,13 @@
 						<line x1="9" y1="17" x2="15" y2="17" />
 					</svg>
 					<span class="flex-1 text-left truncate">{$t('plusMenu.planMode')}</span>
-					<ToggleSwitch value={$planMode} onchange={(v) => planMode.set(v)} />
+					<ToggleSwitch
+						value={planMode}
+						onchange={(v) => {
+							planMode = v;
+							onchange?.();
+						}}
+					/>
 				</button>
 
 				<div class="app-divider h-px mx-1 my-0.5"></div>
@@ -359,14 +388,14 @@
 				{#each modes as mode}
 					<button
 						class="flex items-center gap-2 w-full h-7 px-2 rounded-xl text-xs transition-colors duration-75
-							{$toolApprovalMode === mode.value
+							{toolApprovalMode === mode.value
 							? 'text-gray-900 dark:text-white bg-gray-50 dark:bg-white/5'
 							: 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white'}"
 						onclick={() => selectMode(mode.value)}
 						use:tooltip={{ content: mode.desc, placement: 'right' }}
 					>
 						<span class="flex-1 text-left truncate">{mode.label}</span>
-						{#if $toolApprovalMode === mode.value}
+						{#if toolApprovalMode === mode.value}
 							<svg
 								class="w-3 h-3 shrink-0 text-gray-400 dark:text-gray-500"
 								viewBox="0 0 24 24"

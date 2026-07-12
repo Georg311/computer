@@ -8,7 +8,8 @@
 	import DropdownMenu from '../DropdownMenu.svelte';
 	import ModelSelector from '../common/ModelSelector.svelte';
 	import ScheduleDropdown from './ScheduleDropdown.svelte';
-	import { selectedModelId, workspaceList } from '$lib/stores';
+	import { workspaceList } from '$lib/stores';
+	import { defaultModel } from '$lib/stores/chat';
 	import { getPathDisplayName } from '$lib/utils/paths';
 	import type { AutomationData, AutomationForm } from '$lib/apis/automations';
 	import { createAutomation, updateAutomation } from '$lib/apis/automations';
@@ -25,7 +26,7 @@
 
 	let name = $state(automation?.name || '');
 	let prompt = $state(automation?.prompt || '');
-	let modelId = $state(automation?.model_id || $selectedModelId || '');
+	let modelId = $state(automation?.model_id || $defaultModel || '');
 	let workspace = $state(automation?.workspace || '');
 	let rrule = $state(automation?.rrule || 'RRULE:FREQ=DAILY;BYHOUR=9;BYMINUTE=0');
 	let saving = $state(false);
