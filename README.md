@@ -12,7 +12,7 @@
 
 ![Open WebUI Computer Demo](./demo.png)
 
-Open WebUI Computer (`cptr`) runs on your machine and serves your whole computer to any browser: files, terminal, editor, git, running sessions, AI agents, and tools. It literally is your computer.
+Open WebUI Computer (`cptr`) runs on your machine and serves your whole computer to any browser: files, terminal, editor, git, browser tabs, running sessions, AI agents, and tools. It literally is your computer.
 
 Use it from your phone, tablet, laptop, another computer, or the machine it's running on. Designed to feel native on every screen. Connect your own AI via API key, plug in a coding agent you already subscribe to, or work directly in the terminal. One tool, full workstation, any device.
 
@@ -65,10 +65,11 @@ Open WebUI Computer is the real workstation surface: files, shell, git state, wo
 | ✏️ **Editor** | Syntax-highlighted editing with tabs. Open multiple files side by side. |
 | 🔀 **Git** | Stage, commit, diff, branch, push. Visual changes view. No command line required. |
 | ⌨️ **Terminal** | Full shell in the browser. Run your tools, your scripts, or your favourite coding agent. |
+| 🌐 **Browser** | Open websites and local app previews beside your work. Browse back and forward, switch to a mobile view, and choose the picture quality that fits your connection. |
 | 🔄 **Sessions persist** | Terminal keeps running when you close the tab. Come back on any device. |
-| 🗂️ **Tabs** | Open terminals, files, chats, and tools in separate tabs. Rearrange or split your layout. |
+| 🗂️ **Tabs** | Open browsers, terminals, files, chats, and tools in separate tabs. Rearrange or split your layout. |
 | 📂 **Workspaces** | Multiple projects, one instance. Switch without losing your place. |
-| 🔍 **Search** | Find files by name, search across file contents and chat history. ⌘K to find anything. |
+| 🔍 **Search** | Find files by name or contents, then jump straight to a matching line. ⌘K also searches chat history. |
 | 📱 **Mobile-first** | Not a desktop UI made smaller. Built for the screen in your pocket. |
 
 ## AI agent
