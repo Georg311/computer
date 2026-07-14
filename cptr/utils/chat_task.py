@@ -812,7 +812,7 @@ async def _load_message_history(chat_id: str, message_id: str) -> tuple[list[dic
         # (truly empty placeholder on first run)
         if m.id == message_id and not m.done and not m.content and not m.output:
             continue
-        entry: dict = {"role": m.role, "content": m.content or ""}
+        entry: dict = {"id": m.id, "role": m.role, "content": m.content or ""}
 
         # Transform uploaded images into base64 multimodal blocks; inline text files
         if m.role == "user":
@@ -970,6 +970,7 @@ async def _load_message_history(chat_id: str, message_id: str) -> tuple[list[dic
                             # result from previous turn) before creating a new one.
                             result.append(entry)
                             entry = {
+                                "id": m.id,
                                 "role": "assistant",
                                 "content": "",
                                 "tool_calls": matched_calls,
@@ -979,6 +980,7 @@ async def _load_message_history(chat_id: str, message_id: str) -> tuple[list[dic
                     for out in turn["outputs"]:
                         result.append(entry)
                         entry = {
+                            "id": m.id,
                             "role": "tool",
                             "tool_call_id": out["call_id"],
                             "content": _tool_result_for_model(
@@ -2046,7 +2048,8 @@ async def run_chat_task(
                     api_type=api_type,
                 )
 
-                await ChatMessage.update(summary_message_id, chat_summary=summary)
+                checkpoint_message_id = keep_zone[0].get("id") or summary_message_id
+                await ChatMessage.update(checkpoint_message_id, chat_summary=summary)
                 loaded_summary = summary
 
                 # Append summary to system prompt (works for all providers)
@@ -2077,7 +2080,7 @@ async def run_chat_task(
                 logger.info(
                     "[task %s] compacted: checkpoint=%s dropped %d msgs, kept %d, summary=%d chars",
                     message_id[:8],
-                    summary_message_id[:8],
+                    checkpoint_message_id[:8],
                     len(drop_zone),
                     len(keep_zone),
                     len(summary),
@@ -2114,6 +2117,7 @@ async def run_chat_task(
                             ],
                         }
                     )
+            api_messages = [{k: v for k, v in m.items() if k != "id"} for m in api_messages]
 
             form_data = ChatCompletionForm(
                 model=model,
