@@ -36,7 +36,6 @@ def _reasoning_output_item(text: str = "", *, status: str = "in_progress") -> di
         "type": "reasoning",
         "id": f"rs_{uuid.uuid4().hex}",
         "status": status,
-        "source": "provider",
         "content": [{"type": "text", "text": text}],
     }
 
@@ -684,7 +683,7 @@ def _replayable_reasoning_items(items: list[dict] | None, *, provider_type: str)
     for item in items or []:
         if not _reasoning_item_has_replayable_state(item):
             continue
-        if str(item.get("id", "")).startswith("reasoning-") and item.get("source") != "provider":
+        if str(item.get("id", "")).startswith("reasoning-"):
             continue
         out = copy.deepcopy(item)
         if provider_type == "llama.cpp" and not _reasoning_text_from_blocks(out.get("content")):
@@ -928,7 +927,6 @@ async def stream_openai_responses(
                                 }
                             elif item["type"] == "reasoning":
                                 # Reasoning items must be round-tripped for reasoning models
-                                item.setdefault("source", "provider")
                                 if (
                                     active_reasoning_item is not None
                                     and active_reasoning_item.get("id") == item.get("id")

@@ -1145,7 +1145,7 @@ def _is_provider_replayable_reasoning_item(item: dict) -> bool:
         return False
     if item.get("status") not in (None, "completed"):
         return False
-    if str(item.get("id", "")).startswith("reasoning-") and item.get("source") != "provider":
+    if str(item.get("id", "")).startswith("reasoning-"):
         return False
     if item.get("encrypted_content") or item.get("reasoning_details"):
         return True
