@@ -18,7 +18,7 @@ import mimetypes
 import os
 import time
 import uuid
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any, Literal, Optional, get_args, get_origin, get_type_hints
 
 from cptr.env import CHAT_TOOL_COMMAND_MAX_CHARS, CHAT_TOOL_MAX_CHARS, EXECUTE_TIMEOUT
@@ -1616,11 +1616,13 @@ _activated_skills: set[str] = set()
 
 async def view_skill(
     skill_name: str,
+    file_path: str = "",
     *,
     workspace: str,
 ) -> str:
     """Load the full instructions and resource listing for an available skill.
     :param skill_name: The name of the skill to load (from the <available_skills> catalog).
+    :param file_path: Optional relative path to a bundled skill file (for example references/api.md).
     """
     from cptr.models import Config
     from cptr.utils.skills import bump_skill_view, load_skill, format_skill_content
@@ -1628,13 +1630,50 @@ async def view_skill(
     if (await Config.get("skills.enabled")) in (False, "false", "0"):
         return "Error: skills are disabled by the administrator."
 
-    # Deduplication: if already activated, return short notice
-    if skill_name in _activated_skills:
-        return f"Skill '{skill_name}' is already loaded in this session. Refer to the existing <skill_content> above."
-
     skill = load_skill(workspace, skill_name)
     if not skill:
         return f"Error: skill '{skill_name}' not found. Check <available_skills> for valid names."
+
+    if file_path:
+        skill_dir = Path(skill.location).parent
+        p = Path(file_path)
+        windows_path = PureWindowsPath(file_path)
+        if p.is_absolute() or windows_path.is_absolute() or windows_path.drive:
+            return "Error: skill file path must be relative to the skill directory."
+        if ".." in p.parts or ".." in windows_path.parts:
+            return "Error: skill file path cannot contain '..' traversal components."
+
+        target = (skill_dir / file_path).resolve()
+        try:
+            target.relative_to(skill_dir.resolve())
+        except (ValueError, OSError):
+            return "Error: skill file path escapes the skill directory."
+        if _is_dotenv(target):
+            return _DOTENV_ERROR
+        if not target.is_file():
+            return f"Error: skill file not found: {file_path}"
+        if target.suffix.lower() in IMAGE_EXTENSIONS:
+            return await asyncio.to_thread(_read_image_file, target, file_path)
+
+        def _read_skill_file():
+            size = target.stat().st_size
+            if size > 500_000:
+                return f"Error: skill file too large ({size} bytes, max 500KB)"
+            try:
+                content = target.read_text(errors="strict")
+            except (UnicodeDecodeError, ValueError):
+                return f"Error: binary skill file ({target.suffix}), cannot read as text"
+            return (
+                f'<skill_file name="{skill.name}" path="{file_path}">\n'
+                f"{content}\n"
+                "</skill_file>"
+            )
+
+        return await asyncio.to_thread(_read_skill_file)
+
+    # Deduplication: if already activated, return short notice
+    if skill_name in _activated_skills:
+        return f"Skill '{skill_name}' is already loaded in this session. Refer to the existing <skill_content> above."
 
     _activated_skills.add(skill_name)
     bump_skill_view(workspace, skill_name, skill.source)

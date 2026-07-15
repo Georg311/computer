@@ -685,6 +685,7 @@ def format_skill_content(skill: SkillContent) -> str:
         "",
         f"Skill directory: {skill_dir}",
         "Relative paths in this skill are relative to the skill directory.",
+        "Load listed resources with view_skill using this skill name and file_path.",
     ]
 
     if skill.resources:
