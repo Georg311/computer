@@ -153,7 +153,7 @@
 			{token.raw}
 		{/if}
 	{:else if token.type === 'html'}
-		<!-- Skip raw HTML for safety -->
+		{(token as Tokens.HTML).text || token.raw}
 	{:else if token.type === 'def'}
 		<!-- Link reference definition, no visual output -->
 	{:else if token.type === 'space'}

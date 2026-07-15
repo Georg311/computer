@@ -141,6 +141,8 @@
 				class="text-blue-500 dark:text-blue-400 bg-blue-500/8 dark:bg-blue-400/10 rounded px-1 cursor-pointer hover:underline transition-colors"
 				title={$t('markdown.linkTo', { target: wl.target })}>{wl.label}</span
 			>
+		{:else}
+			{item.raw}
 		{/if}
 	{/if}
 {/each}
