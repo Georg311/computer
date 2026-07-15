@@ -20,7 +20,9 @@ import time
 import uuid
 from pathlib import Path
 from typing import Any, Literal, Optional, get_args, get_origin, get_type_hints
+
 from cptr.env import CHAT_TOOL_COMMAND_MAX_CHARS, CHAT_TOOL_MAX_CHARS, EXECUTE_TIMEOUT
+from cptr.utils.gitignore import is_gitignored, load_gitignore
 
 try:
     import fcntl
@@ -716,13 +718,22 @@ async def _search_python(query: str, full: Path, case_insensitive: bool) -> str:
     def _walk_and_search():
         results = []
         ignore = {".git", "node_modules", "__pycache__", ".venv", "venv"}
+        ignore_base, ignore_patterns = load_gitignore(full)
         q = query.lower() if case_insensitive else query
 
         for root, dirs, files in os.walk(full):
-            dirs[:] = [d for d in dirs if d not in ignore]
+            root_path = Path(root)
+            dirs[:] = [
+                d
+                for d in dirs
+                if d not in ignore
+                and not is_gitignored(root_path / d, ignore_base, ignore_patterns, is_dir=True)
+            ]
             for fname in files:
                 fpath = Path(root) / fname
-                if _is_dotenv(fpath):
+                if _is_dotenv(fpath) or is_gitignored(
+                    fpath, ignore_base, ignore_patterns, is_dir=False
+                ):
                     continue
                 text = _read_text_for_search(fpath)
                 if text is None:
@@ -767,7 +778,7 @@ async def create_file(
         artifact_path = artifact_dir / f"{ts}_{artifact_type}.md"
 
         def _write_artifact():
-            artifact_path.write_text(content)
+            artifact_path.write_text(content, encoding="utf-8")
 
         await asyncio.to_thread(_write_artifact)
 
@@ -793,7 +804,7 @@ async def create_file(
 
     def _write():
         full.parent.mkdir(parents=True, exist_ok=True)
-        full.write_text(content)
+        full.write_text(content, encoding="utf-8")
 
     await asyncio.to_thread(_write)
     return f"Created {path} ({len(content)} bytes, {len(content.splitlines())} lines)"
@@ -820,7 +831,7 @@ async def create_artifact(
     artifact_path = artifact_dir / f"{ts}_{artifact_type}.md"
 
     def _write():
-        artifact_path.write_text(content)
+        artifact_path.write_text(content, encoding="utf-8")
 
     await asyncio.to_thread(_write)
 
@@ -972,7 +983,7 @@ async def write_file(path: str, content: str, *, workspace: str) -> str:
 
     def _write():
         full.parent.mkdir(parents=True, exist_ok=True)
-        full.write_text(content)
+        full.write_text(content, encoding="utf-8")
 
     await asyncio.to_thread(_write)
     return f"Wrote {len(content)} bytes to {path}"
@@ -1043,7 +1054,7 @@ async def edit_file(
         return f"Error: file not found: {path}"
 
     def _edit():
-        content = full.read_text(errors="replace")
+        content = full.read_text(encoding="utf-8", errors="replace")
 
         if start_line > 0 or end_line > 0:
             lines = content.splitlines(keepends=True)
@@ -1075,7 +1086,7 @@ async def edit_file(
                 )
             new_content = content.replace(target, replacement, 1)
 
-        full.write_text(new_content)
+        full.write_text(new_content, encoding="utf-8")
         return None  # success sentinel
 
     result = await asyncio.to_thread(_edit)
@@ -1115,7 +1126,7 @@ async def multi_edit_file(
         return "Error: edits must be a non-empty JSON array"
 
     def _apply():
-        content = full.read_text(errors="replace")
+        content = full.read_text(encoding="utf-8", errors="replace")
         applied = 0
 
         for i, edit in enumerate(edit_list):
@@ -1138,7 +1149,7 @@ async def multi_edit_file(
             content = content.replace(target, replacement, 1)
             applied += 1
 
-        full.write_text(content)
+        full.write_text(content, encoding="utf-8")
         return f"Applied {applied} edits to {path}"
 
     return await asyncio.to_thread(_apply)

@@ -532,6 +532,7 @@
 		delta?: string;
 		output?: any;
 		tasks?: ChatTask[];
+		context_usage?: ContextUsage | null;
 		done?: boolean;
 		error?: string;
 		pending_inputs_processed?: boolean;
@@ -573,6 +574,9 @@
 		if (data.title && tabId) {
 			chatTitle = data.title;
 			updateTab(tabId, data.chat_id, data.title);
+		}
+		if (data.context_usage) {
+			contextUsage = data.context_usage;
 		}
 
 		// Follow-up state changed server-side: reload to see new transcript/generation state.
@@ -1024,12 +1028,12 @@
 			toast.message($t('chat.compactNoChat'));
 			return;
 		}
-		if (!selectedModel || sending || streaming) return;
+		if (sending || streaming) return;
 		sending = true;
 		inputText = '';
 		const toastId = toast.loading($t('chat.compacting'));
 		try {
-			const result = await apiCompactChat(chatId, selectedModel);
+			const result = await apiCompactChat(chatId, selectedModel || null);
 			contextUsage = result.context_usage ?? contextUsage;
 			if (result.compacted) {
 				toast.success($t('chat.compactDone'), { id: toastId });

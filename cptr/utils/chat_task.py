@@ -14,7 +14,13 @@ from typing import Any
 
 from cptr.events import EVENTS, publish_event
 from cptr.env import CHAT_MAX_ITERATIONS, CHAT_TOOL_COMMAND_MAX_CHARS, CHAT_TOOL_MAX_CHARS
-from cptr.utils.context import resolve_compact_token_threshold, should_compact
+from cptr.utils.context import (
+    build_context_usage,
+    normalize_usage,
+    resolve_compact_token_threshold,
+    should_compact,
+    usage_context_tokens,
+)
 from cptr.utils.skills import (
     bump_skill_view,
     discover_skills,
@@ -754,7 +760,7 @@ async def generate_chat_title(
 
         # Do not overwrite a title manually set while this request was running.
         chat = await Chat.get_by_id(chat_id)
-        fallback = user_content[:50].strip() or "New Chat"
+        fallback = user_message[:50].strip() or "New Chat"
         if not chat or chat.title != fallback:
             return
 
@@ -2192,13 +2198,16 @@ async def run_chat_task(
                     await emit(output=item)
 
                 elif event["type"] == "usage":
-                    usage = {k: v for k, v in event.items() if k != "type"}
-                    if "total_tokens" not in usage:
-                        usage["total_tokens"] = usage.get("input_tokens", 0) + usage.get(
-                            "output_tokens", 0
-                        )
+                    usage = normalize_usage({k: v for k, v in event.items() if k != "type"})
                     last_usage = usage
                     new_messages_since = 0
+                    tokens = usage_context_tokens(usage)
+                    if tokens > 0:
+                        await emit(
+                            context_usage=build_context_usage(
+                                tokens, threshold=compact_token_threshold, source="estimated"
+                            )
+                        )
 
                 elif event["type"] == "done":
                     # Stream ended. Usage may have arrived earlier, multiple times, or never.

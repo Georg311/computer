@@ -457,6 +457,7 @@ async def _get_chat_context_usage(chat, model_id: str | None = None) -> dict | N
         estimate_context_usage,
         estimate_messages_tokens,
         load_compact_token_threshold,
+        usage_context_tokens,
     )
 
     messages, existing_summary = await _load_message_history(chat.id, message_id)
@@ -470,9 +471,8 @@ async def _get_chat_context_usage(chat, model_id: str | None = None) -> dict | N
     usage_checkpoint = await _get_latest_usage_checkpoint(chat.id, message_id)
     if usage_checkpoint:
         trailing_messages, usage = usage_checkpoint
-        tokens = usage.get("input_tokens")
-        if isinstance(tokens, int) and tokens > 0:
-            tokens += usage.get("output_tokens", 0)
+        tokens = usage_context_tokens(usage)
+        if tokens > 0:
             if trailing_messages:
                 tokens += estimate_messages_tokens(
                     [{"role": m.role, "content": m.content or ""} for m in trailing_messages]
@@ -495,6 +495,8 @@ async def _infer_chat_model(chat_id: str) -> str:
 async def _get_latest_usage_checkpoint(
     chat_id: str, message_id: str
 ) -> tuple[list[ChatMessage], dict] | None:
+    from cptr.utils.context import normalize_usage, usage_context_tokens
+
     all_msgs = await ChatMessage.get_all_by_chat(chat_id)
     msg_map = {m.id: m for m in all_msgs}
     chain = []
@@ -508,8 +510,8 @@ async def _get_latest_usage_checkpoint(
         message = chain[index]
         if message.chat_summary:
             return None
-        usage = message.usage or {}
-        if message.role == "assistant" and usage.get("input_tokens"):
+        usage = normalize_usage(message.usage)
+        if message.role == "assistant" and usage_context_tokens(usage):
             return chain[index + 1 :], usage
     return None
 
@@ -700,7 +702,7 @@ class SendMessageRequest(BaseModel):
 
 
 class CompactRequest(BaseModel):
-    model_id: str
+    model_id: Optional[str] = None
 
 
 @router.post("")
@@ -864,13 +866,16 @@ async def compact_chat(chat_id: str, body: CompactRequest, request: Request):
         raise HTTPException(404, "chat not found")
     if await _chat_has_active_generation(chat_id):
         raise HTTPException(409, "wait for the current response to finish before compacting")
+    model_id = body.model_id or await _infer_chat_model(chat_id)
+    if not model_id:
+        raise HTTPException(400, "choose a model before compacting")
 
     message_id = await _get_context_leaf_message_id(chat)
     if not message_id:
         return {"ok": True, "compacted": False, "reason": "empty", "context_usage": None}
     current_msg = await ChatMessage.get_by_id(message_id)
     if not current_msg or not current_msg.parent_id:
-        usage = await _get_chat_context_usage(chat, body.model_id)
+        usage = await _get_chat_context_usage(chat, model_id)
         return {"ok": True, "compacted": False, "reason": "too_short", "context_usage": usage}
 
     from cptr.utils.model_targets import (
@@ -879,7 +884,7 @@ async def compact_chat(chat_id: str, body: CompactRequest, request: Request):
         resolve_model_target,
     )
 
-    target = await resolve_model_target(body.model_id, request.app.state)
+    target = await resolve_model_target(model_id, request.app.state)
     if not isinstance(target, ApiModelTarget):
         target = await first_api_model_target(request.app.state)
 
@@ -888,7 +893,7 @@ async def compact_chat(chat_id: str, body: CompactRequest, request: Request):
 
     messages, existing_summary = await _load_message_history(chat_id, current_msg.parent_id)
     if not messages:
-        usage = await _get_chat_context_usage(chat, body.model_id)
+        usage = await _get_chat_context_usage(chat, model_id)
         return {"ok": True, "compacted": False, "reason": "too_short", "context_usage": usage}
 
     connection = target.connection
@@ -914,7 +919,7 @@ async def compact_chat(chat_id: str, body: CompactRequest, request: Request):
     from cptr.utils.chat_export import export_chat_to_file
 
     await export_chat_to_file(chat_id)
-    usage = await _get_chat_context_usage(chat, body.model_id)
+    usage = await _get_chat_context_usage(chat, model_id)
     return {
         "ok": True,
         "compacted": True,

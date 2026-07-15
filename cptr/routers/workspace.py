@@ -18,6 +18,8 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
+from cptr.utils.gitignore import is_gitignored, load_gitignore
+
 router = APIRouter(prefix="/api/workspace/files", tags=["workspace-files"])
 
 
@@ -355,22 +357,35 @@ def _is_search_ignored(name: str) -> bool:
     return name in SEARCH_IGNORE_DIRS or name.endswith(".egg-info")
 
 
-def _walk_match_entries(root: Path, show_hidden: bool):
+def _walk_match_entries(
+    root: Path,
+    show_hidden: bool,
+    gitignore: tuple[Path, tuple] | None = None,
+):
     """Yield visible files and directories without following symlinks."""
+    if gitignore is None:
+        gitignore = load_gitignore(root)
+    ignore_base, ignore_patterns = gitignore
+
     try:
         entries = sorted(root.iterdir(), key=lambda item: item.name.lower())
     except (OSError, PermissionError):
         return
 
     for item in entries:
-        if _is_search_ignored(item.name) or (not show_hidden and item.name.startswith(".")):
-            continue
         try:
+            item_is_dir = item.is_dir()
+            if (
+                _is_search_ignored(item.name)
+                or (not show_hidden and item.name.startswith("."))
+                or is_gitignored(item, ignore_base, ignore_patterns, is_dir=item_is_dir)
+            ):
+                continue
             if item.is_symlink():
                 yield item, "file"
-            elif item.is_dir():
+            elif item_is_dir:
                 yield item, "directory"
-                yield from _walk_match_entries(item, show_hidden)
+                yield from _walk_match_entries(item, show_hidden, gitignore)
             elif item.is_file():
                 yield item, "file"
         except (OSError, PermissionError):
@@ -408,7 +423,6 @@ def _content_matches_with_rg(
         "--column",
         "--max-count",
         str(MAX_CONTENT_MATCHES_PER_FILE + 1),
-        "--no-ignore",
     ]
     if show_hidden:
         args.append("--hidden")
@@ -489,7 +503,9 @@ def find_file_matches(
     files = {path.resolve() for path, kind in entries if kind == "file" and not path.is_symlink()}
     content_result = _content_matches_with_rg(root, query, query_lower, show_hidden, files)
     content_matches, _ = (
-        content_result if content_result is not None else _content_matches_with_python(files, query_lower)
+        content_result
+        if content_result is not None
+        else _content_matches_with_python(files, query_lower)
     )
 
     matches: list[tuple[int, int, FileMatch]] = []
@@ -593,13 +609,19 @@ def walk_and_rank_files(root: Path, query: str, limit: int = 20) -> list[SearchR
     query_lower = query.strip().lower().replace("\\", "/")
     matches: list[tuple[int, int, SearchResult]] = []
     max_collect = limit * 10
+    ignore_base, ignore_patterns = load_gitignore(root)
 
     def walk(directory: Path, depth: int = 0):
         if depth > 8 or len(matches) >= max_collect:
             return
         try:
             for item in sorted(directory.iterdir(), key=lambda p: p.name.lower()):
-                if item.name in SEARCH_IGNORE_DIRS or item.name.startswith("."):
+                item_is_dir = item.is_dir()
+                if (
+                    item.name in SEARCH_IGNORE_DIRS
+                    or item.name.startswith(".")
+                    or is_gitignored(item, ignore_base, ignore_patterns, is_dir=item_is_dir)
+                ):
                     continue
                 if len(matches) >= max_collect:
                     return
@@ -619,7 +641,7 @@ def walk_and_rank_files(root: Path, query: str, limit: int = 20) -> list[SearchR
                             SearchResult(
                                 path=str(item),
                                 name=item.name,
-                                type="directory" if item.is_dir() else "file",
+                                type="directory" if item_is_dir else "file",
                             ),
                         )
                     )
@@ -631,12 +653,12 @@ def walk_and_rank_files(root: Path, query: str, limit: int = 20) -> list[SearchR
                             SearchResult(
                                 path=str(item),
                                 name=item.name,
-                                type="directory" if item.is_dir() else "file",
+                                type="directory" if item_is_dir else "file",
                             ),
                         )
                     )
 
-                if item.is_dir():
+                if item_is_dir:
                     walk(item, depth + 1)
         except (PermissionError, OSError):
             pass
@@ -644,7 +666,6 @@ def walk_and_rank_files(root: Path, query: str, limit: int = 20) -> list[SearchR
     walk(root)
     matches.sort(key=lambda m: (m[0], m[1]))
     return [m[2] for m in matches[:limit]]
-
 
 
 # ── File management ──────────────────────────────────────────────

@@ -754,7 +754,7 @@
 							onmouseenter={() => (showUsageTooltip = true)}
 							onmouseleave={() => (showUsageTooltip = false)}
 							aria-label={$t('chat.usageInfo')}
-							use:tooltip={$t('chat.usageInfo')}
+							use:tooltip={showUsageTooltip ? null : $t('chat.usageInfo')}
 						>
 							<svg
 								xmlns="http://www.w3.org/2000/svg"
@@ -774,18 +774,15 @@
 						{#if showUsageTooltip}
 							<div
 								class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50
-									bg-gray-900 dark:bg-gray-800 text-gray-100 dark:text-gray-100
-									rounded-lg shadow-lg px-2.5 py-1.5 text-[0.625rem] font-mono
+									app-surface rounded-lg shadow-lg px-2.5 py-1.5 text-[0.625rem] font-mono
 									whitespace-nowrap pointer-events-none
-									min-w-[10rem] border border-transparent dark:border-gray-700"
+									min-w-[10rem] border"
 							>
 								<div class="space-y-0.5">
 									{#each Object.entries(usage) as [key, value]}
 										<div class="flex justify-between gap-4">
-											<span class="text-gray-400 dark:text-gray-400">{formatUsageLabel(key)}</span>
-											<span class="tabular-nums text-white dark:text-gray-200"
-												>{formatUsageValue(key, value)}</span
-											>
+											<span class="app-muted">{formatUsageLabel(key)}</span>
+											<span class="tabular-nums">{formatUsageValue(key, value)}</span>
 										</div>
 									{/each}
 								</div>
@@ -794,7 +791,8 @@
 									class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0
 									border-l-[0.3125rem] border-l-transparent
 									border-r-[0.3125rem] border-r-transparent
-									border-t-[0.3125rem] border-t-gray-900 dark:border-t-gray-800"
+									border-t-[0.3125rem]"
+									style="border-top-color: var(--app-bg);"
 								></div>
 							</div>
 						{/if}
