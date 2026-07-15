@@ -389,26 +389,6 @@ async def stream_anthropic(
 # ── OpenAI Chat Completions ──────────────────────────────────
 
 
-def _reasoning_text_from_blocks(blocks) -> list[str]:
-    texts: list[str] = []
-    if isinstance(blocks, str):
-        return [blocks] if blocks else []
-    if not isinstance(blocks, list):
-        return texts
-    for block in blocks:
-        if isinstance(block, str):
-            if block:
-                texts.append(block)
-            continue
-        if not isinstance(block, dict):
-            continue
-        btype = block.get("type")
-        text = block.get("text")
-        if btype in ("text", "output_text", "summary_text") and text:
-            texts.append(text)
-    return texts
-
-
 def _reasoning_items_to_content(items: list[dict]) -> str:
     """Convert replayable reasoning items to a reasoning_content string.
 
@@ -417,19 +397,22 @@ def _reasoning_items_to_content(items: list[dict]) -> str:
     """
     texts: list[str] = []
     for item in items:
-        texts.extend(_reasoning_text_from_blocks(item.get("content")))
-        texts.extend(_reasoning_text_from_blocks(item.get("summary")))
+        for blocks in (item.get("content"), item.get("summary")):
+            if isinstance(blocks, str):
+                if blocks:
+                    texts.append(blocks)
+            elif isinstance(blocks, list):
+                for block in blocks:
+                    if isinstance(block, str):
+                        if block:
+                            texts.append(block)
+                    elif (
+                        isinstance(block, dict)
+                        and block.get("type") in ("text", "output_text", "summary_text")
+                        and block.get("text")
+                    ):
+                        texts.append(block["text"])
     return "\n".join(texts)
-
-
-def _clean_chat_message(m: dict) -> dict:
-    out = dict(m)
-    out.pop("reasoning_items", None)
-    if out.get("tool_calls"):
-        out["tool_calls"] = [
-            {k: v for k, v in tc.items() if k != "fc_id"} for tc in out["tool_calls"]
-        ]
-    return out
 
 
 def _to_openai_messages(
@@ -461,7 +444,13 @@ def _to_openai_messages(
                 elif block.get("type") == "image":
                     data_uri = f"data:{block.get('media_type', 'image/jpeg')};base64,{block.get('base64', '')}"
                     formatted_content.append({"type": "image_url", "image_url": {"url": data_uri}})
-            new_m = _clean_chat_message(m)
+            new_m = dict(m)
+            new_m.pop("reasoning_items", None)
+            if new_m.get("tool_calls"):
+                new_m["tool_calls"] = [
+                    {k: v for k, v in tc.items() if k != "fc_id"}
+                    for tc in new_m["tool_calls"]
+                ]
             new_m["content"] = formatted_content
             ri = m.get("reasoning_items")
             if provider_type == "llama.cpp" and ri and new_m.get("role") == "assistant":
@@ -470,7 +459,12 @@ def _to_openai_messages(
                     new_m["reasoning_content"] = rc
             result.append(new_m)
         else:
-            out = _clean_chat_message(m)
+            out = dict(m)
+            out.pop("reasoning_items", None)
+            if out.get("tool_calls"):
+                out["tool_calls"] = [
+                    {k: v for k, v in tc.items() if k != "fc_id"} for tc in out["tool_calls"]
+                ]
             ri = m.get("reasoning_items")
             if provider_type == "llama.cpp" and ri and out.get("role") == "assistant":
                 rc = _reasoning_items_to_content(ri)
@@ -686,10 +680,9 @@ def _replayable_reasoning_items(items: list[dict] | None, *, provider_type: str)
         if str(item.get("id", "")).startswith("reasoning-"):
             continue
         out = copy.deepcopy(item)
-        if provider_type == "llama.cpp" and not _reasoning_text_from_blocks(out.get("content")):
-            text = _reasoning_items_to_content([out])
-            if text:
-                out["content"] = [{"type": "text", "text": text}]
+        text = _reasoning_items_to_content([out])
+        if provider_type == "llama.cpp" and text:
+            out["content"] = [{"type": "text", "text": text}]
         replayable.append(out)
     return replayable
 

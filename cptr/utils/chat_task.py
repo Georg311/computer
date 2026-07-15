@@ -909,7 +909,15 @@ async def _load_message_history(chat_id: str, message_id: str) -> tuple[list[dic
             for item in m.output:
                 itype = item.get("type")
                 if itype == "reasoning":
-                    if not _is_provider_replayable_reasoning_item(item):
+                    if (
+                        item.get("status") not in (None, "completed")
+                        or str(item.get("id", "")).startswith("reasoning-")
+                        or (
+                            not item.get("encrypted_content")
+                            and not item.get("reasoning_details")
+                            and _reasoning_text_len(item) <= 0
+                        )
+                    ):
                         continue
                     # A reasoning item after we already have outputs means
                     # a new API iteration started — flush the current turn.
@@ -1137,20 +1145,6 @@ def _tool_result_for_model(tool_name: str, result: str) -> str:
             "images": image_files,
         }
     )
-
-
-def _is_provider_replayable_reasoning_item(item: dict) -> bool:
-    """Return True for provider reasoning that can be sent back to model APIs."""
-    if item.get("type") != "reasoning":
-        return False
-    if item.get("status") not in (None, "completed"):
-        return False
-    if str(item.get("id", "")).startswith("reasoning-"):
-        return False
-    if item.get("encrypted_content") or item.get("reasoning_details"):
-        return True
-    return _reasoning_text_len(item) > 0
-
 
 def _append_tool_to_messages(
     messages: list[dict],
