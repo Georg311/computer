@@ -662,25 +662,20 @@ async def stream_openai_completions(
 # ── OpenAI Responses API ─────────────────────────────────────
 
 
-def _reasoning_item_has_replayable_state(item: dict) -> bool:
-    if not isinstance(item, dict) or item.get("type") != "reasoning":
-        return False
-    if item.get("status") not in (None, "completed"):
-        return False
-    if item.get("encrypted_content") or item.get("reasoning_details"):
-        return True
-    return bool(_reasoning_items_to_content([item]))
-
-
 def _replayable_reasoning_items(items: list[dict] | None, *, provider_type: str) -> list[dict]:
     replayable: list[dict] = []
     for item in items or []:
-        if not _reasoning_item_has_replayable_state(item):
+        if (
+            not isinstance(item, dict)
+            or item.get("type") != "reasoning"
+            or item.get("status") not in (None, "completed")
+            or str(item.get("id", "")).startswith("reasoning-")
+        ):
             continue
-        if str(item.get("id", "")).startswith("reasoning-"):
+        text = _reasoning_items_to_content([item])
+        if not text and not item.get("encrypted_content") and not item.get("reasoning_details"):
             continue
         out = copy.deepcopy(item)
-        text = _reasoning_items_to_content([out])
         if provider_type == "llama.cpp" and text:
             out["content"] = [{"type": "text", "text": text}]
         replayable.append(out)
@@ -937,8 +932,9 @@ async def stream_openai_responses(
                             raise RuntimeError(f"Responses API error: {msg}")
 
                         elif etype == "response.completed":
-                            if active_reasoning_item is not None and _reasoning_item_has_replayable_state(
-                                {**active_reasoning_item, "status": "completed"}
+                            if (
+                                active_reasoning_item is not None
+                                and _reasoning_items_to_content([active_reasoning_item])
                             ):
                                 active_reasoning_item["status"] = "completed"
                                 emitted = True
