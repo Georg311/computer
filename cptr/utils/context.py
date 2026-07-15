@@ -60,7 +60,7 @@ def should_compact(
     return total > resolved_threshold
 
 
-def build_context_usage(tokens: int, *, threshold: int | None = None, source: str) -> dict:
+def build_context_usage(tokens: int, *, threshold: int | None = None) -> dict:
     """Return context fullness stats for estimated token counts."""
     resolved_threshold = threshold or _get_threshold()
     percent = round((tokens / resolved_threshold) * 100) if resolved_threshold > 0 else 0
@@ -69,7 +69,6 @@ def build_context_usage(tokens: int, *, threshold: int | None = None, source: st
         "estimated_tokens": tokens,
         "threshold": resolved_threshold,
         "percent": max(0, percent),
-        "source": source,
     }
 
 
@@ -109,7 +108,7 @@ def estimate_context_usage(
     """Return context fullness stats using the same estimate as compaction."""
     resolved_threshold = threshold or _get_threshold()
     estimated_tokens = estimate_tokens(system_prompt) + estimate_messages_tokens(messages)
-    return build_context_usage(estimated_tokens, threshold=resolved_threshold, source="estimated")
+    return build_context_usage(estimated_tokens, threshold=resolved_threshold)
 
 
 def _parse_positive_int(value: object) -> int | None:

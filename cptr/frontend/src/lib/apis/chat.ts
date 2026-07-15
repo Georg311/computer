@@ -34,7 +34,6 @@ export interface ContextUsage {
 	estimated_tokens: number;
 	threshold: number;
 	percent: number;
-	source: 'estimated';
 }
 
 export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';

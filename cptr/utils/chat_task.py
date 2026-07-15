@@ -16,6 +16,8 @@ from cptr.events import EVENTS, publish_event
 from cptr.env import CHAT_MAX_ITERATIONS, CHAT_TOOL_COMMAND_MAX_CHARS, CHAT_TOOL_MAX_CHARS
 from cptr.utils.context import (
     build_context_usage,
+    estimate_messages_tokens,
+    estimate_tokens,
     normalize_usage,
     resolve_compact_token_threshold,
     should_compact,
@@ -2204,12 +2206,35 @@ async def run_chat_task(
             pending_call_ids: set[str] = set()
             response_reasoning_items: list[dict] = []  # Pair with tool outputs on the next request
             streamed_reasoning_chars = 0
+            estimated_prompt_tokens = 0
+            last_emitted_context_tokens = 0
+            if provider_type == "llama.cpp":
+                estimated_prompt_tokens = estimate_tokens(system) + estimate_messages_tokens(
+                    api_messages
+                )
+                last_emitted_context_tokens = estimated_prompt_tokens
+                await emit(
+                    context_usage=build_context_usage(
+                        estimated_prompt_tokens,
+                        threshold=compact_token_threshold,
+                    )
+                )
 
             async for event in stream:
                 if event["type"] == "text_delta":
                     content += event["content"]
                     text_buffer += event["content"]
                     await emit(delta=event["content"])
+                    if provider_type == "llama.cpp" and usage_context_tokens(last_usage) <= 0:
+                        estimated_context_tokens = estimated_prompt_tokens + estimate_tokens(content)
+                        if estimated_context_tokens - last_emitted_context_tokens >= 256:
+                            last_emitted_context_tokens = estimated_context_tokens
+                            await emit(
+                                context_usage=build_context_usage(
+                                    estimated_context_tokens,
+                                    threshold=compact_token_threshold,
+                                )
+                            )
                     _sync_state()
 
                 elif event["type"] == "tool_call":
@@ -2259,7 +2284,7 @@ async def run_chat_task(
                     if tokens > 0:
                         await emit(
                             context_usage=build_context_usage(
-                                tokens, threshold=compact_token_threshold, source="estimated"
+                                tokens, threshold=compact_token_threshold
                             )
                         )
 
@@ -2272,6 +2297,16 @@ async def run_chat_task(
                                 "[task %s] reasoning output streamed (%d chars) but no completed reasoning item arrived before done; DB output may contain only in-progress reasoning",
                                 message_id[:8],
                                 streamed_reasoning_chars,
+                            )
+                        if provider_type == "llama.cpp" and usage_context_tokens(last_usage) <= 0:
+                            estimated_context_tokens = estimated_prompt_tokens + estimate_tokens(
+                                content
+                            )
+                            await emit(
+                                context_usage=build_context_usage(
+                                    estimated_context_tokens,
+                                    threshold=compact_token_threshold,
+                                )
                             )
                         await _save_message(
                             "done",
