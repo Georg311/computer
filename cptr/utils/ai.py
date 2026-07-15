@@ -36,6 +36,7 @@ def _reasoning_output_item(text: str = "", *, status: str = "in_progress") -> di
         "type": "reasoning",
         "id": f"rs_{uuid.uuid4().hex}",
         "status": status,
+        "source": "provider",
         "content": [{"type": "text", "text": text}],
     }
 
@@ -389,27 +390,58 @@ async def stream_anthropic(
 # ── OpenAI Chat Completions ──────────────────────────────────
 
 
+def _reasoning_text_from_blocks(blocks) -> list[str]:
+    texts: list[str] = []
+    if isinstance(blocks, str):
+        return [blocks] if blocks else []
+    if not isinstance(blocks, list):
+        return texts
+    for block in blocks:
+        if isinstance(block, str):
+            if block:
+                texts.append(block)
+            continue
+        if not isinstance(block, dict):
+            continue
+        btype = block.get("type")
+        text = block.get("text")
+        if btype in ("text", "output_text", "summary_text") and text:
+            texts.append(text)
+    return texts
+
+
 def _reasoning_items_to_content(items: list[dict]) -> str:
-    """Convert Responses API reasoning items to a reasoning_content string.
+    """Convert replayable reasoning items to a reasoning_content string.
 
     Reasoning items may expose text in content or summary blocks. We extract
     those text blocks and join them for Chat Completions-compatible providers.
     """
     texts: list[str] = []
     for item in items:
-        blocks = item.get("content") or item.get("summary") or []
-        for block in blocks:
-            if isinstance(block, dict) and block.get("type") == "text" and block.get("text"):
-                texts.append(block["text"])
+        texts.extend(_reasoning_text_from_blocks(item.get("content")))
+        texts.extend(_reasoning_text_from_blocks(item.get("summary")))
     return "\n".join(texts)
 
 
-def _to_openai_messages(messages: list[dict], instructions: str) -> list[dict]:
+def _clean_chat_message(m: dict) -> dict:
+    out = dict(m)
+    out.pop("reasoning_items", None)
+    if out.get("tool_calls"):
+        out["tool_calls"] = [
+            {k: v for k, v in tc.items() if k != "fc_id"} for tc in out["tool_calls"]
+        ]
+    return out
+
+
+def _to_openai_messages(
+    messages: list[dict], instructions: str, *, provider_type: str = "default"
+) -> list[dict]:
     """Canonical messages → OpenAI Chat Completions format.
 
-    Converts reasoning_items (Responses API format) to reasoning_content
-    (Chat Completions format) for providers like Kimi that require it.
-    Strips other non-standard fields (fc_id in tool_calls).
+    Strict default OpenAI-compatible requests do not receive provider-specific
+    reasoning fields.  llama.cpp compatibility replays text reasoning as
+    reasoning_content.  Other non-standard fields (fc_id in tool_calls) are
+    stripped.
     """
     result = []
     if instructions:
@@ -430,34 +462,32 @@ def _to_openai_messages(messages: list[dict], instructions: str) -> list[dict]:
                 elif block.get("type") == "image":
                     data_uri = f"data:{block.get('media_type', 'image/jpeg')};base64,{block.get('base64', '')}"
                     formatted_content.append({"type": "image_url", "image_url": {"url": data_uri}})
-            new_m = dict(m)
+            new_m = _clean_chat_message(m)
             new_m["content"] = formatted_content
-            # Convert reasoning_items → reasoning_content for round-tripping
-            ri = new_m.pop("reasoning_items", None)
-            if ri and new_m.get("role") == "assistant":
+            ri = m.get("reasoning_items")
+            if provider_type == "llama.cpp" and ri and new_m.get("role") == "assistant":
                 rc = _reasoning_items_to_content(ri)
                 if rc:
                     new_m["reasoning_content"] = rc
             result.append(new_m)
         else:
-            out = dict(m)
-            # Convert reasoning_items → reasoning_content for round-tripping
-            ri = out.pop("reasoning_items", None)
-            if ri and out.get("role") == "assistant":
+            out = _clean_chat_message(m)
+            ri = m.get("reasoning_items")
+            if provider_type == "llama.cpp" and ri and out.get("role") == "assistant":
                 rc = _reasoning_items_to_content(ri)
                 if rc:
                     out["reasoning_content"] = rc
-            # Clean tool_calls: remove fc_id which is Responses-API-only
-            if out.get("tool_calls"):
-                out["tool_calls"] = [
-                    {k: v for k, v in tc.items() if k != "fc_id"} for tc in out["tool_calls"]
-                ]
             result.append(out)
     return result
 
 
 async def stream_openai_completions(
-    form_data: ChatCompletionForm, url: str, key: str, *, request_params: dict | None = None
+    form_data: ChatCompletionForm,
+    url: str,
+    key: str,
+    *,
+    request_params: dict | None = None,
+    provider_type: str = "default",
 ) -> AsyncIterator[dict]:
     tools = [
         {
@@ -473,7 +503,9 @@ async def stream_openai_completions(
 
     body: dict = {
         "model": form_data.model,
-        "messages": _to_openai_messages(form_data.messages, form_data.instructions),
+        "messages": _to_openai_messages(
+            form_data.messages, form_data.instructions, provider_type=provider_type
+        ),
         "stream": True,
         "stream_options": {"include_usage": True},
     }
@@ -511,17 +543,21 @@ async def stream_openai_completions(
                         )
                     resp.raise_for_status()
                     tool_calls: dict[int, dict] = {}
-                    reasoning_buffer = ""  # Accumulate reasoning_content deltas (Kimi, DeepSeek)
+                    reasoning_buffer = ""
                     reasoning_item: dict | None = None
+                    reasoning_details: list = []
 
                     def complete_reasoning_item() -> dict | None:
-                        nonlocal reasoning_buffer, reasoning_item
+                        nonlocal reasoning_buffer, reasoning_item, reasoning_details
                         if reasoning_item is None:
                             return None
                         reasoning_item["status"] = "completed"
+                        if reasoning_details:
+                            reasoning_item["reasoning_details"] = copy.deepcopy(reasoning_details)
                         item = copy.deepcopy(reasoning_item)
                         reasoning_item = None
                         reasoning_buffer = ""
+                        reasoning_details = []
                         return item
 
                     async for line in resp.aiter_lines():
@@ -531,9 +567,25 @@ async def stream_openai_completions(
                         choices = chunk.get("choices", [])
                         delta = choices[0].get("delta", {}) if choices else {}
 
-                        # Capture reasoning_content from providers like Kimi / DeepSeek
-                        if delta.get("reasoning_content"):
-                            reasoning_buffer += delta["reasoning_content"]
+                        reasoning_delta = (
+                            delta.get("reasoning_content")
+                            or delta.get("reasoning")
+                            or delta.get("thinking")
+                        )
+                        if delta.get("reasoning_details"):
+                            details = delta["reasoning_details"]
+                            if isinstance(details, list):
+                                reasoning_details.extend(copy.deepcopy(details))
+                            else:
+                                reasoning_details.append(copy.deepcopy(details))
+                            if reasoning_item is None:
+                                reasoning_item = _reasoning_output_item()
+                            reasoning_item["reasoning_details"] = copy.deepcopy(reasoning_details)
+                            emitted = True
+                            yield {"type": "output", "item": copy.deepcopy(reasoning_item)}
+
+                        if reasoning_delta:
+                            reasoning_buffer += reasoning_delta
                             if reasoning_item is None:
                                 reasoning_item = _reasoning_output_item()
                             reasoning_item["content"][0]["text"] = reasoning_buffer

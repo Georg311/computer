@@ -888,11 +888,13 @@ async def compact_chat(chat_id: str, body: CompactRequest, request: Request):
     if not isinstance(target, ApiModelTarget):
         target = await first_api_model_target(request.app.state)
 
-    from cptr.utils.chat_task import _load_message_history
+    from cptr.utils.chat_task import _load_message_history, _summary_checkpoint_message_id
     from cptr.utils.summarize import summarize_messages
 
     messages, existing_summary = await _load_message_history(chat_id, current_msg.parent_id)
-    if not messages:
+    compacted_messages = messages[:-1]
+    keep_zone = messages[-1:]
+    if not compacted_messages or not keep_zone:
         usage = await _get_chat_context_usage(chat, model_id)
         return {"ok": True, "compacted": False, "reason": "too_short", "context_usage": usage}
 
@@ -906,7 +908,7 @@ async def compact_chat(chat_id: str, body: CompactRequest, request: Request):
     api_type = connection.get("api_type", "chat_completions")
 
     summary = await summarize_messages(
-        messages,
+        compacted_messages,
         existing_summary,
         provider,
         base_url,
@@ -914,7 +916,8 @@ async def compact_chat(chat_id: str, body: CompactRequest, request: Request):
         runtime_model,
         api_type=api_type,
     )
-    await ChatMessage.update(message_id, chat_summary=summary)
+    checkpoint_message_id = _summary_checkpoint_message_id(keep_zone, message_id)
+    await ChatMessage.update(checkpoint_message_id, chat_summary=summary)
 
     from cptr.utils.chat_export import export_chat_to_file
 

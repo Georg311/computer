@@ -1398,6 +1398,16 @@ def _find_safe_split(messages: list[dict], target_keep: int) -> int:
     return min(split, n - 2)  # always keep at least 2
 
 
+def _summary_checkpoint_message_id(keep_zone: list[dict], fallback: str) -> str:
+    for message in keep_zone:
+        if message.get("role") == "user" and message.get("id"):
+            return message["id"]
+    for message in keep_zone:
+        if message.get("id"):
+            return message["id"]
+    return fallback
+
+
 # ── Connection resolution ───────────────────────────────────
 
 
@@ -2054,7 +2064,9 @@ async def run_chat_task(
                     api_type=api_type,
                 )
 
-                checkpoint_message_id = keep_zone[0].get("id") or summary_message_id
+                checkpoint_message_id = _summary_checkpoint_message_id(
+                    keep_zone, summary_message_id
+                )
                 await ChatMessage.update(checkpoint_message_id, chat_summary=summary)
                 loaded_summary = summary
 
