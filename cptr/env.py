@@ -66,6 +66,10 @@ CHAT_COMPACT_TOKEN_THRESHOLD = int(os.environ.get("CHAT_COMPACT_TOKEN_THRESHOLD"
 # Claude SDK stdout JSON buffer; chat/tool output caps apply later after parsing.
 CLAUDE_CODE_MAX_BUFFER_SIZE = _env_int("CPTR_CLAUDE_CODE_MAX_BUFFER_SIZE", 128 * 1024 * 1024)
 
+# ── Workspace storage ───────────────────────────────────────
+WORKSPACE_AUTO_GITIGNORE_DOT_CPTR_ENV = os.environ.get("CPTR_AUTO_GITIGNORE_DOT_CPTR")
+WORKSPACE_AUTO_GITIGNORE_DOT_CPTR = _env_bool("CPTR_AUTO_GITIGNORE_DOT_CPTR", "true")
+
 # ── Execute timeout ─────────────────────────────────────────
 # Default wait (seconds) for run_command / check_task when the caller
 # doesn't pass an explicit wait value.  None = return immediately.

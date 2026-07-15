@@ -21,6 +21,7 @@
 	import AdminWeb from './Admin/Web.svelte';
 	import ToolServers from './Admin/ToolServers.svelte';
 	import Subagents from './Admin/Subagents.svelte';
+	import Workspace from './Admin/Workspace.svelte';
 	import { session } from '$lib/session';
 	import { t } from '$lib/i18n';
 
@@ -43,7 +44,8 @@
 		| 'images'
 		| 'web'
 		| 'toolservers'
-		| 'subagents';
+		| 'subagents'
+		| 'workspace';
 
 	interface Props {
 		onclose: () => void;
@@ -71,6 +73,7 @@
 		'web',
 		'toolservers',
 		'subagents',
+		'workspace',
 		'memory',
 		'skills'
 	];
@@ -99,6 +102,7 @@
 		{ id: 'web', label: $t('admin.web'), icon: 'globe' },
 		{ id: 'toolservers', label: $t('admin.toolServers'), icon: 'plug' },
 		{ id: 'subagents', label: $t('admin.subagents'), icon: 'user' },
+		{ id: 'workspace', label: $t('admin.workspace'), icon: 'folder' },
 		{ id: 'memory', label: $t('settings.memory'), icon: 'brain' },
 		{ id: 'skills', label: 'Skills', icon: 'spark' }
 	]);
@@ -218,6 +222,8 @@
 			<ToolServers />
 		{:else if activeTab === 'subagents'}
 			<Subagents />
+		{:else if activeTab === 'workspace'}
+			<Workspace />
 		{/if}
 	</div>
 </Modal>

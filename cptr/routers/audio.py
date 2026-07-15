@@ -72,8 +72,8 @@ def _get_user(request: Request) -> str:
 def _workspace_audio_cache_dir(workspace: str | None, kind: str) -> Path | None:
     # Voice samples are project context, so they live under the workspace .cptr
     # folder and move with the project. That keeps STT and TTS artifacts available
-    # for reuse, debugging, and the local data flywheel while ensure_cptr_gitignored
-    # keeps them out of git.
+    # for reuse, debugging, and the local data flywheel. By default,
+    # ensure_cptr_gitignored keeps them out of git.
     if not workspace:
         return None
     ws = Path(workspace).expanduser().resolve()

@@ -11,6 +11,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from cptr.utils.json_parser import extract_json
 from cptr.utils.git import (
     GitError,
     branches,
@@ -153,6 +154,23 @@ The summary must be imperative, under 72 characters, and have no trailing period
 The description should be one short paragraph explaining the meaningful change. Do not invent details."""
 
 
+def _parse_commit_message_response(text: str) -> tuple[str, str]:
+    message = extract_json(text)
+    summary = str(message.get("summary", "")).strip() if isinstance(message, dict) else ""
+    description = str(message.get("description", "")).strip() if isinstance(message, dict) else ""
+    if summary:
+        return summary.splitlines()[0][:72], description
+
+    lines = [
+        line.strip()
+        for line in text.strip().splitlines()
+        if line.strip() and not line.strip().startswith("```")
+    ]
+    if not lines:
+        return "", ""
+    return lines[0][:72], "\n".join(lines[1:]).strip()
+
+
 class CheckoutRequest(BaseModel):
     root: str
     branch: str
@@ -260,7 +278,6 @@ async def generate_commit_message(body: CommitMessageRequest, request: Request):
     from cptr.utils.chat_task import _default_base_url
     from cptr.utils.config import _get_jwt_secret
     from cptr.utils.crypto import decrypt_key
-    from cptr.utils.json_parser import extract_json
     from cptr.utils.model_targets import ApiModelTarget, resolve_model_target
     from cptr.models import Config
 
@@ -285,12 +302,10 @@ async def generate_commit_message(body: CommitMessageRequest, request: Request):
         )
     except Exception as e:
         raise HTTPException(status_code=502, detail="Could not generate a commit message") from e
-    message = extract_json(text)
-    summary = str(message.get("summary", "")).strip().splitlines()[0] if isinstance(message, dict) else ""
-    description = str(message.get("description", "")).strip() if isinstance(message, dict) else ""
+    summary, description = _parse_commit_message_response(text)
     if not summary:
         raise HTTPException(status_code=502, detail="Could not generate a commit message")
-    return {"summary": summary[:72], "description": description}
+    return {"summary": summary, "description": description}
 
 
 @router.post("/checkout")
