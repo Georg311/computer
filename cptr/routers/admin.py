@@ -235,6 +235,9 @@ async def create_connection(body: CreateConnectionRequest, request: Request):
         "name": body.name,
         "provider": body.provider,
         "api_type": body.api_type,  # "chat_completions" | "responses" (openai only)
+        "provider_type": "llama.cpp"
+        if body.provider == "openai" and body.provider_type == "llama.cpp"
+        else "default",
         "prefix_id": body.prefix_id,
         "base_url": body.base_url,
         "api_key": encrypt_key(body.api_key, _get_jwt_secret()) if body.api_key else None,
@@ -260,8 +263,16 @@ async def update_connection(conn_id: str, body: UpdateConnectionRequest, request
         conn["name"] = body.name
     if body.provider is not None:
         conn["provider"] = body.provider
+        if body.provider != "openai":
+            conn["provider_type"] = "default"
     if body.api_type is not None:
         conn["api_type"] = body.api_type
+    if "provider_type" in body.model_fields_set:
+        conn["provider_type"] = (
+            "llama.cpp"
+            if conn.get("provider") == "openai" and body.provider_type == "llama.cpp"
+            else "default"
+        )
     if body.prefix_id is not None:
         conn["prefix_id"] = body.prefix_id or None
     if body.base_url is not None:
@@ -389,6 +400,7 @@ class CreateConnectionRequest(BaseModel):
     name: str
     provider: str  # "anthropic" | "openai"
     api_type: str = "chat_completions"  # "chat_completions" | "responses" (openai only)
+    provider_type: Optional[str] = None  # None | "default" | "llama.cpp" (openai only)
     prefix_id: Optional[str] = None  # e.g. "openrouter" → "openrouter/model-id"
     base_url: Optional[str] = None
     api_key: Optional[str] = None
@@ -400,6 +412,7 @@ class UpdateConnectionRequest(BaseModel):
     name: Optional[str] = None
     provider: Optional[str] = None
     api_type: Optional[str] = None
+    provider_type: Optional[str] = None
     prefix_id: Optional[str] = None
     base_url: Optional[str] = None
     api_key: Optional[str] = None

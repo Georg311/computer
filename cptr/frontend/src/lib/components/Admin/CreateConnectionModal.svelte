@@ -17,6 +17,7 @@
 	let formName = $state('');
 	let formProvider = $state<'openai' | 'anthropic'>('openai');
 	let formApiType = $state<'chat_completions' | 'responses'>('chat_completions');
+	let formProviderType = $state<'default' | 'llama.cpp'>('default');
 	let formBaseUrl = $state('');
 	let formApiKey = $state('');
 	let formPrefixId = $state('');
@@ -49,6 +50,7 @@
 				name,
 				provider: formProvider,
 				api_type: formProvider === 'openai' ? formApiType : 'chat_completions',
+				provider_type: formProvider === 'openai' ? formProviderType : 'default',
 				prefix_id: formPrefixId.trim() || null,
 				base_url: formBaseUrl.trim(),
 				api_key: formApiKey.trim(),
@@ -114,6 +116,21 @@
 			>
 				<option value="chat_completions">{$t('connections.chatCompletions')}</option>
 				<option value="responses">{$t('connections.responses')}</option>
+			</select>
+
+			<label
+				for="create-provider-type"
+				class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2"
+			>
+				Provider Type
+			</label>
+			<select
+				id="create-provider-type"
+				bind:value={formProviderType}
+				class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer"
+			>
+				<option value="default">Default</option>
+				<option value="llama.cpp">llama.cpp</option>
 			</select>
 		{/if}
 

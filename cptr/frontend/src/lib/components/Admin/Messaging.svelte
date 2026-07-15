@@ -6,6 +6,7 @@
 	import { listBots, deleteBot, startBot, stopBot, type BotData } from '$lib/apis/bots';
 	import { t } from '$lib/i18n';
 	import Spinner from '$lib/components/common/Spinner.svelte';
+	import ToggleSwitch from '$lib/components/common/ToggleSwitch.svelte';
 
 	let bots = $state<BotData[]>([]);
 	let loading = $state(true);
@@ -29,8 +30,7 @@
 		load();
 	}
 
-	async function toggleRunning(e: Event, bot: BotData) {
-		e.stopPropagation();
+	async function toggleRunning(bot: BotData) {
 		const wasRunning = bot.is_running;
 		// Optimistic
 		bot.is_running = !wasRunning;
@@ -108,27 +108,7 @@
 					<Icon name="trash" size={11} />
 				</button>
 
-				<!-- Toggle switch -->
-				<!-- svelte-ignore a11y_no_static_element_interactions -->
-				<span
-					class="relative w-6 h-3.5 rounded-full shrink-0 cursor-pointer transition-colors duration-150
-						{bot.is_running ? 'bg-gray-900 dark:bg-white' : 'bg-gray-200 dark:bg-gray-700'}"
-					role="switch"
-					tabindex="-1"
-					aria-checked={bot.is_running}
-					onclick={(e) => toggleRunning(e, bot)}
-					onkeydown={(e) => {
-						if (e.key === 'Enter' || e.key === ' ') {
-							e.preventDefault();
-							toggleRunning(e, bot);
-						}
-					}}
-				>
-					<span
-						class="absolute top-0.5 w-2.5 h-2.5 rounded-full transition-all duration-150
-						{bot.is_running ? 'left-3 bg-white dark:bg-gray-900' : 'left-0.5 bg-white dark:bg-gray-500'}"
-					></span>
-				</span>
+				<ToggleSwitch value={bot.is_running} onchange={() => toggleRunning(bot)} />
 			</div>
 		{/each}
 

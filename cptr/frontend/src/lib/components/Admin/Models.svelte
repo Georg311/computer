@@ -278,9 +278,7 @@ Files:
 		}
 	}
 
-	async function toggleModel(e: Event, model: ModelEntry) {
-		e.stopPropagation();
-		const newVal = !model.is_active;
+	async function toggleModel(model: ModelEntry, newVal: boolean) {
 		model.is_active = newVal;
 		models = [...models];
 		try {
@@ -659,38 +657,18 @@ Files:
 
 			<!-- Per-model list -->
 			{#each models as model}
-				<button
-					class="group flex items-center gap-2 w-full h-7 text-left"
-					onclick={() => (selectedId = selectedId === model.id ? null : model.id)}
-				>
-					<span
-						class="flex-1 text-[0.8125rem] truncate {model.is_active
+				<div class="group flex items-center gap-2 w-full h-7 text-left">
+					<button
+						type="button"
+						class="flex-1 min-w-0 text-left text-[0.8125rem] truncate {model.is_active
 							? 'text-gray-700 dark:text-gray-300'
 							: 'text-gray-400 dark:text-gray-600'}"
+						onclick={() => (selectedId = selectedId === model.id ? null : model.id)}
 					>
 						{model.name}
-					</span>
-					<!-- svelte-ignore a11y_no_static_element_interactions -->
-					<span
-						class="relative w-6 h-3.5 rounded-full shrink-0 cursor-pointer transition-colors duration-150
-							{model.is_active ? 'bg-gray-900 dark:bg-white' : 'bg-gray-200 dark:bg-gray-700'}"
-						role="switch"
-						tabindex="-1"
-						aria-checked={model.is_active}
-						onclick={(e) => toggleModel(e, model)}
-						onkeydown={(e) => {
-							if (e.key === 'Enter' || e.key === ' ') {
-								e.preventDefault();
-								toggleModel(e, model);
-							}
-						}}
-					>
-						<span
-							class="absolute top-0.5 w-2.5 h-2.5 rounded-full transition-all duration-150
-							{model.is_active ? 'left-3 bg-white dark:bg-gray-900' : 'left-0.5 bg-white dark:bg-gray-500'}"
-						></span>
-					</span>
-				</button>
+					</button>
+					<ToggleSwitch value={model.is_active} onchange={(value) => toggleModel(model, value)} />
+				</div>
 
 				{#if selectedId === model.id}
 					{@render compactThresholdField(

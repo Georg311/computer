@@ -27,6 +27,9 @@
 	let formApiType = $state<'chat_completions' | 'responses'>(
 		connection.api_type === 'responses' ? 'responses' : 'chat_completions'
 	);
+	let formProviderType = $state<'default' | 'llama.cpp'>(
+		connection.provider_type === 'llama.cpp' ? 'llama.cpp' : 'default'
+	);
 	let formBaseUrl = $state(connection.base_url || '');
 	let formApiKey = $state('');
 	let formPrefixId = $state(connection.prefix_id || '');
@@ -61,6 +64,7 @@
 				name,
 				provider: formProvider,
 				api_type: formProvider === 'openai' ? formApiType : 'chat_completions',
+				provider_type: formProvider === 'openai' ? formProviderType : 'default',
 				prefix_id: formPrefixId.trim() || null,
 				base_url: formBaseUrl.trim(),
 				models
@@ -150,6 +154,21 @@
 			>
 				<option value="chat_completions">{$t('connections.chatCompletions')}</option>
 				<option value="responses">{$t('connections.responses')}</option>
+			</select>
+
+			<label
+				for="edit-provider-type"
+				class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2"
+			>
+				Provider Type
+			</label>
+			<select
+				id="edit-provider-type"
+				bind:value={formProviderType}
+				class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer"
+			>
+				<option value="default">Default</option>
+				<option value="llama.cpp">llama.cpp</option>
 			</select>
 		{/if}
 

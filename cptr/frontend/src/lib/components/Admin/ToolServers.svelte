@@ -3,6 +3,7 @@
 	import Icon from '../Icon.svelte';
 	import Modal from '../Modal.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
+	import ToggleSwitch from '$lib/components/common/ToggleSwitch.svelte';
 	import { onMount } from 'svelte';
 	import {
 		listToolServers,
@@ -188,9 +189,7 @@
 		}
 	}
 
-	async function toggleEnabled(e: Event, s: ToolServer) {
-		e.stopPropagation();
-		const newVal = !s.enabled;
+	async function toggleEnabled(s: ToolServer, newVal: boolean) {
 		s.enabled = newVal;
 		servers = [...servers];
 		try {
@@ -222,10 +221,7 @@
 {:else}
 	<div>
 		{#each servers as s}
-			<button
-				class="group flex items-center gap-2 w-full h-7 text-left"
-				onclick={() => openEdit(s)}
-			>
+			<div class="group flex items-center gap-2 w-full h-7 text-left">
 				<span
 					class="text-[0.625rem] font-mono shrink-0
 					{s.type === 'mcp' || s.type === 'mcp_stdio'
@@ -234,33 +230,16 @@
 				>
 					{s.type === 'mcp' ? 'MCP' : s.type === 'mcp_stdio' ? 'STDIO' : 'API'}
 				</span>
-				<span
-					class="flex-1 text-[0.8125rem] truncate
+				<button
+					type="button"
+					class="flex-1 min-w-0 text-left text-[0.8125rem] truncate
 					{s.enabled ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600'}"
+					onclick={() => openEdit(s)}
 				>
 					{s.name || s.command || s.url}
-				</span>
-				<!-- svelte-ignore a11y_no_static_element_interactions -->
-				<span
-					class="relative w-6 h-3.5 rounded-full shrink-0 cursor-pointer transition-colors duration-150
-						{s.enabled ? 'bg-gray-900 dark:bg-white' : 'bg-gray-200 dark:bg-gray-700'}"
-					role="switch"
-					tabindex="-1"
-					aria-checked={s.enabled}
-					onclick={(e) => toggleEnabled(e, s)}
-					onkeydown={(e) => {
-						if (e.key === 'Enter' || e.key === ' ') {
-							e.preventDefault();
-							toggleEnabled(e, s);
-						}
-					}}
-				>
-					<span
-						class="absolute top-0.5 w-2.5 h-2.5 rounded-full transition-all duration-150
-						{s.enabled ? 'left-3 bg-white dark:bg-gray-900' : 'left-0.5 bg-white dark:bg-gray-500'}"
-					></span>
-				</span>
-			</button>
+				</button>
+				<ToggleSwitch value={s.enabled} onchange={(value) => toggleEnabled(s, value)} />
+			</div>
 		{/each}
 
 		{#if servers.length === 0}

@@ -669,7 +669,35 @@ async def stream_openai_completions(
 # ── OpenAI Responses API ─────────────────────────────────────
 
 
-def _to_responses_input(messages: list[dict], instructions: str) -> list[dict]:
+def _reasoning_item_has_replayable_state(item: dict) -> bool:
+    if not isinstance(item, dict) or item.get("type") != "reasoning":
+        return False
+    if item.get("status") not in (None, "completed"):
+        return False
+    if item.get("encrypted_content") or item.get("reasoning_details"):
+        return True
+    return bool(_reasoning_items_to_content([item]))
+
+
+def _replayable_reasoning_items(items: list[dict] | None, *, provider_type: str) -> list[dict]:
+    replayable: list[dict] = []
+    for item in items or []:
+        if not _reasoning_item_has_replayable_state(item):
+            continue
+        if str(item.get("id", "")).startswith("reasoning-") and item.get("source") != "provider":
+            continue
+        out = copy.deepcopy(item)
+        if provider_type == "llama.cpp" and not _reasoning_text_from_blocks(out.get("content")):
+            text = _reasoning_items_to_content([out])
+            if text:
+                out["content"] = [{"type": "text", "text": text}]
+        replayable.append(out)
+    return replayable
+
+
+def _to_responses_input(
+    messages: list[dict], instructions: str, *, provider_type: str = "default"
+) -> list[dict]:
     """Canonical messages → Responses API input items."""
     # Pre-collect all tool result call_ids so we can validate function_calls
     # have matching outputs.  This prevents orphaned function_calls (from
@@ -701,7 +729,9 @@ def _to_responses_input(messages: list[dict], instructions: str) -> list[dict]:
             )
         elif role == "assistant" and m.get("tool_calls"):
             # Emit reasoning items before function calls (required by reasoning models)
-            for ri in m.get("reasoning_items", []):
+            for ri in _replayable_reasoning_items(
+                m.get("reasoning_items"), provider_type=provider_type
+            ):
                 items.append(ri)
             for tc in m["tool_calls"]:
                 call_id = tc.get("id", "")
@@ -729,6 +759,11 @@ def _to_responses_input(messages: list[dict], instructions: str) -> list[dict]:
                     }
                 )
         else:
+            if role == "assistant":
+                for ri in _replayable_reasoning_items(
+                    m.get("reasoning_items"), provider_type=provider_type
+                ):
+                    items.append(ri)
             content = m.get("content", "")
             if isinstance(content, list):
                 formatted_content = []
@@ -747,7 +782,12 @@ def _to_responses_input(messages: list[dict], instructions: str) -> list[dict]:
 
 
 async def stream_openai_responses(
-    form_data: ChatCompletionForm, url: str, key: str, *, request_params: dict | None = None
+    form_data: ChatCompletionForm,
+    url: str,
+    key: str,
+    *,
+    request_params: dict | None = None,
+    provider_type: str = "default",
 ) -> AsyncIterator[dict]:
     tools = [
         {
@@ -761,7 +801,9 @@ async def stream_openai_responses(
 
     body: dict = {
         "model": form_data.model,
-        "input": _to_responses_input(form_data.messages, form_data.instructions),
+        "input": _to_responses_input(
+            form_data.messages, form_data.instructions, provider_type=provider_type
+        ),
         "stream": True,
     }
     if form_data.instructions:
@@ -801,6 +843,20 @@ async def stream_openai_responses(
                             error_body.decode(errors="replace"),
                         )
                     resp.raise_for_status()
+                    output_items_by_id: dict[str, dict] = {}
+                    active_reasoning_item: dict | None = None
+
+                    def get_reasoning_item(event: dict) -> dict:
+                        nonlocal active_reasoning_item
+                        item_id = event.get("item_id") or event.get("output_item_id") or "rs_stream"
+                        if item_id in output_items_by_id:
+                            active_reasoning_item = output_items_by_id[item_id]
+                        if active_reasoning_item is None:
+                            active_reasoning_item = _reasoning_output_item()
+                            active_reasoning_item["id"] = item_id
+                            output_items_by_id[item_id] = active_reasoning_item
+                        return active_reasoning_item
+
                     async for line in resp.aiter_lines():
                         if not line.startswith("data: "):
                             continue
@@ -814,8 +870,53 @@ async def stream_openai_responses(
                             emitted = True
                             yield {"type": "text_delta", "content": event["delta"]}
 
+                        elif etype == "response.output_item.added":
+                            item = event.get("item") or {}
+                            item_id = item.get("id")
+                            if item_id:
+                                output_items_by_id[item_id] = copy.deepcopy(item)
+                            if item.get("type") == "reasoning":
+                                active_reasoning_item = output_items_by_id.get(item_id) or item
+
+                        elif etype in (
+                            "response.reasoning.delta",
+                            "response.reasoning_text.delta",
+                        ):
+                            item = get_reasoning_item(event)
+                            delta = event.get("delta", "")
+                            content = item.setdefault("content", [{"type": "text", "text": ""}])
+                            if not content:
+                                content.append({"type": "text", "text": ""})
+                            if isinstance(content[0], dict):
+                                content[0]["type"] = content[0].get("type") or "text"
+                                content[0]["text"] = f"{content[0].get('text', '')}{delta}"
+                            emitted = True
+                            yield {"type": "output", "item": copy.deepcopy(item)}
+
+                        elif etype == "response.reasoning_summary_text.delta":
+                            item = get_reasoning_item(event)
+                            delta = event.get("delta", "")
+                            summary = item.setdefault("summary", [{"type": "summary_text", "text": ""}])
+                            if not summary:
+                                summary.append({"type": "summary_text", "text": ""})
+                            if isinstance(summary[0], dict):
+                                summary[0]["type"] = summary[0].get("type") or "summary_text"
+                                summary[0]["text"] = f"{summary[0].get('text', '')}{delta}"
+                            emitted = True
+                            yield {"type": "output", "item": copy.deepcopy(item)}
+
+                        elif etype == "response.reasoning_summary_part.added":
+                            item = get_reasoning_item(event)
+                            part = event.get("part")
+                            if part:
+                                item.setdefault("summary", []).append(copy.deepcopy(part))
+                            emitted = True
+                            yield {"type": "output", "item": copy.deepcopy(item)}
+
                         elif etype == "response.output_item.done":
                             item = event["item"]
+                            if item.get("id"):
+                                output_items_by_id[item["id"]] = copy.deepcopy(item)
                             if item["type"] == "function_call":
                                 emitted = True
                                 yield {
@@ -827,6 +928,12 @@ async def stream_openai_responses(
                                 }
                             elif item["type"] == "reasoning":
                                 # Reasoning items must be round-tripped for reasoning models
+                                item.setdefault("source", "provider")
+                                if (
+                                    active_reasoning_item is not None
+                                    and active_reasoning_item.get("id") == item.get("id")
+                                ):
+                                    active_reasoning_item = None
                                 emitted = True
                                 yield {
                                     "type": "output",
@@ -839,6 +946,12 @@ async def stream_openai_responses(
                             raise RuntimeError(f"Responses API error: {msg}")
 
                         elif etype == "response.completed":
+                            if active_reasoning_item is not None and _reasoning_item_has_replayable_state(
+                                {**active_reasoning_item, "status": "completed"}
+                            ):
+                                active_reasoning_item["status"] = "completed"
+                                emitted = True
+                                yield {"type": "output", "item": copy.deepcopy(active_reasoning_item)}
                             usage = event.get("response", {}).get("usage", {})
                             if usage:
                                 emitted = True

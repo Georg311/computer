@@ -8,6 +8,7 @@
 	import { refreshChatState } from '$lib/stores/chat';
 	import { t } from '$lib/i18n';
 	import Spinner from '$lib/components/common/Spinner.svelte';
+	import ToggleSwitch from '$lib/components/common/ToggleSwitch.svelte';
 
 	let connections = $state<Connection[]>([]);
 	let loading = $state(true);
@@ -35,9 +36,7 @@
 		load();
 	}
 
-	async function toggleEnabled(e: Event, conn: Connection) {
-		e.stopPropagation();
-		const newVal = !conn.enabled;
+	async function toggleEnabled(conn: Connection, newVal: boolean) {
 		// Optimistic update
 		conn.enabled = newVal;
 		connections = [...connections];
@@ -72,37 +71,17 @@
 {:else}
 	<div>
 		{#each connections as conn}
-			<button
-				class="group flex items-center gap-2 w-full h-7 text-left"
-				onclick={() => (editConn = conn)}
-			>
-				<span
-					class="flex-1 text-[0.8125rem] truncate
+			<div class="group flex items-center gap-2 w-full h-7 text-left">
+				<button
+					type="button"
+					class="flex-1 min-w-0 text-left text-[0.8125rem] truncate
 					{conn.enabled ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600'}"
+					onclick={() => (editConn = conn)}
 				>
 					{conn.name}
-				</span>
-				<!-- svelte-ignore a11y_no_static_element_interactions -->
-				<span
-					class="relative w-6 h-3.5 rounded-full shrink-0 cursor-pointer transition-colors duration-150
-						{conn.enabled ? 'bg-gray-900 dark:bg-white' : 'bg-gray-200 dark:bg-gray-700'}"
-					role="switch"
-					tabindex="-1"
-					aria-checked={conn.enabled}
-					onclick={(e) => toggleEnabled(e, conn)}
-					onkeydown={(e) => {
-						if (e.key === 'Enter' || e.key === ' ') {
-							e.preventDefault();
-							toggleEnabled(e, conn);
-						}
-					}}
-				>
-					<span
-						class="absolute top-0.5 w-2.5 h-2.5 rounded-full transition-all duration-150
-						{conn.enabled ? 'left-3 bg-white dark:bg-gray-900' : 'left-0.5 bg-white dark:bg-gray-500'}"
-					></span>
-				</span>
-			</button>
+				</button>
+				<ToggleSwitch value={conn.enabled} onchange={(value) => toggleEnabled(conn, value)} />
+			</div>
 		{/each}
 
 		{#if connections.length === 0}

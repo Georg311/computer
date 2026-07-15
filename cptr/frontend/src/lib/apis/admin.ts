@@ -130,6 +130,7 @@ export interface Connection {
 	name: string;
 	provider: string;
 	api_type: string;
+	provider_type?: 'default' | 'llama.cpp' | null;
 	prefix_id: string | null;
 	base_url: string | null;
 	api_key: string | null;
@@ -146,6 +147,7 @@ export const createConnection = (conn: {
 	name: string;
 	provider: string;
 	api_type?: string;
+	provider_type?: 'default' | 'llama.cpp' | null;
 	prefix_id?: string | null;
 	base_url?: string | null;
 	api_key?: string | null;

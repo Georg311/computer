@@ -10,6 +10,7 @@
 	} from '$lib/apis/admin';
 	import Icon from '$lib/components/Icon.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
+	import ToggleSwitch from '$lib/components/common/ToggleSwitch.svelte';
 	import { t } from '$lib/i18n';
 	import { refreshChatState } from '$lib/stores/chat';
 	import AgentProfileModal from './AgentProfileModal.svelte';
@@ -179,8 +180,7 @@
 		modal = null;
 	}
 
-	function toggleProfile(e: Event, index: number) {
-		e.stopPropagation();
+	function toggleProfile(index: number) {
 		const profile = profiles[index];
 		if (!profile) return;
 		const mode = profile.mode === 'disabled' ? 'enabled' : 'disabled';
@@ -262,11 +262,12 @@
 	{:else}
 		<div class="divide-y divide-gray-100 dark:divide-white/5">
 			{#each profiles as profile, index (profile.id)}
-				<button
-					class="group flex items-center gap-2 w-full min-h-9 py-1.5 text-left"
-					onclick={() => (modal = { mode: 'edit', index, profile })}
-				>
-					<span class="flex-1 min-w-0">
+				<div class="group flex items-center gap-2 w-full min-h-9 py-1.5 text-left">
+					<button
+						type="button"
+						class="flex-1 min-w-0 text-left"
+						onclick={() => (modal = { mode: 'edit', index, profile })}
+					>
 						<span
 							class="block text-[0.8125rem] truncate {profile.mode === 'disabled'
 								? 'text-gray-400 dark:text-gray-600'
@@ -282,36 +283,15 @@
 								{detected[profile.id]?.message}
 							</span>
 						{/if}
-					</span>
+					</button>
 					<span
 						class="hidden sm:flex items-center gap-1.5 shrink-0 text-[0.6875rem] text-gray-400 dark:text-gray-600"
 					>
 						<span class="w-1.5 h-1.5 rounded-full {statusTone(profile)}"></span>
 						<span>{$t(statusKey(profile))}</span>
 					</span>
-					<!-- svelte-ignore a11y_no_static_element_interactions -->
-					<span
-						class="relative w-6 h-3.5 rounded-full shrink-0 cursor-pointer transition-colors duration-150
-							{profile.mode !== 'disabled' ? 'bg-gray-900 dark:bg-white' : 'bg-gray-200 dark:bg-gray-700'}"
-						role="switch"
-						tabindex="-1"
-						aria-checked={profile.mode !== 'disabled'}
-						onclick={(e) => toggleProfile(e, index)}
-						onkeydown={(e) => {
-							if (e.key === 'Enter' || e.key === ' ') {
-								e.preventDefault();
-								toggleProfile(e, index);
-							}
-						}}
-					>
-						<span
-							class="absolute top-0.5 w-2.5 h-2.5 rounded-full transition-all duration-150
-								{profile.mode !== 'disabled'
-								? 'left-3 bg-white dark:bg-gray-900'
-								: 'left-0.5 bg-white dark:bg-gray-500'}"
-						></span>
-					</span>
-				</button>
+					<ToggleSwitch value={profile.mode !== 'disabled'} onchange={() => toggleProfile(index)} />
+				</div>
 			{/each}
 		</div>
 

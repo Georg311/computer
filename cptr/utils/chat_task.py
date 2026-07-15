@@ -909,6 +909,8 @@ async def _load_message_history(chat_id: str, message_id: str) -> tuple[list[dic
             for item in m.output:
                 itype = item.get("type")
                 if itype == "reasoning":
+                    if not _is_provider_replayable_reasoning_item(item):
+                        continue
                     # A reasoning item after we already have outputs means
                     # a new API iteration started — flush the current turn.
                     if current_turn["outputs"]:
@@ -951,7 +953,7 @@ async def _load_message_history(chat_id: str, message_id: str) -> tuple[list[dic
                 # Skip other types (message, artifact, pending calls, etc.)
 
             # Don't forget the last turn
-            if current_turn["calls"] or current_turn["outputs"]:
+            if current_turn["reasoning"] or current_turn["calls"] or current_turn["outputs"]:
                 turns.append(current_turn)
 
             if not turns:
@@ -965,6 +967,18 @@ async def _load_message_history(chat_id: str, message_id: str) -> tuple[list[dic
                     call_names = {
                         tc["id"]: tc.get("function", {}).get("name", "") for tc in turn["calls"]
                     }
+                    if turn["reasoning"] and not matched_calls and not turn["outputs"]:
+                        if ti == 0:
+                            entry["reasoning_items"] = turn["reasoning"]
+                        else:
+                            result.append(entry)
+                            entry = {
+                                "id": m.id,
+                                "role": "assistant",
+                                "content": "",
+                                "reasoning_items": turn["reasoning"],
+                            }
+                        continue
                     if matched_calls:
                         if ti == 0:
                             # First turn: attach to the existing entry
@@ -1123,6 +1137,19 @@ def _tool_result_for_model(tool_name: str, result: str) -> str:
             "images": image_files,
         }
     )
+
+
+def _is_provider_replayable_reasoning_item(item: dict) -> bool:
+    """Return True for provider reasoning that can be sent back to model APIs."""
+    if item.get("type") != "reasoning":
+        return False
+    if item.get("status") not in (None, "completed"):
+        return False
+    if str(item.get("id", "")).startswith("reasoning-") and item.get("source") != "provider":
+        return False
+    if item.get("encrypted_content") or item.get("reasoning_details"):
+        return True
+    return _reasoning_text_len(item) > 0
 
 
 def _append_tool_to_messages(
@@ -1289,10 +1316,18 @@ def _scrub_incomplete_items(output_items: list[dict]) -> None:
 
 def _reasoning_text_len(item: dict) -> int:
     """Return displayable reasoning text length for diagnostics."""
-    blocks = item.get("summary") or item.get("content") or []
-    if not isinstance(blocks, list):
-        return 0
-    return sum(len(block.get("text") or "") for block in blocks if isinstance(block, dict))
+    total = 0
+    for blocks in (item.get("summary"), item.get("content")):
+        if isinstance(blocks, str):
+            total += len(blocks)
+        elif isinstance(blocks, list):
+            total += sum(
+                len(block.get("text") or "")
+                for block in blocks
+                if isinstance(block, dict)
+                and block.get("type") in ("text", "output_text", "summary_text")
+            )
+    return total
 
 
 def _output_debug_stats(output_items: list[dict] | None) -> tuple[dict[str, int], int, int]:
@@ -2143,6 +2178,11 @@ async def run_chat_task(
                 instructions=system,
                 tools=tools,
             )
+            provider_type = (
+                "llama.cpp"
+                if provider == "openai" and connection.get("provider_type") == "llama.cpp"
+                else "default"
+            )
 
             if provider == "anthropic":
                 stream = stream_anthropic(
@@ -2150,11 +2190,19 @@ async def run_chat_task(
                 )
             elif connection.get("api_type") == "responses":
                 stream = stream_openai_responses(
-                    form_data, base_url, api_key, request_params=request_params
+                    form_data,
+                    base_url,
+                    api_key,
+                    request_params=request_params,
+                    provider_type=provider_type,
                 )
             else:
                 stream = stream_openai_completions(
-                    form_data, base_url, api_key, request_params=request_params
+                    form_data,
+                    base_url,
+                    api_key,
+                    request_params=request_params,
+                    provider_type=provider_type,
                 )
 
             restart = False
