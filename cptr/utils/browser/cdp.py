@@ -325,12 +325,26 @@ class CDPClient:
 
     # ── Observation ────────────────────────────────────────
 
-    async def screenshot(self) -> bytes:
+    async def screenshot(self, width: int | None = None, height: int | None = None) -> bytes:
         """Capture a screenshot of the current viewport. Returns PNG bytes."""
-        result = await self._send(
-            "Page.captureScreenshot", {"format": "png", "quality": 80}
-        )
-        return base64.b64decode(result["data"])
+        if width is not None and height is not None:
+            await self._send(
+                "Emulation.setDeviceMetricsOverride",
+                {
+                    "width": width,
+                    "height": height,
+                    "deviceScaleFactor": 1,
+                    "mobile": False,
+                },
+            )
+        try:
+            result = await self._send(
+                "Page.captureScreenshot", {"format": "png", "quality": 80}
+            )
+            return base64.b64decode(result["data"])
+        finally:
+            if width is not None and height is not None:
+                await self._send("Emulation.clearDeviceMetricsOverride")
 
     async def get_text(self) -> str:
         """Extract visible text content from the page."""

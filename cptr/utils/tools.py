@@ -1816,15 +1816,24 @@ async def browser_type(ref: str, text: str, *, __context__: dict) -> str:
     return await client.snapshot()
 
 
-async def browser_screenshot(*, __context__: dict) -> str:
-    """Take a screenshot of the current browser page. Saves the image to the workspace."""
+async def browser_screenshot(
+    width: Optional[int] = None, height: Optional[int] = None, *, __context__: dict
+) -> str:
+    """Take a screenshot of the current browser page. Saves the image to the workspace.
+    :param width: Optional screenshot viewport width in CSS pixels.
+    :param height: Optional screenshot viewport height in CSS pixels.
+    """
     cfg = await _get_browser_config()
     if cfg.get("provider", "local") != "local":
         return "Error: browser_screenshot requires Local CDP provider."
+    if (width is None) != (height is None):
+        return "Error: browser_screenshot width and height must be provided together."
+    if width is not None and height is not None and (width <= 0 or height <= 0):
+        return "Error: browser_screenshot width and height must be positive integers."
 
     chat_id = __context__.get("chat_id", "default")
     client = await _get_cdp_session(chat_id)
-    png_bytes = await client.screenshot()
+    png_bytes = await client.screenshot(width=width, height=height)
 
     # Save to workspace
     workspace = __context__.get("workspace", ".")
