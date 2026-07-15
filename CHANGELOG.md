@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.8] - 2026-07-15
+
+### Added
+
+- 🏠 **Choose how `.cptr` is handled in projects.** Admins can now turn the automatic `.gitignore` entry on or off, so local chats, memory, caches, audio samples, and generated files stay private by default unless you choose otherwise.
+- 🤖 **A llama.cpp connection mode.** OpenAI-compatible connections can now be marked as llama.cpp, so Qwen and other local reasoning models can receive prior thinking in the format llama.cpp expects.
+- 🧩 **Skills can open their own companion files.** `view_skill` can now load files such as `references/guide.md` from the selected skill folder, without opening broader home-directory access.
+- 🌐 **Sized browser screenshots.** Browser tasks can request a screenshot at a specific size and Computer will restore the normal page view afterward.
+
+### Changed
+
+- ⚙️ **Admin switches behave like switches.** In Models, Agents, Connections, Messaging, and Tool Servers, click the row text to edit and click the switch only to turn something on or off.
+- 🔎 **Workspace search respects `.gitignore`.** File search and content search now skip ignored folders and files, keeping generated output, caches, and local Computer data out of normal results.
+- 🧠 **Reasoning replay is stricter by default.** Computer now keeps strict OpenAI-compatible connections clean, and only sends llama.cpp-style `reasoning_content` when the connection is set to llama.cpp.
+
+### Fixed
+
+- 🧠 **The chat size meter no longer freezes behind llama.cpp.** Computer now normalizes token usage from OpenAI-compatible streams and sends live context updates to the chat while a response is still running.
+- 💬 **Compacted chats survive regenerated answers better.** Summaries are saved on a stable kept user message when possible, so regenerating an assistant answer is less likely to lose the compacted history.
+- ✂️ **Manual compact keeps the latest turn available.** Compacting a chat now summarizes the older branch and leaves the newest message ready for the next response.
+- 🧠 **Prior reasoning is preserved more reliably.** Reasoning from ordinary replies, tool-call turns, Chat Completions streams, and Responses streams is less likely to be dropped before the next model request.
+- 🎨 **Token usage details match the chosen theme.** The usage popover now uses Computer's app surface colors instead of the wrong gray background.
+- ✨ **Messages render more faithfully.** Your own messages can show Markdown, and raw markup appears as text instead of disappearing.
+- 🗂️ **Commit suggestions are less brittle.** If the model returns a plain commit message instead of perfect structured output, Computer can still use the useful parts.
+- 📝 **File edits keep text encoding consistent.** Created and edited files are written as UTF-8, which avoids surprises with non-ASCII project files.
+
 ## [0.9.7] - 2026-07-12
 
 ### Fixed
