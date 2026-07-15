@@ -16,6 +16,7 @@ import inspect
 import json
 import mimetypes
 import os
+import stat
 import time
 import uuid
 from pathlib import Path, PureWindowsPath
@@ -226,10 +227,31 @@ async def stream_command_session_output(command_session_id: str):
 
 def _is_dotenv(path: Path) -> bool:
     """Return True if the path refers to a .env file (e.g. .env, .env.local)."""
-    return path.name == ".env" or path.name.startswith(".env.")
+    return path.name == ".env" or path.name == ".envrc" or path.name.startswith(".env.")
 
 
 _DOTENV_ERROR = "Error: access to .env files is not allowed for security reasons."
+
+_SENSITIVE_READ_ERROR = "Error: access to credential files is not allowed for security reasons."
+
+_SENSITIVE_HOME_FILES = {
+    ".git-credentials",
+    ".netrc",
+    ".npmrc",
+    ".pgpass",
+    ".pypirc",
+}
+
+_SENSITIVE_HOME_DIRS = {
+    ".aws",
+    ".config/gh",
+    ".config/gcloud",
+    ".config/op",
+    ".docker",
+    ".gnupg",
+    ".kube",
+    ".ssh",
+}
 
 
 def _human_size(size: int) -> str:
@@ -484,14 +506,39 @@ async def read_file(
     workspace: str,
 ) -> str:
     """Read file contents with optional line range. Lines are 1-indexed.
-    Supports absolute paths for user-attached files.
-    :param path: Path relative to workspace root, or absolute path for attached files.
+    Supports relative workspace paths, absolute paths, and ~/ paths.
+    Blocks .env, common credential files, and special device/socket files.
+    :param path: Path relative to workspace root, absolute path, or ~/ path.
     :param start_line: First line to read (1-indexed, 0 = from beginning).
     :param end_line: Last line to read (inclusive, 0 = to end of file).
     """
-    full = _resolve_path(path, workspace)
+    p = Path(path).expanduser()
+    if p.is_absolute():
+        full = p.resolve()
+    else:
+        ws = Path(workspace).resolve()
+        full = (ws / path).resolve()
+        if not full.is_relative_to(ws):
+            raise ValueError(f"Path traversal rejected: {path}")
+
     if _is_dotenv(full):
         return _DOTENV_ERROR
+
+    resolved = full.resolve()
+    home = Path.home().resolve()
+    home_rel = resolved.relative_to(home).as_posix() if resolved.is_relative_to(home) else ""
+    if home_rel in _SENSITIVE_HOME_FILES or any(
+        home_rel == d or home_rel.startswith(f"{d}/") for d in _SENSITIVE_HOME_DIRS
+    ):
+        return _SENSITIVE_READ_ERROR
+
+    try:
+        mode = full.stat().st_mode
+    except OSError:
+        mode = 0
+    if any(check(mode) for check in (stat.S_ISBLK, stat.S_ISCHR, stat.S_ISFIFO, stat.S_ISSOCK)):
+        return f"Error: cannot read special file: {full}"
+
     if not full.is_file():
         return f"Error: file not found: {path}"
 
@@ -1369,19 +1416,18 @@ def _resolve_path(path: str, workspace: str) -> Path:
     # Allow absolute paths to the uploads directory (for user-attached files)
     if p.is_absolute():
         full = p.resolve()
-        uploads = str(UPLOADS_DIR.resolve())
-        ws = str(Path(workspace).resolve())
-        if str(full).startswith(uploads) or str(full).startswith(ws):
+        uploads = UPLOADS_DIR.resolve()
+        ws = Path(workspace).resolve()
+        if full.is_relative_to(uploads) or full.is_relative_to(ws):
             return full
         raise ValueError(f"Path outside allowed directories: {path}")
 
     # Relative paths resolve against workspace
     ws = Path(workspace).resolve()
     full = (ws / path).resolve()
-    if not str(full).startswith(str(ws)):
+    if not full.is_relative_to(ws):
         raise ValueError(f"Path traversal rejected: {path}")
     return full
-
 
 async def create_automation(
     name: str,
