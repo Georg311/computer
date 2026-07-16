@@ -29,8 +29,8 @@
 	--app-fg: #525252;
 	--app-fg-muted: color-mix(in oklab, var(--app-fg) 62%, var(--app-bg));
 	--app-fg-subtle: color-mix(in oklab, var(--app-fg) 48%, var(--app-bg));
-	--app-border: color-mix(in oklab, var(--app-fg) 5%, transparent);
-	--app-divider: color-mix(in oklab, var(--app-fg) 3.5%, transparent);
+	--app-border: color-mix(in oklab, var(--app-fg) 1.5%, transparent);
+	--app-divider: color-mix(in oklab, var(--app-fg) 0.875%, transparent);
 	--app-hover: color-mix(in oklab, var(--app-fg) 6%, transparent);
 	--app-active: color-mix(in oklab, var(--app-fg) 7%, transparent);
 	--app-ui-font: var(--font-sans);
