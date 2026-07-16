@@ -63,7 +63,20 @@
 			const data = await getChats(path, 5, append ? existing.length : 0, 'updated_at', 'desc');
 			wsChatsCache = new Map([
 				...wsChatsCache,
-				[path, append ? [...existing, ...(data.chats || [])] : data.chats || []]
+				[
+					path,
+					append
+						? [...existing, ...(data.chats || [])].sort(
+								(a, b) =>
+									Number(
+										!b.is_active && (b.last_read_at === null || b.updated_at > b.last_read_at)
+									) -
+										Number(
+											!a.is_active && (a.last_read_at === null || a.updated_at > a.last_read_at)
+										) || b.updated_at - a.updated_at
+							)
+						: data.chats || []
+				]
 			]);
 			updateChatStatuses(data.chats || [], path);
 			wsChatsHasMore = new Map([...wsChatsHasMore, [path, data.has_more]]);
@@ -196,10 +209,14 @@
 		}
 
 		let known = false;
+		const shouldReorder =
+			typeof data.updated_at === 'number' ||
+			typeof data.last_read_at === 'number' ||
+			typeof data.active === 'boolean';
+
 		wsChatsCache = new Map(
-			[...wsChatsCache].map(([path, chats]) => [
-				path,
-				chats.map((chat) => {
+			[...wsChatsCache].map(([path, chats]) => {
+				const nextChats = chats.map((chat) => {
 					if (chat.id !== data.chat_id) return chat;
 					known = true;
 					return {
@@ -209,13 +226,34 @@
 						...(typeof data.last_read_at === 'number' ? { last_read_at: data.last_read_at } : {}),
 						...(typeof data.active === 'boolean' ? { is_active: data.active } : {})
 					};
-				})
-			])
+				});
+				return [
+					path,
+					shouldReorder
+						? nextChats.sort(
+								(a, b) =>
+									Number(
+										!b.is_active && (b.last_read_at === null || b.updated_at > b.last_read_at)
+									) -
+										Number(
+											!a.is_active && (a.last_read_at === null || a.updated_at > a.last_read_at)
+										) || b.updated_at - a.updated_at
+							)
+						: nextChats
+				] as [string, ChatInfo[]];
+			})
 		);
 
 		// A chat created in another session is not yet in this sidebar's page.
 		// Refresh only that expanded workspace; all known rows update in place.
 		if (!known && data.workspace && expandedWorkspaces.has(data.workspace)) {
+			void fetchWorkspaceChats(data.workspace);
+		} else if (
+			known &&
+			typeof data.last_read_at === 'number' &&
+			data.workspace &&
+			expandedWorkspaces.has(data.workspace)
+		) {
 			void fetchWorkspaceChats(data.workspace);
 		}
 	}

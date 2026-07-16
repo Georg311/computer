@@ -462,7 +462,17 @@
 		try {
 			const offset = (page - 1) * CHATS_PAGE_SIZE;
 			const data = await getChats(workspace, CHATS_PAGE_SIZE, offset, chatSortBy, chatSortDir);
-			previousChats = data.chats || [];
+			previousChats =
+				chatSortBy === 'updated_at'
+					? [...(data.chats || [])].sort(
+							(a, b) =>
+								Number(!b.is_active && (b.last_read_at === null || b.updated_at > b.last_read_at)) -
+									Number(
+										!a.is_active && (a.last_read_at === null || a.updated_at > a.last_read_at)
+									) ||
+								(chatSortDir === 'desc' ? b.updated_at - a.updated_at : a.updated_at - b.updated_at)
+						)
+					: data.chats || [];
 			totalChats = data.total;
 			chatPage = page;
 		} catch {
@@ -538,6 +548,10 @@
 		pending_inputs_processed?: boolean;
 		async_subagent_pending?: boolean;
 		title?: string;
+		workspace?: string;
+		active?: boolean;
+		updated_at?: number;
+		last_read_at?: number;
 	}) {
 		// On the landing page, update the chat list in place from socket events
 		if (isLanding) {
@@ -550,15 +564,41 @@
 					loadPreviousChats(chatPage);
 				}, 300);
 			} else {
-				if (data.done) {
-					previousChats = previousChats.map((c) =>
-						c.id === data.chat_id ? { ...c, is_active: false } : c
-					);
-				}
-				if (data.title) {
-					previousChats = previousChats.map((c) =>
-						c.id === data.chat_id ? { ...c, title: data.title! } : c
-					);
+				const nextChats = previousChats.map((c) =>
+					c.id === data.chat_id
+						? {
+								...c,
+								...(data.title ? { title: data.title } : {}),
+								...(data.done ? { is_active: false } : {}),
+								...(typeof data.active === 'boolean' ? { is_active: data.active } : {}),
+								...(typeof data.updated_at === 'number' ? { updated_at: data.updated_at } : {}),
+								...(typeof data.last_read_at === 'number'
+									? { last_read_at: data.last_read_at }
+									: {})
+							}
+						: c
+				);
+				previousChats =
+					chatSortBy === 'updated_at'
+						? nextChats.sort(
+								(a, b) =>
+									Number(
+										!b.is_active && (b.last_read_at === null || b.updated_at > b.last_read_at)
+									) -
+										Number(
+											!a.is_active && (a.last_read_at === null || a.updated_at > a.last_read_at)
+										) ||
+									(chatSortDir === 'desc'
+										? b.updated_at - a.updated_at
+										: a.updated_at - b.updated_at)
+							)
+						: nextChats;
+				if (typeof data.last_read_at === 'number') {
+					if (landingRefreshTimer) clearTimeout(landingRefreshTimer);
+					landingRefreshTimer = setTimeout(() => {
+						landingRefreshTimer = null;
+						loadPreviousChats(chatPage);
+					}, 100);
 				}
 			}
 		}

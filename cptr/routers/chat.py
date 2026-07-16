@@ -192,8 +192,22 @@ async def list_chats(
     reverse = sort_dir != "asc"
     if sort_field == "updated_at":
         visible_chats.sort(
-            key=lambda c: c["updated_at"] if isinstance(c["updated_at"], int) else 0,
-            reverse=reverse,
+            key=lambda c: (
+                not (
+                    not c.get("is_active")
+                    and (c["updated_at"] if isinstance(c["updated_at"], int) else 0) > 0
+                    and (
+                        c["last_read_at"] is None
+                        or (c["updated_at"] if isinstance(c["updated_at"], int) else 0)
+                        > c["last_read_at"]
+                    )
+                ),
+                -(c["updated_at"] if isinstance(c["updated_at"], int) else 0)
+                if reverse
+                else c["updated_at"]
+                if isinstance(c["updated_at"], int)
+                else 0,
+            ),
         )
     else:
         visible_chats.sort(key=lambda c: str(c["title"] or ""), reverse=reverse)
