@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Optional
+from typing import Any, Optional
 from urllib.parse import quote
 
 import httpx
@@ -47,6 +47,17 @@ def _parse_token(token: str) -> tuple[str, str]:
     raise ValueError("Signal token must be 'base_url|phone_number' (pipe-separated)")
 
 
+def _signal_cli_version(data: dict[str, Any]) -> str:
+    versions = data.get("versions")
+    if isinstance(versions, dict):
+        return str(versions.get("signal-cli", "unknown"))
+    if isinstance(versions, list) and versions:
+        return str(versions[-1])
+    if versions:
+        return str(versions)
+    return "unknown"
+
+
 class SignalAdapter(BaseAdapter):
     """Signal bot via signal-cli REST API bridge."""
 
@@ -76,7 +87,7 @@ class SignalAdapter(BaseAdapter):
                 raise ValueError(f"Phone number {self._phone} not registered with signal-cli")
             logger.info(
                 "Signal adapter connected: %s (signal-cli %s)",
-                self._phone, data.get("versions", {}).get("signal-cli", "?"),
+                self._phone, _signal_cli_version(data),
             )
         except httpx.ConnectError:
             logger.error("Cannot connect to signal-cli REST API at %s", self._base_url)
@@ -128,8 +139,8 @@ class SignalAdapter(BaseAdapter):
         return timestamp
 
     async def edit(self, chat_id: str, message_id: str, text: str) -> None:
-        """Signal doesn't support message editing. No-op."""
-        pass
+        """Signal has no edit API; send the updated text as a new message."""
+        await self.send(chat_id, text)
 
     async def send_typing(self, chat_id: str) -> None:
         """Send typing indicator via signal-cli."""
@@ -295,5 +306,5 @@ async def verify_token(token: str) -> dict:
         return {
             "username": phone,
             "id": phone,
-            "version": data.get("versions", {}).get("signal-cli", "unknown"),
+            "version": _signal_cli_version(data),
         }
