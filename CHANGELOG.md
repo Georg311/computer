@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.9] - 2026-07-16
+
+### Changed
+
+- 💬 **Unread chats stay where you can see them.** Chat lists now keep unread finished chats above already-read chats, and they refresh when a chat is marked read.
+- 🧭 **The app feels a little lighter.** Dividers and borders across the interface are softer, so the workspace chrome gets out of the way more.
+
+### Fixed
+
+- ⏰ **Follow-up timers behave more cleanly.** Timer prompts and subagent handoffs stay internal, pending follow-ups stay hidden until they are ready, and old timer state is still understood.
+- 🔎 **Internal work stays out of normal chat search.** Recent-chat search no longer shows hidden timer or subagent chats as if they were regular conversations.
+- 🧠 **The chat size meter keeps moving for local models.** llama.cpp chats now show live size updates even when the server does not send token totals until the end.
+- 🔐 **File reading avoids credential files.** Computer can read normal absolute paths and `~/` paths, but it blocks common credential files, `.envrc`, and special device files.
+- 📱 **Signal bot updates no longer disappear.** When a Signal chat needs an edited answer, Computer now sends the updated text as a new message instead of silently doing nothing.
+
 ## [0.9.8] - 2026-07-15
 
 ### Added
