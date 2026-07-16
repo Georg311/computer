@@ -8,7 +8,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from cptr.models import Chat
+from cptr.models import Chat, is_internal_chat
 from cptr.routers.workspace import walk_and_rank_files
 
 router = APIRouter(prefix="/api/search", tags=["search"])
@@ -123,7 +123,7 @@ async def recent_chats(
     rows = [
         c
         for c in rows
-        if not (c.meta or {}).get("subagent")
+        if not is_internal_chat(c.meta)
         and (workspace is None or (c.meta or {}).get("workspace") == workspace)
     ][:limit]
 

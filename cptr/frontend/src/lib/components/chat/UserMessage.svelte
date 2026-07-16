@@ -56,7 +56,9 @@
 	let textareaEl: HTMLTextAreaElement;
 	let asyncExpanded = $state(false);
 	let timerExpanded = $state(false);
-	const isAsyncSubagentResult = $derived(meta?.async_subagent_result === true);
+	const isAsyncSubagentResult = $derived(
+		(meta?.internal === true && meta?.type === 'subagent') || meta?.async_subagent_result === true
+	);
 	const isTimer = $derived(meta?.internal === true && meta?.type === 'timer');
 	const delegationId = $derived(meta?.delegation_id || '');
 	const delegationIds = $derived(Array.isArray(meta?.delegation_ids) ? meta.delegation_ids : []);

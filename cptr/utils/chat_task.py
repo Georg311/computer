@@ -31,7 +31,14 @@ from cptr.utils.skills import (
     load_skill,
 )
 from cptr.utils.summarize import summarize_messages
-from cptr.models import Chat, ChatMessage, Config, is_internal_chat
+from cptr.models import (
+    Chat,
+    ChatMessage,
+    Config,
+    is_internal_chat,
+    is_pending_subagent_result_message,
+    is_subagent_result_message,
+)
 from cptr.socket.main import emit_to_user
 from cptr.utils.ai import (
     ChatCompletionForm,
@@ -463,11 +470,11 @@ def _memory_recall_inputs(
 # ── Pending input processing ────────────────────────────────
 
 
-def _merge_async_subagent_result_meta(messages: list[ChatMessage]) -> dict | None:
+def _merge_subagent_result_meta(messages: list[ChatMessage]) -> dict | None:
     if not messages:
         return None
 
-    if all((m.meta or {}).get("async_subagent_result") for m in messages):
+    if all(is_subagent_result_message(m.meta) for m in messages):
         delegation_ids = [
             m.meta.get("delegation_id") for m in messages if m.meta and m.meta.get("delegation_id")
         ]
@@ -476,7 +483,7 @@ def _merge_async_subagent_result_meta(messages: list[ChatMessage]) -> dict | Non
             for m in messages
             if m.meta and m.meta.get("subagent_chat_id")
         ]
-        meta = {"async_subagent_result": True}
+        meta = {"internal": True, "type": "subagent"}
         if len(delegation_ids) == 1:
             meta["delegation_id"] = delegation_ids[0]
         elif delegation_ids:
@@ -491,18 +498,18 @@ def _merge_async_subagent_result_meta(messages: list[ChatMessage]) -> dict | Non
 
 
 def _is_pending_internal_subagent_result(message: ChatMessage) -> bool:
-    return bool((message.meta or {}).get("async_subagent_pending"))
+    return is_pending_subagent_result_message(message.meta)
 
 
 def _is_pending_chat_input(message: ChatMessage) -> bool:
     meta = message.meta or {}
-    return bool(meta.get("queued") or meta.get("async_subagent_pending"))
+    return bool(meta.get("queued") or is_pending_subagent_result_message(meta))
 
 
 def _merge_pending_input_meta(messages: list[ChatMessage]) -> dict | None:
-    async_meta = _merge_async_subagent_result_meta(messages)
-    if async_meta:
-        return async_meta
+    subagent_meta = _merge_subagent_result_meta(messages)
+    if subagent_meta:
+        return subagent_meta
 
     files: list[dict] = []
     for message in messages:
@@ -2034,7 +2041,16 @@ async def run_chat_task(
         review_model_name = model
         review_chat_params = {
             **chat_params,
-            "subagent": bool(chat_obj and (chat_obj.meta or {}).get("subagent")),
+            "subagent": bool(
+                chat_obj
+                and (
+                    (chat_obj.meta or {}).get("subagent")
+                    or (
+                        (chat_obj.meta or {}).get("internal") is True
+                        and (chat_obj.meta or {}).get("type") == "subagent"
+                    )
+                )
+            ),
         }
         review_builtin_tools = builtin_tools
 

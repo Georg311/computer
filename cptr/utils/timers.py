@@ -74,7 +74,7 @@ async def cancel_timers_for_event(event) -> None:
                 continue
             meta.update(
                 {
-                    "timer_status": "cancelled",
+                    "status": "cancelled",
                     "timer_cancelled_at": time.time_ns(),
                     "timer_cancelled_by": event.event,
                 }
@@ -90,7 +90,7 @@ async def _set_timer_status(chat_id: str, status: str, **fields) -> None:
     if not chat:
         return
     meta = dict(chat.meta or {})
-    meta["timer_status"] = status
+    meta["status"] = status
     meta.update(fields)
     await Chat.update_meta(chat_id, meta, now_ms())
 
@@ -108,7 +108,8 @@ async def _launch_timer(timer, app) -> None:
         if not timer:
             return
         meta = dict(timer.meta or {})
-        if meta.get("timer_status") != "pending" or int(meta.get("timer_at") or 0) > time.time_ns():
+        status = meta.get("status") or meta.get("timer_status")
+        if status != "pending" or int(meta.get("timer_at") or 0) > time.time_ns():
             return
 
         parent = await Chat.get_by_id(meta.get("parent_chat_id", ""))
@@ -165,7 +166,7 @@ async def _launch_timer(timer, app) -> None:
 
             meta.update(
                 {
-                    "timer_status": "completed",
+                    "status": "completed",
                     "timer_completed_at": time.time_ns(),
                 }
             )

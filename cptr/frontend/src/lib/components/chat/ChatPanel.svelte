@@ -206,7 +206,11 @@
 	}
 
 	function isPendingHiddenMessage(m: ChatMessageRow): boolean {
-		return !!(m.meta?.queued || m.meta?.async_subagent_pending);
+		return !!(
+			m.meta?.queued ||
+			m.meta?.async_subagent_pending ||
+			(m.meta?.internal === true && m.meta?.type === 'subagent' && m.meta?.status === 'pending')
+		);
 	}
 
 	function nearestVisibleAncestorId(

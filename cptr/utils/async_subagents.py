@@ -202,12 +202,13 @@ async def _inject_completion(record: dict[str, Any]) -> None:
         parent_id = done_assistants[-1].id if done_assistants else record.get("parent_message_id")
 
         meta = {
-            "async_subagent_result": True,
+            "internal": True,
+            "type": "timer" if record.get("timer_chat_id") else "subagent",
             "delegation_id": record.get("delegation_id"),
             "subagent_chat_id": record.get("subagent_chat_id"),
         }
         if active:
-            meta["async_subagent_pending"] = True
+            meta["status"] = "pending"
 
         if record.get("timer_chat_id") and not active:
             direct_timer_completion = True
@@ -264,7 +265,7 @@ async def _inject_completion(record: dict[str, Any]) -> None:
             {
                 "chat_id": parent_chat_id,
                 "message_id": user_msg.id,
-                "async_subagent_pending": True,
+                "pending_inputs_processed": True,
             },
         )
         return

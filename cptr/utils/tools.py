@@ -2523,7 +2523,7 @@ async def timer(
         extra_meta={
             "timer_at": due_at,
             "cancel_on": selected_events,
-            "timer_status": "pending",
+            "status": "pending",
             "timer_parent_message_id": __context__.get("message_id"),
             "timer_model_id": full_model_id,
         },

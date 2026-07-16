@@ -30,7 +30,36 @@ def _uuid() -> str:
 def is_internal_chat(meta: dict | None) -> bool:
     """Whether a chat is harness-owned and should stay out of normal chat surfaces."""
     meta = meta or {}
-    return bool(meta.get("internal") or meta.get("subagent"))
+    return bool(meta.get("internal") is True or meta.get("subagent") is True)
+
+
+def internal_status(meta: dict | None) -> str | None:
+    """Canonical internal lifecycle status, with legacy timer fallback."""
+    meta = meta or {}
+    return meta.get("status") or meta.get("timer_status")
+
+
+def is_subagent_result_message(meta: dict | None) -> bool:
+    """Whether a parent-chat message carries a subagent result."""
+    meta = meta or {}
+    return bool(
+        (meta.get("internal") is True and meta.get("type") == "subagent")
+        or meta.get("async_subagent_result")
+        or meta.get("async_subagent_pending")
+    )
+
+
+def is_pending_subagent_result_message(meta: dict | None) -> bool:
+    """Whether a subagent result is queued behind active parent work."""
+    meta = meta or {}
+    return bool(
+        (
+            meta.get("internal") is True
+            and meta.get("type") == "subagent"
+            and meta.get("status") == "pending"
+        )
+        or meta.get("async_subagent_pending")
+    )
 
 
 class Chat(Base):
@@ -75,7 +104,7 @@ class Chat(Base):
                 for chat in result.scalars().all()
                 if (chat.meta or {}).get("internal") is True
                 and (chat.meta or {}).get("type") == "timer"
-                and (chat.meta or {}).get("timer_status") == "pending"
+                and internal_status(chat.meta) == "pending"
                 and int((chat.meta or {}).get("timer_at") or 0) <= now_ns
             ]
             timers.sort(key=lambda chat: int((chat.meta or {}).get("timer_at") or 0))
@@ -92,7 +121,7 @@ class Chat(Base):
                 if (chat.meta or {}).get("internal") is True
                 and (chat.meta or {}).get("type") == "timer"
                 and (chat.meta or {}).get("parent_chat_id") == parent_chat_id
-                and (chat.meta or {}).get("timer_status") == "pending"
+                and internal_status(chat.meta) == "pending"
             ]
 
     @staticmethod
@@ -105,7 +134,7 @@ class Chat(Base):
                 for chat in result.scalars().all()
                 if (chat.meta or {}).get("internal") is True
                 and (chat.meta or {}).get("type") == "timer"
-                and (status is None or (chat.meta or {}).get("timer_status") == status)
+                and (status is None or internal_status(chat.meta) == status)
             ]
 
     @staticmethod
