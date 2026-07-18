@@ -474,9 +474,9 @@
 	}
 
 	.appearance-range::-webkit-slider-runnable-track {
-		height: 0.125rem;
+		height: 0.1875rem;
 		border-radius: 624.9375rem;
-		background: var(--app-divider);
+		background: color-mix(in oklab, var(--app-fg) 24%, transparent);
 	}
 
 	.appearance-range::-webkit-slider-thumb {
@@ -485,21 +485,21 @@
 		height: 0.75rem;
 		margin-top: -0.3125rem;
 		border-radius: 624.9375rem;
-		border: 1px solid var(--app-border);
-		background: var(--app-bg);
+		border: 1px solid color-mix(in oklab, var(--app-bg) 70%, transparent);
+		background: color-mix(in oklab, var(--app-fg) 82%, var(--app-bg));
 	}
 
 	.appearance-range::-moz-range-track {
-		height: 0.125rem;
+		height: 0.1875rem;
 		border-radius: 624.9375rem;
-		background: var(--app-divider);
+		background: color-mix(in oklab, var(--app-fg) 24%, transparent);
 	}
 
 	.appearance-range::-moz-range-thumb {
 		width: 0.75rem;
 		height: 0.75rem;
 		border-radius: 624.9375rem;
-		border: 1px solid var(--app-border);
-		background: var(--app-bg);
+		border: 1px solid color-mix(in oklab, var(--app-bg) 70%, transparent);
+		background: color-mix(in oklab, var(--app-fg) 82%, var(--app-bg));
 	}
 </style>
