@@ -21,22 +21,7 @@ from cptr.utils.agents.events import (
     AgentTextDelta,
     AgentToolUpdate,
 )
-
-
-def _prompt_from_messages(messages: list[dict[str, Any]]) -> str:
-    parts: list[str] = []
-    for message in messages:
-        role = message.get("role", "user")
-        content = message.get("content", "")
-        if isinstance(content, list):
-            text = "\n".join(
-                str(block.get("text", "")) for block in content if isinstance(block, dict)
-            )
-        else:
-            text = str(content or "")
-        if text:
-            parts.append(f"[{role}]\n{text}")
-    return "\n\n".join(parts)
+from cptr.utils.agents.prompts import latest_user_text
 
 
 def _auth_method(env: dict[str, str]) -> str:
@@ -83,7 +68,7 @@ async def run_grok_agent(
         if model != "default":
             await client.set_model(model)
 
-        prompt = _prompt_from_messages(messages)
+        prompt = latest_user_text(messages)
         if system_prompt:
             prompt = f"{system_prompt}\n\n{prompt}" if prompt else system_prompt
 
