@@ -29,6 +29,7 @@
 	let fileInput: HTMLInputElement;
 	let scaleEnabled = $state(false);
 	let scaleDraft = $state(1);
+	let borderContrastEnabled = $state(false);
 	let borderContrastDraft = $state(DEFAULT_BORDER_CONTRAST);
 	let colorDrafts = $state({ background: '', foreground: '' });
 
@@ -49,7 +50,12 @@
 		} else if (!scaleEnabled) {
 			scaleDraft = 1;
 		}
-		borderContrastDraft = $borderContrast ?? DEFAULT_BORDER_CONTRAST;
+		if ($borderContrast !== null) {
+			borderContrastEnabled = true;
+			borderContrastDraft = $borderContrast;
+		} else if (!borderContrastEnabled) {
+			borderContrastDraft = DEFAULT_BORDER_CONTRAST;
+		}
 	});
 
 	function setTheme(v: Theme) {
@@ -91,6 +97,17 @@
 		}
 	}
 
+	function toggleBorderContrast() {
+		if (borderContrastEnabled) {
+			borderContrastEnabled = false;
+			borderContrastDraft = DEFAULT_BORDER_CONTRAST;
+			borderContrast.set(null);
+		} else {
+			borderContrastEnabled = true;
+			borderContrastDraft = $borderContrast ?? DEFAULT_BORDER_CONTRAST;
+		}
+	}
+
 	function normalizeTextScale(scale: number | string) {
 		const value = Number(scale);
 		if (!Number.isFinite(value)) return minTextScale;
@@ -121,7 +138,13 @@
 	function setBorderContrastPreference(contrast: number | string) {
 		const next = normalizeBorderContrast(contrast) ?? DEFAULT_BORDER_CONTRAST;
 		borderContrastDraft = next;
-		borderContrast.set(next === DEFAULT_BORDER_CONTRAST ? null : next);
+		if (next === DEFAULT_BORDER_CONTRAST) {
+			borderContrastEnabled = false;
+			borderContrast.set(null);
+		} else {
+			borderContrastEnabled = true;
+			borderContrast.set(next);
+		}
 	}
 
 	function resetAppearance() {
@@ -129,6 +152,8 @@
 		scaleEnabled = false;
 		scaleDraft = 1;
 		textScale.set(null);
+		borderContrastEnabled = false;
+		borderContrastDraft = DEFAULT_BORDER_CONTRAST;
 		borderContrast.set(null);
 		widescreenMode.set(false);
 	}
@@ -318,46 +343,48 @@
 					type="button"
 					class="ml-auto h-6 px-2 rounded-lg text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/6 transition-colors"
 					aria-live="polite"
-					onclick={() => borderContrast.set(null)}
+					onclick={toggleBorderContrast}
 				>
-					{borderContrastLabel($borderContrast)}
+					{borderContrastEnabled ? borderContrastLabel(borderContrastDraft) : $t('general.default')}
 				</button>
 			</div>
-			<div class="flex items-center gap-1.5 pt-1.5">
-				<button
-					type="button"
-					class="flex items-center justify-center w-6 h-6 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/6 transition-colors"
-					aria-labelledby="border-contrast-label"
-					aria-label={$t('appearance.decreaseBorderContrast')}
-					onclick={() => setBorderContrastPreference(borderContrastDraft - borderContrastStep)}
-				>
-					<Icon name="minus" size={12} />
-				</button>
-				<input
-					id="border-contrast-slider"
-					class="appearance-range flex-1 min-w-0"
-					type="range"
-					min={DEFAULT_BORDER_CONTRAST}
-					max={MAX_BORDER_CONTRAST}
-					step={borderContrastStep}
-					bind:value={borderContrastDraft}
-					aria-labelledby="border-contrast-label"
-					aria-valuemin={DEFAULT_BORDER_CONTRAST}
-					aria-valuemax={MAX_BORDER_CONTRAST}
-					aria-valuenow={borderContrastDraft}
-					aria-valuetext={borderContrastLabel($borderContrast)}
-					oninput={() => setBorderContrastPreference(borderContrastDraft)}
-				/>
-				<button
-					type="button"
-					class="flex items-center justify-center w-6 h-6 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/6 transition-colors"
-					aria-labelledby="border-contrast-label"
-					aria-label={$t('appearance.increaseBorderContrast')}
-					onclick={() => setBorderContrastPreference(borderContrastDraft + borderContrastStep)}
-				>
-					<Icon name="plus" size={12} />
-				</button>
-			</div>
+			{#if borderContrastEnabled}
+				<div class="flex items-center gap-1.5 pt-1.5">
+					<button
+						type="button"
+						class="flex items-center justify-center w-6 h-6 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/6 transition-colors"
+						aria-labelledby="border-contrast-label"
+						aria-label={$t('appearance.decreaseBorderContrast')}
+						onclick={() => setBorderContrastPreference(borderContrastDraft - borderContrastStep)}
+					>
+						<Icon name="minus" size={12} />
+					</button>
+					<input
+						id="border-contrast-slider"
+						class="appearance-range flex-1 min-w-0"
+						type="range"
+						min={DEFAULT_BORDER_CONTRAST}
+						max={MAX_BORDER_CONTRAST}
+						step={borderContrastStep}
+						bind:value={borderContrastDraft}
+						aria-labelledby="border-contrast-label"
+						aria-valuemin={DEFAULT_BORDER_CONTRAST}
+						aria-valuemax={MAX_BORDER_CONTRAST}
+						aria-valuenow={borderContrastDraft}
+						aria-valuetext={borderContrastLabel(borderContrastDraft)}
+						oninput={() => setBorderContrastPreference(borderContrastDraft)}
+					/>
+					<button
+						type="button"
+						class="flex items-center justify-center w-6 h-6 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/6 transition-colors"
+						aria-labelledby="border-contrast-label"
+						aria-label={$t('appearance.increaseBorderContrast')}
+						onclick={() => setBorderContrastPreference(borderContrastDraft + borderContrastStep)}
+					>
+						<Icon name="plus" size={12} />
+					</button>
+				</div>
+			{/if}
 		</div>
 
 		<label class="flex items-center justify-between gap-3 mt-3">
