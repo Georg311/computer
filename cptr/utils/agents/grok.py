@@ -21,7 +21,7 @@ from cptr.utils.agents.events import (
     AgentTextDelta,
     AgentToolUpdate,
 )
-from cptr.utils.agents.prompts import latest_user_text
+from cptr.utils.agents.prompts import turn_prompt_text
 
 
 def _auth_method(env: dict[str, str]) -> str:
@@ -68,9 +68,7 @@ async def run_grok_agent(
         if model != "default":
             await client.set_model(model)
 
-        prompt = latest_user_text(messages)
-        if system_prompt:
-            prompt = f"{system_prompt}\n\n{prompt}" if prompt else system_prompt
+        prompt = turn_prompt_text(messages, system_prompt, resumed=bool(session_id))
 
         images = [
             {"data": image.base64, "mimeType": image.mime_type} for image in attachments.images

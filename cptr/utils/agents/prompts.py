@@ -21,3 +21,10 @@ def latest_user_text(messages: list[dict[str, Any]]) -> str:
         if message.get("role") == "user":
             return message_text(message).strip()
     return ""
+
+
+def turn_prompt_text(messages: list[dict[str, Any]], system_prompt: str, resumed: bool) -> str:
+    prompt = latest_user_text(messages)
+    if system_prompt and not resumed:
+        return f"{system_prompt}\n\n{prompt}" if prompt else system_prompt
+    return prompt
