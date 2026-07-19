@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- 🤖 **Gemini is now its own coding agent.** Choose Gemini as an agent and Computer will start the Gemini CLI with its Google sign-in flow, keep the chat resumable, and handle image attachments like the other coding agents.
+- 🤖 **Gemini is now its own coding agent.** Choose Gemini as an agent and Computer will start it with its Google sign-in flow, keep the chat resumable, and handle image attachments like the other coding agents.
 
 ### Fixed
 
