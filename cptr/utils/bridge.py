@@ -915,13 +915,19 @@ class BotManager:
                     except Exception:
                         logger.exception("[bridge] Failed to send final chunk")
             else:
-                # Discord: edit the placeholder, then send overflow
+                # Discord/Signal: edit the placeholder, then send overflow
                 if len(final_display) <= max_len and platform_msg_id:
                     try:
                         await adapter.edit(platform_chat_id, platform_msg_id, final_display)
-                        return
+                        return  # Success — done!
                     except Exception:
-                        pass
+                        # Edit failed (e.g. Signal edit expired).
+                        # Keep the streamed version visible instead of sending a duplicate.
+                        logger.debug(
+                            "[bridge] Final edit failed for %s, keeping streamed version",
+                            platform_msg_id[:8],
+                        )
+                        return
 
                 chunks = chunk_message(final_display, max_len)
                 if platform_msg_id and chunks:
@@ -929,6 +935,7 @@ class BotManager:
                         await adapter.edit(platform_chat_id, platform_msg_id, chunks[0])
                         chunks = chunks[1:]
                     except Exception:
+                        # Edit failed — keep streamed version, only send overflow chunks
                         pass
                 for chunk in chunks:
                     try:

@@ -140,8 +140,32 @@ class SignalAdapter(BaseAdapter):
         return timestamp
 
     async def edit(self, chat_id: str, message_id: str, text: str) -> None:
-        """Signal has no edit API; send the updated text as a new message."""
-        await self.send(chat_id, text)
+        """Edit a previously sent Signal message.
+
+        Uses the signal-cli REST API's ``edit_timestamp`` field to edit
+        the original message (introduced in signal-cli-rest-api commit
+        9c365e6).
+
+        Raises RuntimeError if editing fails — no fallback to send(),
+        because that would create duplicate messages when called from
+        the bridge stream loop.
+        """
+        if not self._http:
+            return
+        resp = await self._http.post(
+            f"{self._base_url}/v2/send",
+            json={
+                "message": text,
+                "number": self._phone,
+                "recipients": [chat_id],
+                "edit_timestamp": int(message_id),
+            },
+        )
+        data = resp.json()
+        if resp.status_code != 200 or "timestamp" not in data:
+            raise RuntimeError(
+                f"[signal] Edit failed for msg {message_id} (HTTP {resp.status_code})"
+            )
 
     async def send_typing(self, chat_id: str) -> None:
         """Send typing indicator via signal-cli."""
