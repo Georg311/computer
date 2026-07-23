@@ -425,8 +425,8 @@ def _to_openai_messages(
 
     Strict default OpenAI-compatible requests do not receive provider-specific
     reasoning fields.  llama.cpp compatibility replays text reasoning as
-    reasoning_content and preserves assistant text before tool calls.  Other
-    non-standard fields (fc_id in tool_calls) are stripped.
+    reasoning_content. Other non-standard fields (fc_id in tool_calls) are
+    stripped.
     """
     result = []
     if instructions:
@@ -436,8 +436,6 @@ def _to_openai_messages(
             continue
 
         content = m.get("content", "")
-        if provider_type != "llama.cpp" and m.get("role") == "assistant" and m.get("tool_calls"):
-            content = ""
         if isinstance(content, list):
             formatted_content = []
             for block in content:
