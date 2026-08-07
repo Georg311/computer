@@ -1812,7 +1812,7 @@ async def run_chat_task(
                     subject_type="chat",
                     source="chat_task",
                     data={"workspace": event_workspace, "preview": preview},
-                    message=preview,
+                    message=content,
                 )
                 task_completed_success = True
                 return
@@ -1832,7 +1832,7 @@ async def run_chat_task(
             subject_type="chat",
             source="chat_task",
             data={"workspace": event_workspace, "preview": preview},
-            message=preview,
+            message=content,
         )
         return
 
@@ -2371,7 +2371,7 @@ async def run_chat_task(
                             subject_type="chat",
                             source="chat_task",
                             data={"workspace": event_workspace, "preview": preview},
-                            message=preview,
+                            message=content,
                         )
                         task_completed_success = True
                         return
@@ -2698,7 +2698,7 @@ async def run_chat_task(
                     subject_type="chat",
                     source="chat_task",
                     data={"workspace": event_workspace, "preview": preview},
-                    message=preview,
+                    message=content,
                 )
                 task_completed_success = True
                 return
