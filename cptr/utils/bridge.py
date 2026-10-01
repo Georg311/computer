@@ -338,6 +338,53 @@ class BotManager:
             raise RuntimeError("bot is not running")
         return await adapter.send(destination_chat_id, text)
 
+    async def _send_final_files(
+        self,
+        adapter: BaseAdapter | None,
+        platform_chat_id: str,
+        output_items: list[dict],
+    ) -> None:
+        """Send files that were displayed via display_file to the platform chat.
+
+        Scans the task's output items for file entries (type == "file"),
+        reads each one from disk, and sends it as a photo or document
+        depending on its kind.  Deduplicates by path so the same file
+        is only sent once.
+        """
+        if not adapter:
+            return
+
+        seen_paths: set[str] = set()
+        for item in output_items:
+            if not isinstance(item, dict) or item.get("type") != "file":
+                continue
+            full_path = item.get("full_path") or ""
+            name = item.get("name") or Path(full_path).name
+            kind = item.get("kind", "")
+            mime_type = item.get("mime_type", "")
+            if not full_path or full_path in seen_paths:
+                continue
+            seen_paths.add(full_path)
+
+            path = Path(full_path)
+            try:
+                if not path.is_file():
+                    logger.warning("[bridge] display_file target missing: %s", full_path)
+                    continue
+                data = await asyncio.to_thread(path.read_bytes)
+            except Exception:
+                logger.exception("[bridge] Failed to read file for sending: %s", full_path)
+                continue
+
+            try:
+                if kind == "image" or mime_type.startswith("image/"):
+                    await adapter.send_photo(platform_chat_id, data, name)
+                else:
+                    await adapter.send_document(platform_chat_id, data, name)
+                logger.info("[bridge] Sent file via %s: %s", adapter.platform, name)
+            except Exception:
+                logger.exception("[bridge] Failed to send file %s", name)
+
     # ── Adapter factory ────────────────────────────────────
 
     def _create_adapter(self, bot: dict) -> BaseAdapter | None:
@@ -947,6 +994,8 @@ class BotManager:
 
             msg = await ChatMessage.get_by_id(task_message_id)
             final_content = (msg.content if msg else content).strip()
+            # Files the agent displayed via display_file — send them to the chat.
+            output_items = (msg.output if msg else None) or []
 
             if not final_content:
                 if use_draft:
@@ -955,6 +1004,7 @@ class BotManager:
                     await adapter.edit(
                         platform_chat_id, platform_msg_id, "✅ Done (no text output)"
                     )
+                await self._send_final_files(adapter, platform_chat_id, output_items)
                 return
 
             final_display = final_content
@@ -967,15 +1017,16 @@ class BotManager:
                         await adapter.send(platform_chat_id, chunk)
                     except Exception:
                         logger.exception("[bridge] Failed to send final chunk")
+                await self._send_final_files(adapter, platform_chat_id, output_items)
             else:
                 # Edit the placeholder, then send overflow.
                 if len(final_display) <= max_len and platform_msg_id:
                     try:
                         await adapter.edit(platform_chat_id, platform_msg_id, final_display)
-                        return
                     except Exception:
                         logger.debug("[bridge] Final edit failed", exc_info=True)
-                        return
+                    await self._send_final_files(adapter, platform_chat_id, output_items)
+                    return
 
                 chunks = chunk_message(final_display, max_len)
                 if platform_msg_id and chunks:
@@ -991,6 +1042,7 @@ class BotManager:
                     except Exception:
                         logger.exception("[bridge] Failed to send reply chunk")
                     break
+                await self._send_final_files(adapter, platform_chat_id, output_items)
 
         except asyncio.CancelledError:
             pass
