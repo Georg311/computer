@@ -216,6 +216,57 @@ docker run --rm -it \
 
 Core local features run from local assets. External services such as hosted model APIs, web search providers, messaging adapters, Git remotes, and MCP/OpenAPI servers still require reachable endpoints.
 
+## Admin notes
+
+### Editing files: workspace first, then venv
+
+Always edit files in the workspace repo (`./computer`) **first**, using the same git tag/version that is installed. Then copy the file to the running venv — never edit the venv directly. This keeps changes trackable via git and prevents the workspace copy from drifting out of sync with what's actually running.
+
+```bash
+# 1. Switch to the correct version in the repo
+cd ./computer
+git checkout v0.9.21   # or whatever version is installed
+# make your edits ...
+
+# 2. Copy the changed file to the installed venv
+cp cptr/utils/chat_task.py /home/cptr/.venv/lib/python3.13/site-packages/cptr/utils/
+
+# 3. Restart cptr so the running instance picks up the change
+sudo systemctl restart computer
+```
+
+### Fixing truncated Signal (or other bot) notifications
+
+If notifications sent to a messaging bot (Signal, Telegram, etc.) are cut off mid-message at ~300 characters, the fix is in `cptr/utils/chat_task.py`.
+
+**Problem:** The `CHAT_FINISHED` event publishes only a 300-character preview as the notification message:
+```python
+preview = content[:300] if content else ""
+await publish_event(
+    EVENTS.CHAT_FINISHED,
+    ...
+    message=preview,   # ← truncated to 300 chars!
+)
+```
+
+**Fix:** Change all 4 occurrences of `message=preview` to `message=content`:
+
+```bash
+# Verify the bug is present (should show 4 lines):
+grep -n 'message=preview' cptr/utils/chat_task.py
+
+# Fix in workspace:
+sed -i 's/message=preview,/message=content,/g' cptr/utils/chat_task.py
+
+# Copy to venv:
+cp cptr/utils/chat_task.py /home/cptr/.venv/lib/python3.13/site-packages/cptr/utils/
+
+# Restart:
+sudo systemctl restart computer
+```
+
+**Verify:** `grep -c 'message=preview' cptr/utils/chat_task.py` should return `0`.
+
 ## Security model
 
 Open WebUI Computer is designed as **your computer, served to you**. Once authenticated, a user has full access to the host filesystem and shell, equivalent to an SSH session. There is no path sandboxing and no per-user isolation.

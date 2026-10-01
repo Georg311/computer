@@ -1340,6 +1340,27 @@ def _summary_checkpoint_message_id(keep_zone: list[dict], fallback: str) -> str:
     return fallback
 
 
+def _ensure_user_query(messages: list[dict]) -> list[dict]:
+    """Guarantee at least one user message survives compaction.
+
+    Some providers reject or misbehave on histories with no user turn
+    (e.g. all user messages dropped into the summary zone). Adds a single
+    synthetic continuation turn only when none exists.
+    """
+    if any(message.get("role") == "user" for message in messages):
+        return messages
+    return [
+        {
+            "role": "user",
+            "content": (
+                "Continue the task using the conversation summary "
+                "and the tool results below."
+            ),
+        },
+        *messages,
+    ]
+
+
 # ── Connection resolution ───────────────────────────────────
 
 
@@ -2217,6 +2238,8 @@ async def run_chat_task(
                         }
                     )
             api_messages = [{k: v for k, v in m.items() if k != "id"} for m in api_messages]
+            # Invariant: at least one user message must remain after compaction.
+            api_messages = _ensure_user_query(api_messages)
 
             form_data = ChatCompletionForm(
                 model=model,
