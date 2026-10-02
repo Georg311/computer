@@ -29,6 +29,7 @@ class FileEntry(BaseModel):
     type: str
     size: Optional[int] = None
     modified: Optional[str] = None
+    created: Optional[str] = None
 
 
 class DirectoryListing(BaseModel):
@@ -92,6 +93,11 @@ class MoveRequest(BaseModel):
 
 class DeleteRequest(BaseModel):
     path: str
+
+
+class TouchRequest(BaseModel):
+    paths: list[str]
+    mtime: str  # ISO-8601 timestamp
 
 
 class ArchiveRequest(BaseModel):
@@ -212,6 +218,14 @@ async def move_item(request: Request, req: MoveRequest):
 async def delete_item(request: Request, req: DeleteRequest):
     try:
         return await Runtime.delete_item(request, req.path)
+    except FileError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
+@router.post("/touch")
+async def touch_files(request: Request, req: TouchRequest):
+    try:
+        return await Runtime.touch_files(request, req.paths, req.mtime)
     except FileError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 

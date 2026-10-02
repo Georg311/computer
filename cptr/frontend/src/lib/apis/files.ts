@@ -24,6 +24,9 @@ export const deleteFiles = (paths: string[]) =>
 export const moveFile = (src: string, dest: string) =>
 	fetchJSON('/api/workspace/files/move', jsonBody({ source: src, destination: dest }));
 
+export const touchFile = (paths: string[], mtime: string) =>
+	fetchJSON('/api/workspace/files/touch', jsonBody({ paths, mtime }));
+
 export const createEntry = (path: string, type: 'file' | 'directory') =>
 	fetchJSON('/api/workspace/files/create', jsonBody({ path, type }));
 

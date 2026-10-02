@@ -14,6 +14,7 @@
 		downloadArchive,
 		deleteFiles,
 		moveFile,
+		touchFile,
 		uploadFiles as apiUpload,
 		createEntry,
 		getFileMatches,
@@ -23,6 +24,7 @@
 	import { fileIconName } from '$lib/utils/fileIcon';
 	import Icon from './Icon.svelte';
 	import Spinner from './common/Spinner.svelte';
+	import Modal from './Modal.svelte';
 	import DropdownMenu from './DropdownMenu.svelte';
 	import { t } from '$lib/i18n';
 	import { TAB_DRAG_MIME } from '$lib/constants';
@@ -32,6 +34,7 @@
 		type: string;
 		size: number | null;
 		modified: string | null;
+		created: string | null;
 	}
 
 	interface TreeEntry extends FileEntry {
@@ -75,8 +78,38 @@
 	let dirContents = $state<Map<string, FileEntry[]>>(new Map());
 
 	// Sort
-	let sortBy = $state<'name' | 'size' | 'modified'>('name');
+	let sortBy = $state<'name' | 'size' | 'modified' | 'created'>('name');
 	let sortDir = $state<'asc' | 'desc'>('asc');
+
+	// Column visibility (persisted)
+	type ColumnKey = 'size' | 'modified' | 'created';
+	function loadColumns(): Set<ColumnKey> {
+		try {
+			const raw = localStorage.getItem('fileBrowser:columns');
+			if (!raw) return new Set<ColumnKey>(['size']);
+			const parsed = JSON.parse(raw) as ColumnKey[];
+			return new Set<ColumnKey>(parsed.filter((k) => ['size', 'modified', 'created'].includes(k)));
+		} catch {
+			return new Set<ColumnKey>(['size']);
+		}
+	}
+	let visibleColumns = $state<Set<ColumnKey>>(loadColumns());
+	function saveColumns() {
+		try {
+			localStorage.setItem('fileBrowser:columns', JSON.stringify([...visibleColumns]));
+		} catch {}
+	}
+	function toggleColumn(key: ColumnKey) {
+		const next = new Set(visibleColumns);
+		if (next.has(key)) next.delete(key);
+		else next.add(key);
+		visibleColumns = next;
+		saveColumns();
+	}
+
+	// Touch (set modified date) modal
+	let touchTarget = $state<TreeEntry | null>(null);
+	let touchValue = $state('');
 
 	// Multi-select
 	let selectedPaths = $state<Set<string>>(new Set());
@@ -623,6 +656,8 @@
 				result = (a.size ?? 0) - (b.size ?? 0);
 			} else if (sortBy === 'modified') {
 				result = (a.modified ?? '').localeCompare(b.modified ?? '');
+			} else if (sortBy === 'created') {
+				result = (a.created ?? '').localeCompare(b.created ?? '');
 			}
 			return sortDir === 'asc' ? result : -result;
 		}
@@ -654,13 +689,50 @@
 		return result;
 	});
 
-	function toggleSort(field: 'name' | 'size' | 'modified') {
+	function toggleSort(field: 'name' | 'size' | 'modified' | 'created') {
 		if (sortBy === field) {
 			sortDir = sortDir === 'asc' ? 'desc' : 'asc';
 		} else {
 			sortBy = field;
 			sortDir = 'asc';
 		}
+	}
+
+	function formatDateTime(iso: string | null): string {
+		if (!iso) return '';
+		const d = new Date(iso);
+		if (isNaN(d.getTime())) return iso;
+		return d.toLocaleString(undefined, {
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+	}
+
+	function toLocalInputValue(iso: string | null): string {
+		if (!iso) return '';
+		const d = new Date(iso);
+		if (isNaN(d.getTime())) return '';
+		const pad = (n: number) => String(n).padStart(2, '0');
+		return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+	}
+
+	function startTouch(entry: TreeEntry) {
+		touchTarget = entry;
+		touchValue = toLocalInputValue(entry.modified);
+	}
+
+	async function confirmTouch() {
+		if (!touchTarget) return;
+		const path = touchTarget.path;
+		try {
+			await touchFile([path], touchValue);
+		} catch {}
+		touchTarget = null;
+		fetchDirectory(cwd);
+		refreshParentDir(path);
 	}
 
 	function clearSelection() {
@@ -1206,6 +1278,32 @@
 		class="flex-1 overflow-y-auto p-1"
 		oncontextmenu={(e) => !isSearching && onDirectoryContextMenu(e)}
 	>
+		<!-- Column header (aligns with row cells; depth-0 prefix spacer matches indent + icon) -->
+		{#if !isSearching && (visibleColumns.size > 0)}
+			<div class="flex items-center gap-1 h-6 pr-2 rounded-lg text-[0.625rem] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600">
+				<span class="w-2 shrink-0"></span>
+				<span class="w-4 shrink-0"></span>
+				<span class="flex-1 min-w-0 truncate pl-1">{$t('files.name')}</span>
+				{#if visibleColumns.has('size')}
+					<button
+						class="w-20 shrink-0 pr-1 text-right hover:text-gray-600 dark:hover:text-gray-300"
+						onclick={() => toggleSort('size')}
+					>{$t('files.size')}</button>
+				{/if}
+				{#if visibleColumns.has('modified')}
+					<button
+						class="w-32 shrink-0 pr-1 text-right hover:text-gray-600 dark:hover:text-gray-300"
+						onclick={() => toggleSort('modified')}
+					>{$t('files.modifiedCol')}</button>
+				{/if}
+				{#if visibleColumns.has('created')}
+					<button
+						class="w-32 shrink-0 pr-1 text-right hover:text-gray-600 dark:hover:text-gray-300"
+						onclick={() => toggleSort('created')}
+					>{$t('files.createdCol')}</button>
+				{/if}
+			</div>
+		{/if}
 		<!-- New item input -->
 		{#if showNewInput && !isSearching}
 			<div class="flex items-center gap-2 h-7 px-2">
@@ -1485,10 +1583,24 @@
 								{/if}
 							</span>
 						{/if}
-						{#if entry.type !== 'directory' && entry.size !== null}
+						{#if visibleColumns.has('size')}
 							<span
-								class="ml-1 text-[0.6875rem] font-mono text-gray-400 dark:text-gray-600 shrink-0"
-								>{formatSize(entry.size)}</span
+								class="w-20 shrink-0 pr-1 text-right text-[0.6875rem] font-mono text-gray-400 dark:text-gray-600"
+								>{entry.type !== 'directory' && entry.size !== null ? formatSize(entry.size) : ''}</span
+							>
+						{/if}
+						{#if visibleColumns.has('modified')}
+							<span
+								class="w-32 shrink-0 pr-1 text-right text-[0.6875rem] font-mono text-gray-400 dark:text-gray-600 truncate"
+								title={entry.modified ? formatDateTime(entry.modified) : ''}
+								>{entry.modified ? formatDateTime(entry.modified) : '–'}</span
+							>
+						{/if}
+						{#if visibleColumns.has('created')}
+							<span
+								class="w-32 shrink-0 pr-1 text-right text-[0.6875rem] font-mono text-gray-400 dark:text-gray-600 truncate"
+								title={entry.created ? formatDateTime(entry.created) : $t('files.noCreated')}
+								>{entry.created ? formatDateTime(entry.created) : '–'}</span
 							>
 						{/if}
 						<!-- Three-dot menu per entry -->
@@ -1553,30 +1665,94 @@
 
 {#if sortMenuOpen && sortBtnEl}
 	<DropdownMenu
+		items={[]}
 		anchor={sortBtnEl}
-		items={[
-			{
-				label: $t('files.name'),
-				icon: sortBy === 'name' ? (sortDir === 'asc' ? 'chevron-up' : 'chevron-down') : undefined,
-				active: sortBy === 'name',
-				onclick: () => toggleSort('name')
-			},
-			{
-				label: $t('files.size'),
-				icon: sortBy === 'size' ? (sortDir === 'asc' ? 'chevron-up' : 'chevron-down') : undefined,
-				active: sortBy === 'size',
-				onclick: () => toggleSort('size')
-			},
-			{
-				label: $t('files.date'),
-				icon:
-					sortBy === 'modified' ? (sortDir === 'asc' ? 'chevron-up' : 'chevron-down') : undefined,
-				active: sortBy === 'modified',
-				onclick: () => toggleSort('modified')
-			}
-		]}
 		onclose={() => (sortMenuOpen = false)}
-	/>
+		className="w-52"
+		headerDivider={false}
+		footerDivider={false}
+	>
+		<div class="py-0.5 text-xs font-normal">
+			<button
+				type="button"
+				class="flex items-center gap-2 w-full h-6 px-2 rounded-xl text-left transition-colors duration-75 {sortBy === 'name'
+					? 'app-interactive-active'
+					: 'app-interactive app-muted'}"
+				onclick={() => toggleSort('name')}
+			>
+				<span class="min-w-0 flex-1 truncate">{$t('files.name')}</span>
+				{#if sortBy === 'name'}
+					<Icon name={sortDir === 'asc' ? 'chevron-up' : 'chevron-down'} size={12} />
+				{/if}
+			</button>
+			<button
+				type="button"
+				class="flex items-center gap-2 w-full h-6 px-2 rounded-xl text-left transition-colors duration-75 {sortBy === 'size'
+					? 'app-interactive-active'
+					: ''}"
+				onclick={() => toggleSort('size')}
+			>
+				<span class="min-w-0 flex-1 truncate">{$t('files.size')}</span>
+				{#if sortBy === 'size'}
+					<Icon name={sortDir === 'asc' ? 'chevron-up' : 'chevron-down'} size={12} />
+				{/if}
+			</button>
+			<button
+				type="button"
+				class="flex items-center gap-2 w-full h-6 px-2 rounded-xl text-left transition-colors duration-75 {sortBy === 'modified'
+					? 'app-interactive-active'
+					: ''}"
+				onclick={() => toggleSort('modified')}
+			>
+				<span class="min-w-0 flex-1 truncate">{$t('files.date')}</span>
+				{#if sortBy === 'modified'}
+					<Icon name={sortDir === 'asc' ? 'chevron-up' : 'chevron-down'} size={12} />
+				{/if}
+			</button>
+			<button
+				type="button"
+				class="flex items-center gap-2 w-full h-6 px-2 rounded-xl text-left transition-colors duration-75 {sortBy === 'created'
+					? 'app-interactive-active'
+					: ''}"
+				onclick={() => toggleSort('created')}
+			>
+				<span class="min-w-0 flex-1 truncate">{$t('files.createdCol')}</span>
+				{#if sortBy === 'created'}
+					<Icon name={sortDir === 'asc' ? 'chevron-up' : 'chevron-down'} size={12} />
+				{/if}
+			</button>
+
+			<div class="app-divider h-px mx-1 my-0.5"></div>
+
+			<button
+				type="button"
+				class="flex items-center gap-2 w-full h-6 px-2 rounded-xl text-left transition-colors duration-75 app-interactive app-muted"
+				onclick={() => toggleColumn('size')}
+				aria-pressed={visibleColumns.has('size')}
+			>
+				<Icon name={visibleColumns.has('size') ? 'check' : undefined} size={12} />
+				<span class="min-w-0 flex-1 truncate">{$t('files.showSize')}</span>
+			</button>
+			<button
+				type="button"
+				class="flex items-center gap-2 w-full h-6 px-2 rounded-xl text-left transition-colors duration-75 app-interactive app-muted"
+				onclick={() => toggleColumn('modified')}
+				aria-pressed={visibleColumns.has('modified')}
+			>
+				<Icon name={visibleColumns.has('modified') ? 'check' : undefined} size={12} />
+				<span class="min-w-0 flex-1 truncate">{$t('files.showModified')}</span>
+			</button>
+			<button
+				type="button"
+				class="flex items-center gap-2 w-full h-6 px-2 rounded-xl text-left transition-colors duration-75 app-interactive app-muted"
+				onclick={() => toggleColumn('created')}
+				aria-pressed={visibleColumns.has('created')}
+			>
+				<Icon name={visibleColumns.has('created') ? 'check' : undefined} size={12} />
+				<span class="min-w-0 flex-1 truncate">{$t('files.showCreated')}</span>
+			</button>
+		</div>
+	</DropdownMenu>
 {/if}
 
 {#if addMenuOpen && addBtnEl}
@@ -1651,6 +1827,14 @@
 				: []),
 			{ label: $t('files.copyPath'), icon: 'copy', onclick: () => copyPath(contextMenu!.entry) },
 			{ label: $t('files.rename'), icon: 'pencil', onclick: () => startRename(contextMenu!.entry) },
+			{
+				label: $t('files.setModifiedDate'),
+				icon: 'clock',
+				onclick: () => {
+					startTouch(contextMenu!.entry);
+					closeMenu();
+				}
+			},
 			...(contextMenu.entry.type !== 'directory'
 				? [
 						{
@@ -1664,4 +1848,33 @@
 		]}
 		onclose={closeMenu}
 	/>
+{/if}
+
+<!-- Set modified date modal -->
+{#if touchTarget}
+	<Modal onclose={() => (touchTarget = null)} class="w-full max-w-sm mx-4">
+		<div class="px-5 pt-4 pb-3 shrink-0 flex items-center gap-2">
+			<Icon name="clock" size={16} class="text-gray-400 shrink-0" />
+			<span class="flex-1 text-sm font-medium truncate">{touchTarget.name}</span>
+		</div>
+		<div class="px-5 pb-3">
+			<label class="block text-[0.6875rem] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600 mb-1">
+				{$t('files.modifiedDate')}
+			</label>
+			<input
+				type="datetime-local"
+				bind:value={touchValue}
+				class="w-full border-none outline-none bg-gray-100 dark:bg-white/6 rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white"
+			/>
+		</div>
+		<div class="flex items-center justify-end gap-2 px-5 pb-4 shrink-0">
+			<button
+				class="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-3 py-1.5 rounded-lg transition-colors duration-100"
+				onclick={() => (touchTarget = null)}>{$t('files.cancel')}</button>
+			<button
+				class="text-xs text-white dark:text-black bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-white/90 px-3 py-1.5 rounded-lg transition-colors duration-100"
+				disabled={!touchValue}
+				onclick={confirmTouch}>{$t('files.save')}</button>
+		</div>
+	</Modal>
 {/if}
