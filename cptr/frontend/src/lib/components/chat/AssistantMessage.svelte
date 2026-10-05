@@ -5,6 +5,7 @@
 	import OutputEditView from './OutputEditView.svelte';
 	import ChatFilePreview from './ChatFilePreview.svelte';
 	import ConsecutiveActivityGroup from './ConsecutiveActivityGroup.svelte';
+	import LlamaMetricsPanel from './LlamaMetricsPanel.svelte';
 	import MessageTimestamp from './MessageTimestamp.svelte';
 	import ReasoningCollapsible from './ReasoningCollapsible.svelte';
 	import ToolCallCollapsible from './ToolCallCollapsible.svelte';
@@ -21,6 +22,7 @@
 		done: boolean;
 		output: any[] | null;
 		usage: Record<string, number> | null;
+		llamaMetrics?: Record<string, number> | null;
 		chatId: string | null;
 		messageId: string;
 		createdAt?: number | null;
@@ -40,6 +42,7 @@
 		done,
 		output,
 		usage,
+		llamaMetrics = null,
 		chatId,
 		messageId,
 		createdAt = null,
@@ -606,6 +609,9 @@
 				{/if}
 			{/if}
 		</div>
+
+		<!-- Live / final stream metrics (llama.cpp) -->
+		<LlamaMetricsPanel metrics={llamaMetrics} streaming={!done && !!llamaMetrics} />
 
 		<!-- Controls toolbar -->
 		{#if done || siblingTotal > 1}
