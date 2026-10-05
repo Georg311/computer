@@ -549,6 +549,7 @@
 		output?: any;
 		tasks?: ChatTask[];
 		context_usage?: ContextUsage | null;
+		llama_metrics?: Record<string, number> | null;
 		done?: boolean;
 		error?: string;
 		pending_inputs_processed?: boolean;
@@ -639,6 +640,12 @@
 			msg.content += data.delta;
 			allMessages = [...allMessages];
 			handleTtsDelta(data.message_id, data.delta);
+		}
+		if (data.llama_metrics) {
+			// Live stream metrics — keep on meta so the same path is used after
+			// the post-done DB reload (which persists meta.llama_metrics).
+			msg.meta = { ...(msg.meta ?? {}), llama_metrics: data.llama_metrics };
+			allMessages = [...allMessages];
 		}
 		if (data.output) {
 			if (data.output.type === 'function_call') {
@@ -1878,6 +1885,7 @@
 								done={msg.done}
 								output={msg.output}
 								usage={msg.usage}
+								llamaMetrics={msg.meta?.llama_metrics ?? null}
 								{chatId}
 								messageId={msg.id}
 								createdAt={msg.created_at}
