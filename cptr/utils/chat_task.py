@@ -1411,7 +1411,7 @@ class _StreamMetrics:
     RESPONSE = "response"
 
     def __init__(self):
-        self._start: float | None = None  # monotonic at init (prompt start)
+        self._start = time.monotonic()  # prompt start; TTFT is measured from here
         self._first_token_at: float | None = None
         self._reasoning_first_at: float | None = None
         self._reasoning_last_at: float | None = None
@@ -1424,7 +1424,9 @@ class _StreamMetrics:
 
     @property
     def active(self) -> bool:
-        return self._start is not None
+        # Active once the first token has been recorded (prompt start alone
+        # does not make the tracker "active" — no metrics to report yet).
+        return self._first_token_at is not None
 
     def _now(self) -> float:
         return time.monotonic()
@@ -1463,7 +1465,9 @@ class _StreamMetrics:
         if self._reasoning_first_at is None:
             self._reasoning_first_at = now
         self._reasoning_last_at = now
-        self._reasoning_tokens += estimate_tokens(delta)
+        # ``delta`` is a character count (not a string), so apply the same
+        # len/4 estimate directly instead of going through estimate_tokens().
+        self._reasoning_tokens += max(1, delta // 4)
 
     def should_emit(self, interval_s: float = 0.25) -> bool:
         """Throttle live snapshots to at most once per ``interval_s``."""
