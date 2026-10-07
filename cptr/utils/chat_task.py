@@ -1510,9 +1510,39 @@ class _StreamMetrics:
             "wall_time_s": round(wall_time_s, 3),
         }
 
-    def finalize(self, *, prompt_tokens: int = 0) -> dict | None:
-        """Return the final metrics snapshot for persistence."""
-        return self.snapshot(prompt_tokens=prompt_tokens)
+    def finalize(
+        self,
+        *,
+        prompt_tokens: int = 0,
+        real_prompt_tokens: int | None = None,
+        real_output_tokens: int | None = None,
+    ) -> dict | None:
+        """Return the final metrics snapshot for persistence.
+
+        When the provider reported real usage (``real_prompt_tokens`` /
+        ``real_output_tokens``), replace the len/4 estimates with them. The
+        provider only reports a total output count, so the reasoning/response
+        split is scaled proportionally from the character-based estimate.
+        """
+        metrics = self.snapshot(prompt_tokens=prompt_tokens)
+        if not metrics:
+            return None
+        estimated = True
+        real_prompt = int(real_prompt_tokens or 0)
+        real_output = int(real_output_tokens or 0)
+        if real_prompt > 0 and real_output > 0:
+            metrics["prompt_tokens"] = real_prompt
+            total_est = self._reasoning_tokens + self._response_tokens
+            if total_est > 0:
+                scale = real_output / total_est
+                reasoning_real = round(self._reasoning_tokens * scale)
+            else:
+                reasoning_real = 0
+            metrics["reasoning_tokens"] = int(reasoning_real)
+            metrics["response_tokens"] = int(max(0, real_output - reasoning_real))
+            estimated = False
+        metrics["estimated"] = estimated
+        return metrics
 
 
 # ── The agentic loop ────────────────────────────────────────
@@ -2540,8 +2570,11 @@ async def run_chat_task(
                         # Persist final stream metrics so the stats panel survives
                         # the post-done DB reload. Re-read the row because meta may
                         # have changed since task start.
+                        _real_usage = normalize_usage(last_usage) if last_usage else {}
                         _final_metrics = _stream_metrics.finalize(
-                            prompt_tokens=estimated_prompt_tokens
+                            prompt_tokens=estimated_prompt_tokens,
+                            real_prompt_tokens=_real_usage.get("input_tokens") or 0,
+                            real_output_tokens=_real_usage.get("output_tokens") or 0,
                         )
                         if _final_metrics:
                             _current_msg = await ChatMessage.get_by_id(message_id)

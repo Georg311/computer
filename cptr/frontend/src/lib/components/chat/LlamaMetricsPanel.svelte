@@ -14,6 +14,9 @@
 	const promptTokens = $derived(metrics?.prompt_tokens ?? 0);
 	const reasoningTokens = $derived(metrics?.reasoning_tokens ?? 0);
 	const responseTokens = $derived(metrics?.response_tokens ?? 0);
+	// Live snapshots carry no flag (always estimated); the final persisted
+	// snapshot sets estimated=false when real provider usage was available.
+	const estimated = $derived(metrics?.estimated ?? true);
 	const ttftMs = $derived(metrics?.ttft_ms ?? 0);
 	const reasoningTimeS = $derived(metrics?.reasoning_time_s ?? 0);
 	const responseTimeS = $derived(metrics?.response_time_s ?? 0);
@@ -46,28 +49,28 @@
 			key: 'prompt',
 			label: $t('chat.phase.prompt'),
 			tokens: promptTokens,
-			estimated: false,
+			estimated,
 			timeS: ttftMs / 1000
 		},
 		{
 			key: 'reasoning',
 			label: $t('chat.phase.reasoning'),
 			tokens: reasoningTokens,
-			estimated: true,
+			estimated,
 			timeS: reasoningTimeS
 		},
 		{
 			key: 'response',
 			label: $t('chat.phase.response'),
 			tokens: responseTokens,
-			estimated: true,
+			estimated,
 			timeS: responseTimeS
 		},
 		{
 			key: 'generation',
 			label: $t('chat.phase.generation'),
 			tokens: totalTokens,
-			estimated: true,
+			estimated,
 			timeS: wallTimeS
 		}
 	]);
