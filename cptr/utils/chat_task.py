@@ -726,6 +726,22 @@ async def _apply_voice_mode_system_prompt(system: str, chat_params: dict) -> str
     return f"{system}\n\n[VOICE MODE]\n{prompt}"
 
 
+def _apply_workspace_watch_note(system: str, workspace: str) -> str:
+    """Append a one-shot note about external file changes since the last turn."""
+    if not workspace:
+        return system
+    try:
+        from cptr.utils.workspace_watch import pop_pending_note
+
+        note = pop_pending_note(workspace)
+    except Exception:
+        return system
+    if not note:
+        return system
+    logger.info("[task] injecting workspace watch note for %s", workspace)
+    return f"{system}\n\n{note}"
+
+
 # ── Title generation ────────────────────────────────────────
 
 
@@ -1749,6 +1765,7 @@ async def run_chat_task(
         )
         if loaded_summary:
             system += f"\n\n[CONVERSATION SUMMARY]\n{loaded_summary}"
+        system = _apply_workspace_watch_note(system, agent_workspace)
         current_user_files = []
         if msg and msg.parent_id:
             parent_msg = await ChatMessage.get_by_id(msg.parent_id)

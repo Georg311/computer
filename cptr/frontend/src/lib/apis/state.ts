@@ -21,6 +21,7 @@ export interface WorkspaceListItem {
 	path: string;
 	name: string;
 	unread_count: number;
+	pending_changes?: number;
 }
 
 export const getWorkspaceList = () => fetchJSON<WorkspaceListItem[]>('/api/state/workspaces');

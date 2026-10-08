@@ -199,13 +199,15 @@
 		updated_at?: number;
 		last_read_at?: number;
 		workspace_unread_count?: number;
+		pending_changes?: number;
 	}) {
 		if (
 			!data.title &&
 			typeof data.active !== 'boolean' &&
 			typeof data.updated_at !== 'number' &&
 			typeof data.last_read_at !== 'number' &&
-			typeof data.workspace_unread_count !== 'number'
+			typeof data.workspace_unread_count !== 'number' &&
+			!(data.type === 'workspace_watch' && typeof data.pending_changes === 'number')
 		) {
 			return;
 		}
@@ -216,6 +218,14 @@
 					workspace.path === data.workspace
 						? { ...workspace, unread_count: unreadCount }
 						: workspace
+				)
+			);
+		}
+
+		if (data.type === 'workspace_watch' && data.workspace && typeof data.pending_changes === 'number') {
+			workspaceList.update((workspaces) =>
+				workspaces.map((workspace) =>
+					workspace.path === data.workspace ? { ...workspace, pending_changes: data.pending_changes } : workspace
 				)
 			);
 		}
@@ -381,6 +391,17 @@
 								notation: 'compact',
 								compactDisplay: 'short'
 							}).format(ws.unread_count)}
+						</span>
+					{/if}
+					{#if (ws.pending_changes ?? 0) > 0}
+						<span
+							class="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-md bg-amber-500/10 px-1 text-[0.625rem] font-semibold text-amber-600 dark:bg-amber-400/10 dark:text-amber-300"
+							title={$t('sidebar.externalChanges', { count: ws.pending_changes })}
+						>
+							{new Intl.NumberFormat(undefined, {
+								notation: 'compact',
+								compactDisplay: 'short'
+							}).format(ws.pending_changes)}
 						</span>
 					{/if}
 				</a>
