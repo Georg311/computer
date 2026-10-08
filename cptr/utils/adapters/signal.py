@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import logging
+import re
 from typing import Any, Optional
 from urllib.parse import quote
 
@@ -25,6 +26,30 @@ from cptr.utils.bridge import Attachment, BaseAdapter, MessageEvent, chunk_messa
 logger = logging.getLogger(__name__)
 
 MAX_MESSAGE_LEN = 4096
+
+
+def markdown_to_signal(text: str) -> str:
+    """Convert common Markdown to Signal's native style syntax.
+
+    Signal renders ``**bold**``, ``*italic*``, `` `monospace` ``,
+    ``~strikethrough~`` and ``||spoiler||`` natively (text_mode=styled),
+    so those pass through unchanged.  Markdown Signal can't render is
+    reduced to plain text so nothing shows up as raw markup:
+
+    - fenced code blocks (``` … ```) → fence markers stripped
+    - ~~strikethrough~~ → ~strikethrough~
+    - headings (#, ##, …) → leading hashes stripped
+    - [text](url) links → "text (url)"
+    """
+    # Fenced code blocks: drop the fence lines, keep the content.
+    text = re.sub(r"^```.*$\n?", "", text, flags=re.MULTILINE)
+    # Strikethrough: ~~text~~ -> ~text~
+    text = re.sub(r"~~([^~]+)~~", r"~\1~", text)
+    # Headings: strip leading hashes (line-start only).
+    text = re.sub(r"^#{1,6}\s+", "", text, flags=re.MULTILINE)
+    # Links: [text](url) -> text (url)
+    text = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", r"\1 (\2)", text)
+    return text
 POLL_INTERVAL = 2.0  # seconds between receive polls
 RECONNECT_BASE_DELAY = 2.0
 RECONNECT_MAX_DELAY = 60.0
@@ -122,7 +147,7 @@ class SignalAdapter(BaseAdapter):
     async def send(self, chat_id: str, text: str) -> str | None:
         if not self._http:
             return None
-        chunks = chunk_message(text, MAX_MESSAGE_LEN)
+        chunks = chunk_message(markdown_to_signal(text), MAX_MESSAGE_LEN)
         timestamp = None
         for chunk in chunks:
             resp = await self._http.post(
@@ -131,6 +156,7 @@ class SignalAdapter(BaseAdapter):
                     "message": chunk,
                     "number": self._phone,
                     "recipients": [chat_id],
+                    "text_mode": "styled",
                 },
             )
             data = resp.json()
@@ -145,10 +171,11 @@ class SignalAdapter(BaseAdapter):
         resp = await self._http.post(
             f"{self._base_url}/v2/send",
             json={
-                "message": text[:MAX_MESSAGE_LEN],
+                "message": markdown_to_signal(text)[:MAX_MESSAGE_LEN],
                 "number": self._phone,
                 "recipients": [chat_id],
                 "edit_timestamp": int(message_id),
+                "text_mode": "styled",
             },
         )
         resp.raise_for_status()
@@ -287,9 +314,10 @@ class SignalAdapter(BaseAdapter):
             resp = await self._http.post(
                 f"{self._base_url}/v2/send",
                 json={
-                    "message": caption or "",
+                    "message": markdown_to_signal(caption or ""),
                     "number": self._phone,
                     "recipients": [chat_id],
+                    "text_mode": "styled",
                     "base64_attachments": [
                         base64.b64encode(data).decode("ascii")
                     ],
