@@ -669,6 +669,17 @@ def _extract_text(path: str) -> dict[str, Any]:
         raise FileError(f"failed to extract text from {target}: {exc}") from exc
 
 
+def _mark_self_writes(*paths: Path) -> None:
+    """Mark exact cptr-initiated write paths so the workspace watcher ignores their events."""
+    try:
+        from cptr.utils.workspace_watch import mark_self_write
+
+        for p in paths:
+            mark_self_write(str(p))
+    except Exception:
+        pass
+
+
 def _write_file(path: str, content: str | bytes) -> dict[str, Any]:
     target = _path(path)
     if target.exists() and not target.is_file():
@@ -679,6 +690,7 @@ def _write_file(path: str, content: str | bytes) -> dict[str, Any]:
         target.write_bytes(content)
     else:
         target.write_text(content, encoding="utf-8")
+    _mark_self_writes(target)
     return {"status": "saved", "path": str(target), "size": target.stat().st_size}
 
 
@@ -709,6 +721,7 @@ def _create_item(path: str, type: str = "file") -> dict[str, Any]:
     else:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.touch()
+    _mark_self_writes(target, target.parent)
     return {"status": "created", "path": str(target), "type": type}
 
 
@@ -722,6 +735,7 @@ def _move_item(source: str, destination: str) -> dict[str, Any]:
     if dst.exists():
         raise FileError(f"Destination exists: {dst}", 409)
     src.rename(dst)
+    _mark_self_writes(src, dst)
     return {"status": "moved", "source": str(src), "destination": str(dst)}
 
 
@@ -741,6 +755,7 @@ def _touch_files(paths: list[str], mtime: float) -> dict[str, Any]:
             raise _missing(raw_path)
         os.utime(str(target), (mtime, mtime))
         touched.append(str(target))
+    _mark_self_writes(*[Path(p) for p in touched])
     return {"status": "touched", "paths": touched}
 
 
@@ -764,6 +779,7 @@ def _upload_file(directory: str, filename: str, content: bytes) -> dict[str, Any
         raise FileError(f"Not a directory: {directory}")
     target = _unique_child_path(target_dir, filename)
     target.write_bytes(content)
+    _mark_self_writes(target)
     return {"status": "uploaded", "path": str(target), "size": len(content)}
 
 
