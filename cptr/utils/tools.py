@@ -678,39 +678,146 @@ async def search_files(
     case_insensitive: bool = False,
     include: str = "",
     filenames_only: bool = False,
+    context_before: int = 0,
+    context_after: int = 0,
+    mode: Literal["content", "files_with_matches", "count"] = "content",
+    head_limit: int = 100,
+    offset: int = 0,
+    workspace_scope: Literal["current", "all"] = "current",
     *,
     __context__: dict,
 ) -> str:
     """Search files for a pattern using ripgrep. Fast, respects .gitignore.
     :param query: Search pattern (plain text or regex).
-    :param path: Directory to search in, relative to workspace.
+    :param path: Directory or single file to search in, relative to workspace root. An explicit path takes precedence over workspace_scope.
     :param regex: Treat query as a regular expression.
     :param case_insensitive: Case-insensitive matching.
     :param include: Glob pattern to filter files (e.g. '*.py', '*.ts').
     :param filenames_only: Only return filenames, not matching lines.
+    :param context_before: Context lines before each match (0 = off).
+    :param context_after: Context lines after each match (0 = off).
+    :param mode: "content" shows matching lines, "files_with_matches" only file paths, "count" per-file match counts.
+    :param head_limit: Maximum number of result lines to return (default 100).
+    :param offset: Skip the first N result lines (for paging through large result sets).
+    :param workspace_scope: "current" searches only this workspace; "all" searches every workspace owned by the user and prefixes results with the workspace name.
     """
+    try:
+        head_limit = max(0, int(head_limit))
+        offset = max(0, int(offset))
+    except (TypeError, ValueError):
+        head_limit, offset = 100, 0
+
     workspace = __context__["workspace"]
     request = __context__.get("request")
-    try:
-        full = _resolve_path(path, workspace)
-        if request is None:
-            return "Error: request context unavailable"
-        directory = await Runtime.stat(request, str(full))
-    except (ValueError, FileError, IdentityUnavailable) as e:
-        return f"Error: {e}"
-    if directory.get("type") != "directory":
-        return f"Error: not a directory: {path}"
+    if request is None:
+        return "Error: request context unavailable"
 
-    # Try ripgrep first
+    # Explicit path takes precedence over workspace_scope.
+    if path and path != ".":
+        try:
+            full = _resolve_path(path, workspace)
+            target = await Runtime.stat(request, str(full))
+        except (ValueError, FileError, IdentityUnavailable) as e:
+            return f"Error: {e}"
+        if target.get("type") not in ("directory", "file"):
+            return f"Error: path is neither a directory nor a file: {path}"
+        file_label = None
+        if target.get("type") == "file":
+            try:
+                file_label = str(full.relative_to(Path(workspace).resolve()))
+            except ValueError:
+                file_label = full.name
+        roots = [(full, None, file_label)]
+    elif workspace_scope == "all":
+        try:
+            from cptr.models.workspaces import Workspace
+
+            workspaces = await Workspace.get_by_user(__context__.get("user_id", ""))
+        except Exception as e:
+            return f"Error: {e}"
+        seen = set()
+        roots = []
+        for ws in workspaces:
+            root = Path(ws.path)
+            if not root.is_dir():
+                continue
+            key = str(root.resolve())
+            if key in seen:
+                continue
+            seen.add(key)
+            roots.append((root, ws.name, None))
+        if not roots:
+            return "No workspaces found."
+    else:
+        try:
+            full = _resolve_path(".", workspace)
+        except (ValueError, FileError, IdentityUnavailable) as e:
+            return f"Error: {e}"
+        roots = [(full, None, None)]
+
+    identity = await identity_for_context(__context__)
+    tasks = [
+        _search_root_with_fallback(
+            request,
+            query,
+            root,
+            regex=regex,
+            case_insensitive=case_insensitive,
+            include=include,
+            filenames_only=filenames_only,
+            context_before=context_before,
+            context_after=context_after,
+            mode=mode,
+            file_label=file_label,
+            identity=identity,
+        )
+        for root, _, file_label in roots
+    ]
+    outputs = await asyncio.gather(*tasks)
+
+    lines: list[str] = []
+    for label, output in zip([label for _, label, _ in roots], outputs):
+        if output == "No matches found.":
+            continue
+        for line in str(output).splitlines():
+            if label:
+                lines.append(f"{label}/{line}")
+            else:
+                lines.append(line)
+
+    res = _apply_paging(lines, head_limit, offset)
+    return _truncate_output(res, max_chars=CHAT_TOOL_MAX_CHARS)
+
+
+async def _search_root_with_fallback(
+    request,
+    query: str,
+    full: Path,
+    *,
+    regex: bool,
+    case_insensitive: bool,
+    include: str,
+    filenames_only: bool,
+    context_before: int,
+    context_after: int,
+    mode: str,
+    file_label: str | None = None,
+    identity,
+) -> str:
+    """Search one root; fall back to the Python file_matches scan when rg is missing."""
     try:
-        res = await _search_rg(
+        return await _search_root(
             query,
             full,
-            regex,
-            case_insensitive,
-            include,
-            filenames_only,
-            await identity_for_context(__context__),
+            regex=regex,
+            case_insensitive=case_insensitive,
+            include=include,
+            filenames_only=filenames_only,
+            context_before=context_before,
+            context_after=context_after,
+            mode=mode,
+            file_label=file_label,
+            identity=identity,
         )
     except FileNotFoundError:
         try:
@@ -720,26 +827,29 @@ async def search_files(
         rows = []
         for item in matches.get("results", []):
             rel = item.get("relative_path") or item.get("name") or ""
-            if filenames_only or item.get("name_match"):
+            if filenames_only or mode == "files_with_matches" or item.get("name_match"):
                 rows.append(str(rel))
             else:
                 for match in item.get("content_matches") or []:
                     rows.append(f"{rel}:{match.get('line')}: {match.get('text')}")
-        res = "\n".join(rows) if rows else "No matches found."
-
-    return _truncate_output(res, max_chars=CHAT_TOOL_MAX_CHARS)
+        return "\n".join(rows) if rows else "No matches found."
 
 
-async def _search_rg(
+async def _search_root(
     query: str,
     full: Path,
+    *,
     regex: bool,
     case_insensitive: bool,
     include: str,
     filenames_only: bool,
+    context_before: int,
+    context_after: int,
+    mode: str,
+    file_label: str | None = None,
     identity,
 ) -> str:
-    """Search using ripgrep."""
+    """Search one root (workspace or explicit path) using ripgrep."""
     args = ["rg", "--no-heading", "--max-count=50", "--color=never"]
     # Never search .env files
     args.extend(["--glob", "!.env", "--glob", "!.env.*"])
@@ -747,10 +857,16 @@ async def _search_rg(
         args.append("--fixed-strings")
     if case_insensitive:
         args.append("--ignore-case")
-    if filenames_only:
+    if mode == "count":
+        args.append("--count-matches")
+    elif filenames_only or mode == "files_with_matches":
         args.append("--files-with-matches")
     else:
         args.append("--line-number")
+    if context_before > 0:
+        args.extend(["-B", str(context_before)])
+    if context_after > 0:
+        args.extend(["-A", str(context_after)])
     if include:
         for glob in include.split(","):
             glob = glob.strip()
@@ -775,11 +891,36 @@ async def _search_rg(
         err = stderr.decode(errors="replace").strip()
         raise FileNotFoundError(err) if "not found" in err.lower() else Exception(err)
 
-    # Make paths relative
-    prefix = str(full) + os.sep
-    lines = output.splitlines()[:50]
-    result = [line.replace(prefix, "") for line in lines]
-    return "\n".join(result) if result else "No matches found."
+    # Make paths relative to the searched root
+    if file_label:
+        # Single-file search: rg prints absolute paths; show the workspace-relative name.
+        lines = [line.replace(str(full) + ":", file_label + ":", 1) for line in output.splitlines()]
+    else:
+        prefix_sep = str(full) + os.sep
+        lines = [line.replace(prefix_sep, "", 1) for line in output.splitlines()]
+
+    if mode == "count":
+        counts: list[tuple[int, str]] = []
+        for line in lines:
+            parts = line.rsplit(":", 1)
+            if len(parts) == 2 and parts[1].isdigit():
+                counts.append((int(parts[1]), parts[0]))
+            else:
+                counts.append((0, line))
+        counts.sort(key=lambda item: (-item[0], item[1]))
+        lines = [f"{path}: {count} matches" for count, path in counts]
+
+    return "\n".join(lines)
+
+
+def _apply_paging(lines: list[str], head_limit: int, offset: int) -> str:
+    """Apply offset/head_limit to result lines with a truncation marker."""
+    total = len(lines)
+    selected = lines[offset : offset + head_limit] if offset or head_limit else lines
+    res = "\n".join(selected)
+    if total > (offset + len(selected)):
+        res += f"\n... ({total - offset - len(selected)} more results, use offset to page)"
+    return res if res else "No matches found."
 
 
 async def _search_python(query: str, full: Path, case_insensitive: bool) -> str:
