@@ -2390,7 +2390,7 @@ async def search_chats(
     )
 
 
-async def get_current_time() -> str:
+async def get_current_time(*, __context__: dict) -> str:
     """Get the current date, time, and timezone of this machine.
 
     Returns local wall-clock time plus UTC. Use for scheduling-relative
