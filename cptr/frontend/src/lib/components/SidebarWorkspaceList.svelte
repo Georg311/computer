@@ -123,6 +123,11 @@
 		closeMobileSidebar();
 	}
 
+	function openSchedules(wsPath: string) {
+		goto(`/scheduled?workspace=${encodeURIComponent(wsPath)}`);
+		closeMobileSidebar();
+	}
+
 	function openWsMenu(e: MouseEvent, path: string) {
 		e.stopPropagation();
 		e.preventDefault();
@@ -405,6 +410,16 @@
 						<Icon name="pencil" size={11} />
 					</span>
 				{/if}
+				<span
+					class="flex items-center justify-center w-4 h-4 shrink-0 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-75"
+					role="button"
+					tabindex="-1"
+					onclick={() => openSchedules(ws.path)}
+					aria-label={$t('sidebar.workspaceSchedules')}
+					use:tooltip={$t('sidebar.workspaceSchedules')}
+				>
+					<Icon name="clock" size={11} />
+				</span>
 			</div>
 
 			{#if $chatEnabled && isExpanded}
