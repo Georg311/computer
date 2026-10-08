@@ -1292,5 +1292,6 @@
 	"browser.remoteKeyboard": "Remote browser keyboard",
 	"app.logoAlt": "Computer logo",
 	"messaging.verificationFailed": "Verification failed",
-	"connections.providerType": "Provider Type"
+	"connections.providerType": "Provider Type",
+	"sidebar.workspaceSchedules": "Workspace schedules"
 }

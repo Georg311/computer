@@ -27,9 +27,10 @@
 
 	interface Props {
 		automationId?: string;
+		workspace?: string;
 	}
 
-	let { automationId }: Props = $props();
+	let { automationId, workspace }: Props = $props();
 
 	// ── List state ──
 	let items = $state<AutomationData[]>([]);
@@ -48,7 +49,7 @@
 	async function loadList() {
 		loading = true;
 		try {
-			const res = await getAutomations(undefined, searchQuery || undefined, statusFilter);
+			const res = await getAutomations(workspace, searchQuery || undefined, statusFilter);
 			items = res.items;
 			total = res.total;
 		} catch (e: any) {
@@ -72,6 +73,7 @@
 
 	$effect(() => {
 		if (!automationId) {
+			void workspace; // track so effect re-runs when filter changes
 			loadList();
 		}
 	});
@@ -543,6 +545,7 @@
 {#if showModal}
 	<AutomationModal
 		automation={editingAutomation}
+		defaultWorkspace={workspace}
 		onclose={() => {
 			showModal = false;
 			editingAutomation = null;
