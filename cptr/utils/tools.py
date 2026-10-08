@@ -2390,6 +2390,23 @@ async def search_chats(
     )
 
 
+async def get_current_time() -> str:
+    """Get the current date, time, and timezone of this machine.
+
+    Returns local wall-clock time plus UTC. Use for scheduling-relative
+    questions ("what day is it?", "how long until 18:00?") instead of
+    running shell commands.
+    """
+    from datetime import datetime, timezone
+
+    now = datetime.now().astimezone()
+    return (
+        f"Local time: {now.strftime('%Y-%m-%d %H:%M:%S %Z')} "
+        f"(UTC offset {now.strftime('%z')})\n"
+        f"UTC: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}"
+    )
+
+
 async def notify(message: str, target: str = "", title: str = "", *, __context__: dict) -> str:
     """Send a notification to a user notification target.
 
@@ -2429,6 +2446,7 @@ TOOLS: dict[str, dict] = {
     "web_search": {"fn": web_search, "approval": "allow"},
     "read_url": {"fn": read_url, "approval": "allow"},
     "search_chats": {"fn": search_chats, "approval": "allow"},
+    "get_current_time": {"fn": get_current_time, "approval": "allow"},
     "list_automations": {"fn": list_automations, "approval": "allow"},
     "view_skill": {"fn": view_skill, "approval": "allow"},
     "update_tasks": {"fn": update_tasks, "approval": "allow"},
@@ -2885,6 +2903,7 @@ BUILTIN_TOOL_GROUPS: dict[str, tuple[str, ...]] = {
     "images": ("image_generate",),
     "subagents": ("delegate_task",),
     "notifications": ("notify",),
+    "time": ("get_current_time",),
 }
 
 GLOBAL_CHAT_DISABLED_TOOLS = {
