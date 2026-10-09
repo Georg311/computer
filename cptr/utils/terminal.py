@@ -16,8 +16,26 @@ from typing import Dict, List, Optional
 
 from cptr.utils.identity import ExecutionIdentity, env_for, expand_user_path, preexec_for
 
-SCROLLBACK_SIZE = 64 * 1024  # 64 KB
+DEFAULT_SCROLLBACK_SIZE = 64 * 1024  # 64 KB (default; configurable via terminal.scrollback_kb)
 IS_WINDOWS = platform.system() == "Windows"
+
+
+def get_scrollback_size() -> int:
+    """Read the per-session scrollback cap from app config.
+
+    Config key: terminal.scrollback_kb (admin UI / [app_config]). Falls back
+    to 64 KB. Clamped to 1..1024 KB so a bad value can't blow up memory.
+    """
+    try:
+        from cptr.utils.config import load_config
+
+        raw = load_config().get("app_config", {}).get("terminal.scrollback_kb")
+        if raw is not None:
+            kb = int(raw)
+            return max(1, min(1024, kb)) * 1024
+    except (TypeError, ValueError):
+        pass
+    return DEFAULT_SCROLLBACK_SIZE
 
 
 class TerminalUnavailable(RuntimeError):
@@ -34,6 +52,7 @@ class TerminalSession:
     identity: ExecutionIdentity | None = field(default=None, repr=False)
     rows: int = 24
     cols: int = 80
+    scrollback_size: int = DEFAULT_SCROLLBACK_SIZE
     _scrollback: bytearray = field(default_factory=bytearray, repr=False)
 
     # Platform handles
@@ -61,9 +80,9 @@ class TerminalSession:
         if data:
             self._scrollback.extend(data)
             # Trim at 2x cap to amortize the cost. This halves the number of
-            # 64 KB memcpy operations during high-throughput output.
-            if len(self._scrollback) > SCROLLBACK_SIZE * 2:
-                self._scrollback = self._scrollback[-SCROLLBACK_SIZE:]
+            # large memcpy operations during high-throughput output.
+            if len(self._scrollback) > self.scrollback_size * 2:
+                self._scrollback = self._scrollback[-self.scrollback_size :]
         return data
 
     def get_scrollback(self) -> bytes:
@@ -309,6 +328,9 @@ class SessionManager:
             session = _create_windows(session_id, identity, shell, work_dir, env, rows, cols)
         else:
             session = _create_unix(session_id, identity, shell, work_dir, env, rows, cols)
+
+        # Captured at creation; existing sessions keep their own cap.
+        session.scrollback_size = get_scrollback_size()
 
         self._sessions[session_id] = session
         return session
