@@ -11,9 +11,8 @@
 	import SearchModal from '$lib/components/SearchModal.svelte';
 	import SettingsModal from '$lib/components/SettingsModal.svelte';
 	import AuthScreen from '$lib/components/AuthScreen.svelte';
-	import ChangelogModal from '$lib/components/ChangelogModal.svelte';
-	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import UpdateToast from '$lib/components/UpdateToast.svelte';
+	import MobileFab from '$lib/components/MobileFab.svelte';
 	import { Toaster, toast } from 'svelte-sonner';
 	import {
 		activeTab,
@@ -543,3 +542,5 @@
 	}}
 />
 <ConfirmDialog />
+	<MobileFab />
+

@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - 👁️ **Workspace Watch.** Real-time filesystem monitoring via `watchdog` for workspace changes, including debounced batching and automatic agent prompt injection.
 
+## [0.9.21.1] - 2026-10-09
+
+### Added
+- 📊 **Llama Metrics.** Live token rates and detailed generation statistics (prompt, reasoning, response, etc.) during requests.
+- 📁 **Enhanced File Browser.** Improved UI with customizable columns (size, modified, created) and "touch" functionality for modification dates.
+
 
 ## [0.9.21] - 2026-08-04
 
