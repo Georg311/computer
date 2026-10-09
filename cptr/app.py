@@ -1,4 +1,5 @@
 import asyncio
+import os
 import time
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
@@ -286,7 +287,14 @@ async def get_config():
             signup_enabled = await Config.get("auth.signup_enabled") or False
 
     try:
-        version = pkg_version("cptr")
+        import os
+        from importlib import metadata
+        ver = metadata.version("cptr")
+        commit_hash = os.environ.get("CPTR_COMMIT_HASH")
+        if commit_hash:
+            version = f"{ver} ({commit_hash})"
+        else:
+            version = ver
     except Exception:
         version = "dev"
 
