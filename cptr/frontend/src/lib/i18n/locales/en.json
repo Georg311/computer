@@ -50,6 +50,7 @@
 	"sidebar.logOut": "Log out",
 	"sidebar.remove": "Remove",
 	"sidebar.workspaceOptions": "Workspace options",
+	"sidebar.externalChanges": "External changes: {{count}}",
 	"sidebar.closeSidebar": "Close sidebar",
 	"sidebar.showMore": "Show more",
 	"bar.newFile": "New File",
