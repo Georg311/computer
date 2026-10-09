@@ -1232,5 +1232,6 @@
 	"browser.remoteKeyboard": "Tastatur des Remote-Browsers",
 	"app.logoAlt": "Computer-Logo",
 	"messaging.verificationFailed": "Verifizierung fehlgeschlagen",
-	"connections.providerType": "Anbietertyp"
+	"connections.providerType": "Anbietertyp",
+	"sidebar.workspaceSchedules": "Workspace-Schedules"
 }
