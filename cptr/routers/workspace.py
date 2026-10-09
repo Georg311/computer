@@ -276,6 +276,13 @@ async def archive_files(request: Request, req: ArchiveRequest):
     )
 
 
+@router.get("/watch-pending")
+async def get_watch_pending(request: Request, workspace: str = Query(..., description="Absolute path to workspace")) -> dict:
+    """Returns the count of pending external changes for a workspace (for the UI Badge)."""
+    from cptr.utils.workspace_watch import get_pending
+    pending = get_pending(workspace)
+    return {"pending_count": pending.count if pending else 0}
+
 @router.get("/serve/{file_path:path}")
 async def serve_static(request: Request, file_path: str):
     path = str(Path(file_path if len(file_path) >= 2 and file_path[1] == ":" else "/" + file_path))

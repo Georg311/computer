@@ -31,6 +31,7 @@
 	import { t } from '$lib/i18n';
 	import VoiceMemoModal from './VoiceMemoModal.svelte';
 	import { TAB_DRAG_MIME } from '$lib/constants';
+	import { swipe } from '$lib/actions/swipe';
 
 	interface Props {
 		group: EditorGroup;
@@ -416,6 +417,10 @@
 					onpointerdown={() => handleTabClick(tab)}
 					onclick={() => handleTabClick(tab)}
 					oncontextmenu={(e) => handleContextMenu(e, tab)}
+					use:swipe={{ onSwipeLeft: () => {
+						const dummyEvent = { stopPropagation: () => {} } as unknown as Event;
+						handleClose(dummyEvent, tab.id);
+					}}}
 				>
 					{#if tab.type === 'chat' && (chatStatus?.active || $streamingChatTabs.has(tab.id))}
 						<Spinner size={14} />
@@ -432,7 +437,7 @@
 					{#if !tab.permanent}
 						<!-- svelte-ignore a11y_no_static_element_interactions -->
 						<span
-							class="flex items-center justify-center w-4 h-4 rounded text-gray-400 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-white"
+							class="flex items-center justify-center w-4 h-4 rounded text-gray-400 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-white mobile-touch-target"
 							onpointerdown={(e) => e.stopPropagation()}
 							onclick={(e) => handleClose(e, tab.id)}
 							onkeydown={(e) => {
@@ -452,7 +457,7 @@
 		<!-- Plus button -->
 		<button
 			bind:this={plusBtnEl}
-			class="flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 shrink-0"
+			class="flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 shrink-0 mobile-touch-target"
 			onclick={() => (showPlusMenu = !showPlusMenu)}
 			aria-label={$t('bar.new')}
 			use:tooltip={$t('bar.new')}
@@ -487,7 +492,7 @@
 		<!-- Close group button (when split is active) -->
 		{#if canClose}
 			<button
-				class="flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 shrink-0"
+				class="flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 shrink-0 mobile-touch-target"
 				onclick={handleCloseGroup}
 				aria-label={$t('a11y.closePane')}
 				use:tooltip={$t('a11y.closePane')}
