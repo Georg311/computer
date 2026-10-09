@@ -10,10 +10,7 @@ reports them as debounced batches:
     agent turn in that workspace (no hard interrupt, no auto-rerun).
 
 Platform support:
-  - Linux: inotify via ctypes/struct on top of os.inotify_* (stdlib only),
-    recursive watch per top-level directory with excluded subtrees skipped.
-  - macOS: fsevents is not implemented in v1 — start_watch raises a clear error.
-  - Windows: Phase 2.
+  - Linux/macOS/Windows: Uses watchdog for cross-platform stability.
 
 Self-write suppression: cptr's own file writes (file tools, file browser)
 are registered via ``mark_self_write``; events for those paths within a short
@@ -21,7 +18,7 @@ window are not reported as external changes. Shell commands run in the
 workspace are *not* suppressed — their writes are treated as external by
 design (safer than hiding real concurrent changes).
 
-Standard library only.
+Standard library + watchdog.
 """
 
 from __future__ import annotations
@@ -30,35 +27,25 @@ import asyncio
 import contextlib
 import logging
 import os
-import platform
-import select
-import struct
 import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
+
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler, FileSystemEvent
 
 logger = logging.getLogger(__name__)
 
 # Directories that never count as workspace changes.
 EXCLUDED_DIRS = frozenset({".git", "node_modules", ".venv", "venv", "__pycache__"})
-
 # Max individual paths kept per workspace batch (overflow becomes "+N weitere").
 MAX_EVENT_PATHS = 100
 # Debounce window for batching events into one summary.
 DEBOUNCE_SECONDS = 1.0
 # Self-written paths are suppressed for this many seconds.
 SELF_WRITE_SUPPRESS_SECONDS = 5.0
-
-_LINUX_IN_CREATE = 0x00000010
-_LINUX_IN_MODIFY = 0x00000008
-_LINUX_IN_MOVED_FROM = 0x00000040
-_LINUX_IN_MOVED_TO = 0x00000080
-_LINUX_IN_DELETE = 0x00000200
-
-
-class WorkspaceWatchUnsupportedError(RuntimeError):
-    """Raised when the platform does not support workspace watching."""
 
 
 @dataclass
@@ -85,7 +72,10 @@ class PendingChanges:
 def _rel_workspace_path(workspace: str, path: str) -> str | None:
     """Return the workspace-relative path for an absolute path, or None."""
     try:
-        return str(Path(path).resolve().relative_to(Path(workspace)))
+        # Ensure both are resolved to avoid mismatching paths like /tmp/foo vs /tmp/foo/
+        ws_path = Path(workspace).resolve()
+        target_path = Path(path).resolve()
+        return str(target_path.relative_to(ws_path))
     except ValueError:
         return None
 
@@ -122,14 +112,15 @@ def _is_self_write(abs_path: str) -> bool:
 
 # ── Per-workspace pending state (badge counts + injection note) ─
 
-_registry_lock = threading.Lock()
+_registry_lock = threading.RLock()
 _pending: dict[str, PendingChanges] = {}
 
 
 def get_pending(workspace: str) -> PendingChanges | None:
     """Non-destructive snapshot of the pending changes for a workspace."""
+    resolved = str(Path(workspace).resolve())
     with _registry_lock:
-        pending = _pending.get(str(Path(workspace).resolve()))
+        pending = _pending.get(resolved)
         if pending is None:
             return None
         return PendingChanges(
@@ -155,132 +146,37 @@ def pop_pending_note(workspace: str) -> str | None:
     )
 
 
-# ── Linux inotify backend ──────────────────────────────────────
+# ── Watchdog implementation ──────────────────────────────────────
 
-_INOTIFY_HEADER = struct.Struct("<iIII")  # wd, mask, cookie, len; then raw name bytes
+class WorkspaceWatchEventHandler(FileSystemEventHandler):
+    """Event handler that pushes changes to the manager."""
 
-
-class _Inotify:
-    """Minimal recursive inotify wrapper built on os.inotify_* + select."""
-
-    def __init__(self, workspace: Path):
-        self.workspace = workspace
-        self.fd = os.inotify_init()
-        self.watches: dict[int, str] = {}  # wd → dir path (absolute)
-        self._add_dir(workspace)
-
-    def _add_dir(self, path: Path) -> None:
-        try:
-            wd = os.inotify_add_watch(
-                self.fd, str(path), _LINUX_IN_CREATE | _LINUX_IN_MODIFY | _LINUX_IN_DELETE
-            )
-            self.watches[wd] = str(path)
-        except OSError:
-            pass
-
-    def scan_top_level(self) -> None:
-        try:
-            entries = sorted(self.workspace.iterdir(), key=lambda p: p.name)
-        except OSError:
-            return
-        for entry in entries:
-            if entry.is_symlink() or not entry.is_dir():
-                continue
-            if entry.name in EXCLUDED_DIRS:
-                continue
-            self._add_dir(entry)
-
-    def close(self) -> None:
-        try:
-            os.close(self.fd)
-        except OSError:
-            pass
-
-    def read_events(self, timeout: float = 0.25) -> list[tuple[int, str]]:
-        """Return (wd, filename) pairs; blocks up to timeout seconds."""
-        events: list[tuple[int, str]] = []
-        try:
-            ready = select.select([self.fd], [], [], timeout)
-            if not ready[0]:
-                return events
-            data = os.read(self.fd, 65536)
-        except OSError:
-            return events
-        offset = 0
-        while offset + _INOTIFY_HEADER.size <= len(data):
-            wd, _mask, _cookie, name_len = _INOTIFY_HEADER.unpack_from(data, offset)
-            if not name_len:
-                offset += _INOTIFY_HEADER.size
-                continue
-            name = data[offset + _INOTIFY_HEADER.size : offset + _INOTIFY_HEADER.size + name_len]
-            try:
-                events.append((wd, name.decode("utf-8", "replace")))
-            except Exception:
-                pass
-            offset += _INOTIFY_HEADER.size + name_len
-        return events
-
-
-class _LinuxWatcher:
-    def __init__(self, workspace: str):
-        self.workspace = Path(workspace).resolve()
-        self.inotify = _Inotify(self.workspace)
-        self.inotify.scan_top_level()
-
-    def poll(self, timeout: float = 0.25) -> list[str]:
-        """Return workspace-relative paths that changed since last poll."""
-        changed: set[str] = set()
-        for wd, name in self.inotify.read_events(timeout):
-            dir_path = self.inotify.watches.get(wd)
-            if not dir_path:
-                continue
-            abs_path = str(Path(dir_path) / name)
-            rel = _rel_workspace_path(str(self.workspace), abs_path)
-            if rel is None or _is_excluded_rel_path(rel):
-                continue
-            if _is_self_write(abs_path):
-                continue
-            changed.add(rel)
-        return sorted(changed)
-
-    def close(self) -> None:
-        self.inotify.close()
-
-
-# ── macOS stub (Phase 2: fsevents) ─────────────────────────────
-
-
-class _UnsupportedWatcher:
-    def __init__(self, workspace: str):
-        raise WorkspaceWatchUnsupportedError(
-            "Workspace Watch is not supported on this platform. "
-            "v1 supports Linux (inotify); macOS fsevents support is planned for a later phase."
-        )
-
-
-# ── Per-workspace watcher + manager ────────────────────────────
-
-class _WorkspaceWatcher:
-    def __init__(self, workspace: str):
+    def __init__(self, workspace: str, manager: 'WorkspaceWatchManager'):
         self.workspace = str(Path(workspace).resolve())
-        self.watcher = None
+        self.manager = manager
 
-    def start(self) -> None:
-        if platform.system() == "Linux":
-            self.watcher = _LinuxWatcher(self.workspace)
-        else:
-            self.watcher = _UnsupportedWatcher(self.workspace)
+    def on_any_event(self, event: FileSystemEvent) -> None:
+        if event.is_directory:
+            return
 
-    def stop(self) -> None:
-        if self.watcher is not None:
-            try:
-                self.watcher.close()
-            except Exception:
-                pass
-            self.watcher = None
+        abs_path = str(Path(event.src_path).resolve())
+        logger.debug("[workspace-watch] watchdog event: %s on %s", type(event).__name__, abs_path)
 
-    def poll_once(self) -> list[str]:
-        return self.watcher.poll() if self.watcher else []
+        if _is_self_write(abs_path):
+            logger.debug("[workspace-watch] suppressed (self-write): %s", abs_path)
+            return
+
+        rel = _rel_workspace_path(self.workspace, abs_path)
+        if rel is None:
+            logger.debug("[workspace-watch] ignored (not in workspace): %s vs %s", abs_path, self.workspace)
+            return
+
+        if _is_excluded_rel_path(rel):
+            logger.debug("[workspace-watch] ignored (excluded): %s", rel)
+            return
+
+        logger.info("[workspace-watch] accepted: %s (%s)", rel, type(event).__name__)
+        self.manager._add_event_to_pending(self.workspace, rel)
 
 
 class WorkspaceWatchManager:
@@ -288,76 +184,107 @@ class WorkspaceWatchManager:
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._watchers: dict[str, _WorkspaceWatcher] = {}
+        self._observers: dict[str, Observer] = {}
         self._task: asyncio.Task | None = None
-        self._emit_callback = None  # async (workspace, PendingChanges) → None
+        self._emit_callback = None
 
     def set_emit_callback(self, callback) -> None:
-        """Set the async callback invoked with (workspace, PendingChanges)."""
+        """Set the async callback invoked with (workspace, PendingChanges)"""
         self._emit_callback = callback
 
+    def _add_event_to_pending(self, workspace: str, rel_path: str) -> None:
+        """Thread-safe addition of a change to the registry."""
+        resolved_ws = str(Path(workspace).resolve())
+        with _registry_lock:
+            pending = _pending.setdefault(resolved_ws, PendingChanges())
+            pending.add(rel_path)
+            pending.updated_at = time.time()
+            logger.debug("[workspace-watch] Registry Update | Key: %s | Added: %s | Total Count: %d", 
+                         resolved_ws, rel_path, pending.count)
+
     def start_watch(self, workspace: str) -> bool:
-        """Start watching a workspace root. Returns True if active."""
+        """Start watching a workspace root using watchdog."""
         resolved = str(Path(workspace).resolve())
         with self._lock:
-            if resolved in self._watchers:
+            if resolved in self._observers:
                 return True
             if not Path(resolved).is_dir():
                 logger.info("[workspace-watch] skipping non-existent workspace %s", resolved)
                 return False
+
             try:
-                watcher = _WorkspaceWatcher(resolved)
-                watcher.start()
-            except WorkspaceWatchUnsupportedError as exc:
-                logger.info("[workspace-watch] %s", exc)
-                return False
-            except OSError as exc:
+                observer = Observer()
+                handler = WorkspaceWatchEventHandler(resolved, self)
+                observer.schedule(handler, resolved, recursive=True)
+                observer.start()
+                self._observers[resolved] = observer
+                logger.info("[workspace-watch] watching workspace %s", resolved)
+                return True
+            except Exception as exc:
                 logger.warning("[workspace-watch] failed to start for %s: %s", resolved, exc)
                 return False
-            self._watchers[resolved] = watcher
-        logger.info("[workspace-watch] watching workspace %s", resolved)
-        return True
 
     def stop_watch(self, workspace: str) -> None:
+        """Stop an individual workspace watch."""
         resolved = str(Path(workspace).resolve())
         with self._lock:
-            watcher = self._watchers.pop(resolved, None)
-        if watcher is not None:
-            watcher.stop()
+            observer = self._observers.pop(resolved, None)
+            if observer:
+                observer.stop()
+                observer.join()
             with _registry_lock:
                 _pending.pop(resolved, None)
 
     def watched_workspaces(self) -> list[str]:
+        """Return currently active watched workspaces."""
         with self._lock:
-            return list(self._watchers.keys())
+            return list(self._observers.keys())
 
     async def run_loop(self) -> None:
         """Poll all watchers; flush debounced batches to the emit callback."""
+        last_emitted_at: dict[str, float] = {}
+
         while True:
             await asyncio.sleep(DEBOUNCE_SECONDS)
             try:
-                for workspace in self.watched_workspaces():
-                    watcher = self._watchers.get(workspace)
-                    if not watcher:
-                        continue
-                    changed = await asyncio.to_thread(watcher.poll_once)
-                    if not changed:
-                        continue
+                active_workspaces = self.watched_workspaces()
+                for workspace in active_workspaces:
+                    snapshot = None
                     with _registry_lock:
-                        pending = _pending.setdefault(workspace, PendingChanges())
-                        for rel in changed:
-                            pending.add(rel)
-                        pending.updated_at = time.time()
-                    snapshot = get_pending(workspace)
-                    if self._emit_callback is not None and snapshot:
-                        try:
-                            await self._emit_callback(workspace, snapshot)
-                        except Exception:
-                            logger.exception("[workspace-watch] emit callback failed")
+                        pending = _pending.get(workspace)
+                        if pending and pending.count > 0:
+                            # We take a snapshot of the data to release the lock quickly.
+                            snapshot = PendingChanges(
+                                paths=list(pending.paths),
+                                overflow=pending.overflow,
+                                updated_at=pending.updated_at
+                            )
+
+                    if snapshot:
+                        now = time.time()
+                        last_emit = last_emitted_at.get(workspace, 0)
+
+                        # Only emit if we haven't emitted too recently (debounce)
+                        if (now - last_emit) >= DEBOUNCE_SECONDS:
+                            logger.debug("[workspace-watch] Attempting to emit for %s", workspace)
+                            if self._emit_callback:
+                                try:
+                                    await self._emit_callback(workspace, snapshot)
+                                    last_emitted_at[workspace] = now
+                                    logger.info("[workspace-watch] Callback successful for %s", workspace)
+                                except Exception as exc:
+                                    logger.exception("[workspace-watch] emit callback failed: %s", exc)
+                            else:
+                                logger.warning("[workspace-watch] No callback set for %s", workspace)
+                    else:
+                        # Optional: log that no changes were found for an active workspace to debug idle loops
+                        # logger.debug("[workspace-watch] No pending changes for %s", workspace)
+                        pass
+
             except asyncio.CancelledError:
                 raise
-            except Exception:
-                logger.exception("[workspace-watch] loop error")
+            except Exception as exc:
+                logger.exception("[workspace-watch] loop error: %s", exc)
 
     def start(self) -> None:
         """Start the background poll loop (call from the app lifespan)."""
@@ -365,18 +292,32 @@ class WorkspaceWatchManager:
             return
         try:
             loop = asyncio.get_running_loop()
+            self._task = loop.create_task(self.run_loop())
         except RuntimeError:
             return
-        self._task = loop.create_task(self.run_loop())
 
     async def stop_all(self) -> None:
-        if self._task is not None:
+        """Stop all watchers and the manager task."""
+        if self._task:
             self._task.cancel()
-            with contextlib.suppress(BaseException):
+            try:
                 await self._task
+            except asyncio.CancelledError:
+                pass
             self._task = None
-        for workspace in list(self.watched_workspaces()):
-            self.stop_watch(workspace)
+
+        with self._lock:
+            for workspace, observer in self._observers.items():
+                observer.stop()
+                observer.join()
+            self._observers.clear()
+
+        with _registry_lock:
+            _pending.clear()
+
+    async def stop_all_workspace_watches(self) -> None:
+        """Public async stop all."""
+        await self.stop_all()
 
 
 manager = WorkspaceWatchManager()
@@ -388,8 +329,10 @@ async def start_workspace_watch(workspace: str) -> bool:
 
 
 def stop_workspace_watch(workspace: str) -> None:
+    """Stop watching a workspace."""
     manager.stop_watch(workspace)
 
 
 async def stop_all_workspace_watches() -> None:
+    """Stop all active workspace watches."""
     await manager.stop_all()
