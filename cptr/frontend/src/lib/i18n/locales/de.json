@@ -50,6 +50,7 @@
 	"sidebar.logOut": "Abmelden",
 	"sidebar.remove": "Entfernen",
 	"sidebar.workspaceOptions": "Arbeitsbereich-Optionen",
+	"sidebar.externalChanges": "Externe Änderungen: {{count}}",
 	"sidebar.closeSidebar": "Seitenleiste schließen",
 	"sidebar.showMore": "Mehr anzeigen",
 	"bar.newFile": "Neue Datei",

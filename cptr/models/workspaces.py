@@ -44,6 +44,13 @@ class Workspace(Base):
             return list(result.scalars().all())
 
     @staticmethod
+    async def get_all() -> list[Workspace]:
+        """List all workspaces for all users."""
+        async with await get_db() as db:
+            result = await db.execute(select(Workspace))
+            return list(result.scalars().all())
+
+    @staticmethod
     async def get_by_path(user_id: str, path: str) -> Workspace | None:
         """Get a single workspace by user + path."""
         async with await get_db() as db:

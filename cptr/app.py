@@ -76,6 +76,22 @@ async def lifespan(app: FastAPI):
     await recover_timers()
     app.state.timer_task = asyncio.create_task(timer_worker_loop(app))
 
+    # Start workspace watch (external file change detection)
+    from cptr.utils.workspace_watch import manager as workspace_watch_manager
+    from cptr.socket.main import emit_to_user
+    from cptr.models.workspaces import Workspace
+
+    async def _workspace_watch_emit(workspace: str, snapshot) -> None:
+        for ws in await Workspace.get_all():
+            if Path(ws.path).resolve() == Path(workspace).resolve():
+                await emit_to_user(
+                    ws.user_id,
+                    {"type": "workspace_watch", "workspace": workspace, "pending_changes": snapshot.count},
+                )
+
+    workspace_watch_manager.set_emit_callback(_workspace_watch_emit)
+    workspace_watch_manager.start()
+
     # Start messaging bots
     from cptr.utils.bridge import BotManager
 
@@ -124,6 +140,13 @@ async def lifespan(app: FastAPI):
             from cptr.utils.mcp.stdio_manager import stdio_manager
 
             await stdio_manager.disconnect_all()
+        except Exception:
+            pass
+        # Stop workspace watch
+        try:
+            from cptr.utils.workspace_watch import stop_all_workspace_watches
+
+            await stop_all_workspace_watches()
         except Exception:
             pass
 

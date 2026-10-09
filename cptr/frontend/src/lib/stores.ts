@@ -306,7 +306,7 @@ export const homeState = writable<HomeState>({
 });
 
 /** List of all workspace summaries for the sidebar. */
-export const workspaceList = writable<{ path: string; name: string; unread_count: number }[]>([]);
+export const workspaceList = writable<{ path: string; name: string; unread_count: number; pending_changes?: number }[]>([]);
 
 /** Global user preferences. */
 export const sidebarOpen = writable(
