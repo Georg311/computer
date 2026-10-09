@@ -74,7 +74,9 @@ class PendingChanges:
         return len(self.paths) + self.overflow
 
     def add(self, rel_path: str) -> None:
-        if rel_path not in self.paths and len(self.paths) < MAX_EVENT_PATHS:
+        if rel_path in self.paths:
+            return
+        if len(self.paths) < MAX_EVENT_PATHS:
             self.paths.append(rel_path)
         else:
             self.overflow += 1
