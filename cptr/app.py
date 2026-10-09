@@ -77,6 +77,8 @@ async def lifespan(app: FastAPI):
     await recover_timers()
     app.state.timer_task = asyncio.create_task(timer_worker_loop(app))
 
+    from cptr.utils.workspace_watch import workspace_watch_manager, _workspace_watch_emit
+
     workspace_watch_manager.set_emit_callback(_workspace_watch_emit)
     workspace_watch_manager.start()
 
