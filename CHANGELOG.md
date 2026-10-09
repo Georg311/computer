@@ -5,13 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.9.21.1] - 2026-10-09
+## [0.9.21.2] - 2026-10-09
 
 ### Added
-- 🔍 **Enhanced File Search.** Improved `search_files` with path, context-lines, and paging modes.
-- 📜 **Terminal Scrollback.** Configurable terminal session history via `terminal.scrollback_kb`.
-- 📅 **Workspace Schedules UI.** Visual interface for managing workspace-scoped schedules in the sidebar.
-- 👁️ **Workspace Watch.** Real-time filesystem monitoring via `inotify` for workspace changes.
+- 👁️ **Workspace Watch.** Real-time filesystem monitoring via `watchdog` for workspace changes, including debounced batching and automatic agent prompt injection.
+
 
 ## [0.9.21] - 2026-08-04
 
