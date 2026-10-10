@@ -161,7 +161,7 @@
 		{ id: 'toolservers', label: tr('admin.toolServers'), icon: 'plug' },
 		{ id: 'subagents', label: tr('admin.subagents'), icon: 'user' },
 		{ id: 'workspace', label: tr('admin.workspace'), icon: 'folder' },
-		{ id: 'terminal', label: tr('admin.terminal'), icon: 'terminal' }
+		{ id: 'terminal', label: tr('admin.terminal'), icon: 'terminal' },
 		{ id: 'memory', label: tr('settings.memory'), icon: 'brain' },
 		{ id: 'skills', label: tr('chat.skills'), icon: 'spark' }
 	]);
