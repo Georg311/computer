@@ -30,7 +30,7 @@
 
 {#if $chatEnabled}
 	<button
-		class="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-sky-500 text-white shadow-lg transition-transform active:scale-95 md:hidden"
+		class="fab-button fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-sky-500 text-white shadow-lg transition-transform active:scale-95 md:hidden"
 		onclick={handleNewChat}
 		aria-label={$t('bar.newChat')}
 		use:tooltip={$t('bar.newChat')}
@@ -40,5 +40,12 @@
 {/if}
 
 <style>
-	/* Any additional mobile specific styling if needed */
+	.fab-button::after {
+		content: '';
+		position: absolute;
+		top: -10px;
+		left: -10px;
+		right: -10px;
+		bottom: -10px;
+	}
 </style>
