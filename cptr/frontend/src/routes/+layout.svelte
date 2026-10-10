@@ -13,6 +13,8 @@
 	import AuthScreen from '$lib/components/AuthScreen.svelte';
 	import UpdateToast from '$lib/components/UpdateToast.svelte';
 	import MobileFab from '$lib/components/MobileFab.svelte';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+	import ChangelogModal from '$lib/components/ChangelogModal.svelte';
 	import { Toaster, toast } from 'svelte-sonner';
 	import {
 		activeTab,
