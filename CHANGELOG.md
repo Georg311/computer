@@ -1,21 +1,18 @@
-# Changelog
+## [0.9.21.4] - 2026-10-10
 
-All notable changes to this project will be documented in this file.
+### Improved
+- 📱 **Mobile UX.** Expanded the touch target for the `MobileFab` component using an invisible hitbox, ensuring better responsiveness on mobile devices.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.9.21.3] - 2026-10-10
 
-## [0.9.21.2] - 2026-10-09
-
-### Added
-- 👁️ **Workspace Watch.** Real-time filesystem monitoring via `watchdog` for workspace changes, including debounced batching and automatic agent prompt injection.
+### Fixed
+- 🛠️ **Alembic Migrations.** Fixed a malformed migration script (`0005_fix_workspaces_autoincrement.py`) that caused application startup failures.
 
 ## [0.9.21.1] - 2026-10-09
 
 ### Added
 - 📊 **Llama Metrics.** Live token rates and detailed generation statistics (prompt, reasoning, response, etc.) during requests.
 - 📁 **Enhanced File Browser.** Improved UI with customizable columns (size, modified, created) and "touch" functionality for modification dates.
-
 
 ## [0.9.21] - 2026-08-04
 
@@ -33,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 💬 **Empty replies are retried instead of getting stuck.** If a chat service sends back nothing useful, Computer now tries again before showing a failure.
 - 🔊 **Text-to-speech cleans up after playback.** Listening to a message no longer leaves old audio resources around.
 - 🧰 **Deleted agent profiles stay deleted right away.** Removing a saved agent now saves the change immediately.
-- 💻 **Terminal and browser sessions close more cleanly.** Leaving a session is less likely to leave old listeners or connections behind.
+- 💻 **Terminal and browser sessions close more cleanly.** Leaving a session is less likely to leave old listeners or other connections behind.
 - 📱 **Signal message edits work more naturally.** Updated replies are now sent as edits when Signal supports it.
 
 ## [0.9.20] - 2026-08-01
@@ -54,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 💬 **Empty replies are retried instead of getting stuck.** If a chat service sends back nothing useful, Computer now tries again before showing a failure.
 - 🔊 **Text-to-speech cleans up after playback.** Listening to a message no longer leaves old audio resources around.
 - 🧰 **Deleted agent profiles stay deleted right away.** Removing a saved agent now saves the change immediately.
-- 💻 **Terminal and browser sessions close more cleanly.** Leaving a session is less likely to leave old listeners or connections behind.
+- 💻 **Terminal and browser sessions close more cleanly.** Leaving a session is less likely to leave old listeners or other connections behind.
 - 📱 **Signal message edits work more naturally.** Updated replies are now sent as edits when Signal supports it.
 
 ## [0.9.19] - 2026-07-31
