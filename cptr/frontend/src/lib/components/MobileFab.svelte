@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { chatEnabled } from '$lib/stores/chat';
-	import { openChatTab, activeWorkspace, openBrowserTab, homeState } from '$lib/stores';
+	import { openChatTab, activeWorkspace, openBrowserTab, homeState, activeGroup } from '$lib/stores';
+	import { get } from 'svelte/store';
 	import Icon from './Icon.svelte';
 	import { t } from '$lib/i18n';
 	import { createEntry } from '$lib/apis/files';
@@ -23,8 +24,10 @@
 	function handleNewChat() {
 		// Determine which group to use for the new chat tab.
 		// If a groupId is provided, use it. Otherwise, fallback to the active group or home group.
+		const ag = get(activeGroup);
+		const hs = get(homeState);
 		const targetGroupId = groupId || 
-			($activeGroup ? $activeGroup.id : ($homeState ? $homeState.groups[0].id : undefined));
+			(ag ? ag.id : (hs ? hs.groups[0].id : undefined));
 
 		if (targetGroupId) {
 			openChatTab(undefined, targetGroupId);
@@ -38,7 +41,7 @@
 
 
 	async function handleNewFile() {
-		const workspace = $activeWorkspace;
+		const workspace = get(activeWorkspace);
 		if (!workspace) return;
 		const cwd = workspace.fileBrowserCwd ?? workspace.path;
 		const newFilePath = cwd.endsWith('/') ? cwd + 'new_file.txt' : cwd + '/new_file.txt';
@@ -51,7 +54,7 @@
 	}
 
 	async function handleNewTerminal() {
-		const workspace = $activeWorkspace;
+		const workspace = get(activeWorkspace);
 		if (!workspace) return;
 		const cwd = workspace.fileBrowserCwd ?? workspace.path;
 		try {

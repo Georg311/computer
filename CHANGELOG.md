@@ -1,3 +1,11 @@
+## [0.9.21.5] - 2026-10-10
+
+### Fixed
+- 📱 **Mobile FAB.** Fixed a build error in the mobile multi-action menu.
+
+### Improved
+- 📱 **Mobile UX.** Transformed the FAB into a multi-action menu (New Chat, New File, New Terminal, Browser) and repositioned it to `bottom-16` to avoid overlap with chat input.
+
 ## [0.9.21.4] - 2026-10-10
 
 ### Improved
