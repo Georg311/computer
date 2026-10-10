@@ -1,10 +1,8 @@
 """Fix workspaces id to use AUTOINCREMENT.
 
-Revision ID: 0005
-Revises: 0004
-Create Date: 2026-10-09
-
 """
+revision = '0005'
+down_revision = '0004'
 from alembic import op
 import sqlalchemy as sa
 
