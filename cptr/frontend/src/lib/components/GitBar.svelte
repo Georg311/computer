@@ -1465,7 +1465,7 @@
 			<!-- Branch button (opens branch picker, stops expand) -->
 			<button
 				bind:this={branchBtnEl}
-				class="flex min-w-0 max-w-32 shrink items-center gap-1.5 h-6 px-1.5 -ml-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/6 transition-colors duration-75"
+				class="mobile-touch-target flex min-w-0 max-w-32 shrink items-center gap-1.5 h-6 px-1.5 -ml-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/6 transition-colors duration-75"
 				onclick={toggleBranches}
 			>
 				<Icon name="git-branch" size={12} class="text-gray-400 dark:text-gray-600 shrink-0" />
@@ -1478,7 +1478,7 @@
 
 			<button
 				bind:this={worktreeBtnEl}
-				class="flex min-w-0 max-w-32 shrink items-center gap-1.5 h-6 px-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/6 transition-colors duration-75"
+				class="mobile-touch-target flex min-w-0 max-w-32 shrink items-center gap-1.5 h-6 px-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/6 transition-colors duration-75"
 				onclick={toggleWorktrees}
 			>
 				<Icon name="folder" size={12} class="text-gray-400 dark:text-gray-600 shrink-0" />
@@ -1540,7 +1540,7 @@
 
 			<!-- Sync button (stops expand) -->
 			<button
-				class="flex shrink-0 items-center gap-1 h-6 px-2 rounded-md text-[0.6875rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/6 transition-colors duration-75"
+				class="mobile-touch-target flex shrink-0 items-center gap-1 h-6 px-2 rounded-md text-[0.6875rem] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/6 transition-colors duration-75"
 				onclick={(e) => {
 					e.stopPropagation();
 					syncAction.action();

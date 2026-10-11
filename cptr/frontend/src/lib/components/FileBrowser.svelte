@@ -28,6 +28,7 @@
 	import DropdownMenu from './DropdownMenu.svelte';
 	import { t } from '$lib/i18n';
 	import { TAB_DRAG_MIME } from '$lib/constants';
+	import { requestConfirm } from '$lib/stores/confirm';
 
 	interface FileEntry {
 		name: string;
@@ -769,7 +770,11 @@
 
 	async function deleteSelected() {
 		if (selectedPaths.size === 0) return;
-		if (!confirm($t('files.deleteItemConfirm', { count: selectedPaths.size }))) return;
+		const confirmed = await requestConfirm({
+			title: $t('files.deleteSelected'),
+			message: $t('files.deleteItemConfirm', { count: selectedPaths.size })
+		});
+		if (!confirmed) return;
 		for (const path of selectedPaths) {
 			try {
 				await deleteFiles([path]);
@@ -1133,7 +1138,11 @@
 
 	async function deleteEntry(entry: TreeEntry) {
 		const label = entry.type === 'directory' ? $t('files.folder') : $t('files.file');
-		if (!confirm($t('files.deleteEntryConfirm', { type: label, name: entry.name }))) return;
+		const confirmed = await requestConfirm({
+			title: $t('files.delete'),
+			message: $t('files.deleteEntryConfirm', { type: label, name: entry.name })
+		});
+		if (!confirmed) return;
 		try {
 			await deleteFiles([entry.path]);
 			fetchDirectory(cwd);
@@ -1203,7 +1212,7 @@
 
 		<!-- Refresh -->
 		<button
-			class="flex items-center justify-center w-5 h-5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 shrink-0"
+			class="mobile-touch-target flex items-center justify-center w-5 h-5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 shrink-0"
 			onclick={() => fetchDirectory(cwd)}
 			use:tooltip={$t('files.refresh')}
 		>
@@ -1214,7 +1223,7 @@
 			<!-- Sort dropdown -->
 			<button
 				bind:this={sortBtnEl}
-				class="flex items-center justify-center w-5 h-5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 shrink-0"
+				class="mobile-touch-target flex items-center justify-center w-5 h-5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 shrink-0"
 				onclick={() => {
 					sortMenuOpen = !sortMenuOpen;
 				}}
@@ -1226,7 +1235,7 @@
 			<!-- Three-dot menu -->
 			<button
 				bind:this={addBtnEl}
-				class="flex items-center justify-center w-5 h-5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 shrink-0"
+				class="mobile-touch-target flex items-center justify-center w-5 h-5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 shrink-0"
 				onclick={() => {
 					toggleAddMenu();
 				}}

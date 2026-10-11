@@ -19,7 +19,7 @@
 
 {#if showStop}
 	<button
-		class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600 transition rounded-full p-1"
+		class="mobile-touch-target bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600 transition rounded-full p-1"
 		onclick={oncancel}
 	>
 		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-4">
@@ -32,7 +32,7 @@
 	</button>
 {:else if showVoice}
 	<button
-		class="flex items-center justify-center rounded-full p-1 transition
+		class="mobile-touch-target flex items-center justify-center rounded-full p-1 transition
 			{voiceActive
 			? 'bg-gray-900 text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-white/90'
 			: 'bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-white/90 dark:text-black dark:hover:bg-white'}"
@@ -61,7 +61,7 @@
 	<button
 		class="{canSend
 			? 'bg-black text-white hover:bg-gray-900 dark:bg-white dark:text-black dark:hover:bg-white/90'
-			: 'text-white bg-gray-200 dark:text-gray-900 dark:bg-gray-700 cursor-default'} transition rounded-full p-1 self-center"
+			: 'text-white bg-gray-200 dark:text-gray-900 dark:bg-gray-700 cursor-default'} transition rounded-full p-1 self-center mobile-touch-target"
 		onclick={onsend}
 		disabled={!canSend}
 	>
