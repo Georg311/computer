@@ -22,8 +22,6 @@
 	let ready = $state(false);
 
 	function handleNewChat() {
-		// Determine which group to use for the new chat tab.
-		// If a groupId is provided, use it. Otherwise, fallback to the active group or home group.
 		const ag = get(activeGroup);
 		const hs = get(homeState);
 		const targetGroupId = groupId || 
@@ -32,8 +30,6 @@
 		if (targetGroupId) {
 			openChatTab(undefined, targetGroupId);
 		} else {
-			// Fallback to just opening a chat tab in the default way if no group context is available.
-			// This might require a bit more logic depending on how openChatTab handles undefined groups.
 			openChatTab(undefined);
 		}
 		closeMenu();
@@ -71,11 +67,18 @@
 	}
 
 	function toggle() {
-		open = !open;
 		if (open) {
-			updatePosition();
+			closeMenu();
+		} else {
+			open = true;
 		}
 	}
+
+	$effect(() => {
+		if (open && btnEl && menuEl) {
+			setTimeout(() => updatePosition(), 0);
+		}
+	});
 
 	function updatePosition() {
 		if (!btnEl || !menuEl) return;
@@ -96,10 +99,10 @@
 </script>
 
 {#if $chatEnabled}
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="fixed inset-0 z-[49]" onclick={closeMenu}></div>
-
 	{#if open}
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="fixed inset-0 z-[49]" onclick={closeMenu}></div>
+
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
 			bind:this={menuEl}
