@@ -366,7 +366,7 @@
 				>
 					{#if $chatEnabled}
 						<span
-							class="ws-icon-toggle shrink-0"
+							class="ws-icon-toggle mobile-touch-target shrink-0"
 							role="button"
 							tabindex="-1"
 							onclick={(e) => {
@@ -411,7 +411,7 @@
 					{/if}
 				</a>
 				<span
-					class="flex items-center justify-center w-4 h-4 shrink-0 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-75"
+					class="mobile-touch-target flex items-center justify-center w-4 h-4 shrink-0 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-75"
 					role="button"
 					tabindex="-1"
 					onclick={(e) => openWsMenu(e, ws.path)}
@@ -421,7 +421,7 @@
 				</span>
 				{#if $chatEnabled}
 					<span
-						class="flex items-center justify-center w-4 h-4 shrink-0 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-75"
+						class="mobile-touch-target flex items-center justify-center w-4 h-4 shrink-0 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-75"
 						role="button"
 						tabindex="-1"
 						onclick={() => newChat(ws.path)}
@@ -432,7 +432,7 @@
 					</span>
 				{/if}
 				<span
-					class="flex items-center justify-center w-4 h-4 shrink-0 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-75"
+					class="mobile-touch-target flex items-center justify-center w-4 h-4 shrink-0 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-75"
 					role="button"
 					tabindex="-1"
 					onclick={() => openSchedules(ws.path)}
