@@ -27,7 +27,6 @@
 	import ToolServers from './Admin/ToolServers.svelte';
 	import Subagents from './Admin/Subagents.svelte';
 	import Workspace from './Admin/Workspace.svelte';
-	import Terminal from './Admin/Terminal.svelte';
 	import { session } from '$lib/session';
 	import { t } from '$lib/i18n';
 
@@ -55,8 +54,7 @@
 		| 'web'
 		| 'toolservers'
 		| 'subagents'
-		| 'workspace'
-		| 'terminal';
+		| 'workspace';
 
 	interface Props {
 		onclose: () => void;
@@ -91,8 +89,7 @@
 			'web',
 			'toolservers',
 			'subagents',
-			'workspace',
-			'terminal'
+			'workspace'
 		];
 		return validTabs.includes(tab as Tab) ? (tab as Tab) : 'general';
 	}
@@ -127,8 +124,7 @@
 		'subagents',
 		'workspace',
 		'memory',
-		'skills',
-		'terminal'
+		'skills'
 	];
 
 	const personalTabs: SettingsTab[] = $derived.by(() => {
@@ -161,7 +157,6 @@
 		{ id: 'toolservers', label: tr('admin.toolServers'), icon: 'plug' },
 		{ id: 'subagents', label: tr('admin.subagents'), icon: 'user' },
 		{ id: 'workspace', label: tr('admin.workspace'), icon: 'folder' },
-		{ id: 'terminal', label: tr('admin.terminal'), icon: 'terminal' },
 		{ id: 'memory', label: tr('settings.memory'), icon: 'brain' },
 		{ id: 'skills', label: tr('chat.skills'), icon: 'spark' }
 	]);
@@ -296,8 +291,6 @@
 			<Subagents />
 		{:else if activeTab === 'workspace'}
 			<Workspace />
-		{:else if activeTab === 'terminal'}
-			<Terminal />
 		{/if}
 	</div>
 </Modal>

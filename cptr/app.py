@@ -1,5 +1,4 @@
 import asyncio
-import os
 import time
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
@@ -32,6 +31,8 @@ from cptr.routers import (
 )
 from cptr.utils.config import check_access, load_config
 from cptr.utils.db import init_db
+from cptr.utils.workspace_watch import manager as watcher_manager
+from cptr.utils.chat_task import inject_queued_message
 
 START_TIME = time.time()
 
@@ -77,31 +78,19 @@ async def lifespan(app: FastAPI):
     await recover_timers()
     app.state.timer_task = asyncio.create_task(timer_worker_loop(app))
 
-    # Start workspace watch (external file change detection)
-    from cptr.utils.workspace_watch import manager as workspace_watch_manager
-    from cptr.socket.main import emit_to_user
-    from cptr.models.workspaces import Workspace
-
-    async def _workspace_watch_emit(workspace: str, snapshot) -> None:
-        for ws in await Workspace.get_all():
-            if Path(ws.path).resolve() == Path(workspace).resolve():
-                await emit_to_user(
-                    ws.user_id,
-                    {"type": "workspace_watch", "workspace": workspace, "pending_changes": snapshot.count},
-                )
-
-    workspace_watch_manager.set_emit_callback(_workspace_watch_emit)
-    workspace_watch_manager.start()
-
-    # Start watching all existing workspaces
-    for ws in await Workspace.get_all():
-        workspace_watch_manager.start_watch(str(ws.path))
-
     # Start messaging bots
     from cptr.utils.bridge import BotManager
 
     app.state.bot_manager = BotManager(app)
     await app.state.bot_manager.start_all()
+
+    # Start directory watcher loop
+    watcher_manager.set_emit_callback(
+        lambda path, snapshot, is_trigger, meta: inject_queued_message(
+            path, snapshot, is_trigger, meta
+        )
+    )
+    app.state.watcher_task = asyncio.create_task(watcher_manager.run_loop())
 
     try:
         yield
@@ -121,6 +110,7 @@ async def lifespan(app: FastAPI):
         bot_manager = getattr(app.state, "bot_manager", None)
         if bot_manager:
             await bot_manager.stop_all()
+
         try:
             from cptr.utils.async_subagents import cancel_all_async_subagents
 
@@ -140,6 +130,7 @@ async def lifespan(app: FastAPI):
             await shutdown_browser()
         except Exception:
             pass
+
         # Clean up stdio MCP server processes
         try:
             from cptr.utils.mcp.stdio_manager import stdio_manager
@@ -147,13 +138,15 @@ async def lifespan(app: FastAPI):
             await stdio_manager.disconnect_all()
         except Exception:
             pass
-        # Stop workspace watch
-        try:
-            from cptr.utils.workspace_watch import stop_all_workspace_watches
 
-            await stop_all_workspace_watches()
-        except Exception:
-            pass
+        # Clean up directory watcher
+        watcher_task = getattr(app.state, "watcher_task", None)
+        if watcher_task:
+            watcher_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await watcher_task
+        from cptr.utils.workspace_watch import stop_all_directory_watches
+        await stop_all_directory_watches()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -291,14 +284,7 @@ async def get_config():
             signup_enabled = await Config.get("auth.signup_enabled") or False
 
     try:
-        import os
-        from importlib import metadata
-        ver = metadata.version("cptr")
-        commit_hash = os.environ.get("CPTR_COMMIT_HASH")
-        if commit_hash:
-            version = f"{ver} ({commit_hash})"
-        else:
-            version = ver
+        version = pkg_version("cptr")
     except Exception:
         version = "dev"
 

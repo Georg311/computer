@@ -123,11 +123,6 @@
 		closeMobileSidebar();
 	}
 
-	function openSchedules(wsPath: string) {
-		goto(`/scheduled?workspace=${encodeURIComponent(wsPath)}`);
-		closeMobileSidebar();
-	}
-
 	function openWsMenu(e: MouseEvent, path: string) {
 		e.stopPropagation();
 		e.preventDefault();
@@ -366,7 +361,7 @@
 				>
 					{#if $chatEnabled}
 						<span
-							class="ws-icon-toggle mobile-touch-target shrink-0"
+							class="ws-icon-toggle shrink-0"
 							role="button"
 							tabindex="-1"
 							onclick={(e) => {
@@ -411,7 +406,7 @@
 					{/if}
 				</a>
 				<span
-					class="mobile-touch-target flex items-center justify-center w-4 h-4 shrink-0 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-75"
+					class="flex items-center justify-center w-4 h-4 shrink-0 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-75"
 					role="button"
 					tabindex="-1"
 					onclick={(e) => openWsMenu(e, ws.path)}
@@ -421,7 +416,7 @@
 				</span>
 				{#if $chatEnabled}
 					<span
-						class="mobile-touch-target flex items-center justify-center w-4 h-4 shrink-0 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-75"
+						class="flex items-center justify-center w-4 h-4 shrink-0 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-75"
 						role="button"
 						tabindex="-1"
 						onclick={() => newChat(ws.path)}
@@ -431,16 +426,6 @@
 						<Icon name="pencil" size={11} />
 					</span>
 				{/if}
-				<span
-					class="mobile-touch-target flex items-center justify-center w-4 h-4 shrink-0 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-75"
-					role="button"
-					tabindex="-1"
-					onclick={() => openSchedules(ws.path)}
-					aria-label={$t('sidebar.workspaceSchedules')}
-					use:tooltip={$t('sidebar.workspaceSchedules')}
-				>
-					<Icon name="clock" size={11} />
-				</span>
 			</div>
 
 			{#if $chatEnabled && isExpanded}

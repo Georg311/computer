@@ -1155,9 +1155,6 @@
 	"admin.workspace": "Arbeitsbereich",
 	"admin.workspaceAutoGitignoreDotCptr": ".cptr zu .gitignore hinzufügen",
 	"admin.workspaceAutoGitignoreDotCptrHint": "Hält lokale Chats, Speicher, Caches und generierte Assets standardmäßig aus git heraus. Deaktiviere dies, wenn du .cptr versionieren und Ausschlüsse in .cptr/.gitignore verwalten möchtest.",
-	"admin.terminal": "Terminal",
-	"admin.terminalScrollback": "Terminal-Scrollback-Größe",
-	"admin.terminalScrollbackHint": "Maximal pro Terminal-Session aufbewahrte Ausgabe zum Zurückscrollen (Standard 64 KB). Gilt für neue Sessions; laufende Sessions behalten ihren aktuellen Wert.",
 	"admin.webSearxngBaseUrl": "SearXNG-Basis-URL",
 	"admin.webSearxngHint": "Verwende eine SearXNG-Instanz mit aktivierter JSON-Ausgabe.",
 	"admin.browserQualityHintV2": "Steuert Stream-Bitrate und Bildrate, ohne die Seitengröße zu ändern.",
@@ -1233,6 +1230,5 @@
 	"browser.remoteKeyboard": "Tastatur des Remote-Browsers",
 	"app.logoAlt": "Computer-Logo",
 	"messaging.verificationFailed": "Verifizierung fehlgeschlagen",
-	"connections.providerType": "Anbietertyp",
-	"sidebar.workspaceSchedules": "Workspace-Schedules"
+	"connections.providerType": "Anbietertyp"
 }

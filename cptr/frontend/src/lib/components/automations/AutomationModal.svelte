@@ -18,17 +18,16 @@
 
 	interface Props {
 		automation?: AutomationData | null;
-		defaultWorkspace?: string;
 		onclose: () => void;
 		onsave: (automation: AutomationData) => void;
 	}
 
-	let { automation = null, defaultWorkspace, onclose, onsave }: Props = $props();
+	let { automation = null, onclose, onsave }: Props = $props();
 
 	let name = $state(automation?.name || '');
 	let prompt = $state(automation?.prompt || '');
 	let modelId = $state(automation?.model_id || $defaultModel || '');
-	let workspace = $state(automation?.workspace || defaultWorkspace || '');
+	let workspace = $state(automation?.workspace || '');
 	let rrule = $state(automation?.rrule || 'RRULE:FREQ=DAILY;BYHOUR=9;BYMINUTE=0');
 	let saving = $state(false);
 

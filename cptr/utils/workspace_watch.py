@@ -1,24 +1,10 @@
-"""Workspace Watch: detect external file changes in a workspace.
+"""Directory Watcher: detect external file changes in arbitrary directories.
 
-Watches active workspace roots for filesystem changes made by processes
-outside of cptr (builds, other agents, git pulls on another device) and
-reports them as debounced batches:
+Supports two modes:
+  - Notification Mode (Passive): Notifies the agent of changes via a system message note.
+  - Trigger Mode (Active): Triggers a new agent turn when a file matching a specified pattern is modified/created.
 
-  - Badge: per-workspace change counts served with the workspace list and
-    pushed to connected clients via socket.
-  - Agent injection: a short note appended to the system prompt of the next
-    agent turn in that workspace (no hard interrupt, no auto-rerun).
-
-Platform support:
-  - Linux/macOS/Windows: Uses watchdog for cross-platform stability.
-
-Self-write suppression: cptr's own file writes (file tools, file browser)
-are registered via ``mark_self_write``; events for those paths within a short
-window are not reported as external changes. Shell commands run in the
-workspace are *not* suppressed — their writes are treated as external by
-design (safer than hiding real concurrent changes).
-
-Standard library + watchdog.
+Safeguards against infinite loops via cooldown/downgrade mechanism and self-write suppression.
 """
 
 from __future__ import annotations
@@ -27,31 +13,43 @@ import asyncio
 import contextlib
 import logging
 import os
+import platform
+import re
+import select
+import struct
 import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
-
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, FileSystemEvent
+from typing import Any, Callable, Coroutine
 
 logger = logging.getLogger(__name__)
 
-# Directories that never count as workspace changes.
-EXCLUDED_DIRS = frozenset({".git", "node_modules", ".venv", "venv", "__pycache__"})
-# Max individual paths kept per workspace batch (overflow becomes "+N weitere").
+# Configuration
 MAX_EVENT_PATHS = 100
-# Debounce window for batching events into one summary.
 DEBOUNCE_SECONDS = 1.0
-# Self-written paths are suppressed for this many seconds.
 SELF_WRITE_SUPPRESS_SECONDS = 5.0
+TRIGGER_COOLDOWN_SECONDS = 300.0  # 5 minutes
+
+# Linux inotify constants
+_LINUX_IN_CREATE = 0x00000010
+_LINUX_IN_MODIFY = 0x00000008
+_LINUX_IN_DELETE = 0x00000200
+_LINUX_IN_MOVED_FROM = 0x00000040
+_LINUX_IN_MOVED_TO = 0x00000080
+_INOTIFY_HEADER = struct.Struct("<iIII")  # wd, mask, cookie, len
+
+
+@dataclass
+class WatchEvent:
+    """An event representing a file change."""
+    abs_path: str
+    rel_path: str
 
 
 @dataclass
 class PendingChanges:
-    """Aggregated external changes for one workspace since last flush."""
-
+    """Aggregated changes for a directory."""
     paths: list[str] = field(default_factory=list)
     overflow: int = 0
     updated_at: float = 0.0
@@ -69,26 +67,9 @@ class PendingChanges:
             self.overflow += 1
 
 
-def _rel_workspace_path(workspace: str, path: str) -> str | None:
-    """Return the workspace-relative path for an absolute path, or None."""
-    try:
-        # Ensure both are resolved to avoid mismatching paths like /tmp/foo vs /tmp/foo/
-        ws_path = Path(workspace).resolve()
-        target_path = Path(path).resolve()
-        return str(target_path.relative_to(ws_path))
-    except ValueError:
-        return None
-
-
-def _is_excluded_rel_path(rel_path: str) -> bool:
-    parts = rel_path.split("/")
-    return any(part in EXCLUDED_DIRS for part in parts)
-
-
-# ── Self-write suppression registry (global, keyed by abs path) ─
+# ── Self-write suppression ─────────────────────────────────────
 
 _self_write_lock = threading.Lock()
-# abs path → expiry timestamp
 _self_writes: dict[str, float] = {}
 
 
@@ -99,10 +80,12 @@ def mark_self_write(path: str) -> None:
     except (OSError, RuntimeError):
         return
     with _self_write_lock:
-        writes = {p: exp for p, exp in _self_writes.items() if exp > time.time()}
-        writes[abs_path] = time.time() + SELF_WRITE_SUPPRESS_SECONDS
-        _self_writes.clear()
-        _self_writes.update(writes)
+        now = time.time()
+        # Clean up expired writes
+        expired = [p for p, exp in _self_writes.items() if exp <= now]
+        for p in expired:
+            del _self_writes[p]
+        _self_writes[abs_path] = now + SELF_WRITE_SUPPRESS_SECONDS
 
 
 def _is_self_write(abs_path: str) -> bool:
@@ -110,229 +93,279 @@ def _is_self_write(abs_path: str) -> bool:
         return _self_writes.get(abs_path, 0.0) > time.time()
 
 
-# ── Per-workspace pending state (badge counts + injection note) ─
+# ── Linux inotify backend ─────────────────────────────────────
 
-_registry_lock = threading.RLock()
-_pending: dict[str, PendingChanges] = {}
-
-
-def get_pending(workspace: str) -> PendingChanges | None:
-    """Non-destructive snapshot of the pending changes for a workspace."""
-    resolved = str(Path(workspace).resolve())
-    with _registry_lock:
-        pending = _pending.get(resolved)
-        if pending is None:
-            return None
-        return PendingChanges(
-            paths=list(pending.paths), overflow=pending.overflow, updated_at=pending.updated_at
-        )
+class WatcherError(RuntimeError):
+    """Raised when the platform does not support watching."""
 
 
-def pop_pending_note(workspace: str) -> str | None:
-    """Pop the aggregated note for a workspace (consumed by one agent turn)."""
-    resolved = str(Path(workspace).resolve())
-    with _registry_lock:
-        pending = _pending.pop(resolved, None)
-    if not pending or pending.count == 0:
-        return None
-    shown = pending.paths[:20]
-    extra = pending.count - len(shown)
-    listing = ", ".join(f"`{p}`" for p in shown)
-    more = f", … +{extra} weitere Änderungen" if extra > 0 else ""
-    return (
-        "[Workspace Watch] Since your last turn, files in this workspace were "
-        f"changed by an external process: {listing}{more}. Consider re-reading "
-        "affected files before relying on their previous contents."
-    )
+class _LinuxInotify:
+    """Minimal recursive inotify wrapper."""
+
+    def __init__(self, root: Path):
+        self.root = root
+        self.fd = os.inotify_init()
+        self.watches: dict[int, str] = {}  # wd → dir path (absolute)
+        self._add_dir(root)
+
+    def _add_dir(self, path: Path) -> None:
+        try:
+            wd = os.inotify_add_watch(
+                self.fd, str(path), 
+                _LINUX_IN_CREATE | _LINUX_IN_MODIFY | _LINUX_IN_DELETE | 
+                _LINUX_IN_MOVED_FROM | _LINUX_IN_MOVED_TO
+            )
+            self.watches[wd] = str(path)
+        except OSError:
+            pass
+
+    def scan_recursive(self) -> None:
+        """Recursively add all directories to inotify watches."""
+        try:
+            for entry in self.root.rglob("*"):
+                if entry.is_dir() and not entry.name.startswith("."):
+                    self._add_dir(entry)
+        except Exception:
+            pass
+
+    def close(self) -> None:
+        try:
+            os.close(self.fd)
+        except OSError:
+            pass
+
+    def poll(self, timeout: float) -> list[tuple[str, str]]:
+        """Return (abs_path, filename) pairs."""
+        events: list[tuple[str, str]] = []
+        try:
+            ready = select.select([self.fd], [], [], timeout)
+            if not ready[0]:
+                return events
+            data = os.read(self.fd, 65536)
+        except OSError:
+            return events
+
+        offset = 0
+        while offset + _INOTIFY_HEADER.size <= len(data):
+            wd, _mask, _cookie, name_len = _INOTIFY_HEADER.unpack_from(data, offset)
+            if name_len == 0:
+                offset += _INOTIFY_HEADER.size
+                continue
+            name = data[offset + _INOTIFY_HEADER.size : offset + _INOTIFY_HEADER.size + name_len]
+            dir_path = self.watches.get(wd)
+            if dir_path:
+                abs_path = os.path.join(dir_path, name.decode("utf-8", "replace"))
+                events.append((abs_path, name.decode("utf-8", "replace")))
+            offset += _INOTIFY_HEADER.size + name_len
+        return events
 
 
-# ── Watchdog implementation ──────────────────────────────────────
+# ── Per-directory watcher ───────────────────────────────────────
 
-class WorkspaceWatchEventHandler(FileSystemEventHandler):
-    """Event handler that pushes changes to the manager."""
+class _DirectoryWatcher:
+    def __init__(self, abs_path: str, trigger_pattern: str | None = None):
+        self.abs_path = abs_path
+        self.root = Path(abs_path)
+        self.trigger_pattern = re.compile(trigger_pattern) if trigger_pattern else None
+        self.backend = None
+        
+        if platform.system() == "Linux":
+            self.backend = _LinuxInotify(self.root)
+            self.backend.scan_recursive()
+        else:
+            raise WatcherError(f"Platform {platform.system()} is not supported.")
 
-    def __init__(self, workspace: str, manager: 'WorkspaceWatchManager'):
-        self.workspace = str(Path(workspace).resolve())
-        self.manager = manager
+    def poll(self) -> list[WatchEvent]:
+        if not self.backend:
+            return []
+        
+        events = []
+        for abs_path, name in self.backend.poll(0.1):
+            rel_path = os.path.relpath(abs_path, self.root)
+            events.append(WatchEvent(abs_path=abs_path, rel_path=rel_path))
+        return events
 
-    def on_any_event(self, event: FileSystemEvent) -> None:
-        if event.is_directory:
-            return
-
-        abs_path = str(Path(event.src_path).resolve())
-        logger.debug("[workspace-watch] watchdog event: %s on %s", type(event).__name__, abs_path)
-
-        if _is_self_write(abs_path):
-            logger.debug("[workspace-watch] suppressed (self-write): %s", abs_path)
-            return
-
-        rel = _rel_workspace_path(self.workspace, abs_path)
-        if rel is None:
-            logger.debug("[workspace-watch] ignored (not in workspace): %s vs %s", abs_path, self.workspace)
-            return
-
-        if _is_excluded_rel_path(rel):
-            logger.debug("[workspace-watch] ignored (excluded): %s", rel)
-            return
-
-        logger.info("[workspace-watch] accepted: %s (%s)", rel, type(event).__name__)
-        self.manager._add_event_to_pending(self.workspace, rel)
+    def close(self) -> None:
+        if self.backend:
+            self.backend.close()
 
 
-class WorkspaceWatchManager:
-    """One watcher per workspace, debounced batch flush to an emit callback."""
+# ── Directory Watch Manager ───────────────────────────────────
+
+class DirectoryWatchManager:
+    """Manages multiple directory watchers and orchestrates events."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._observers: dict[str, Observer] = {}
+        self._watchers: dict[str, _DirectoryWatcher] = {}  # abs_path -> watcher
+        self._watcher_meta: dict[str, dict[str, str]] = {}  # abs_path -> meta (chat_id, user_id, workspace)
         self._task: asyncio.Task | None = None
-        self._emit_callback = None
+        self._emit_callback: Callable[[str, PendingChanges, bool], Coroutine] = None
+        
+        # Cooldown tracking: (abs_path, pattern_str) -> last_trigger_timestamp
+        self._last_triggers: dict[tuple[str, str | None], float] = {}
+        
+        # Pending state: abs_path -> PendingChanges
+        self._pending: dict[str, PendingChanges] = {}
 
-    def set_emit_callback(self, callback) -> None:
-        """Set the async callback invoked with (workspace, PendingChanges)"""
+    def set_emit_callback(self, callback: Callable[[str, PendingChanges, bool, dict], Coroutine]) -> None:
         self._emit_callback = callback
 
-    def _add_event_to_pending(self, workspace: str, rel_path: str) -> None:
-        """Thread-safe addition of a change to the registry."""
-        resolved_ws = str(Path(workspace).resolve())
-        with _registry_lock:
-            pending = _pending.setdefault(resolved_ws, PendingChanges())
-            pending.add(rel_path)
-            pending.updated_at = time.time()
-            logger.debug("[workspace-watch] Registry Update | Key: %s | Added: %s | Total Count: %d", 
-                         resolved_ws, rel_path, pending.count)
-
-    def start_watch(self, workspace: str) -> bool:
-        """Start watching a workspace root using watchdog."""
-        resolved = str(Path(workspace).resolve())
+    def watch(self, path: str, chat_id: str, user_id: str, workspace: str, trigger_on: str | None = None) -> str:
+        """Start watching a directory. Returns status message."""
+        abs_path = str(Path(path).resolve())
         with self._lock:
-            if resolved in self._observers:
-                return True
-            if not Path(resolved).is_dir():
-                logger.info("[workspace-watch] skipping non-existent workspace %s", resolved)
-                return False
+            if abs_path in self._watchers:
+                return f"Already watching {abs_path}"
 
             try:
-                observer = Observer()
-                handler = WorkspaceWatchEventHandler(resolved, self)
-                observer.schedule(handler, resolved, recursive=True)
-                observer.start()
-                self._observers[resolved] = observer
-                logger.info("[workspace-watch] watching workspace %s", resolved)
-                return True
-            except Exception as exc:
-                logger.warning("[workspace-watch] failed to start for %s: %s", resolved, exc)
-                return False
+                watcher = _DirectoryWatcher(abs_path, trigger_on)
+                self._watchers[abs_path] = watcher
+                self._watcher_meta[abs_path] = {
+                    "chat_id": chat_id,
+                    "user_id": user_id,
+                    "workspace": workspace
+                }
+                return f"Started watching {abs_path} (Trigger on: {trigger_on or 'None'})"
+            except Exception as e:
+                return f"Failed to watch {abs_path}: {e}"
 
-    def stop_watch(self, workspace: str) -> None:
-        """Stop an individual workspace watch."""
-        resolved = str(Path(workspace).resolve())
+    def stop(self, path: str) -> None:
+        abs_path = str(Path(path).resolve())
         with self._lock:
-            observer = self._observers.pop(resolved, None)
-            if observer:
-                observer.stop()
-                observer.join()
-            with _registry_lock:
-                _pending.pop(resolved, None)
+            watcher = self._watchers.pop(abs_path, None)
+            if watcher:
+                watcher.close()
+            self._watcher_meta.pop(abs_path, None)
+            self._pending.pop(abs_path, None)
 
-    def watched_workspaces(self) -> list[str]:
-        """Return currently active watched workspaces."""
+    def get_pending(self, path: str) -> PendingChanges | None:
+        abs_path = str(Path(path).resolve())
         with self._lock:
-            return list(self._observers.keys())
+            return self._pending.get(abs_path)
 
     async def run_loop(self) -> None:
-        """Poll all watchers; flush debounced batches to the emit callback."""
-        last_emitted_at: dict[str, float] = {}
-
+        """Main background loop."""
         while True:
-            await asyncio.sleep(DEBOUNCE_SECONDS)
             try:
-                active_workspaces = self.watched_workspaces()
-                for workspace in active_workspaces:
-                    snapshot = None
-                    with _registry_lock:
-                        pending = _pending.get(workspace)
-                        if pending and pending.count > 0:
-                            # We take a snapshot of the data to release the lock quickly.
-                            snapshot = PendingChanges(
-                                paths=list(pending.paths),
-                                overflow=pending.overflow,
-                                updated_at=pending.updated_at
-                            )
-
-                    if snapshot:
-                        now = time.time()
-                        last_emit = last_emitted_at.get(workspace, 0)
-
-                        # Only emit if we haven't emitted too recently (debounce)
-                        if (now - last_emit) >= DEBOUNCE_SECONDS:
-                            logger.debug("[workspace-watch] Attempting to emit for %s", workspace)
-                            if self._emit_callback:
-                                try:
-                                    await self._emit_callback(workspace, snapshot)
-                                    last_emitted_at[workspace] = now
-                                    logger.info("[workspace-watch] Callback successful for %s", workspace)
-                                except Exception as exc:
-                                    logger.exception("[workspace-watch] emit callback failed: %s", exc)
-                            else:
-                                logger.warning("[workspace-watch] No callback set for %s", workspace)
-                    else:
-                        # Optional: log that no changes were found for an active workspace to debug idle loops
-                        # logger.debug("[workspace-watch] No pending changes for %s", workspace)
-                        pass
-
+                await asyncio.sleep(DEBOUNCE_SECONDS)
+                await self._poll_and_flush()
             except asyncio.CancelledError:
                 raise
-            except Exception as exc:
-                logger.exception("[workspace-watch] loop error: %s", exc)
+            except Exception:
+                logger.exception("[directory-watch] loop error")
 
-    def start(self) -> None:
-        """Start the background poll loop (call from the app lifespan)."""
-        if self._task is not None:
+    async def _poll_and_flush(self) -> None:
+        now = time.time()
+        
+        # 1. Poll all watchers and collect events
+        all_events: list[tuple[str, WatchEvent]] = [] # (abs_path, event)
+        
+        with self._lock:
+            for abs_path, watcher in self._watchers.items():
+                for event in watcher.poll():
+                    all_events.append((abs_path, event))
+
+        if not all_events:
+            return
+
+        # 2. Process events and update pending changes / trigger
+        # Group by abs_path to handle debouncing/batching per directory
+        # For simplicity, we'll process each event as it comes.
+        
+        # To prevent excessive triggers, we only trigger if no trigger has occurred
+        # for this path+pattern in the last COOLDOWN_SECONDS.
+        
+        for abs_path, event in all_events:
+            # Skip if self-write
+            if _is_self_write(event.abs_path):
+                continue
+
+            # Update pending changes
+            with self._lock:
+                pending = self._pending.setdefault(abs_path, PendingChanges())
+                pending.add(event.rel_path)
+                pending.updated_at = now
+
+            # Check if it's a trigger
+            watcher = self._watchers.get(abs_path)
+            if not watcher or not watcher.trigger_pattern:
+                continue
+            
+            if watcher.trigger_pattern.search(event.rel_path):
+                # Check cooldown
+                pattern_str = watcher.trigger_pattern.pattern
+                trigger_key = (abs_path, pattern_str)
+                last_trigger = self._last_triggers.get(trigger_key, 0.0)
+                
+                if now - last_trigger < TRIGGER_COOLDOWN_SECONDS:
+                    # Within cooldown -> passive notification (already updated pending)
+                    continue
+                else:
+                    # Outside cooldown -> TRIGGER
+                    self._last_triggers[trigger_key] = now
+                    # Triggering an active turn
+                    # We'll pass a copy of the pending changes to avoid race conditions.
+                    with self._lock:
+                        snapshot = PendingChanges(
+                            paths=list(pending.paths),
+                            overflow=pending.overflow,
+                            updated_at=pending.updated_at
+                        )
+                    
+                    meta = self._watcher_meta.get(abs_path)
+                    if meta:
+                        asyncio.create_task(self._trigger_active_turn(
+                            abs_path, pattern_str, snapshot, meta
+                        ))
+
+    async def _trigger_active_turn(self, abs_path: str, pattern_str: str, snapshot: PendingChanges, meta: dict) -> None:
+        """Injects a trigger message into the chat queue."""
+        if not self._emit_callback:
             return
         try:
-            loop = asyncio.get_running_loop()
-            self._task = loop.create_task(self.run_loop())
-        except RuntimeError:
-            return
+            # We pass the context required by inject_queued_message
+            await self._emit_callback(
+                abs_path, 
+                snapshot, 
+                True, 
+                {
+                    "chat_id": meta["chat_id"],
+                    "user_id": meta["user_id"],
+                    "workspace": meta["workspace"]
+                }
+            )
+        except Exception:
+            logger.exception("[directory-watch] trigger emit failed")
 
     async def stop_all(self) -> None:
-        """Stop all watchers and the manager task."""
         if self._task:
             self._task.cancel()
-            try:
+            with contextlib.suppress(BaseException):
                 await self._task
-            except asyncio.CancelledError:
-                pass
             self._task = None
-
+        
         with self._lock:
-            for workspace, observer in self._observers.items():
-                observer.stop()
-                observer.join()
-            self._observers.clear()
-
-        with _registry_lock:
-            _pending.clear()
-
-    async def stop_all_workspace_watches(self) -> None:
-        """Public async stop all."""
-        await self.stop_all()
+            for watcher in self._watchers.values():
+                watcher.close()
+            self._watchers.clear()
+            self._watcher_meta.clear()
+            self._pending.clear()
 
 
-manager = WorkspaceWatchManager()
+manager = DirectoryWatchManager()
 
 
-async def start_workspace_watch(workspace: str) -> bool:
-    """Start watching a workspace (idempotent). Returns True if active."""
-    return manager.start_watch(workspace)
+async def start_directory_watch(path: str, chat_id: str, user_id: str, workspace: str, trigger_on: str | None = None) -> bool:
+    """Start watching a directory (idempotent)."""
+    result = manager.watch(path, chat_id, user_id, workspace, trigger_on)
+    return result.startswith("Started")
 
+def stop_directory_watch(path: str) -> None:
+    manager.stop(path)
 
-def stop_workspace_watch(workspace: str) -> None:
-    """Stop watching a workspace."""
-    manager.stop_watch(workspace)
-
-
-async def stop_all_workspace_watches() -> None:
-    """Stop all active workspace watches."""
+async def stop_all_directory_watches() -> None:
     await manager.stop_all()
+
+def get_pending_changes(path: str) -> PendingChanges | None:
+    return manager.get_pending(path)

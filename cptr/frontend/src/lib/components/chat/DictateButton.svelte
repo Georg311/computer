@@ -54,7 +54,7 @@
 
 <button
 	type="button"
-	class="mobile-touch-target flex items-center justify-center rounded-full p-1 transition-colors duration-100
+	class="flex items-center justify-center rounded-full p-1 transition-colors duration-100
 		{recording
 		? 'text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-white/5'
 		: 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5'}"
