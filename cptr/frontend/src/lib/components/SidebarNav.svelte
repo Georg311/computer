@@ -18,7 +18,7 @@
 
 <div class="px-1.5 mt-1 shrink-0">
 	<button
-		class="mobile-touch-target group flex items-center gap-1.5 w-full h-7 px-2 rounded-lg text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-100"
+		class="group flex items-center gap-1.5 w-full h-7 px-2 rounded-lg text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-100"
 		onclick={() => showSearch.set(true)}
 	>
 		<Icon name="search" size={14} />

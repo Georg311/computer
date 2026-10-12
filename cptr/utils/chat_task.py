@@ -3146,3 +3146,58 @@ async def run_chat_task(
             await process_pending_chat_inputs(request, chat_id, user_id, workspace)
         except Exception:
             logger.exception(f"Failed to process pending inputs for chat {chat_id}")
+
+async def inject_queued_message(path: str, snapshot: Any, is_trigger: bool, context: dict) -> None:
+    """Inject a queued user message to notify the agent of changes or trigger a turn.
+
+    :param path: The directory path where changes were detected.
+    :param snapshot: The PendingChanges object containing the detected changes.
+    :param is_trigger: Whether this is an active trigger (True) or passive notification (False).
+    :param context: The context dictionary containing chat_id, user_id, and workspace.
+    """
+    chat_id = context.get("chat_id")
+    user_id = context.get("user_id")
+    workspace = context.get("workspace")
+    if not chat_id or not user_id or not workspace:
+        return
+
+    # Construct the message content
+    file_list = snapshot.paths + (["(too many files, see summary below)"] if snapshot.overflow > 0 else [])
+    file_list_str = "\n".join(file_list)
+    
+    if is_trigger:
+        content = f"A file matching your trigger pattern was changed in {path}:\n{file_list_str}"
+        meta = {"queued": True, "trigger": True}
+    else:
+        content = f"Files changed in {path}:\n{file_list_str}"
+        meta = {"queued": True, "notification": True}
+
+    # Find the current chat to get the parent_id for the new message
+    chat = await Chat.get_by_id(chat_id)
+    if not chat:
+        return
+
+    # We want to append it to the end of the current conversation.
+    # However, we don't want to interrupt the *current* assistant message if it's still running.
+    # The current assistant message is the one with the latest id and done=False.
+    parent_id = chat.last_message_id
+
+    # Create the message with meta={"queued": True}
+    # We use ChatMessage.create to ensure it's persisted properly.
+    await ChatMessage.create(
+        chat_id=chat_id,
+        role="user",
+        content=content,
+        parent_id=parent_id,
+        meta=meta,
+        created_at=now_ms(),
+    )
+
+    # Notify the user that a new message is queued
+    await emit_to_user(
+        user_id,
+        {
+            "type": "chat:queued_message",
+            "chat_id": chat_id,
+        },
+    )

@@ -354,20 +354,10 @@
 	color: var(--app-fg);
 }
 
-/* Mobile Touch Target Expansion */
-@media (max-width: 767px) {
-	.mobile-touch-target {
-		position: relative;
-	}
-
-	.mobile-touch-target::after {
-		content: '';
-		position: absolute;
-		top: 50%;
-		left: 50%;
-		width: 44px;
-		height: 44px;
-		transform: translate(-50%, -50%);
-		background: transparent;
-	}
+/* Tippy tooltip theme */
+.tippy-box[data-theme~='cptr'] {
+	@apply rounded-lg text-xs border shadow-xl;
+	background: var(--app-bg);
+	color: var(--app-fg);
+	border-color: var(--app-border);
 }

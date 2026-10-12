@@ -98,35 +98,6 @@ def _workspace_display_name(path: str) -> str:
     return name or path
 
 
-async def _workspace_summaries(user_id: str) -> list[dict[str, str | int]]:
-    workspaces = await Workspace.get_by_user(user_id)
-    summaries = _dedupe_workspaces(workspaces)
-    from cptr.utils.chat_task import get_active_chat_ids
-
-    unread_counts = await Chat.unread_counts_by_workspace(
-        user_id, [path for path, _ in summaries], get_active_chat_ids()
-    )
-    # Lazy-start workspace watches and report pending external changes.
-    from cptr.utils.workspace_watch import get_pending, start_workspace_watch
-
-    out = []
-    for path, workspace in summaries:
-        try:
-            await start_workspace_watch(path)
-        except Exception:
-            pass
-        pending = get_pending(path)
-        out.append(
-            {
-                "path": path,
-                "name": workspace.name or _workspace_display_name(path),
-                "unread_count": unread_counts.get(path, 0),
-                "pending_changes": pending.count if pending else 0,
-            }
-        )
-    return out
-
-
 # ── Preferences ──────────────────────────────────────────────────
 
 
@@ -160,7 +131,22 @@ async def get_workspace_list(request: Request):
     user_id = await _get_user_id(request)
     if not user_id:
         return []
-    return await _workspace_summaries(user_id)
+    
+    workspaces = await Workspace.get_by_user(user_id)
+    summaries = _dedupe_workspaces(workspaces)
+    from cptr.utils.chat_task import get_active_chat_ids
+    unread_counts = await Chat.unread_counts_by_workspace(
+        user_id, [path for path, _ in summaries], get_active_chat_ids()
+    )
+    
+    return [
+        {
+            "path": path,
+            "name": workspace.name or _workspace_display_name(path),
+            "unread_count": unread_counts.get(path, 0),
+        }
+        for path, workspace in summaries
+    ]
 
 
 # ── Single workspace CRUD ────────────────────────────────────────
