@@ -3343,7 +3343,13 @@ async def watch_directory(
     :param path: Directory path relative to workspace root.
     :param trigger_on: A regex pattern. If provided, files matching this will trigger a new turn.
     """
-    success = await start_directory_watch(path, trigger_on)
+    success = await start_directory_watch(
+        path,
+        __context__["chat_id"],
+        __context__["user_id"],
+        __context__["workspace"],
+        trigger_on
+    )
     if success:
         return f"Started watching {path} (Trigger on: {trigger_on or 'None'})"
     else:

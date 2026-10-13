@@ -1,3 +1,8 @@
+## [0.9.22] - 2026-10-11
+
+### Added
+- 👁️ **Workspace Watch.** Real-time filesystem monitoring via `inotify` for workspace changes, allowing agents to be notified of file changes.
+
 ## [0.9.21.6] - 2026-10-10
 
 ### Fixed

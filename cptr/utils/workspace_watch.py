@@ -19,9 +19,17 @@ import select
 import struct
 import threading
 import time
+import ctypes
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Coroutine
+
+_libc = ctypes.CDLL("libc.so.6", use_errno=True)
+_inotify_init = _libc.inotify_init
+_inotify_init.restype = ctypes.c_int
+_inotify_add_watch = _libc.inotify_add_watch
+_inotify_add_watch.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_uint32]
+_inotify_add_watch.restype = ctypes.c_int
 
 logger = logging.getLogger(__name__)
 
@@ -102,21 +110,24 @@ class WatcherError(RuntimeError):
 class _LinuxInotify:
     """Minimal recursive inotify wrapper."""
 
-    def __init__(self, root: Path):
+    def __init__(self, root: Path) -> None:
         self.root = root
-        self.fd = os.inotify_init()
+        self.fd = _inotify_init()
+        if self.fd < 0:
+            raise WatcherError(f"inotify_init failed with errno {os.strerror(ctypes.get_errno())}")
         self.watches: dict[int, str] = {}  # wd → dir path (absolute)
         self._add_dir(root)
 
     def _add_dir(self, path: Path) -> None:
         try:
-            wd = os.inotify_add_watch(
-                self.fd, str(path), 
+            wd = _inotify_add_watch(
+                self.fd, str(path).encode('utf-8'), 
                 _LINUX_IN_CREATE | _LINUX_IN_MODIFY | _LINUX_IN_DELETE | 
                 _LINUX_IN_MOVED_FROM | _LINUX_IN_MOVED_TO
             )
-            self.watches[wd] = str(path)
-        except OSError:
+            if wd >= 0:
+                self.watches[wd] = str(path)
+        except Exception:
             pass
 
     def scan_recursive(self) -> None:

@@ -23,7 +23,7 @@
 	import { uploadFile } from '$lib/apis/files';
 	import type { ChatTask, ContextUsage } from '$lib/apis/chat';
 	import ModelSelector from '../common/ModelSelector.svelte';
-	import SendButton from './SendButton.svelte';
+	import UnifiedButton from '../UnifiedButton.svelte';
 	import PlusMenu from './PlusMenu.svelte';
 	import DictateButton from './DictateButton.svelte';
 	import QueuedMessageItem from './QueuedMessageItem.svelte';
@@ -1697,13 +1697,14 @@
 						inputText += text;
 					}}
 				/>
-				<SendButton
+				<UnifiedButton
 					{canSend}
 					{streaming}
 					onsend={handleSubmit}
-					{oncancel}
-					onvoice={voiceModeAvailable ? toggleVoiceMode : undefined}
-					voiceActive={voiceModeEnabled || voiceListening}
+					oncancel={oncancel || handleCancel}
+					onqueue={handleQueue}
+					isQueued={streaming && inputText.trim() !== ''}
+					mode="chat"
 				/>
 			</div>
 		</div>
