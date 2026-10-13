@@ -19,9 +19,17 @@ import select
 import struct
 import threading
 import time
+import ctypes
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Coroutine
+
+_libc = ctypes.CDLL("libc.so.6", use_errno=True)
+_inotify_init = _libc.inotify_init
+_inotify_init.restype = ctypes.c_int
+_inotify_add_watch = _libc.inotify_add_watch
+_inotify_add_watch.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_uint32]
+_inotify_add_watch.restype = ctypes.c_int
 
 logger = logging.getLogger(__name__)
 
@@ -181,7 +189,7 @@ class _LinuxInotify:
     watched directories, not just this instance's root.
     """
 
-    def __init__(self, root: Path):
+    def __init__(self, root: Path) -> None:
         self.root = root
         self.fd = _get_global_inotify_fd()
         self.watches: dict[int, str] = _global_watches  # Share global watches dict
