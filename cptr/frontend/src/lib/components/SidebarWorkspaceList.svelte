@@ -475,7 +475,16 @@
 				label: $t('sidebar.remove'),
 				icon: 'xmark',
 				onclick: () => handleRemoveWorkspace(wsMenuPath!)
-			}
+			},
+			...($chatEnabled
+				? [
+						{
+							label: $t('bar.newChat'),
+							icon: 'chat-bubble',
+							onclick: () => newChat(wsMenuPath!)
+						}
+					]
+				: [])
 		]}
 		onclose={closeWsMenu}
 	/>
