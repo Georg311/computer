@@ -99,18 +99,87 @@ class WatcherError(RuntimeError):
     """Raised when the platform does not support watching."""
 
 
+# ── inotify_ctypes: fallback when os.inotify_* is unavailable ──
+
+_inotify_ctypes = None
+_inotify_fd = None
+
+
+def _init_inotify_ctypes() -> None:
+    """Initialize ctypes-based inotify if os.inotify_* is unavailable."""
+    global _inotify_ctypes, _inotify_fd
+    if hasattr(os, "inotify_init") and hasattr(os, "inotify_add_watch"):
+        return  # native functions available
+    try:
+        import ctypes
+        libc = ctypes.CDLL("libc.so.6", use_errno=True)
+        inotify_init = libc.inotify_init
+        inotify_init.restype = ctypes.c_int
+        inotify_add_watch = libc.inotify_add_watch
+        inotify_add_watch.restype = ctypes.c_int
+        inotify_add_watch.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
+        inotify_rm_watch = libc.inotify_rm_watch
+        inotify_rm_watch.restype = ctypes.c_int
+        inotify_rm_watch.argtypes = [ctypes.c_int, ctypes.c_int]
+        fd = inotify_init()
+        if fd == -1:
+            errno = ctypes.get_errno()
+            raise OSError(errno, os.strerror(errno))
+        _inotify_fd = fd
+        _inotify_ctypes = {
+            "init": inotify_init,
+            "add_watch": inotify_add_watch,
+            "rm_watch": inotify_rm_watch,
+            "fd": fd,
+        }
+    except Exception as e:
+        logger.warning("[directory-watch] ctypes inotify fallback failed: %s", e)
+
+
+def _inotify_init() -> int:
+    """Call inotify_init, using ctypes fallback if needed."""
+    if _inotify_ctypes is None:
+        _init_inotify_ctypes()
+    if hasattr(os, "inotify_init"):
+        return os.inotify_init()
+    return _inotify_ctypes["fd"] if _inotify_ctypes else -1
+
+
+def _inotify_add_watch(fd: int, path: str, mask: int) -> int:
+    """Call inotify_add_watch, using ctypes fallback if needed."""
+    if hasattr(os, "inotify_add_watch"):
+        return os.inotify_add_watch(fd, path, mask)
+    if _inotify_ctypes is None:
+        _init_inotify_ctypes()
+    if _inotify_ctypes and _inotify_ctypes["add_watch"]:
+        import ctypes
+        return _inotify_ctypes["add_watch"](fd, ctypes.c_char_p(path.encode("utf-8")), mask)
+    return -1
+
+
+def _inotify_rm_watch(fd: int, wd: int) -> int:
+    """Call inotify_rm_watch, using ctypes fallback if needed."""
+    if hasattr(os, "inotify_rm_watch"):
+        return os.inotify_rm_watch(fd, wd)
+    if _inotify_ctypes is None:
+        _init_inotify_ctypes()
+    if _inotify_ctypes and _inotify_ctypes["rm_watch"]:
+        return _inotify_ctypes["rm_watch"](fd, wd)
+    return -1
+
+
 class _LinuxInotify:
     """Minimal recursive inotify wrapper."""
 
     def __init__(self, root: Path):
         self.root = root
-        self.fd = os.inotify_init()
+        self.fd = _inotify_init()
         self.watches: dict[int, str] = {}  # wd → dir path (absolute)
         self._add_dir(root)
 
     def _add_dir(self, path: Path) -> None:
         try:
-            wd = os.inotify_add_watch(
+            wd = _inotify_add_watch(
                 self.fd, str(path), 
                 _LINUX_IN_CREATE | _LINUX_IN_MODIFY | _LINUX_IN_DELETE | 
                 _LINUX_IN_MOVED_FROM | _LINUX_IN_MOVED_TO
