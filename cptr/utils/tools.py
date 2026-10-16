@@ -2476,8 +2476,7 @@ async def watch_directory(
         abs_path = str(Path(workspace) / path)
     else:
         # No workspace → resolve relative to home dir
-        import os
-        abs_path = os.path.expanduser(path)
+        abs_path = str(Path.home() / path)
 
     success = await start_directory_watch(abs_path, chat_id, user_id, workspace, trigger_on)
     if success:
