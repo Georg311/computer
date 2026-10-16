@@ -87,15 +87,15 @@ _NO_PROGRESS_WARNING = (
 
 
 class _NoProgressLoop(RuntimeError):
-    def __init__(self, name: str):
+    def __init__(self, name: str, detail: str | None = None):
         super().__init__(
-            f"Stopped a repeated {name} operation after three identical completed "
+            detail or f"Stopped a repeated {name} operation after three identical completed "
             "results. The next attempt was not executed."
         )
 
 
 class _NoProgressGuard:
-    """Detect repeated completed commands and completed-task polls in one turn.
+    """Detect repeated completed commands, finished polls, and failed edits in one turn.
 
     Running polls do not count. Task IDs are mapped back to the original
     command, so launching a fresh task cannot bypass the command limit.
@@ -107,6 +107,7 @@ class _NoProgressGuard:
         self._polls = deque(maxlen=12)
         self._tasks: dict[str, tuple] = {}
         self._recorded_tasks: set[str] = set()
+        self._failed_edits: dict[tuple, str | None] = {}
         calls = {}
         for item in output_items or []:
             if item.get("native_agent"):
@@ -130,6 +131,11 @@ class _NoProgressGuard:
         if name == "run_command":
             # wait controls scheduling, not the operation being performed.
             args = {"command": args.get("command"), "cwd": args.get("cwd") or "."}
+        elif name in {"edit_file", "multi_edit_file"}:
+            args = dict(args)
+            if name == "edit_file":
+                args.setdefault("start_line", 0)
+                args.setdefault("end_line", 0)
         elif name != "check_task":
             return None
         return name, json.dumps(args, sort_keys=True, ensure_ascii=False)
@@ -150,8 +156,24 @@ class _NoProgressGuard:
 
     def check(self, name: str, args: dict) -> None:
         key = self._key(name, args)
+        if key in self._failed_edits:
+            raise _NoProgressLoop(
+                name,
+                f"Stopped an identical failed {name} retry. The retry was not executed. "
+                "Re-read the current file and correct the arguments before trying again.",
+            )
         if key is not None and self._count(key) >= 3:
             raise _NoProgressLoop(name)
+
+    @staticmethod
+    def warning(name: str) -> str:
+        if name in {"edit_file", "multi_edit_file"}:
+            return (
+                "\n\n[No-progress safeguard] This edit failed. Re-read the current file "
+                "and correct the arguments; use a small exact target from the latest read. "
+                "An identical retry will not execute and will stop this turn."
+            )
+        return _NO_PROGRESS_WARNING
 
     def _record(self, key: tuple, outcome: str) -> bool:
         digest = hashlib.sha256(outcome.encode("utf-8")).hexdigest()
@@ -163,6 +185,18 @@ class _NoProgressGuard:
         """Record an actual result and return whether to append a warning."""
         key = self._key(name, args)
         if key is None or not isinstance(result, str):
+            return False
+        if name in {"edit_file", "multi_edit_file"}:
+            if result.startswith(("Error:", "Error executing ")):
+                self._failed_edits[key] = args.get("path")
+                return True
+            if result.startswith(("Edited ", "Applied ")) and args.get("path"):
+                # A successful edit changes the preconditions for earlier attempts.
+                self._failed_edits = {
+                    failed_key: path
+                    for failed_key, path in self._failed_edits.items()
+                    if path != args["path"]
+                }
             return False
         text = result.removesuffix(_NO_PROGRESS_WARNING).replace("\r\n", "\n")
         task = re.match(r"^Task ([^\s:]+): (running|exited \(code (-?\d+)\))\n", text)
@@ -2279,7 +2313,7 @@ async def run_chat_task(
             no_progress_guard.check(name, arguments)
             result = await execute_tool(name, arguments, context)
             if no_progress_guard.observe(name, arguments, result):
-                result += _NO_PROGRESS_WARNING
+                result += no_progress_guard.warning(name)
             return result
 
         async def run_queued_tool_calls(tool_ctx: dict) -> str:
