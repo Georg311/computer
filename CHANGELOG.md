@@ -1,3 +1,21 @@
+## [0.9.21.8] - 2026-10-16
+
+### Fixed
+- 🛠️ **Chat & Codex.** Fixed `chat_task.py` and `update_codex` logic.
+- ⏱️ **get_current_time.** Fixed dispatch to inject workspace only when the function accepts it.
+
+### Added
+- 👁️ **Agent-Initiated Directory Watcher.** Implementation of a directory watcher triggered by agents.
+
+## [0.9.21.7] - 2026-10-16
+
+### Fixed
+- 📱 **Mobile UX.** Resolved FAB race conditions and build errors.
+- 🛠️ **Alembic Migrations.** Fixed workspace ID autoincrement issues.
+
+### Docs
+- 📝 **Mobile UX Plan.** Updated documentation and feature wishes.
+
 ## [0.9.21.6] - 2026-10-10
 
 ### Fixed
