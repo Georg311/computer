@@ -3316,9 +3316,11 @@ async def execute_tool(name: str, args: dict, __context__: dict) -> str:
             sig = inspect.signature(fn)
             if "__context__" in sig.parameters:
                 return await fn(**args, __context__=__context__)
-            else:
+            elif "workspace" in sig.parameters:
                 # Legacy tools: inject workspace directly
                 return await fn(**args, workspace=__context__["workspace"])
+            else:
+                return await fn(**args)
         except Exception as e:
             return f"Error executing {name}: {e}"
 
