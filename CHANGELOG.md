@@ -1,3 +1,14 @@
+## [0.9.21.7] - 2025-05-22
+
+### Added
+- 👁️ **Agent-Initiated Directory Watcher.** Allows the agent to monitor workspace changes in real-time.
+
+### Fixed
+- 🛠️ **Chat Task.** Fixed issues in `chat_task.py`.
+
+### Improved
+- 🤖 **Codex Integration.** Improved chat task workflow for `update_codex`.
+
 ## [0.9.21.6] - 2026-10-10
 
 ### Fixed
