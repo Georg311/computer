@@ -1,4 +1,8 @@
-## [0.9.21.7] - 2025-05-22
+## [0.9.21.8] - 2026.10.16
+
+- **Fixed Toolcalls for get_current_time and edit recovery guidance for multiple failed toolcalls
+
+## [0.9.21.7] - 2025-10.16
 
 ### Added
 - 👁️ **Agent-Initiated Directory Watcher.** Allows the agent to monitor workspace changes in real-time.
