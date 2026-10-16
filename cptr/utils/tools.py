@@ -2483,6 +2483,7 @@ TOOLS: dict[str, dict] = {
     "image_generate": {"fn": image_generate},
     "manage_skill": {"fn": manage_skill},
     "update_memory": {"fn": update_memory, "approval": "allow"},
+    "watch_directory": {"fn": watch_directory, "approval": "allow"},
 }
 
 # Browser tools — conditionally included in schemas based on browser.enabled
