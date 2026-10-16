@@ -2470,11 +2470,20 @@ async def watch_directory(
     chat_id = __context__.get("chat_id", "")
     user_id = __context__.get("user_id", "")
     workspace = __context__.get("workspace", "")
-    success = await start_directory_watch(path, chat_id, user_id, workspace, trigger_on)
-    if success:
-        return f"Started watching {path} (Trigger on: {trigger_on or 'None'})"
+
+    # Resolve path relative to workspace root if available
+    if workspace:
+        abs_path = str(Path(workspace) / path)
     else:
-        return f"Failed to start watching {path}"
+        # No workspace → resolve relative to home dir
+        home = Path.home()
+        abs_path = str(home / path)
+
+    success = await start_directory_watch(abs_path, chat_id, user_id, workspace, trigger_on)
+    if success:
+        return f"Started watching {abs_path} (Trigger on: {trigger_on or 'None'})"
+    else:
+        return f"Failed to start watching {abs_path}"
 
 
 TOOLS: dict[str, dict] = {
