@@ -2,6 +2,11 @@
 
 ### Added
 - ⏱️ **get_current_time.** Enhanced to return rich temporal context in structured JSON format.
+- 📁 **Directory Watcher.** New `watch_directory` tool to monitor directories for file changes. Supports both Notification Mode (system message) and Trigger Mode (auto-trigger new agent turn on pattern match).
+
+### Fixed
+- 🔧 **inotify support.** Added ctypes fallback for `inotify_init`/`inotify_add_watch`/`inotify_rm_watch` when Python 3.13 lacks `os.inotify_*` bindings.
+- 🐛 **Race condition.** Centralized inotify event polling in the manager to prevent multiple watchers from competing for the same global fd.
 
 ## [0.9.21.7] - 2026-10-16
 
