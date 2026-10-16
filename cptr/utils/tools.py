@@ -2394,18 +2394,33 @@ async def search_chats(
 async def get_current_time() -> str:
     """Get the current date, time, and timezone of this machine.
 
-    Returns local wall-clock time plus UTC. Use for scheduling-relative
-    questions ("what day is it?", "how long until 18:00?") instead of
+    Returns a JSON string containing:
+    - iso_date: YYYY-MM-DD
+    - time: HH:MM:SS
+    - weekday: Full name (e.g., Friday)
+    - timezone: Timezone abbreviation (e.g., CEST)
+    - offset: UTC offset (e.g., +0200)
+    - raw_timestamp: ISO 8601 format
+
+    Use for scheduling-relative questions ("what day is it?", "how long until 18:00?") instead of
     running shell commands.
     """
+    import json
     from datetime import datetime, timezone
 
     now = datetime.now().astimezone()
-    return (
-        f"Local time: {now.strftime('%Y-%m-%d %H:%M:%S %Z')} "
-        f"(UTC offset {now.strftime('%z')})\n"
-        f"UTC: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}"
-    )
+    
+    data = {
+        "iso_date": now.strftime('%Y-%m-%d'),
+        "time": now.strftime('%H:%M:%S'),
+        "weekday": now.strftime('%A'),
+        "timezone": now.strftime('%Z'),
+        "offset": now.strftime('%z'),
+        "raw_timestamp": now.isoformat()
+    }
+    
+    return json.dumps(data)
+
 
 
 async def notify(message: str, target: str = "", title: str = "", *, __context__: dict) -> str:

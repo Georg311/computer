@@ -1,11 +1,7 @@
-## [0.9.21.8] - 2026-10-16
-
-### Fixed
-- 🛠️ **Chat & Codex.** Fixed `chat_task.py` and `update_codex` logic.
-- ⏱️ **get_current_time.** Fixed dispatch to inject workspace only when the function accepts it.
+## [0.9.21.9] - 2026-10-16
 
 ### Added
-- 👁️ **Agent-Initiated Directory Watcher.** Implementation of a directory watcher triggered by agents.
+- ⏱️ **get_current_time.** Enhanced to return rich temporal context in structured JSON format.
 
 ## [0.9.21.7] - 2026-10-16
 
