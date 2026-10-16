@@ -2453,6 +2453,27 @@ def normalize_tool_approval(value: Any) -> ToolApprovalPolicy | None:
     return value if isinstance(value, str) and value in TOOL_APPROVAL_POLICIES else None
 
 
+async def watch_directory(
+    path: str,
+    trigger_on: str | None = None,
+    *,
+    __context__: dict,
+) -> str:
+    """Start monitoring a directory for changes.
+    When a file matching the `trigger_on` regex pattern is created or modified,
+    it will trigger a new agent turn after the current task completes.
+    If no pattern is provided, the agent will be notified of all changes via a system message note.
+
+    :param path: Directory path relative to workspace root.
+    :param trigger_on: A regex pattern. If provided, files matching this will trigger a new turn.
+    """
+    success = await start_directory_watch(path, trigger_on)
+    if success:
+        return f"Started watching {path} (Trigger on: {trigger_on or 'None'})"
+    else:
+        return f"Failed to start watching {path}"
+
+
 TOOLS: dict[str, dict] = {
     # Auto mode runs these without asking.
     "read_file": {"fn": read_file, "approval": "allow"},
@@ -3346,23 +3367,3 @@ async def execute_tool(name: str, args: dict, __context__: dict) -> str:
         return await _execute_external_tool(name, args)
 
     return f"Error: unknown tool: {name}"
-
-async def watch_directory(
-    path: str,
-    trigger_on: str | None = None,
-    *,
-    __context__: dict,
-) -> str:
-    """Start monitoring a directory for changes.
-    When a file matching the `trigger_on` regex pattern is created or modified,
-    it will trigger a new agent turn after the current task completes.
-    If no pattern is provided, the agent will be notified of all changes via a system message note.
-
-    :param path: Directory path relative to workspace root.
-    :param trigger_on: A regex pattern. If provided, files matching this will trigger a new turn.
-    """
-    success = await start_directory_watch(path, trigger_on)
-    if success:
-        return f"Started watching {path} (Trigger on: {trigger_on or 'None'})"
-    else:
-        return f"Failed to start watching {path}"
