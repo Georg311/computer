@@ -102,12 +102,14 @@ class WatcherError(RuntimeError):
 # ── inotify_ctypes: fallback when os.inotify_* is unavailable ──
 
 _inotify_ctypes = None
-_inotify_fd = None
+_global_inotify_fd = None
+_global_inotify_lock = threading.Lock()
+_global_watches: dict[int, str] = {}  # wd → dir path (absolute), shared by all instances
 
 
 def _init_inotify_ctypes() -> None:
     """Initialize ctypes-based inotify if os.inotify_* is unavailable."""
-    global _inotify_ctypes, _inotify_fd
+    global _inotify_ctypes
     if hasattr(os, "inotify_init") and hasattr(os, "inotify_add_watch"):
         return  # native functions available
     try:
@@ -121,36 +123,41 @@ def _init_inotify_ctypes() -> None:
         inotify_rm_watch = libc.inotify_rm_watch
         inotify_rm_watch.restype = ctypes.c_int
         inotify_rm_watch.argtypes = [ctypes.c_int, ctypes.c_int]
-        fd = inotify_init()
-        if fd == -1:
-            errno = ctypes.get_errno()
-            raise OSError(errno, os.strerror(errno))
-        _inotify_fd = fd
         _inotify_ctypes = {
             "init": inotify_init,
             "add_watch": inotify_add_watch,
             "rm_watch": inotify_rm_watch,
-            "fd": fd,
         }
     except Exception as e:
         logger.warning("[directory-watch] ctypes inotify fallback failed: %s", e)
 
 
-def _inotify_init() -> int:
-    """Call inotify_init, using ctypes fallback if needed."""
-    if _inotify_ctypes is None:
-        _init_inotify_ctypes()
+def _get_global_inotify_fd() -> int:
+    """Get or create the global inotify fd (singleton)."""
+    global _global_inotify_fd
     if hasattr(os, "inotify_init"):
         return os.inotify_init()
-    return _inotify_ctypes["fd"] if _inotify_ctypes else -1
+    if _global_inotify_fd is not None:
+        return _global_inotify_fd
+    if _inotify_ctypes is None:
+        _init_inotify_ctypes()
+    if _inotify_ctypes and _inotify_ctypes["init"]:
+        with _global_inotify_lock:
+            if _global_inotify_fd is None:
+                fd = _inotify_ctypes["init"]()
+                if fd == -1:
+                    import ctypes
+                    errno = ctypes.get_errno()
+                    raise OSError(errno, os.strerror(errno))
+                _global_inotify_fd = fd
+        return _global_inotify_fd
+    return -1
 
 
 def _inotify_add_watch(fd: int, path: str, mask: int) -> int:
     """Call inotify_add_watch, using ctypes fallback if needed."""
     if hasattr(os, "inotify_add_watch"):
         return os.inotify_add_watch(fd, path, mask)
-    if _inotify_ctypes is None:
-        _init_inotify_ctypes()
     if _inotify_ctypes and _inotify_ctypes["add_watch"]:
         import ctypes
         return _inotify_ctypes["add_watch"](fd, ctypes.c_char_p(path.encode("utf-8")), mask)
@@ -161,20 +168,23 @@ def _inotify_rm_watch(fd: int, wd: int) -> int:
     """Call inotify_rm_watch, using ctypes fallback if needed."""
     if hasattr(os, "inotify_rm_watch"):
         return os.inotify_rm_watch(fd, wd)
-    if _inotify_ctypes is None:
-        _init_inotify_ctypes()
     if _inotify_ctypes and _inotify_ctypes["rm_watch"]:
         return _inotify_ctypes["rm_watch"](fd, wd)
     return -1
 
 
 class _LinuxInotify:
-    """Minimal recursive inotify wrapper."""
+    """Minimal recursive inotify wrapper.
+    
+    IMPORTANT: When using ctypes fallback, all instances share ONE global inotify fd
+    and ONE global watches dict. This means poll() will return events from ALL
+    watched directories, not just this instance's root.
+    """
 
     def __init__(self, root: Path):
         self.root = root
-        self.fd = _inotify_init()
-        self.watches: dict[int, str] = {}  # wd → dir path (absolute)
+        self.fd = _get_global_inotify_fd()
+        self.watches: dict[int, str] = _global_watches  # Share global watches dict
         self._add_dir(root)
 
     def _add_dir(self, path: Path) -> None:
@@ -184,7 +194,7 @@ class _LinuxInotify:
                 _LINUX_IN_CREATE | _LINUX_IN_MODIFY | _LINUX_IN_DELETE | 
                 _LINUX_IN_MOVED_FROM | _LINUX_IN_MOVED_TO
             )
-            self.watches[wd] = str(path)
+            _global_watches[wd] = str(path)
         except OSError:
             pass
 
@@ -203,9 +213,14 @@ class _LinuxInotify:
         except OSError:
             pass
 
-    def poll(self, timeout: float) -> list[tuple[str, str]]:
-        """Return (abs_path, filename) pairs."""
-        events: list[tuple[str, str]] = []
+    def poll(self, timeout: float) -> list[WatchEvent]:
+        """Return WatchEvent instances.
+        
+        NOTE: When using global inotify, this will consume ALL events from the fd,
+        not just events for this instance's root. Events for other roots are also
+        returned (the caller must filter by self.root).
+        """
+        events: list[WatchEvent] = []
         try:
             ready = select.select([self.fd], [], [], timeout)
             if not ready[0]:
@@ -220,11 +235,15 @@ class _LinuxInotify:
             if name_len == 0:
                 offset += _INOTIFY_HEADER.size
                 continue
-            name = data[offset + _INOTIFY_HEADER.size : offset + _INOTIFY_HEADER.size + name_len]
-            dir_path = self.watches.get(wd)
+            name_raw = data[offset + _INOTIFY_HEADER.size : offset + _INOTIFY_HEADER.size + name_len]
+            name = name_raw.decode("utf-8", "replace").strip("\x00")
+            dir_path = _global_watches.get(wd)
             if dir_path:
-                abs_path = os.path.join(dir_path, name.decode("utf-8", "replace"))
-                events.append((abs_path, name.decode("utf-8", "replace")))
+                abs_path = os.path.join(dir_path, name)
+                # Only return events for this instance's root
+                if abs_path.startswith(str(self.root)):
+                    rel_path = os.path.relpath(abs_path, self.root)
+                    events.append(WatchEvent(abs_path=abs_path, rel_path=rel_path))
             offset += _INOTIFY_HEADER.size + name_len
         return events
 
@@ -249,9 +268,8 @@ class _DirectoryWatcher:
             return []
         
         events = []
-        for abs_path, name in self.backend.poll(0.1):
-            rel_path = os.path.relpath(abs_path, self.root)
-            events.append(WatchEvent(abs_path=abs_path, rel_path=rel_path))
+        for event in self.backend.poll(0.1):
+            events.append(event)
         return events
 
     def close(self) -> None:
@@ -327,24 +345,55 @@ class DirectoryWatchManager:
     async def _poll_and_flush(self) -> None:
         now = time.time()
         
-        # 1. Poll all watchers and collect events
+        # 1. Central poll: read events from global inotify fd once
+        #    This avoids the race where watcher1.poll() consumes all events
+        #    before watcher2.poll() can read anything.
         all_events: list[tuple[str, WatchEvent]] = [] # (abs_path, event)
         
-        with self._lock:
-            for abs_path, watcher in self._watchers.items():
-                for event in watcher.poll():
-                    all_events.append((abs_path, event))
+        # Check if we're using the global inotify (ctypes fallback)
+        using_global_inotify = not hasattr(os, "inotify_init") or _global_inotify_fd is not None
+        
+        if using_global_inotify and _global_inotify_fd is not None:
+            # Central poll: read ALL events from global fd once
+            global_events: list[WatchEvent] = []
+            try:
+                ready = select.select([_global_inotify_fd], [], [], DEBOUNCE_SECONDS)
+                if ready[0]:
+                    data = os.read(_global_inotify_fd, 65536)
+                    offset = 0
+                    while offset + _INOTIFY_HEADER.size <= len(data):
+                        wd, _mask, _cookie, name_len = _INOTIFY_HEADER.unpack_from(data, offset)
+                        if name_len == 0:
+                            offset += _INOTIFY_HEADER.size
+                            continue
+                        name_raw = data[offset + _INOTIFY_HEADER.size : offset + _INOTIFY_HEADER.size + name_len]
+                        name = name_raw.decode("utf-8", "replace").strip("\x00")
+                        dir_path = _global_watches.get(wd)
+                        if dir_path:
+                            abs_path = os.path.join(dir_path, name)
+                            global_events.append(WatchEvent(abs_path=abs_path, rel_path=name))
+                        offset += _INOTIFY_HEADER.size + name_len
+            except OSError:
+                pass
+            
+            # Distribute events to each watcher based on its root
+            with self._lock:
+                for abs_path, watcher in self._watchers.items():
+                    for event in global_events:
+                        # Only include events for this watcher's root
+                        if event.abs_path.startswith(str(watcher.root)):
+                            all_events.append((abs_path, event))
+        else:
+            # Native inotify: each watcher has its own fd
+            with self._lock:
+                for abs_path, watcher in self._watchers.items():
+                    for event in watcher.poll():
+                        all_events.append((abs_path, event))
 
         if not all_events:
             return
 
         # 2. Process events and update pending changes / trigger
-        # Group by abs_path to handle debouncing/batching per directory
-        # For simplicity, we'll process each event as it comes.
-        
-        # To prevent excessive triggers, we only trigger if no trigger has occurred
-        # for this path+pattern in the last COOLDOWN_SECONDS.
-        
         for abs_path, event in all_events:
             # Skip if self-write
             if _is_self_write(event.abs_path):
@@ -374,7 +423,6 @@ class DirectoryWatchManager:
                     # Outside cooldown -> TRIGGER
                     self._last_triggers[trigger_key] = now
                     # Triggering an active turn
-                    # We'll pass a copy of the pending changes to avoid race conditions.
                     with self._lock:
                         snapshot = PendingChanges(
                             paths=list(pending.paths),
