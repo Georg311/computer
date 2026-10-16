@@ -10,6 +10,7 @@ import hashlib
 import json
 import logging
 import re
+import time
 import uuid
 from collections import deque
 from pathlib import Path
@@ -838,6 +839,22 @@ async def _apply_voice_mode_system_prompt(system: str, chat_params: dict) -> str
     return f"{system}\n\n[VOICE MODE]\n{prompt}"
 
 
+def _apply_workspace_watch_note(system: str, workspace: str) -> str:
+    """Append a one-shot note about external file changes since the last turn."""
+    if not workspace:
+        return system
+    try:
+        from cptr.utils.workspace_watch import pop_pending_note
+
+        note = pop_pending_note(workspace)
+    except Exception:
+        return system
+    if not note:
+        return system
+    logger.info("[task] injecting workspace watch note for %s", workspace)
+    return f"{system}\n\n{note}"
+
+
 # ── Title generation ────────────────────────────────────────
 
 
@@ -1505,6 +1522,158 @@ def _default_base_url(provider: str) -> str:
     }.get(provider, "https://api.openai.com/v1")
 
 
+class _StreamMetrics:
+    """Track estimated per-phase token throughput during a chat stream.
+
+    The browser/stream only carries text deltas (not real token ids), so token
+    counts are *estimated* from character length via :func:`estimate_tokens`
+    (len // 4). Each phase (reasoning vs. response) records the wall-clock time
+    between its first and last streamed token, plus an estimated token count.
+
+    The tracker is intentionally stateful across tool-call iterations so a full
+    turn accumulates one set of metrics. It is used for two purposes:
+      * live throttled snapshots emitted over the socket while streaming
+      * a final snapshot persisted to ``meta.llama_metrics`` on done
+    """
+
+    REASONING = "reasoning"
+    RESPONSE = "response"
+
+    def __init__(self):
+        self._start = time.monotonic()  # prompt start; TTFT is measured from here
+        self._first_token_at: float | None = None
+        self._reasoning_first_at: float | None = None
+        self._reasoning_last_at: float | None = None
+        self._response_first_at: float | None = None
+        self._response_last_at: float | None = None
+        self._reasoning_tokens = 0
+        self._response_tokens = 0
+        self._last_reasoning_total_chars = 0
+        self._last_emitted_at: float | None = None
+
+    @property
+    def active(self) -> bool:
+        # Active once the first token has been recorded (prompt start alone
+        # does not make the tracker "active" — no metrics to report yet).
+        return self._first_token_at is not None
+
+    def _now(self) -> float:
+        return time.monotonic()
+
+    def record_response(self, text: str) -> None:
+        """Record a response (content) text delta."""
+        if not text:
+            return
+        now = self._now()
+        if self._start is None:
+            self._start = now
+        if self._first_token_at is None:
+            self._first_token_at = now
+        if self._response_first_at is None:
+            self._response_first_at = now
+        self._response_last_at = now
+        self._response_tokens += estimate_tokens(text)
+
+    def update_reasoning_total(self, total_chars: int) -> None:
+        """Record reasoning progress from the cumulative reasoning text length.
+
+        ``total_chars`` is the sum of reasoning text lengths across all
+        in-progress/completed reasoning output items for the turn. Only the
+        growth since the last call is counted, so interleaved tool calls and
+        new reasoning blocks accumulate correctly.
+        """
+        if total_chars <= self._last_reasoning_total_chars:
+            return
+        delta = total_chars - self._last_reasoning_total_chars
+        self._last_reasoning_total_chars = total_chars
+        now = self._now()
+        if self._start is None:
+            self._start = now
+        if self._first_token_at is None:
+            self._first_token_at = now
+        if self._reasoning_first_at is None:
+            self._reasoning_first_at = now
+        self._reasoning_last_at = now
+        # ``delta`` is a character count (not a string), so apply the same
+        # len/4 estimate directly instead of going through estimate_tokens().
+        self._reasoning_tokens += max(1, delta // 4)
+
+    def should_emit(self, interval_s: float = 0.25) -> bool:
+        """Throttle live snapshots to at most once per ``interval_s``."""
+        if not self.active:
+            return False
+        now = self._now()
+        if self._last_emitted_at is None:
+            self._last_emitted_at = now
+            return True
+        if now - self._last_emitted_at >= interval_s:
+            self._last_emitted_at = now
+            return True
+        return False
+
+    def snapshot(self, *, prompt_tokens: int = 0) -> dict | None:
+        """Return the current metrics as a JSON-serialisable dict."""
+        if not self.active:
+            return None
+        now = self._now()
+        first_token_at = self._first_token_at or now
+        ttft_s = max(0.0, first_token_at - (self._start or now))
+        reasoning_time_s = (
+            self._reasoning_last_at - self._reasoning_first_at
+            if self._reasoning_first_at is not None and self._reasoning_last_at is not None
+            else 0.0
+        )
+        response_time_s = (
+            self._response_last_at - self._response_first_at
+            if self._response_first_at is not None and self._response_last_at is not None
+            else 0.0
+        )
+        wall_time_s = max(0.0, now - (self._start or now))
+        return {
+            "prompt_tokens": int(prompt_tokens),
+            "reasoning_tokens": int(self._reasoning_tokens),
+            "response_tokens": int(self._response_tokens),
+            "ttft_ms": round(ttft_s * 1000, 1),
+            "reasoning_time_s": round(reasoning_time_s, 3),
+            "response_time_s": round(response_time_s, 3),
+            "wall_time_s": round(wall_time_s, 3),
+        }
+
+    def finalize(
+        self,
+        *,
+        prompt_tokens: int = 0,
+        real_prompt_tokens: int | None = None,
+        real_output_tokens: int | None = None,
+    ) -> dict | None:
+        """Return the final metrics snapshot for persistence.
+
+        When the provider reported real usage (``real_prompt_tokens`` /
+        ``real_output_tokens``), replace the len/4 estimates with them. The
+        provider only reports a total output count, so the reasoning/response
+        split is scaled proportionally from the character-based estimate.
+        """
+        metrics = self.snapshot(prompt_tokens=prompt_tokens)
+        if not metrics:
+            return None
+        estimated = True
+        real_prompt = int(real_prompt_tokens or 0)
+        real_output = int(real_output_tokens or 0)
+        if real_prompt > 0 and real_output > 0:
+            metrics["prompt_tokens"] = real_prompt
+            total_est = self._reasoning_tokens + self._response_tokens
+            if total_est > 0:
+                scale = real_output / total_est
+                reasoning_real = round(self._reasoning_tokens * scale)
+            else:
+                reasoning_real = 0
+            metrics["reasoning_tokens"] = int(reasoning_real)
+            metrics["response_tokens"] = int(max(0, real_output - reasoning_real))
+            estimated = False
+        metrics["estimated"] = estimated
+        return metrics
+
+
 # ── The agentic loop ────────────────────────────────────────
 
 
@@ -1709,6 +1878,7 @@ async def run_chat_task(
         )
         if loaded_summary:
             system += f"\n\n[CONVERSATION SUMMARY]\n{loaded_summary}"
+        system = _apply_workspace_watch_note(system, agent_workspace)
         current_user_files = []
         if msg and msg.parent_id:
             parent_msg = await ChatMessage.get_by_id(msg.parent_id)
@@ -1956,7 +2126,7 @@ async def run_chat_task(
                     subject_type="chat",
                     source="chat_task",
                     data={"workspace": event_workspace, "preview": preview},
-                    message=preview,
+                    message=content,
                 )
                 task_completed_success = True
                 return
@@ -1976,7 +2146,7 @@ async def run_chat_task(
             subject_type="chat",
             source="chat_task",
             data={"workspace": event_workspace, "preview": preview},
-            message=preview,
+            message=content,
         )
         return
 
@@ -2255,14 +2425,29 @@ async def run_chat_task(
             "builtin_tools": builtin_tools,
         }
 
+        # Initialize before resumed calls: the safeguard can stop an approved
+        # batch before the first new model request.
+        last_usage: dict | None = None  # real usage from last API call
+        _stream_metrics = _StreamMetrics()
+        estimated_prompt_tokens = 0
+
         resumed_calls = await run_queued_tool_calls(tool_ctx)
         if resumed_calls == "approval_required":
             return
         if resumed_calls == "completed":
             messages, loaded_summary = await _load_message_history(chat_id, message_id)
 
-        last_usage: dict | None = None  # real usage from last API call
         new_messages_since: int = 0  # messages appended since last API call
+
+        async def emit_live_metrics():
+            """Emit a throttled live metrics snapshot over the socket."""
+            if not _stream_metrics.active or not _stream_metrics.should_emit():
+                return
+            await emit(
+                llama_metrics=_stream_metrics.snapshot(
+                    prompt_tokens=estimated_prompt_tokens
+                )
+            )
 
         # Request params: arbitrary key-value pairs merged into the API request body
         # Merge order: global ("*") → per-model → chat overrides (chat wins)
@@ -2430,6 +2615,7 @@ async def run_chat_task(
                 if event["type"] == "text_delta":
                     content += event["content"]
                     text_buffer += event["content"]
+                    _stream_metrics.record_response(event["content"])
                     await emit(delta=event["content"])
                     if provider_type == "llama.cpp" and usage_context_tokens(last_usage) <= 0:
                         estimated_context_tokens = estimated_prompt_tokens + estimate_tokens(
@@ -2444,6 +2630,7 @@ async def run_chat_task(
                                 )
                             )
                     _sync_state()
+                    await emit_live_metrics()
 
                 elif event["type"] == "tool_call":
                     # Collect tool call — don't execute yet
@@ -2470,6 +2657,11 @@ async def run_chat_task(
                             streamed_reasoning_chars,
                             _reasoning_text_len(item),
                         )
+                        # Track cumulative reasoning text across all items so the
+                        # metrics reflect total thinking for the whole turn.
+                        _stream_metrics.update_reasoning_total(
+                            sum(_reasoning_text_len(o) for o in output_items if o.get("type") == "reasoning")
+                        )
                         if item.get("status") in (None, "completed"):
                             _upsert_output_item(response_reasoning_items, item)
                     logger.info(
@@ -2483,6 +2675,7 @@ async def run_chat_task(
                     )
                     _sync_state()
                     await emit(output=item)
+                    await emit_live_metrics()
 
                 elif event["type"] == "usage":
                     usage = normalize_usage({k: v for k, v in event.items() if k != "type"})
@@ -2516,13 +2709,35 @@ async def run_chat_task(
                                     threshold=compact_token_threshold,
                                 )
                             )
-                        await _save_message(
-                            "done",
-                            content=content,
-                            output=output_items,
-                            usage=last_usage,
-                            done=True,
+                        # Persist final stream metrics so the stats panel survives
+                        # the post-done DB reload. Re-read the row because meta may
+                        # have changed since task start.
+                        _real_usage = normalize_usage(last_usage) if last_usage else {}
+                        _final_metrics = _stream_metrics.finalize(
+                            prompt_tokens=estimated_prompt_tokens,
+                            real_prompt_tokens=_real_usage.get("input_tokens") or 0,
+                            real_output_tokens=_real_usage.get("output_tokens") or 0,
                         )
+                        if _final_metrics:
+                            _current_msg = await ChatMessage.get_by_id(message_id)
+                            current_meta = dict(_current_msg.meta or {}) if _current_msg else {}
+                            current_meta["llama_metrics"] = _final_metrics
+                            await _save_message(
+                                "done",
+                                content=content,
+                                output=output_items,
+                                usage=last_usage,
+                                meta=current_meta,
+                                done=True,
+                            )
+                        else:
+                            await _save_message(
+                                "done",
+                                content=content,
+                                output=output_items,
+                                usage=last_usage,
+                                done=True,
+                            )
                         _task_state.pop(message_id, None)
                         await _emit_done()
                         preview = content[:300] if content else ""
@@ -2533,7 +2748,7 @@ async def run_chat_task(
                             subject_type="chat",
                             source="chat_task",
                             data={"workspace": event_workspace, "preview": preview},
-                            message=preview,
+                            message=content,
                         )
                         task_completed_success = True
                         return
@@ -2873,7 +3088,7 @@ async def run_chat_task(
                     subject_type="chat",
                     source="chat_task",
                     data={"workspace": event_workspace, "preview": preview},
-                    message=preview,
+                    message=content,
                 )
                 task_completed_success = True
                 return
@@ -2931,12 +3146,24 @@ async def run_chat_task(
         flushed_item = _flush_text()
         if flushed_item:
             await emit(output=flushed_item)
+        current_msg = await ChatMessage.get_by_id(message_id)
+        stop_meta = dict(current_msg.meta or {}) if current_msg else dict(msg.meta or {}) if msg else {}
+        real_usage = normalize_usage(last_usage) if last_usage else {}
+        final_metrics = _stream_metrics.finalize(
+            prompt_tokens=estimated_prompt_tokens,
+            real_prompt_tokens=real_usage.get("input_tokens") or 0,
+            real_output_tokens=real_usage.get("output_tokens") or 0,
+        )
+        if final_metrics:
+            stop_meta["llama_metrics"] = final_metrics
+        stop_meta.update(error=str(e), no_progress=True)
         await _save_message(
             "no progress",
             content=content,
             output=output_items,
+            usage=last_usage,
             done=True,
-            meta={**((msg.meta or {}) if msg else {}), "error": str(e), "no_progress": True},
+            meta=stop_meta,
         )
         _task_state.pop(message_id, None)
         await _emit_done()
@@ -3108,3 +3335,58 @@ async def run_chat_task(
         except Exception:
             logger.exception(f"Failed to process pending inputs for chat {chat_id}")
 
+
+async def inject_queued_message(path: str, snapshot: Any, is_trigger: bool, context: dict) -> None:
+    """Inject a queued user message to notify the agent of changes or trigger a turn.
+
+    :param path: The directory path where changes were detected.
+    :param snapshot: The PendingChanges object containing the detected changes.
+    :param is_trigger: Whether this is an active trigger (True) or passive notification (False).
+    :param context: The context dictionary containing chat_id, user_id, and workspace.
+    """
+    chat_id = context.get("chat_id")
+    user_id = context.get("user_id")
+    workspace = context.get("workspace")
+    if not chat_id or not user_id or not workspace:
+        return
+
+    # Construct the message content
+    file_list = snapshot.paths + (["(too many files, see summary below)"] if snapshot.overflow > 0 else [])
+    file_list_str = "\n".join(file_list)
+
+    if is_trigger:
+        content = f"A file matching your trigger pattern was changed in {path}:\n{file_list_str}"
+        meta = {"queued": True, "trigger": True}
+    else:
+        content = f"Files changed in {path}:\n{file_list_str}"
+        meta = {"queued": True, "notification": True}
+
+    # Find the current chat to get the parent_id for the new message
+    chat = await Chat.get_by_id(chat_id)
+    if not chat:
+        return
+
+    # We want to append it to the end of the current conversation.
+    # However, we don't want to interrupt the *current* assistant message if it's still running.
+    # The current assistant message is the one with the latest id and done=False.
+    parent_id = chat.last_message_id
+
+    # Create the message with meta={"queued": True}
+    # We use ChatMessage.create to ensure it's persisted properly.
+    await ChatMessage.create(
+        chat_id=chat_id,
+        role="user",
+        content=content,
+        parent_id=parent_id,
+        meta=meta,
+        created_at=now_ms(),
+    )
+
+    # Notify the user that a new message is queued
+    await emit_to_user(
+        user_id,
+        {
+            "type": "chat:queued_message",
+            "chat_id": chat_id,
+        },
+    )
