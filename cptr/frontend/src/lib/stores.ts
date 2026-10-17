@@ -351,7 +351,7 @@ export const themeConfig = writable<ThemeConfig | null>(null);
 export const textScale = writable<number | null>(null);
 export const borderContrast = writable<number | null>(null);
 export const widescreenMode = writable(false);
-export const expandToolDetails = writable(false);
+export const expandToolDetails = writable(true);
 
 /** Saved workspace path order for sidebar drag-reorder. */
 export const workspaceOrder = writable<string[]>([]);
