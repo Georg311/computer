@@ -733,7 +733,7 @@
 		planMode = false;
 		requestParams = {};
 		voiceModeEnabled = false;
-		showReasoning = true;
+		showReasoning = showReasoningTraces.get() ?? true;
 	}
 
 	function loadChatSettings(meta: Record<string, any> | null) {
@@ -752,7 +752,11 @@
 			requestParams = params.request_params;
 		}
 		voiceModeEnabled = params.voice_mode === true;
-		showReasoning = params.show_reasoning !== false;
+		if (params.show_reasoning !== undefined) {
+			showReasoning = params.show_reasoning;
+		} else {
+			showReasoning = showReasoningTraces.get() ?? true;
+		}
 		const models = get(chatModels);
 		if (
 			typeof meta?.last_model === 'string' &&
@@ -767,7 +771,8 @@
 		await updateChatSettings(chatId, selectedModel, getChatSendParams()).catch(() => {});
 	}
 
-	onMount(() => {
+	onMount(async () => {
+		await showReasoningTraces.init();
 		resetChatSettings();
 
 		if (chatId) {

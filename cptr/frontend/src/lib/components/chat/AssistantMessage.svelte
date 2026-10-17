@@ -29,6 +29,7 @@
 		siblingIndex?: number;
 		siblingTotal?: number;
 		speaking?: boolean;
+		showReasoning?: boolean;
 		onapprove: (messageId: string, callId: string, approved: boolean) => void;
 		onnavigate?: (direction: -1 | 1) => void;
 		onfork?: () => void;
@@ -49,6 +50,7 @@
 		siblingIndex = 0,
 		siblingTotal = 1,
 		speaking = false,
+		showReasoning = $bindable(true),
 		onapprove,
 		onnavigate,
 		onfork,
@@ -367,9 +369,11 @@
 					currentGroup!.calls.push(item);
 				}
 			} else if (item.type === 'reasoning') {
-				ensureGroup();
-				currentGroup!.entries.push(item);
-				currentGroup!.reasoning.push(item);
+				if (showReasoning) {
+					ensureGroup();
+					currentGroup!.entries.push(item);
+					currentGroup!.reasoning.push(item);
+				}
 			} else if (item.type === 'message') {
 				// Some providers emit empty message shells between reasoning/tool items.
 				// Only visible assistant text should break a consecutive activity run.

@@ -66,6 +66,7 @@ export interface ChatSendParams {
 	plan_mode?: boolean;
 	request_params?: Record<string, unknown>;
 	voice_mode?: boolean;
+	show_reasoning?: boolean;
 }
 
 export interface CompactChatResult {
