@@ -10,7 +10,7 @@
 
 	let { item, fallbackId }: Props = $props();
 
-	let expanded = $state(false);
+	let expanded = $state(true);
 
 	const reasoningId = $derived(item.id || fallbackId);
 	const isThinking = $derived(item.status === 'in_progress' || item.status === 'running');
