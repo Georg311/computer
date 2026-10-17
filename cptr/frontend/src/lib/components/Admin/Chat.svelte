@@ -12,6 +12,7 @@
 	let titleGenerationEnabled = $state(true);
 	let titleGenerationModel = $state<string | null>(null);
 	let contextCompactionModel = $state<string | null>(null);
+	let compactTokenThreshold = $state(80000);
 	let showReasoningTraces = $state(true);
 
 	onMount(async () => {

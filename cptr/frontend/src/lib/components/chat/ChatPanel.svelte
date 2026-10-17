@@ -101,10 +101,7 @@
 	let planMode = $state(false);
 	let requestParams = $state<Record<string, unknown>>({});
 	let voiceModeEnabled = $state(false);
-	const showReasoning = $derived.by(() => {
-		const val = get(showReasoningTraces);
-		return val !== false && val !== 'false';
-	});
+	let showReasoning = $state(true);
 	let allMessages = $state<ChatMessageRow[]>([]);
 	const pendingAskUser = $derived.by(() => {
 		for (const message of [...allMessages].reverse()) {
