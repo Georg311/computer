@@ -12,7 +12,7 @@
 	let titleGenerationEnabled = $state(true);
 	let titleGenerationModel = $state<string | null>(null);
 	let contextCompactionModel = $state<string | null>(null);
-	let compactTokenThreshold = $state(80000);
+	let showReasoningTraces = $state(true);
 
 	onMount(async () => {
 		try {
@@ -28,6 +28,9 @@
 				typeof config['chat.context_compaction.model'] === 'string'
 					? config['chat.context_compaction.model']
 					: null;
+			showReasoningTraces =
+				config['chat.reasoning_traces.enabled'] !== false &&
+				config['chat.reasoning_traces.enabled'] !== 'false';
 			compactTokenThreshold = Number(config['chat.compact_token_threshold']) || 80000;
 		} catch {
 			toast.error($t('admin.failedToLoadConfig'));
@@ -43,7 +46,8 @@
 				'chat.title_generation.enabled': titleGenerationEnabled,
 				'chat.title_generation.model': titleGenerationModel,
 				'chat.context_compaction.model': contextCompactionModel,
-				'chat.compact_token_threshold': Math.max(10000, Number(compactTokenThreshold) || 80000)
+				'chat.compact_token_threshold': Math.max(10000, Number(compactTokenThreshold) || 80000),
+				'chat.reasoning_traces.enabled': showReasoningTraces
 			});
 			toast.success($t('settings.saved'));
 		} catch {
@@ -100,6 +104,26 @@
 						</p>
 					</div>
 				{/if}
+			</div>
+
+			<h3 class="text-xs text-gray-400 dark:text-gray-600 mb-2 mt-5">
+				{$t('admin.reasoningTraces')}
+			</h3>
+			<div class="flex flex-col gap-2.5">
+				<label class="flex items-center justify-between cursor-pointer">
+					<span class="text-xs text-gray-600 dark:text-gray-400">
+						{$t('admin.reasoningTraces')}
+					</span>
+					<ToggleSwitch
+						value={showReasoningTraces}
+						onchange={(value) => {
+							showReasoningTraces = value;
+						}}
+					/>
+				</label>
+				<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 -mt-1">
+					{$t('admin.reasoningTracesHint')}
+				</p>
 			</div>
 
 			<h3 class="text-xs text-gray-400 dark:text-gray-600 mb-2 mt-5">
