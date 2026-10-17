@@ -9,6 +9,9 @@ export const showReasoningTraces = {
 		}
 		return () => {};
 	},
+	get() {
+		return _showReasoningTraces;
+	},
 	async init() {
 		if (_showReasoningTraces !== undefined) return;
 		try {

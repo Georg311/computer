@@ -70,6 +70,7 @@
 		planMode?: boolean;
 		requestParams?: Record<string, unknown>;
 		voiceModeEnabled?: boolean;
+		showReasoning?: boolean;
 		sending: boolean;
 		streaming?: boolean;
 		workspace?: string;
@@ -105,6 +106,7 @@
 		planMode = $bindable(false),
 		requestParams = $bindable({}),
 		voiceModeEnabled = $bindable(false),
+		showReasoning = $bindable(true),
 		sending,
 		streaming = false,
 		workspace = '',
@@ -1639,6 +1641,7 @@
 					bind:toolApprovalMode
 					bind:planMode
 					bind:requestParams
+					bind:showReasoning
 					onchange={onsettingschange}
 					{ontoolapprovalchange}
 					onfiles={(files) => {

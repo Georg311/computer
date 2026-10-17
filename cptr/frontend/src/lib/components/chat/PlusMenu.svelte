@@ -12,6 +12,7 @@
 		toolApprovalMode?: ToolApprovalMode;
 		planMode?: boolean;
 		requestParams?: Record<string, unknown>;
+		showReasoning?: boolean;
 		onchange?: () => void;
 		ontoolapprovalchange?: (mode: ToolApprovalMode) => void;
 	}
@@ -21,6 +22,7 @@
 		toolApprovalMode = $bindable('auto'),
 		planMode = $bindable(false),
 		requestParams = $bindable({}),
+		showReasoning = $bindable(true),
 		onchange,
 		ontoolapprovalchange
 	}: Props = $props();
@@ -329,6 +331,37 @@
 						value={planMode}
 						onchange={(v) => {
 							planMode = v;
+							onchange?.();
+						}}
+					/>
+				</button>
+
+				<div class="app-divider h-px mx-1 my-0.5"></div>
+
+				<button
+					class="flex items-center gap-2 w-full h-7 px-2 rounded-xl text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors duration-75"
+					onclick={() => {
+						showReasoning = !showReasoning;
+						onchange?.();
+					}}
+				>
+					<svg
+						class="size-3.5 shrink-0"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+						<path d="M12 8v4l3 3" />
+					</svg>
+					<span class="flex-1 text-left truncate">{$t('plusMenu.showReasoning')}</span>
+					<ToggleSwitch
+						value={showReasoning}
+						onchange={(v) => {
+							showReasoning = v;
 							onchange?.();
 						}}
 					/>
