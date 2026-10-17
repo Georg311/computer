@@ -55,6 +55,8 @@
 		unlockTtsAudioPlayback
 	} from '$lib/stores/audio';
 
+	import { showReasoningTraces } from '$lib/stores/reasoning';
+
 	import ChatInput from './ChatInput.svelte';
 	import UserMessage from './UserMessage.svelte';
 	import AssistantMessage from './AssistantMessage.svelte';
@@ -99,6 +101,10 @@
 	let planMode = $state(false);
 	let requestParams = $state<Record<string, unknown>>({});
 	let voiceModeEnabled = $state(false);
+	const showReasoning = $derived.by(() => {
+		const val = get(showReasoningTraces);
+		return val !== false && val !== 'false';
+	});
 	let allMessages = $state<ChatMessageRow[]>([]);
 	const pendingAskUser = $derived.by(() => {
 		for (const message of [...allMessages].reverse()) {
@@ -730,6 +736,7 @@
 		planMode = false;
 		requestParams = {};
 		voiceModeEnabled = false;
+		showReasoning = true;
 	}
 
 	function loadChatSettings(meta: Record<string, any> | null) {
@@ -748,6 +755,7 @@
 			requestParams = params.request_params;
 		}
 		voiceModeEnabled = params.voice_mode === true;
+		showReasoning = params.show_reasoning !== false;
 		const models = get(chatModels);
 		if (
 			typeof meta?.last_model === 'string' &&
@@ -911,7 +919,8 @@
 		const params: ChatSendParams = {
 			tool_approval_mode: toolApprovalMode,
 			plan_mode: planMode,
-			request_params: requestParams
+			request_params: requestParams,
+			show_reasoning: showReasoning
 		};
 		if (voiceModeEnabled) params.voice_mode = true;
 		return params;
@@ -1815,6 +1824,7 @@
 					bind:planMode
 					bind:requestParams
 					bind:voiceModeEnabled
+					bind:showReasoning
 					{sending}
 					{workspace}
 					placeholder={$t('chat.placeholder', { name: workspaceDisplayName })}
@@ -1892,6 +1902,7 @@
 								{siblingIndex}
 								siblingTotal={siblingIds.length}
 								speaking={speakingMessageId === msg.id}
+								{showReasoning}
 								onnavigate={(dir) => handleNavigate(msg.id, dir)}
 								onfork={sending || streaming ? undefined : () => handleForkChat(msg.id)}
 								onregenerate={() => handleRegenerate(msg.id)}
