@@ -15,7 +15,8 @@
 	const reasoningId = $derived(item.id || fallbackId);
 	const isThinking = $derived(item.status === 'in_progress' || item.status === 'running');
 	const thoughtText = $derived.by(() => {
-		return (item.summary ?? item.content ?? [])
+		const source = (item.summary?.length ? item.summary : item.content) ?? [];
+		return source
 			.filter((part: any) => 'text' in part)
 			.map((part: any) => part.text ?? '')
 			.join('')
