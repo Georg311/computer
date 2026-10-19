@@ -1,3 +1,8 @@
+## [0.9.21.11] - 2026-10-17
+
+### Changed
+- 🔖 **Version bump.** Bumped version to 0.9.21.11.
+
 ## [0.9.21.9] - 2026-10-16
 
 ### Added
