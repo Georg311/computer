@@ -19,6 +19,7 @@ import logging
 from typing import Optional
 
 import httpx
+import mimetypes
 
 from cptr.utils.bridge import Attachment, BaseAdapter, MessageEvent, chunk_message
 
@@ -338,7 +339,8 @@ class TelegramAdapter(BaseAdapter):
         if not self._client:
             return None
         url = f"{self._base}/sendPhoto"
-        files = {"photo": (filename, data, "image/jpeg")}
+        mime = mimetypes.guess_type(filename)[0] or "image/jpeg"
+        files = {"photo": (filename, data, mime)}
         form_data = {"chat_id": chat_id}
         if caption:
             form_data["caption"] = caption[:1024]
@@ -356,7 +358,8 @@ class TelegramAdapter(BaseAdapter):
         if not self._client:
             return None
         url = f"{self._base}/sendDocument"
-        files = {"document": (filename, data, "application/octet-stream")}
+        mime = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        files = {"document": (filename, data, mime)}
         form_data = {"chat_id": chat_id}
         if caption:
             form_data["caption"] = caption[:1024]
