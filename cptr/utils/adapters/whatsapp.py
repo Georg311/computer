@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import mimetypes
 from typing import Optional
 
 import httpx
@@ -259,14 +260,16 @@ class WhatsAppAdapter(BaseAdapter):
 
     async def send_photo(self, chat_id: str, data: bytes, filename: str, caption: str = "") -> str | None:
         """Send a photo via WhatsApp media upload."""
-        media_id = await self._upload_media(data, filename, "image/jpeg")
+        mime = mimetypes.guess_type(filename)[0] or "image/jpeg"
+        media_id = await self._upload_media(data, filename, mime)
         if not media_id:
             return await self.send(chat_id, caption) if caption else None
         return await self._send_media_message(chat_id, "image", media_id, caption)
 
     async def send_document(self, chat_id: str, data: bytes, filename: str, caption: str = "") -> str | None:
         """Send a document via WhatsApp media upload."""
-        media_id = await self._upload_media(data, filename, "application/octet-stream")
+        mime = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        media_id = await self._upload_media(data, filename, mime)
         if not media_id:
             return await self.send(chat_id, caption) if caption else None
         return await self._send_media_message(chat_id, "document", media_id, caption, filename)

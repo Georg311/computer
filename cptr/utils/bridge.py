@@ -12,7 +12,9 @@ Thread mappings (external chat → cptr chat) are stored in chat.meta.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import mimetypes
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -344,46 +346,139 @@ class BotManager:
         platform_chat_id: str,
         output_items: list[dict],
     ) -> None:
-        """Send files that were displayed via display_file to the platform chat.
+        """Send images and documents from task output to the platform chat.
 
-        Scans the task's output items for file entries (type == "file"),
-        reads each one from disk, and sends it as a photo or document
-        depending on its kind.  Deduplicates by path so the same file
-        is only sent once.
+        Handles three sources:
+        1. image_generate function_call_output — parses JSON, sends images as photos
+        2. display_file file items — sends images as photos, other files as documents
+        3. create_artifact / create_artifact artifacts — sends as documents
         """
         if not adapter:
             return
 
         seen_paths: set[str] = set()
+
+        # ── 1. image_generate results ──────────────────────────────
+        image_generate_call_ids: set[str] = set()
+        for item in output_items:
+            if (
+                isinstance(item, dict)
+                and item.get("type") == "function_call"
+                and item.get("name") == "image_generate"
+            ):
+                image_generate_call_ids.add(item.get("call_id", ""))
+
+        for item in output_items:
+            if not isinstance(item, dict) or item.get("type") != "function_call_output":
+                continue
+            call_id = item.get("call_id", "")
+            if call_id not in image_generate_call_ids:
+                continue
+
+            raw_output = item.get("output", "")
+            if not raw_output:
+                continue
+
+            try:
+                result = json.loads(raw_output)
+            except (json.JSONDecodeError, TypeError):
+                continue
+
+            images = result.get("images", [])
+            if not isinstance(images, list):
+                continue
+
+            for img_info in images:
+                if not isinstance(img_info, dict):
+                    continue
+                img_path = img_info.get("path", "")
+                if not img_path or img_path in seen_paths:
+                    continue
+                seen_paths.add(img_path)
+                await self._send_file(adapter, platform_chat_id, img_path)
+
+        # ── 2. display_file file items ─────────────────────────────
         for item in output_items:
             if not isinstance(item, dict) or item.get("type") != "file":
                 continue
-            full_path = item.get("full_path") or ""
-            name = item.get("name") or Path(full_path).name
-            kind = item.get("kind", "")
-            mime_type = item.get("mime_type", "")
-            if not full_path or full_path in seen_paths:
+            img_path = item.get("path", "") or item.get("full_path", "")
+            if not img_path or img_path in seen_paths:
                 continue
-            seen_paths.add(full_path)
+            seen_paths.add(img_path)
+            await self._send_file(adapter, platform_chat_id, img_path, item)
 
-            path = Path(full_path)
-            try:
-                if not path.is_file():
-                    logger.warning("[bridge] display_file target missing: %s", full_path)
-                    continue
-                data = await asyncio.to_thread(path.read_bytes)
-            except Exception:
-                logger.exception("[bridge] Failed to read file for sending: %s", full_path)
+        # ── 3. artifact items ──────────────────────────────────────
+        for item in output_items:
+            if not isinstance(item, dict) or item.get("type") != "artifact":
                 continue
+            art_path = item.get("path", "")
+            if not art_path or art_path in seen_paths:
+                continue
+            seen_paths.add(art_path)
+            await self._send_file(adapter, platform_chat_id, art_path, item)
 
+    async def _send_file(
+        self,
+        adapter: BaseAdapter,
+        platform_chat_id: str,
+        img_path: str,
+        meta: dict | None = None,
+    ) -> None:
+        """Read a file and send it as photo or document via the adapter."""
+        path = Path(img_path)
+
+        # Resolve relative paths against workspace if available
+        if not path.is_absolute():
+            # Try workspace context from meta
+            workspace = meta.get("workspace", "") if meta else ""
+            if workspace:
+                full = Path(workspace) / img_path
+                if full.is_file():
+                    path = full
+
+        if not path.is_file():
+            logger.warning("[bridge] file missing: %s", img_path)
+            return
+
+        try:
+            data = await asyncio.to_thread(path.read_bytes)
+        except Exception:
+            logger.exception("[bridge] Failed to read file for sending: %s", img_path)
+            return
+
+        mime_type = "application/octet-stream"
+        if meta:
+            mime_type = meta.get("mime_type", "application/octet-stream")
+            kind = meta.get("kind", "")
+            if kind == "image" or mime_type.startswith("image/"):
+                try:
+                    await adapter.send_photo(platform_chat_id, data, path.name, "🖼️")
+                    logger.info("[bridge] Sent image via %s: %s", adapter.platform, path.name)
+                except Exception:
+                    logger.exception("[bridge] Failed to send image %s", path.name)
+            else:
+                caption = meta.get("name", "") or "📄"
+                try:
+                    await adapter.send_document(platform_chat_id, data, path.name, caption)
+                    logger.info("[bridge] Sent document via %s: %s", adapter.platform, path.name)
+                except Exception:
+                    logger.exception("[bridge] Failed to send document %s", path.name)
+            return
+
+        # Fallback: guess from mime type
+        mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        if mime and mime.startswith("image/"):
             try:
-                if kind == "image" or mime_type.startswith("image/"):
-                    await adapter.send_photo(platform_chat_id, data, name)
-                else:
-                    await adapter.send_document(platform_chat_id, data, name)
-                logger.info("[bridge] Sent file via %s: %s", adapter.platform, name)
+                await adapter.send_photo(platform_chat_id, data, path.name, "🖼️")
+                logger.info("[bridge] Sent image via %s: %s", adapter.platform, path.name)
             except Exception:
-                logger.exception("[bridge] Failed to send file %s", name)
+                logger.exception("[bridge] Failed to send image %s", path.name)
+        else:
+            try:
+                await adapter.send_document(platform_chat_id, data, path.name, "📄")
+                logger.info("[bridge] Sent document via %s: %s", adapter.platform, path.name)
+            except Exception:
+                logger.exception("[bridge] Failed to send document %s", path.name)
 
     # ── Adapter factory ────────────────────────────────────
 

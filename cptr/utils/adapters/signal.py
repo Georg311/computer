@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import logging
+import mimetypes
 import re
 from typing import Any, Optional
 from urllib.parse import quote
@@ -310,6 +311,7 @@ class SignalAdapter(BaseAdapter):
         """Send a message with a base64-encoded attachment via signal-cli."""
         if not self._http:
             return None
+        mime = mimetypes.guess_type(filename)[0] or "application/octet-stream"
         try:
             resp = await self._http.post(
                 f"{self._base_url}/v2/send",
@@ -319,7 +321,11 @@ class SignalAdapter(BaseAdapter):
                     "recipients": [chat_id],
                     "text_mode": "styled",
                     "base64_attachments": [
-                        base64.b64encode(data).decode("ascii")
+                        {
+                            "data": base64.b64encode(data).decode("ascii"),
+                            "mime_type": mime,
+                            "filename": filename,
+                        }
                     ],
                 },
             )

@@ -1,3 +1,9 @@
+## [0.9.21.13] - 2026-10-20
+
+### Added
+- 📎 **Telegram file forwarding.** Bridge `_send_final_files` scans task output items for file entries (images, documents) and sends them as Telegram photos/documents via `send_photo`/`send_document`. Deduplicates by path.
+- 🖼️ **Telegram image & document forwarding.** Images generated via `image_generate` are now sent to Telegram chats as photos. Files displayed via `display_file` (images, PDFs, documents) are forwarded as photos or documents. Artifacts from `create_artifact` are sent as documents. MIME types are correctly detected from file extensions.
+
 ## [0.9.21.12] - 2026-10-20
 
 ### Added
