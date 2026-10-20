@@ -1,3 +1,8 @@
+## [0.9.21.12] - 2026-10-20
+
+### Added
+- 📎 **Telegram file forwarding.** Bridge `_send_final_files` scans task output items for file entries (images, documents) and sends them as Telegram photos/documents via `send_photo`/`send_document`. Deduplicates by path.
+
 ## [0.9.21.11] - 2026-10-17
 
 ### Changed
