@@ -1,3 +1,8 @@
+## [0.9.21.14] - 2026-10-20
+
+### Fixed
+- 🐛 **Telegram image forwarding.** Bridge `_send_final_files` is now always called after the final text edit, ensuring generated images and displayed files are sent to Telegram chats. Previously, short responses caused an early return before files were forwarded.
+
 ## [0.9.21.13] - 2026-10-20
 
 ### Added
