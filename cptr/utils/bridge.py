@@ -1118,7 +1118,6 @@ class BotManager:
                 if len(final_display) <= max_len and platform_msg_id:
                     try:
                         await adapter.edit(platform_chat_id, platform_msg_id, final_display)
-                        return
                     except Exception:
                         logger.debug("[bridge] Final edit failed", exc_info=True)
                     await self._send_final_files(adapter, platform_chat_id, output_items)
