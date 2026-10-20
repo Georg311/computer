@@ -215,12 +215,13 @@ class SignalAdapter(BaseAdapter):
 
             except asyncio.CancelledError:
                 return
-            except (httpx.ConnectError, httpx.ReadError, httpx.WriteError, OSError) as e:
-                logger.warning("Signal poll network error (%s), retrying in %.0fs", type(e).__name__, delay)
-                await asyncio.sleep(delay)
-                delay = min(delay * 2, RECONNECT_MAX_DELAY)
-            except Exception:
-                logger.exception("Signal poll error, retrying in %.0fs", delay)
+            except (httpx.ConnectError, httpx.ReadError, httpx.WriteError, OSError, Exception) as e:
+                # httpcore.ReadError (from underlying stream) is not caught by httpx.ReadError,
+                # so we catch Exception and only log network-related errors as warnings.
+                if isinstance(e, (httpx.ConnectError, httpx.ReadError, httpx.WriteError, OSError)):
+                    logger.warning("Signal poll network error (%s), retrying in %.0fs", type(e).__name__, delay)
+                else:
+                    logger.warning("Signal poll error (%s), retrying in %.0fs", type(e).__name__, delay)
                 await asyncio.sleep(delay)
                 delay = min(delay * 2, RECONNECT_MAX_DELAY)
 
