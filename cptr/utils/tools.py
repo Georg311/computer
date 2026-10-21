@@ -1988,6 +1988,24 @@ async def browser_snapshot(*, __context__: dict) -> str:
     return await client.snapshot()
 
 
+async def browser_set_mobile_mode(mobile: bool, *, __context__: dict) -> str:
+    """Toggle mobile device emulation.
+    :param mobile: If True, activate mobile device emulation (viewport 375x667, touch, mobile UA). If False, clear and restore desktop.
+    """
+    cfg = await _get_browser_config()
+    if cfg.get("provider", "local") != "local":
+        return "Error: browser_set_mobile_mode requires Local CDP provider."
+
+    chat_id = __context__.get("chat_id", "default")
+    client = await _get_cdp_session(chat_id)
+    if mobile:
+        await client.set_mobile_emulation()
+        return "Mobile emulation activated (375x667, touch, iPhone UA)"
+    else:
+        await client.clear_mobile_emulation()
+        return "Mobile emulation cleared, desktop mode restored"
+
+
 async def browser_click(ref: str, *, __context__: dict) -> str:
     """Click an element on the page identified by its ref ID from the snapshot (e.g. @e1).
     :param ref: The ref ID of the element to click (e.g. @e1, @e5).
@@ -2526,6 +2544,7 @@ BROWSER_TOOLS: dict[str, dict] = {
     "browser_type": {"fn": browser_type},
     "browser_screenshot": {"fn": browser_screenshot, "approval": "allow"},
     "browser_evaluate": {"fn": browser_evaluate},
+    "browser_set_mobile_mode": {"fn": browser_set_mobile_mode, "approval": "allow"},
 }
 
 
