@@ -98,6 +98,7 @@
 		onqueuedelete?: (id: string) => void;
 		onsettingschange?: () => void;
 		ontoolapprovalchange?: (mode: ToolApprovalMode) => void;
+		onqueue?: () => void;
 	}
 	let {
 		inputText = $bindable(),
@@ -128,7 +129,8 @@
 		onqueueedit,
 		onqueuedelete,
 		onsettingschange,
-		ontoolapprovalchange
+		ontoolapprovalchange,
+		onqueue
 	}: Props = $props();
 
 	let editorEl: HTMLDivElement | undefined = $state();
