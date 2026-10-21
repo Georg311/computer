@@ -181,7 +181,7 @@
 		const cwd = workspace.fileBrowserCwd ?? workspace.path;
 		const newFolderPath = cwd.endsWith('/') ? cwd + name : cwd + '/' + name;
 		try {
-			await createEntry(newFolderPath, 'folder');
+			await createEntry(newFolderPath, 'directory');
 		} catch (e) {
 			console.error(e);
 		}
