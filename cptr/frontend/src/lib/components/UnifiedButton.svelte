@@ -58,6 +58,12 @@
 	let showActionDialog = $state(false);
 
 	function handleClick(e: Event) {
+		// Always clear the timer on click (prevents late long-press)
+		if (pressTimer) {
+			clearTimeout(pressTimer);
+			pressTimer = null;
+		}
+
 		if (mode === 'fab' || mode === 'files') {
 			toggle();
 			return;
@@ -105,10 +111,8 @@
 	}
 
 	function handlePointerUp(e: Event) {
-		if (pressTimer) {
-			clearTimeout(pressTimer);
-			pressTimer = null;
-		}
+		// Don't clear the timer here — let the click handler decide
+		// On touch devices pointerup fires before the 500ms timeout
 	}
 
 	function handlePointerCancel() {
