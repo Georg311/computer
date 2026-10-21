@@ -443,6 +443,14 @@
 		<path d="M9 6L15 12L9 18" />
 	{:else if name === 'arrow-left'}
 		<path d="M21 12L3 12M3 12L11.5 3.5M3 12L11.5 20.5" />
+	{:else if name === 'arrow-right'}
+		<path d="M3 12L21 12M21 12L12.5 3.5M21 12L12.5 20.5" />
+	{:else if name === 'arrow-right-circle'}
+		<circle cx="12" cy="12" r="10" />
+		<path d="M3 12L17 12M17 6L21 12L17 18" />
+	{:else if name === 'arrow-up-circle'}
+		<circle cx="12" cy="12" r="10" />
+		<path d="M12 17V7M6 13L12 7L18 13" />
 	{:else if name === 'log-out'}
 		<path d="M12 12H19M19 12L16 15M19 12L16 9" />
 		<path
