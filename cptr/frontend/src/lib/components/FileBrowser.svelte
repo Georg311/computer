@@ -24,6 +24,7 @@
 	import { fileIconName } from '$lib/utils/fileIcon';
 	import Icon from './Icon.svelte';
 	import Spinner from './common/Spinner.svelte';
+	import UnifiedButton from './UnifiedButton.svelte';
 	import Modal from './Modal.svelte';
 	import DropdownMenu from './DropdownMenu.svelte';
 	import { t } from '$lib/i18n';
@@ -1662,6 +1663,11 @@
 		</div>
 	{/if}
 </div>
+
+<!-- UnifiedButton for Files -->
+{#if !isSearching && entries.length > 0}
+	<UnifiedButton mode="files" />
+{/if}
 
 {#if sortMenuOpen && sortBtnEl}
 	<DropdownMenu

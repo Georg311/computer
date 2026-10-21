@@ -11,8 +11,8 @@
 	interface Props {
 		/** Optional: if provided, the FAB will attempt to open a chat in this specific group. */
 		groupId?: string;
-		/** 'fab' for the floating action button, 'chat' to be used inside the chat input. */
-		mode?: 'fab' | 'chat';
+		/** 'fab' for the floating action button, 'chat' to be used inside the chat input, 'files' for file browser. */
+		mode?: 'fab' | 'chat' | 'files';
 		/** If in 'chat' mode, whether the user can send a message. */
 		canSend?: boolean;
 		/** If in 'chat' mode, whether a message is currently being streamed. */
@@ -45,7 +45,7 @@
 	let ready = $state(false);
 
 	function handleClick() {
-		if (mode === 'fab') {
+		if (mode === 'fab' || mode === 'files') {
 			toggle();
 		} else {
 			if (streaming && oncancel) {
@@ -59,7 +59,7 @@
 	}
 
 	function getIcon() {
-		if (mode === 'fab') {
+		if (mode === 'fab' || mode === 'files') {
 			return open ? 'xmark' : 'plus';
 		}
 		
@@ -74,6 +74,9 @@
 	function getButtonClass() {
 		if (mode === 'fab') {
 			return 'fab-button fixed bottom-16 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-sky-500 text-white shadow-lg transition-transform active:scale-95';
+		}
+		if (mode === 'files') {
+			return 'files-fab-button flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white shadow-md transition-transform active:scale-95 hover:bg-sky-600';
 		}
 		
 		let base = 'flex items-center justify-center rounded-full p-1 transition ';
@@ -103,7 +106,6 @@
 		closeMenu();
 	}
 
-
 	async function handleNewFile() {
 		const workspace = get(activeWorkspace);
 		if (!workspace) return;
@@ -111,6 +113,19 @@
 		const newFilePath = cwd.endsWith('/') ? cwd + '/new_file.txt' : cwd + '/new_file.txt';
 		try {
 			await createEntry(newFilePath, 'file');
+		} catch (e) {
+			console.error(e);
+		}
+		closeMenu();
+	}
+
+	async function handleNewFolder() {
+		const workspace = get(activeWorkspace);
+		if (!workspace) return;
+		const cwd = workspace.fileBrowserCwd ?? workspace.path;
+		const newFolderPath = cwd.endsWith('/') ? cwd + '/new_folder' : cwd + '/new_folder';
+		try {
+			await createEntry(newFolderPath, 'folder');
 		} catch (e) {
 			console.error(e);
 		}
@@ -166,7 +181,6 @@
 	}
 </script>
 
-{#if chatEnabled}
 	{#if open}
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div class="fixed inset-0 z-[49]" onclick={closeMenu}></div>
@@ -178,51 +192,78 @@
 			style="left: {pos.x}px; bottom: {pos.bottom}px; opacity: {ready ? 1 : 0}; pointer-events: {ready ? 'auto' : 'none'};"
 			onclick={(e) => e.stopPropagation()}
 		>
-			<button class="flex items-center gap-3 w-full h-12 px-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors"
-				onclick={handleNewChat}
-				use:tooltip={$t('bar.newChat')}
-			>
-				<Icon name="chat-bubble" size={20} />
-				<span class="flex-1 text-left truncate">{$t('bar.newChat')}</span>
-			</button>
+			{#if mode === 'files'}
+				<button class="flex items-center gap-3 w-full h-12 px-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors"
+					onclick={handleNewFile}
+					use:tooltip={$t('files.newFile')}
+				>
+					<Icon name="page-text" size={20} />
+					<span class="flex-1 text-left truncate">{$t('files.newFile')}</span>
+				</button>
 
-			<button class="flex items-center gap-3 w-full h-12 px-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors"
-				onclick={handleNewFile}
-				use:tooltip={$t('files.newFile')}
-			>
-				<Icon name="page-text" size={20} />
-				<span class="flex-1 text-left truncate">{$t('files.newFile')}</span>
-			</button>
+				<button class="flex items-center gap-3 w-full h-12 px-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors"
+					onclick={handleNewFolder}
+					use:tooltip={$t('files.newFolder')}
+				>
+					<Icon name="folder" size={20} />
+					<span class="flex-1 text-left truncate">{$t('files.newFolder')}</span>
+				</button>
 
-			<button class="flex items-center gap-3 w-full h-12 px-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors"
-				onclick={handleNewTerminal}
-				use:tooltip={$t('bar.newTerminal')}
-			>
-				<Icon name="terminal" size={20} />
-				<span class="flex-1 text-left truncate">{$t('bar.newTerminal')}</span>
-			</button>
+				<button class="flex items-center gap-3 w-full h-12 px-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors"
+					onclick={handleNewTerminal}
+					use:tooltip={$t('bar.newTerminal')}
+				>
+					<Icon name="terminal" size={20} />
+					<span class="flex-1 text-left truncate">{$t('bar.newTerminal')}</span>
+				</button>
+			{:else}
+				<button class="flex items-center gap-3 w-full h-12 px-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors"
+					onclick={handleNewChat}
+					use:tooltip={$t('bar.newChat')}
+				>
+					<Icon name="chat-bubble" size={20} />
+					<span class="flex-1 text-left truncate">{$t('bar.newChat')}</span>
+				</button>
 
-			<button class="flex items-center gap-3 w-full h-12 px-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors"
-				onclick={handleNewBrowser}
-				use:tooltip={$t('bar.newBrowser')}
-			>
-				<Icon name="globe" size={20} />
-				<span class="flex-1 text-left truncate">{$t('bar.newBrowser')}</span>
-			</button>
+				<button class="flex items-center gap-3 w-full h-12 px-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors"
+					onclick={handleNewFile}
+					use:tooltip={$t('files.newFile')}
+				>
+					<Icon name="page-text" size={20} />
+					<span class="flex-1 text-left truncate">{$t('files.newFile')}</span>
+				</button>
+
+				<button class="flex items-center gap-3 w-full h-12 px-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors"
+					onclick={handleNewTerminal}
+					use:tooltip={$t('bar.newTerminal')}
+				>
+					<Icon name="terminal" size={20} />
+					<span class="flex-1 text-left truncate">{$t('bar.newTerminal')}</span>
+				</button>
+
+				<button class="flex items-center gap-3 w-full h-12 px-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors"
+					onclick={handleNewBrowser}
+					use:tooltip={$t('bar.newBrowser')}
+				>
+					<Icon name="globe" size={20} />
+					<span class="flex-1 text-left truncate">{$t('bar.newBrowser')}</span>
+				</button>
+			{/if}
 		</div>
 	{/if}
 
-	<button
-		bind:this={btnEl}
-		class={getButtonClass()}
-		class:md:hidden={mode === 'fab'}
-		onclick={handleClick}
-		aria-label={$t('bar.newChat')}
-		use:tooltip={$t('bar.newChat')}
-	>
-		<Icon name={getIcon()} size={28} />
-	</button>
-{/if}
+	{#if mode === 'files' || chatEnabled}
+		<button
+			bind:this={btnEl}
+			class={getButtonClass()}
+			class:md:hidden={mode === 'fab'}
+			onclick={handleClick}
+			aria-label={mode === 'files' ? $t('files.newFile') : $t('bar.newChat')}
+			use:tooltip={mode === 'files' ? $t('files.newFile') : $t('bar.newChat')}
+		>
+			<Icon name={getIcon()} size={28} />
+		</button>
+	{/if}
 
 <style>
 	.fab-button::after {
@@ -232,5 +273,13 @@
 		left: -10px;
 		right: -10px;
 		bottom: -10px;
+	}
+	.files-fab-button::after {
+		content: '';
+		position: absolute;
+		top: -8px;
+		left: -8px;
+		right: -8px;
+		bottom: -8px;
 	}
 </style>
