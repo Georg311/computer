@@ -79,13 +79,16 @@
 		}
 
 		// Normal click
-		if (streaming && !isQueued && oncancel) {
+		if (streaming && canSend) {
+			// Streaming + text = queue the message
+			if (onqueue) {
+				onqueue();
+			}
+		} else if (streaming && !canSend && oncancel) {
+			// Streaming + no text = stop generation
 			oncancel();
-		} else if (isQueued && onqueue) {
-			onqueue();
-		} else if (streaming && isQueued && onqueue) {
-			onqueue();
 		} else if (canSend && onsend) {
+			// Not streaming + text = send message
 			onsend();
 		} else {
 			// No text, not streaming: open menu (like FAB)
