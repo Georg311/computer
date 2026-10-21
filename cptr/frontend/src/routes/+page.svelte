@@ -52,6 +52,7 @@
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import { TAB_DRAG_MIME } from '$lib/constants';
 	import { isSupportedWorkspacePath } from '$lib/utils/paths';
+	import UnifiedButton from '$lib/components/UnifiedButton.svelte';
 
 	let showPicker = $state(false);
 	let pendingIntent = $state<LaunchIntent | null>(null);
@@ -1468,6 +1469,10 @@
 				</div>
 			{/if}
 		</div>
+		<!-- UnifiedButton for Files (outside .persisted-tab to avoid overflow:hidden clipping) -->
+		{#if getGroupActiveTab(group)?.type === 'files' && group.id === activeGroup?.id}
+			<UnifiedButton mode="files" />
+		{/if}
 		{#if dragOverZone?.groupId === group.id}
 			<div class={`split-drop-zone split-drop-${dragOverZone.zone}`}></div>
 		{/if}

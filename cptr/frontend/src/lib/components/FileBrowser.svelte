@@ -1664,11 +1664,6 @@
 	{/if}
 </div>
 
-<!-- UnifiedButton for Files -->
-{#if !isSearching && entries.length > 0}
-	<UnifiedButton mode="files" />
-{/if}
-
 {#if sortMenuOpen && sortBtnEl}
 	<DropdownMenu
 		items={[]}

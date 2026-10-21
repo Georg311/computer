@@ -64,11 +64,11 @@
 		}
 		
 		if (streaming) {
-			if (isQueued) return 'circle-dot'; 
+			if (isQueued) return 'arrow-up-circle';
 			if (oncancel) return 'stop';
 		}
 		
-		return 'arrow-right';
+		return 'arrow-right-circle';
 	}
 
 	function getButtonClass() {
@@ -76,10 +76,10 @@
 			return 'fab-button fixed bottom-16 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-sky-500 text-white shadow-lg transition-transform active:scale-95';
 		}
 		if (mode === 'files') {
-			return 'files-fab-button flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white shadow-md transition-transform active:scale-95 hover:bg-sky-600';
+			return 'files-fab-button fixed bottom-2 right-2 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white shadow-md transition-transform active:scale-95 hover:bg-sky-600';
 		}
 		
-		let base = 'flex items-center justify-center rounded-full p-1 transition ';
+		let base = 'flex items-center justify-center rounded-full p-3 transition ';
 		if (streaming && oncancel && !isQueued) {
 			return base + 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600';
 		}
@@ -217,6 +217,7 @@
 					<span class="flex-1 text-left truncate">{$t('bar.newTerminal')}</span>
 				</button>
 			{:else}
+				{#if chatEnabled}
 				<button class="flex items-center gap-3 w-full h-12 px-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors"
 					onclick={handleNewChat}
 					use:tooltip={$t('bar.newChat')}
@@ -224,6 +225,7 @@
 					<Icon name="chat-bubble" size={20} />
 					<span class="flex-1 text-left truncate">{$t('bar.newChat')}</span>
 				</button>
+				{/if}
 
 				<button class="flex items-center gap-3 w-full h-12 px-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl transition-colors"
 					onclick={handleNewFile}
@@ -252,18 +254,16 @@
 		</div>
 	{/if}
 
-	{#if mode === 'files' || chatEnabled}
-		<button
-			bind:this={btnEl}
-			class={getButtonClass()}
-			class:md:hidden={mode === 'fab'}
-			onclick={handleClick}
-			aria-label={mode === 'files' ? $t('files.newFile') : $t('bar.newChat')}
-			use:tooltip={mode === 'files' ? $t('files.newFile') : $t('bar.newChat')}
-		>
-			<Icon name={getIcon()} size={28} />
-		</button>
-	{/if}
+	<button
+		bind:this={btnEl}
+		class={getButtonClass()}
+		class:md:hidden={mode === 'fab'}
+		onclick={handleClick}
+		aria-label={mode === 'files' ? $t('files.newFile') : $t('bar.newChat')}
+		use:tooltip={mode === 'files' ? $t('files.newFile') : $t('bar.newChat')}
+	>
+		<Icon name={getIcon()} size={36} />
+	</button>
 
 <style>
 	.fab-button::after {
