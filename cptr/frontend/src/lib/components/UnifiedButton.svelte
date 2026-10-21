@@ -85,19 +85,24 @@
 		}
 
 		// Normal click
+		console.log('[UnifiedButton] handleClick — mode:', mode, 'streaming:', streaming, 'canSend:', canSend, 'onqueue:', !!onqueue, 'oncancel:', !!oncancel, 'onsend:', !!onsend);
 		if (streaming && canSend) {
 			// Streaming + text = queue the message
+			console.log('[UnifiedButton] → calling onqueue');
 			if (onqueue) {
 				onqueue();
 			}
 		} else if (streaming && !canSend && oncancel) {
 			// Streaming + no text = stop generation
+			console.log('[UnifiedButton] → calling oncancel');
 			oncancel();
 		} else if (canSend && onsend) {
 			// Not streaming + text = send message
+			console.log('[UnifiedButton] → calling onsend');
 			onsend();
 		} else {
 			// No text, not streaming: open menu (like FAB)
+			console.log('[UnifiedButton] → calling toggle');
 			toggle();
 		}
 	}
@@ -107,12 +112,15 @@
 		isLongPress = false;
 		pressTimer = setTimeout(() => {
 			isLongPress = true;
+			console.log('[UnifiedButton] LONG PRESS triggered!', mode);
 		}, LONG_PRESS_MS);
+		console.log('[UnifiedButton] handlePointerDown — mode:', mode, 'timer started');
 	}
 
 	function handlePointerUp(e: Event) {
 		// Don't clear the timer here — let the click handler decide
 		// On touch devices pointerup fires before the 500ms timeout
+		console.log('[UnifiedButton] handlePointerUp');
 	}
 
 	function handlePointerCancel() {
@@ -120,6 +128,7 @@
 			clearTimeout(pressTimer);
 			pressTimer = null;
 		}
+		console.log('[UnifiedButton] handlePointerCancel');
 	}
 
 	function getIcon() {
