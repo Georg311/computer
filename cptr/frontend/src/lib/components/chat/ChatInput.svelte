@@ -1209,6 +1209,14 @@
 		onsend();
 	}
 
+	function handleCancel() {
+		oncancel?.();
+	}
+
+	function handleQueue() {
+		onsend?.();
+	}
+
 	async function focusAfterModelSelectorClose() {
 		await tick();
 		focus();
