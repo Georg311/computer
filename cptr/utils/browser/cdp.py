@@ -282,7 +282,6 @@ class CDPClient:
 
     async def type_text(self, ref: str, text: str) -> None:
         """Type text into an element identified by its ref ID."""
-        # Focus the element first
         ref = ref.strip()
         if not ref.startswith(_REF_PREFIX):
             ref = f"{_REF_PREFIX}{ref}"
@@ -291,28 +290,35 @@ class CDPClient:
         if not backend_node_id:
             raise ValueError(f"Unknown ref '{ref}'. Run browser_snapshot() first.")
 
+        # Scroll into view (same as click does)
+        try:
+            await self._send(
+                "DOM.scrollIntoViewIfNeeded", {"backendNodeId": backend_node_id}
+            )
+        except RuntimeError:
+            pass
+
+        # Focus the element and wait for it to be ready
         await self._send("DOM.focus", {"backendNodeId": backend_node_id})
+        await asyncio.sleep(0.2)
 
-        # Clear existing content
-        await self._send(
-            "Input.dispatchKeyEvent",
-            {"type": "keyDown", "key": "a", "modifiers": 2},  # Ctrl+A / Cmd+A
-        )
-        await self._send(
-            "Input.dispatchKeyEvent",
-            {"type": "keyUp", "key": "a", "modifiers": 2},
-        )
+        # Clear existing content via JS (safe, no escaping needed)
+        try:
+            await self._send(
+                "Runtime.evaluate",
+                {"expression": "document.activeElement.value = ''; document.activeElement.dispatchEvent(new Event('input', {bubbles: true}))"},
+            )
+        except Exception:
+            pass
 
-        # Type each character
-        for char in text:
-            await self._send(
-                "Input.dispatchKeyEvent",
-                {"type": "keyDown", "key": char, "text": char},
-            )
-            await self._send(
-                "Input.dispatchKeyEvent",
-                {"type": "keyUp", "key": char},
-            )
+        await asyncio.sleep(0.05)
+
+        # Use Input.insertText for reliable text input (CDP best practice)
+        # This is much more reliable than per-character key events
+        await self._send(
+            "Input.insertText",
+            {"text": text},
+        )
 
     async def scroll(self, direction: str = "down", amount: int = 3) -> None:
         """Scroll the page. Direction: 'up' or 'down'."""
