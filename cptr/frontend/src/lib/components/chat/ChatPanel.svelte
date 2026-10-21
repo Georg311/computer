@@ -1230,6 +1230,11 @@
 		}
 	}
 
+	function handleQueue() {
+		if (!chatId || !inputText.trim()) return;
+		send();
+	}
+
 	async function handleCancel() {
 		const active = allMessages.find((m) => m.role === 'assistant' && !m.done);
 		if (!active || !chatId) return;
@@ -1977,6 +1982,7 @@
 					onqueuesendnow={handleQueueSendNow}
 					onqueueedit={handleQueueEdit}
 					onqueuedelete={handleQueueDelete}
+					onqueue={handleQueue}
 				/>
 			</div>
 		</div>

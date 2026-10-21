@@ -1214,7 +1214,7 @@
 	}
 
 	function handleQueue() {
-		onsend?.();
+		onqueue?.();
 	}
 
 	async function focusAfterModelSelectorClose() {

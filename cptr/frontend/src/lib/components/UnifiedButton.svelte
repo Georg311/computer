@@ -262,7 +262,7 @@
 		aria-label={mode === 'files' ? $t('files.newFile') : $t('bar.newChat')}
 		use:tooltip={mode === 'files' ? $t('files.newFile') : $t('bar.newChat')}
 	>
-		<Icon name={getIcon()} size={36} />
+		<Icon name={getIcon()} size={mode === 'chat' ? 24 : 36} />
 	</button>
 
 <style>
