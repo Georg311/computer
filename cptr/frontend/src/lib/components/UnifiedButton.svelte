@@ -46,7 +46,7 @@
 
 	// Long press detection for chat mode
 	let pressTimer: ReturnType<typeof setTimeout> | null = null;
-	let isLongPress = $state(false);
+	let isLongPress = false;
 	const LONG_PRESS_MS = 500;
 
 	// Filename dialog state
@@ -64,8 +64,15 @@
 		}
 
 		// Chat mode
+		// If menu is open, close it
+		if (open) {
+			closeMenu();
+			return;
+		}
+
+		// Prevent default click behavior for long press
 		if (isLongPress) {
-			// Long press: show action dialog
+			e.preventDefault();
 			isLongPress = false;
 			showActionDialog = true;
 			return;
@@ -80,11 +87,9 @@
 			onqueue();
 		} else if (canSend && onsend) {
 			onsend();
-		} else if (oncancel) {
-			// streaming but no cancel handler, try queue
-			if (onqueue) {
-				onqueue();
-			}
+		} else {
+			// No text, not streaming: open menu (like FAB)
+			toggle();
 		}
 	}
 
@@ -96,7 +101,14 @@
 		}, LONG_PRESS_MS);
 	}
 
-	function handlePointerUp() {
+	function handlePointerUp(e: Event) {
+		if (pressTimer) {
+			clearTimeout(pressTimer);
+			pressTimer = null;
+		}
+	}
+
+	function handlePointerCancel() {
 		if (pressTimer) {
 			clearTimeout(pressTimer);
 			pressTimer = null;
@@ -433,7 +445,7 @@
 	onclick={handleClick}
 	onpointerdown={handlePointerDown}
 	onpointerup={handlePointerUp}
-	onpointercancel={handlePointerUp}
+	onpointercancel={handlePointerCancel}
 	aria-label={mode === 'files' ? $t('files.newFile') : $t('bar.newChat')}
 	use:tooltip={mode === 'files' ? $t('files.newFile') : $t('bar.newChat')}
 >
