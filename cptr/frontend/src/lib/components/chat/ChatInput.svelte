@@ -1637,6 +1637,9 @@
 				class="chat-editor-mount scrollbar-hidden"
 				class:opacity-50={sending}
 				class:pointer-events-none={sending}
+				role="textbox"
+				aria-label={$t('chat.placeholder')}
+				aria-multiline="true"
 			></div>
 		</div>
 
