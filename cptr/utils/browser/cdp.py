@@ -156,48 +156,14 @@ class CDPClient:
 
         return {"url": url, "title": title, "frame_id": result.get("frameId")}
 
-    # ── Mobile emulation ─────────────────────────────────
-
-    async def set_mobile_emulation(self, width: int = 375, height: int = 667) -> None:
-        """Activate mobile device emulation (viewport, touch, mobile UA)."""
-        await self._send(
-            "Emulation.setDeviceMetricsOverride",
-            {
-                "width": width,
-                "height": height,
-                "deviceScaleFactor": 3,
-                "mobile": True,
-                "platform": 2,
-            },
-        )
-        await self._send(
-            "Emulation.setTouchEmulationEnabled",
-            {"enabled": True, "maxTouchPoints": 5},
-        )
-        await self._send(
-            "Emulation.setUserAgentOverride",
-            {
-                "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile Safari/604.1",
-                "platform": "Apple iPhone",
-            },
-        )
-
-    async def clear_mobile_emulation(self) -> None:
-        """Clear mobile device emulation and restore desktop settings."""
-        await self._send("Emulation.clearDeviceMetricsOverride")
-
     # ── Accessibility tree snapshot ────────────────────────
 
-    async def snapshot(self, mobile: bool = False) -> str:
+    async def snapshot(self) -> str:
         """Capture the accessibility tree and return a text representation with ref IDs.
 
         Interactive elements (links, buttons, inputs, etc.) are assigned ref IDs
         like @e1, @e2 that can be used with click() and type_text().
-
-        :param mobile: If True, activate mobile device emulation before snapshot.
         """
-        if mobile:
-            await self.set_mobile_emulation()
         result = await self._send("Accessibility.getFullAXTree")
         nodes = result.get("nodes", [])
 
@@ -368,7 +334,15 @@ class CDPClient:
     async def screenshot(self, width: int | None = None, height: int | None = None) -> bytes:
         """Capture a screenshot of the current viewport. Returns PNG bytes."""
         if width is not None and height is not None:
-            await self.set_mobile_emulation(width, height)
+            await self._send(
+                "Emulation.setDeviceMetricsOverride",
+                {
+                    "width": width,
+                    "height": height,
+                    "deviceScaleFactor": 1,
+                    "mobile": False,
+                },
+            )
         try:
             result = await self._send(
                 "Page.captureScreenshot", {"format": "png", "quality": 80}
@@ -376,7 +350,7 @@ class CDPClient:
             return base64.b64decode(result["data"])
         finally:
             if width is not None and height is not None:
-                await self.clear_mobile_emulation()
+                await self._send("Emulation.clearDeviceMetricsOverride")
 
     async def get_text(self) -> str:
         """Extract visible text content from the page."""
