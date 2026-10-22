@@ -347,11 +347,11 @@ class CDPClient:
 
         await asyncio.sleep(0.05)
 
-        # Use Input.insertText for reliable text input (CDP best practice)
-        # This is much more reliable than per-character key events
+        # Set value directly via JS to avoid Input.insertText duplication issues
+        # This is more reliable than CDP Input.insertText which can duplicate text
         await self._send(
-            "Input.insertText",
-            {"text": text},
+            "Runtime.evaluate",
+            {"expression": f"document.activeElement.value = {repr(text)}; document.activeElement.dispatchEvent(new Event('input', {{bubbles: true}})); document.activeElement.dispatchEvent(new Event('change', {{bubbles: true}}));"},
         )
 
     async def scroll(self, direction: str = "down", amount: int = 3) -> None:
