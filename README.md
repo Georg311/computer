@@ -225,3 +225,4 @@ This is safe when you are the only user and you control the network. It is not s
 ## License
 
 Open Use License. Source available. All rights reserved. See [LICENSE](LICENSE). [Commercial licenses](https://openwebui.com/computer/license) and [enterprise licenses](mailto:sales@openwebui.com) available.
+# test-commit-for-instance-update
