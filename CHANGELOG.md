@@ -1,3 +1,8 @@
+## [0.9.21.15] - 2026-10-24
+
+### Fixed
+- 🎨 **Send button styling.** Darker blue gradient (blue-600 → indigo-800) for FAB and chat send buttons. Fixed chat button to use fixed `h-12 w-12` size so it doesn't change between states. Reduced send arrow icon to 20px for better visual balance.
+
 ## [0.9.21.14] - 2026-10-20
 
 ### Fixed
