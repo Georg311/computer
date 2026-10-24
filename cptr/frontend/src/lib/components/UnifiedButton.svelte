@@ -147,15 +147,15 @@
 			return 'plus';
 		}
 
-		return 'arrow-right-circle';
+		return 'arrow-right';
 	}
 
 	function getButtonClass() {
 		if (mode === 'fab') {
-			return 'fab-button fixed bottom-16 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-sky-500 text-white shadow-lg transition-transform active:scale-95';
+			return 'fab-button fixed bottom-16 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-white shadow-lg shadow-blue-500/30 transition-transform active:scale-95 hover:shadow-xl hover:shadow-blue-500/40';
 		}
 		if (mode === 'files') {
-			return 'files-fab-button fixed bottom-2 right-2 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 text-white shadow-md transition-transform active:scale-95 hover:bg-sky-600';
+			return 'files-fab-button fixed bottom-2 right-2 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-white shadow-md shadow-blue-500/20 transition-transform active:scale-95 hover:bg-blue-600';
 		}
 
 		let base = 'flex items-center justify-center rounded-full p-3 transition ';
@@ -169,11 +169,11 @@
 			return base + 'bg-orange-500 text-white hover:bg-orange-600';
 		}
 		if (canSend) {
-			// Send button: black/white
-			return base + 'bg-black text-white hover:bg-gray-900 dark:bg-white dark:text-black dark:hover:bg-white/90';
+			// Send button: gradient
+			return base + 'bg-gradient-to-br from-sky-400 to-blue-600 text-white hover:from-sky-500 hover:to-blue-700 shadow-md shadow-blue-500/20';
 		}
 		// No text, not streaming: blue plus
-		return base + 'bg-sky-500 text-white hover:bg-sky-600 cursor-pointer';
+		return base + 'bg-gradient-to-br from-sky-400 to-blue-600 text-white hover:from-sky-500 hover:to-blue-700 cursor-pointer shadow-md shadow-blue-500/20';
 	}
 
 	function handleNewChat() {
@@ -484,5 +484,25 @@
 		left: -8px;
 		right: -8px;
 		bottom: -8px;
+	}
+
+	/* Gradient background for all modes */
+	:global(.bg-gradient-to-br) {
+		background-image: linear-gradient(135deg, #38bdf8, #2563eb);
+	}
+	:global(.hover\\:from-sky-500\\:hover\\:to-blue-700:hover) {
+		background-image: linear-gradient(135deg, #0ea5e9, #1d4ed8);
+	}
+
+	/* Subtle pulse animation for FAB */
+	@keyframes fab-pulse {
+		0%, 100% { opacity: 1; }
+		50% { opacity: 0.85; }
+	}
+	.fab-button {
+		animation: fab-pulse 3s ease-in-out infinite;
+	}
+	.files-fab-button {
+		animation: fab-pulse 3s ease-in-out infinite;
 	}
 </style>
