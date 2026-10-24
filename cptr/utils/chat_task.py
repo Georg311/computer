@@ -2587,18 +2587,35 @@ async def run_chat_task(
                 )
 
                 # Inject synthetic tool call for user notification about compaction
-                pending_calls.append(
-                    {
-                        "name": "context_compaction",
-                        "arguments": {
-                            "dropped_messages": len(drop_zone),
-                            "kept_messages": len(keep_zone),
-                            "summary": summary,
-                        },
-                        "call_id": f"synthetic-compaction-{uuid.uuid4().hex[:8]}",
-                        "id": f"synthetic-compaction-{uuid.uuid4().hex[:8]}",
-                    }
-                )
+                # This is done directly as output_items (not via pending_calls) so it
+                # is emitted immediately without waiting for a model response.
+                compaction_call_id = f"synthetic-compaction-{uuid.uuid4().hex[:8]}"
+                compaction_tool_call = {
+                    "type": "function_call",
+                    "id": str(uuid.uuid4()),
+                    "call_id": compaction_call_id,
+                    "name": "context_compaction",
+                    "arguments": {
+                        "dropped_messages": len(drop_zone),
+                        "kept_messages": len(keep_zone),
+                        "summary": summary,
+                    },
+                    "status": "completed",
+                }
+                compaction_result = {
+                    "type": "function_call_output",
+                    "call_id": compaction_call_id,
+                    "output": (
+                        f"Context compaction performed: {len(drop_zone)} messages dropped, "
+                        f"{len(keep_zone)} kept. Summary: {summary}"
+                    ),
+                }
+                output_items.append(compaction_tool_call)
+                output_items.append(compaction_result)
+                await emit(output=compaction_tool_call)
+                await emit(output=compaction_result)
+                _sync_state()
+                await _save_message("compaction notification emitted", content=content, output=output_items)
 
             # Anthropic supports images natively in tool_result content blocks.
             # Chat Completions and Responses API don't support multimodal tool messages,
