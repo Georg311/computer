@@ -158,7 +158,7 @@
 			return 'files-fab-button fixed bottom-2 right-2 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-800 text-white shadow-md shadow-indigo-600/20 transition-transform active:scale-95 hover:bg-indigo-800';
 		}
 
-		let base = 'flex items-center justify-center rounded-full p-3 transition ';
+		let base = 'flex items-center justify-center rounded-full p-3 transition h-12 w-12 ';
 
 		if (streaming && oncancel && !isQueued) {
 			// Stop button: gray
@@ -465,7 +465,7 @@
 	aria-label={mode === 'files' ? $t('files.newFile') : $t('bar.newChat')}
 	use:tooltip={mode === 'files' ? $t('files.newFile') : $t('bar.newChat')}
 	>
-	<Icon name={getIcon()} size={mode === 'chat' && getIcon() === 'arrow-right' ? 20 : (mode === 'chat' ? 24 : 36)} />
+	<Icon name={getIcon()} size={mode === 'chat' ? 24 : 36} />
 </button>
 
 <style>
