@@ -152,10 +152,10 @@
 
 	function getButtonClass() {
 		if (mode === 'fab') {
-			return 'fab-button fixed bottom-16 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-white shadow-lg shadow-blue-500/30 transition-transform active:scale-95 hover:shadow-xl hover:shadow-blue-500/40';
+			return 'fab-button fixed bottom-16 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-800 text-white shadow-lg shadow-indigo-600/30 transition-transform active:scale-95 hover:shadow-xl hover:shadow-indigo-600/40';
 		}
 		if (mode === 'files') {
-			return 'files-fab-button fixed bottom-2 right-2 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-white shadow-md shadow-blue-500/20 transition-transform active:scale-95 hover:bg-blue-600';
+			return 'files-fab-button fixed bottom-2 right-2 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-800 text-white shadow-md shadow-indigo-600/20 transition-transform active:scale-95 hover:bg-indigo-800';
 		}
 
 		let base = 'flex items-center justify-center rounded-full p-3 transition ';
@@ -170,10 +170,10 @@
 		}
 		if (canSend) {
 			// Send button: gradient
-			return base + 'bg-gradient-to-br from-sky-400 to-blue-600 text-white hover:from-sky-500 hover:to-blue-700 shadow-md shadow-blue-500/20';
+			return base + 'bg-gradient-to-br from-blue-600 to-indigo-800 text-white hover:from-blue-700 hover:to-indigo-900 shadow-md shadow-indigo-600/20';
 		}
 		// No text, not streaming: blue plus
-		return base + 'bg-gradient-to-br from-sky-400 to-blue-600 text-white hover:from-sky-500 hover:to-blue-700 cursor-pointer shadow-md shadow-blue-500/20';
+		return base + 'bg-gradient-to-br from-blue-600 to-indigo-800 text-white hover:from-blue-700 hover:to-indigo-900 cursor-pointer shadow-md shadow-indigo-600/20';
 	}
 
 	function handleNewChat() {
@@ -488,10 +488,10 @@
 
 	/* Gradient background for all modes */
 	:global(.bg-gradient-to-br) {
-		background-image: linear-gradient(135deg, #38bdf8, #2563eb);
+		background-image: linear-gradient(135deg, #2563eb, #312e81);
 	}
-	:global(.hover\\:from-sky-500\\:hover\\:to-blue-700:hover) {
-		background-image: linear-gradient(135deg, #0ea5e9, #1d4ed8);
+	:global(.hover\\:from-blue-700\\:hover\\:to-indigo-900:hover) {
+		background-image: linear-gradient(135deg, #1d4ed8, #1e1b4e);
 	}
 
 	/* Subtle pulse animation for FAB */
