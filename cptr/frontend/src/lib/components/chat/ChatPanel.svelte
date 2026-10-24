@@ -1885,7 +1885,11 @@
 						<div bind:this={loadSentinelEl} class="h-1 w-full" aria-hidden="true"></div>
 					{/if}
 					{#each visiblePath as { msg, siblingIds, siblingIndex } (msg.id)}
-						{#if msg.role === 'user'}
+						{#if msg.role === 'system' && msg.meta?.compaction_notification}
+							<div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[0.8125rem] text-gray-600 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-400">
+								💡 {msg.content}
+							</div>
+						{:else if msg.role === 'user'}
 							<UserMessage
 								content={msg.content}
 								meta={msg.meta}
