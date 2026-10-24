@@ -2503,6 +2503,31 @@ async def watch_directory(
         return f"Failed to start watching {abs_path}"
 
 
+async def context_compaction(
+    dropped_messages: int,
+    kept_messages: int,
+    summary: str,
+    *,
+    __context__: dict,
+) -> str:
+    """Notify the user that context compaction occurred and provide a summary.
+
+    This tool is called automatically by the system when the conversation context
+    exceeds the token threshold and older messages are summarized and dropped.
+    It provides transparency to the user about what was compacted.
+
+    :param dropped_messages: Number of messages that were dropped in the compaction.
+    :param kept_messages: Number of messages kept after compaction.
+    :param summary: A concise summary of the dropped messages.
+    :param __context__: Injected context containing workspace, user_id, chat_id.
+    :returns: Confirmation message displayed to the user.
+    """
+    return (
+        f"Context compaction performed: {dropped_messages} messages dropped, "
+        f"{kept_messages} kept. Summary: {summary}"
+    )
+
+
 TOOLS: dict[str, dict] = {
     # Auto mode runs these without asking.
     "read_file": {"fn": read_file, "approval": "allow"},
@@ -2534,6 +2559,7 @@ TOOLS: dict[str, dict] = {
     "manage_skill": {"fn": manage_skill},
     "update_memory": {"fn": update_memory, "approval": "allow"},
     "watch_directory": {"fn": watch_directory, "approval": "allow"},
+    "context_compaction": {"fn": context_compaction, "approval": "allow"},
 }
 
 # Browser tools — conditionally included in schemas based on browser.enabled

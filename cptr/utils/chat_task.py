@@ -2586,6 +2586,20 @@ async def run_chat_task(
                     len(summary),
                 )
 
+                # Inject synthetic tool call for user notification about compaction
+                pending_calls.append(
+                    {
+                        "name": "context_compaction",
+                        "arguments": {
+                            "dropped_messages": len(drop_zone),
+                            "kept_messages": len(keep_zone),
+                            "summary": summary,
+                        },
+                        "call_id": f"synthetic-compaction-{uuid.uuid4().hex[:8]}",
+                        "id": f"synthetic-compaction-{uuid.uuid4().hex[:8]}",
+                    }
+                )
+
             # Anthropic supports images natively in tool_result content blocks.
             # Chat Completions and Responses API don't support multimodal tool messages,
             # so extract images into a follow-up user message.
