@@ -26,3 +26,4 @@ cptr/frontend/.svelte-kit/
 Thumbs.db
 
 .cptr
+app.db
