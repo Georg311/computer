@@ -64,16 +64,21 @@ class Workspace(Base):
             return result.scalar_one_or_none()
 
     @staticmethod
+    @staticmethod
     def _safe_workspace_data(data) -> dict:
         """Ensure workspace data is always a valid dict.
         
-        Handles corruption where data became an int (0) or malformed string.
+        Handles corruption where data became an int (0), malformed string,
+        or double-encoded JSON string.
         """
         if isinstance(data, dict):
             return data
         if isinstance(data, str):
             try:
                 parsed = json.loads(data)
+                # Handle double-encoded JSON (string containing JSON string)
+                if isinstance(parsed, str):
+                    parsed = json.loads(parsed)
                 return parsed if isinstance(parsed, dict) else {}
             except (json.JSONDecodeError, TypeError):
                 return {}
