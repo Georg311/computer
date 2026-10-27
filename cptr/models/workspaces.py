@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+import json
 import uuid
 
 from sqlalchemy import BigInteger, Column, ForeignKey, Text, UniqueConstraint, select, delete
@@ -63,8 +64,26 @@ class Workspace(Base):
             return result.scalar_one_or_none()
 
     @staticmethod
-    async def upsert(user_id: str, path: str, name: str, data: dict) -> Workspace:
+    def _safe_workspace_data(data) -> dict:
+        """Ensure workspace data is always a valid dict.
+        
+        Handles corruption where data became an int (0) or malformed string.
+        """
+        if isinstance(data, dict):
+            return data
+        if isinstance(data, str):
+            try:
+                parsed = json.loads(data)
+                return parsed if isinstance(parsed, dict) else {}
+            except (json.JSONDecodeError, TypeError):
+                return {}
+        # int, None, or other types — return empty dict
+        return {}
+
+    @staticmethod
+    async def upsert(user_id: str, path: str, name: str, data) -> Workspace:
         """Create or update a workspace."""
+        safe_data = Workspace._safe_workspace_data(data)
         async with await get_db() as db:
             result = await db.execute(
                 select(Workspace).where(
@@ -76,14 +95,14 @@ class Workspace(Base):
             now = int(time.time())
             if ws:
                 ws.name = name
-                ws.data = data
+                ws.data = safe_data
                 ws.updated_at = now
             else:
                 ws = Workspace(
                     user_id=user_id,
                     path=path,
                     name=name,
-                    data=data,
+                    data=safe_data,
                     created_at=now,
                     updated_at=now,
                 )
