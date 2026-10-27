@@ -6,7 +6,7 @@ Three layers:
   - active workspace: determined by URL query param, not stored server-side
 """
 
-from __future__ import annotations
+import json
 
 import os
 from pathlib import Path, PureWindowsPath
@@ -165,7 +165,14 @@ async def get_workspace(request: Request, path: str = Query(...)):
             "name": _workspace_display_name(workspace_path),
             "path": workspace_path,
         }
-    workspace_data = dict(workspace.data or {})
+    # Handle case where workspace.data is a string (corrupted JSON)
+    if isinstance(workspace.data, str):
+        try:
+            workspace_data = json.loads(workspace.data)
+        except (json.JSONDecodeError, ValueError):
+            workspace_data = {}
+    else:
+        workspace_data = dict(workspace.data or {})
     file_browser_cwd = workspace_data.get("fileBrowserCwd")
     if isinstance(file_browser_cwd, str):
         file_browser_path = _try_resolve_workspace_path(file_browser_cwd)
