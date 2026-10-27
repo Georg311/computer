@@ -1,3 +1,7 @@
+## [0.9.21.17] - 2026-10-27
+
+### Fixed
+- 🐛 **Workspace data corruption prevention.** Added `_safe_workspace_data()` to sanitize workspace data on write. Prevents corruption where `workspace.data` becomes an integer (0) or malformed string by ensuring only valid dicts are stored. Handles existing corruption by parsing JSON strings or defaulting to `{}`.
 ## [0.9.21.16] - 2026-10-27
 
 ### Fixed
