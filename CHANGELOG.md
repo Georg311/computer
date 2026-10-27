@@ -1,3 +1,7 @@
+## [0.9.21.16] - 2026-10-27
+
+### Fixed
+- 🐛 **Workspace data deserialization.** Fixed `ValueError` caused by corrupted `workspace.data` values (integers or malformed JSON strings). The `get_workspace` endpoint now safely handles string/integer data types via explicit JSON parsing with fallback to `{}`.
 ## [0.9.21.15] - 2026-10-24
 
 ### Fixed
