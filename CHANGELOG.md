@@ -1,3 +1,9 @@
+## [0.9.21.20] - 2026-11-01
+
+### Fixed
+- 🐛 **TokenEconomizer test fixes.** Fixed `command_not_found` regex (end-of-string anchor + optional group), fixed `module_not_found` regex (`can't` vs `cannot`). Made `record_fact_fire()` async for proper await in tests. Fixed mock commit as async in `test_updates_fire_status`. Fixed `test_loop_guard.py` config_overrides nesting + envelope param. Fixed `test_pricing_wrapper.py` floating-point tolerance + total_tokens. Fixed `test_cost_tracker.py` async mock patterns. Fixed `test_tool_usage_tracker.py` async context manager mocks. Added `pytest.ini` with `asyncio_mode=auto`. All 108 tests now passing.
+- 🐛 **Fix `get_active_facts()` await in chat_task.py.** The function is async but was called sync at 3 call sites (lines 1958, 2324, 2641), causing `TypeError: 'coroutine' object is not iterable`. Now properly awaited at all locations.
+
 ## [0.9.21.18] - 2026-10-31
 
 ### Added
