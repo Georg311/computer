@@ -62,14 +62,26 @@
 	import AssistantMessage from './AssistantMessage.svelte';
 	import ChatHistory from './ChatHistory.svelte';
 	import StatusModal from './StatusModal.svelte';
+	import TeStatusPanel from './TeStatusPanel.svelte';
+	import TeToolsPanel from './TeToolsPanel.svelte';
+	import TeSkillsPanel from './TeSkillsPanel.svelte';
 	import SkillsModal from './SkillsModal.svelte';
 	import { listCommandSessions, type CommandSession } from '$lib/apis/terminal';
 	import { getSkills, type SkillInfo } from '$lib/apis/skills';
 	import Spinner from '../common/Spinner.svelte';
 	import Icon from '../Icon.svelte';
+	import LoopNudgeToast from './LoopNudgeToast.svelte';
+	import LoopAbortBanner from './LoopAbortBanner.svelte';
+	import TEConfigPanel from './TEConfigPanel.svelte';
 	import { tooltip } from '$lib/tooltip';
 	import { toast } from 'svelte-sonner';
 	import { t } from '$lib/i18n';
+
+	// ── Loop Guard UI state ──────────────────────────────────────
+	let loopNudgeMessage = $state<string | null>(null);
+	let loopAbortMessage = $state<string | null>(null);
+	let loopEnvelopeSize = $state<number>(0);
+	let loopNudgesDone = $state<number>(0);
 
 	type PreparedTtsAudio = {
 		promise: Promise<Blob>;
@@ -129,6 +141,10 @@
 	let contextUsage = $state<ContextUsage | null>(null);
 	let chatTasks = $state<ChatTask[]>([]);
 	let showStatusModal = $state(false);
+	let showTeStatusModal = $state(false);
+	let showTeToolsModal = $state(false);
+	let showTeSkillsModal = $state(false);
+	let showTEConfigModal = $state(false);
 	let showSkillsModal = $state(false);
 	let skillsModalList = $state<SkillInfo[]>([]);
 	let commandSessions = $state<CommandSession[]>([]);
@@ -691,6 +707,36 @@
 		if (data.error) {
 			toast.error(data.error, { duration: 8000 });
 		}
+
+		// ── Loop Guard Events ────────────────────────────────────
+		if (data.type === 'loop_nudge') {
+			loopNudgeMessage = data.message;
+			loopEnvelopeSize = data.envelope_size ?? 0;
+			toast.custom(
+				async () => {
+					const mod = await import('./LoopNudgeToast.svelte');
+					return mod.default;
+				},
+				{
+					componentProps: {
+						message: data.message,
+						envelopeSize: data.envelope_size ?? 0,
+						onAcknowledge: () => {
+							loopNudgeMessage = null;
+						}
+					},
+					duration: 8000
+				}
+			);
+		}
+		if (data.type === 'loop_abort_request') {
+			loopAbortMessage = data.message;
+		}
+		if (data.type === 'loop_guard_status') {
+			loopNudgesDone = data.nudges_done ?? 0;
+			if (data.aborted) loopAbortMessage = null;
+		}
+
 		if (data.done) {
 			flushTtsBuffer();
 			// Clear streaming indicator for this tab
@@ -1166,6 +1212,26 @@
 		} catch (err: any) {
 			toast.error(err?.message || 'Failed to load skills');
 		}
+	}
+
+	function handleTeStatusCommand() {
+		if (isLanding) return;
+		showTeStatusModal = true;
+	}
+
+	function handleTeToolsCommand() {
+		if (isLanding) return;
+		showTeToolsModal = true;
+	}
+
+	function handleTeSkillsCommand() {
+		if (isLanding) return;
+		showTeSkillsModal = true;
+	}
+
+	function handleTEConfigCommand() {
+		if (isLanding) return;
+		showTEConfigModal = true;
 	}
 
 	async function refreshCommandSessions() {
@@ -1923,6 +1989,31 @@
 			</div>
 		{/if}
 
+		<!-- Loop Guard UI -->
+		{#if loopNudgeMessage}
+			<div class="px-4 py-1">
+				<LoopNudgeToast
+					bind:chatId
+					message={loopNudgeMessage}
+					envelopeSize={loopEnvelopeSize}
+					onAcknowledge={() => (loopNudgeMessage = null)}
+				/>
+			</div>
+		{/if}
+		{#if loopAbortMessage}
+			<div class="px-4 py-1">
+				<LoopAbortBanner
+					bind:chatId
+					message={loopAbortMessage}
+					onConfirm={() => {
+						loopAbortMessage = null;
+						cancelTask(chatId!);
+					}}
+					onCancel={() => (loopAbortMessage = null)}
+				/>
+			</div>
+		{/if}
+
 		<!-- Input area -->
 		<div class="px-4 py-3" style="background: var(--app-bg);">
 			<div class="{$widescreenMode ? 'max-w-full' : 'max-w-2xl'} mx-auto w-full relative">
@@ -1977,6 +2068,10 @@
 					ontoolapprovalchange={handleToolApprovalModeChange}
 					onstatus={handleStatusCommand}
 					onskillslist={handleSkillsListCommand}
+					onteStatus={handleTeStatusCommand}
+					onteTools={handleTeToolsCommand}
+					onteSkills={handleTeSkillsCommand}
+					onteConfig={handleTEConfigCommand}
 					oncancel={handleCancel}
 					{queuedMessages}
 					onqueuesendnow={handleQueueSendNow}
@@ -2010,6 +2105,46 @@
 		onclose={() => {
 			showSkillsModal = false;
 			skillsModalList = [];
+		}}
+	/>
+{/if}
+
+{#if showTeStatusModal}
+	<TeStatusPanel
+		chatId={chatId}
+		anchor={statusButtonEl ?? { x: 0, y: 0 }}
+		onclose={() => {
+			showTeStatusModal = false;
+		}}
+	/>
+{/if}
+
+{#if showTeToolsModal}
+	<TeToolsPanel
+		chatId={chatId}
+		anchor={{ x: 0, y: 0 }}
+		onclose={() => {
+			showTeToolsModal = false;
+		}}
+	/>
+{/if}
+
+{#if showTeSkillsModal}
+	<TeSkillsPanel
+		chatId={chatId}
+		anchor={{ x: 0, y: 0 }}
+		onclose={() => {
+			showTeSkillsModal = false;
+		}}
+	/>
+{/if}
+
+{#if showTEConfigModal}
+	<TEConfigPanel
+		chatId={chatId}
+		anchor={{ x: 0, y: 0 }}
+		onclose={() => {
+			showTEConfigModal = false;
 		}}
 	/>
 {/if}

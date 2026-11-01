@@ -1625,6 +1625,83 @@ async def queue_delete(request: Request, chat_id: str, message_id: str):
     return {"ok": True}
 
 
+# ── TokenEconomizer Status Endpoint ───────────────────────
+
+
+class TeStatusResponse(BaseModel):
+    """Response shape for /api/te/status."""
+    effective_tokens: int = 0
+    total_tokens: int = 0
+    cache_savings_pct: float = 0.0
+    pricing_overhead: int = 0
+    session_cost_usd: float = 0.0
+    tool_usage: list[dict] = []
+
+
+@router.get("/te/status")
+async def te_status(request: Request, chat_id: str = Query(..., description="Chat ID")) -> dict | None:
+    """Get TokenEconomizer status for a specific chat.
+
+    Returns effective tokens (cache-aware), total tokens, cache savings %,
+    pricing overhead, session cost in USD, and per-tool usage breakdown.
+    Only authenticated users can query their own chats.
+    """
+    user_id = _get_user(request)
+
+    # Verify ownership
+    chat = await Chat.get_by_id(chat_id)
+    if not chat or chat.user_id != user_id:
+        raise HTTPException(404, "chat not found")
+
+    from cptr.models import TeStatus, ToolUsage as TeToolUsage
+
+    async def _fetch():
+        session = await get_db()
+        from sqlalchemy import select as sa_select
+
+        # Get TE status row
+        result = await session.execute(sa_select(TeStatus).where(TeStatus.chat_id == chat_id))
+        status_row = result.scalar_one_or_none()
+
+        if not status_row:
+            return {
+                "effective_tokens": 0,
+                "total_tokens": 0,
+                "cache_savings_pct": 0.0,
+                "pricing_overhead": 0,
+                "session_cost_usd": 0.0,
+                "tool_usage": [],
+            }
+
+        # Get tool usage breakdown
+        tools_result = await session.execute(
+            sa_select(TeToolUsage).where(TeToolUsage.chat_id == chat_id)
+        )
+        tool_rows = list(tools_result.scalars().all())
+
+        return {
+            "effective_tokens": status_row.effective_tokens or 0,
+            "total_tokens": status_row.total_tokens or 0,
+            "cache_savings_pct": status_row.cache_savings_pct or 0.0,
+            "pricing_overhead": status_row.pricing_overhead or 0,
+            "session_cost_usd": round(status_row.session_cost_usd or 0.0, 6),
+            "tool_usage": [
+                {
+                    "tool_name": t.tool_name,
+                    "call_count": t.call_count or 0,
+                    "first_seen": t.first_seen or 0,
+                    "last_seen": t.last_seen or 0,
+                }
+                for t in tool_rows
+            ],
+        }
+
+    return await _fetch()
+
+
+# ── Model resolution helpers ───────────────────────
+
+
 async def _resolve_connection(model_id: str, app_state=None) -> tuple[dict, str]:
     """Find connection for model.
     'openrouter/gpt-4o' → connection with prefix_id='openrouter', runtime model='gpt-4o'

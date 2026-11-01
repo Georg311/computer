@@ -76,6 +76,7 @@ from cptr.utils.agents.events import (
 from cptr.utils.agents.attachments import prepare_agent_attachments
 from cptr.utils.model_targets import AgentModelTarget, ApiModelTarget, ModelTarget
 from cptr.utils.identity import identity_for_context
+from cptr.utils.te.repo_facts import get_active_facts
 
 logger = logging.getLogger(__name__)
 
@@ -1953,6 +1954,12 @@ async def run_chat_task(
             messages.append({"role": "user", "content": regeneration_prompt})
         if chat_params.get("plan_mode", False):
             messages.append({"role": "user", "content": PLAN_MODE_PROMPT})
+        # ── TokenEconomizer: inject repo facts into system prompt ──
+        active_facts = get_active_facts(chat_id)
+        if active_facts:
+            fact_lines = [f"- {fact['text']}" for fact in active_facts]
+            system += "\n\n# Repository Facts (learned from prior sessions)\n" + "\n".join(fact_lines)
+
         system = await _apply_voice_mode_system_prompt(system, chat_params)
 
         resume_state = None
@@ -2184,6 +2191,15 @@ async def run_chat_task(
                     message=content,
                 )
                 task_completed_success = True
+                
+                # ── TokenEconomizer: persist learned facts to DB ──
+                try:
+                    from cptr.utils.te.repo_facts import persist_facts_from_tracker
+                    if chat_id:
+                        persist_facts_from_tracker(chat_id)
+                except Exception as e:
+                    logger.warning("[te] Failed to persist facts: %s", str(e))
+                
                 return
 
         flushed_item = _flush_text()
@@ -2192,6 +2208,15 @@ async def run_chat_task(
         await _finish_reasoning_item()
         await _save_message("agent stream ended", content=content, output=output_items, done=True)
         _task_state.pop(message_id, None)
+        
+        # ── TokenEconomizer: persist learned facts to DB ──
+        try:
+            from cptr.utils.te.repo_facts import persist_facts_from_tracker
+            if chat_id:
+                persist_facts_from_tracker(chat_id)
+        except Exception as e:
+            logger.warning("[te] Failed to persist facts: %s", str(e))
+        
         await _emit_done()
         preview = content[:300] if content else ""
         await publish_event(
@@ -2295,6 +2320,12 @@ async def run_chat_task(
             if skill_blocks:
                 system += "\n\n" + "\n\n".join(skill_blocks)
 
+        # ── TokenEconomizer: inject repo facts into system prompt ──
+        active_facts = get_active_facts(chat_id)
+        if active_facts:
+            fact_lines = [f"- {fact['text']}" for fact in active_facts]
+            system += "\n\n# Repository Facts (learned from prior sessions)\n" + "\n".join(fact_lines)
+
         system = await _apply_voice_mode_system_prompt(system, chat_params)
 
         # Plan mode: strip write tools, inject prompt as user message (not system, to preserve cache)
@@ -2330,11 +2361,37 @@ async def run_chat_task(
             [] if regeneration_prompt else output_items
         )
 
+        # ── Loop Guard: turn-level failure-loop intervention ──
+        try:
+            from cptr.utils.te.loop_guard import LoopGuard
+            loop_guard = LoopGuard(chat_id=chat_id)
+        except Exception as e:
+            logger.warning("[loop_guard] Failed to init for %s: %s", chat_id, e)
+            loop_guard = None
+
         async def execute_guarded_tool(name: str, arguments: dict, context: dict) -> str:
             no_progress_guard.check(name, arguments)
             result = await execute_tool(name, arguments, context)
             if no_progress_guard.observe(name, arguments, result):
                 result += no_progress_guard.warning(name)
+
+            # ── Loop Guard: fold call + assess ──
+            if loop_guard and chat_id and user_id:
+                try:
+                    analysis = loop_guard.fold_call(name, arguments or {}, result[:200])
+                    nudge = loop_guard.nudge_text()
+                    if nudge:
+                        await emit_loop_nudge(user_id, chat_id, nudge, analysis.get("envelope_size", 0))
+
+                    abort_needed, abort_reason = loop_guard.assess_abort()
+                    if abort_needed:
+                        await emit_loop_abort_request(
+                            user_id, chat_id,
+                            f"Turn scheint festzusteigen ({abort_reason}). Bitte bestätigen Sie das Abbrechen."
+                        )
+                except Exception as e:
+                    logger.warning("[loop_guard] Error during execution for %s: %s", chat_id, e)
+
             return result
 
         async def run_queued_tool_calls(tool_ctx: dict) -> str:
@@ -2465,6 +2522,14 @@ async def run_chat_task(
                 await _save_message("tool call complete", content=content, output=output_items)
                 processed_any = True
 
+                # ── TE cost tracking: record tool usage ──────────────
+                try:
+                    from cptr.utils.te.cost_tracker import record_tool_call as _te_record_tool
+                    if last_usage and isinstance(last_usage, dict):
+                        _te_record_tool(chat_id, name, {**last_usage, "model": model})
+                except Exception as _exc:
+                    logger.debug("[te] tool call tracking failed: %s", _exc)
+
             return "completed" if processed_any else "idle"
 
         tool_ctx = {
@@ -2572,6 +2637,12 @@ async def run_chat_task(
                             skill_blocks.append(format_skill_content(skill))
                     if skill_blocks:
                         system += "\n\n" + "\n\n".join(skill_blocks)
+                # ── TokenEconomizer: inject repo facts into system prompt ──
+                active_facts = get_active_facts(chat_id)
+                if active_facts:
+                    fact_lines = [f"- {fact['text']}" for fact in active_facts]
+                    system += "\n\n# Repository Facts (learned from prior sessions)\n" + "\n".join(fact_lines)
+
                 system = await _apply_voice_mode_system_prompt(system, chat_params)
                 messages = keep_zone
                 last_usage = None  # reset after compaction
@@ -2745,6 +2816,13 @@ async def run_chat_task(
                                 tokens, threshold=compact_token_threshold
                             )
                         )
+
+                    # ── TE cost tracking: record usage event ───────────
+                    try:
+                        from cptr.utils.te.cost_tracker import record_usage as _te_record_usage
+                        _te_record_usage(chat_id, {**usage, "model": model})
+                    except Exception as _exc:
+                        logger.debug("[te] usage tracking failed: %s", _exc)
 
                 elif event["type"] == "done":
                     # Stream ended. Usage may have arrived earlier, multiple times, or never.

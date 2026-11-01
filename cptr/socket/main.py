@@ -9,9 +9,13 @@ from __future__ import annotations
 
 import socketio
 
+import logging
+
 from cptr.models import Chat
 from cptr.utils.config import check_access, now_ms
 from cptr.env import CORS_ALLOWED_ORIGINS
+
+logger = logging.getLogger(__name__)
 
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins=CORS_ALLOWED_ORIGINS)
 
@@ -129,6 +133,117 @@ def is_chat_visible(user_id: str, chat_id: str) -> bool:
 def is_user_active(user_id: str) -> bool:
     """Return True when the user has at least one connected app session."""
     return bool(_user_sids.get(user_id))
+
+
+# ── Loop Guard Events ────────────────────────────────────────
+
+
+@sio.on("loop_guard:acknowledge")
+async def on_loop_guard_acknowledge(sid, data):
+    """Acknowledge a loop nudge or abort request from the UI."""
+    session = await sio.get_session(sid)
+    user_id = session.get("user_id")
+    chat_id = data.get("chat_id") if isinstance(data, dict) else None
+    ack_type = data.get("type") if isinstance(data, dict) else None  # "nudge" or "abort"
+    if not user_id or not chat_id or not ack_type:
+        return
+
+    from cptr.models.te import LoopEnvelope
+    from sqlalchemy import select as sa_select
+
+    try:
+        async with get_session_factory()() as session_db:
+            stmt = sa_select(LoopEnvelope).where(LoopEnvelope.chat_id == chat_id)
+            result = session_db.execute(stmt)
+            env = result.scalar_one_or_none()
+            if env:
+                if ack_type == "abort":
+                    env.aborted = True
+                # Increment nudges_done on nudge acknowledgment
+                elif ack_type == "nudge":
+                    env.nudges_done = (env.nudges_done or 0) + 1
+                session_db.add(env)
+                session_db.commit()
+
+        await publish_event(
+            EVENTS.GENERIC,
+            actor={"id": user_id},
+            subject_id=chat_id,
+            subject_type="chat",
+            source="socket:loop_guard_acknowledge",
+            data={"ack_type": ack_type, "chat_id": chat_id},
+        )
+    except Exception as e:
+        logger.warning("Failed to acknowledge loop guard event for %s: %s", chat_id, e)
+
+
+@sio.on("loop_guard:status")
+async def on_loop_guard_status(sid, data):
+    """Request current Loop Guard status for a chat."""
+    session = await sio.get_session(sid)
+    user_id = session.get("user_id")
+    chat_id = data.get("chat_id") if isinstance(data, dict) else None
+    if not user_id or not chat_id:
+        return
+
+    from cptr.models.te import LoopEnvelope
+    from sqlalchemy import select as sa_select
+
+    try:
+        async with get_session_factory()() as session_db:
+            stmt = sa_select(LoopEnvelope).where(LoopEnvelope.chat_id == chat_id)
+            result = session_db.execute(stmt)
+            env = result.scalar_one_or_none()
+
+            payload = {
+                "type": "loop_guard_status",
+                "chat_id": chat_id,
+                "nudges_done": (env.nudges_done if env else 0),
+                "aborted": bool(env.aborted) if env else False,
+                "envelope_size": (env.envelope_size if env else 0),
+            }
+            await emit_to_user(user_id, payload)
+    except Exception as e:
+        logger.warning("Failed to fetch loop guard status for %s: %s", chat_id, e)
+
+
+async def emit_loop_nudge(user_id: str, chat_id: str, message: str, envelope_size: int = 0):
+    """Send a Loop Guard nudge event to the user's connected tabs.
+
+    Triggered when the LoopGuard detects first signs of a stuck turn sequence.
+    The UI shows this as a toast notification with a redirect suggestion.
+    """
+    await emit_to_user(user_id, {
+        "type": "loop_nudge",
+        "chat_id": chat_id,
+        "message": message,
+        "envelope_size": envelope_size,
+    })
+
+
+async def emit_loop_abort_request(user_id: str, chat_id: str, message: str):
+    """Send a Loop Guard abort request to the user's connected tabs.
+
+    Triggered when the LoopGuard detects persistent stuck state after a nudge.
+    The UI shows this as a banner with [Abort] and [Continue] buttons.
+    """
+    await emit_to_user(user_id, {
+        "type": "loop_abort_request",
+        "chat_id": chat_id,
+        "message": message,
+        "confirmed": False,
+    })
+
+
+async def emit_loop_guard_status(user_id: str, chat_id: str, nudges_done: int = 0, aborted: bool = False, envelope_size: int = 0):
+    """Send a Loop Guard status update to the user's connected tabs."""
+    await emit_to_user(user_id, {
+        "type": "loop_guard_status",
+        "chat_id": chat_id,
+        "nudges_done": nudges_done,
+        "aborted": aborted,
+        "envelope_size": envelope_size,
+    })
 
 
 def get_asgi_app(other_app):

@@ -14,6 +14,7 @@ from cptr.routers import (
     automations_router,
     bridge_router,
     browser_router,
+    te_router,
     webhook_router,
     chat_router,
     events_router,
@@ -303,6 +304,7 @@ app.include_router(auth_router)
 app.include_router(automations_router)
 app.include_router(bridge_router)
 app.include_router(browser_router)
+app.include_router(te_router)
 app.include_router(webhook_router)
 app.include_router(chat_router)
 app.include_router(events_router)

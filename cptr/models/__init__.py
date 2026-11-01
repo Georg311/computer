@@ -14,6 +14,14 @@ from cptr.models.chats import (
     is_subagent_result_message,
 )
 from cptr.models.automations import Automation, AutomationRun
+from cptr.models.te import (
+    TeStatus,
+    ToolUsage,
+    RepoFacts,
+    LoopEnvelope,
+    ToolPruneDecision,
+    MicroskillsFact,
+)
 
 __all__ = [
     "Base",
@@ -31,4 +39,11 @@ __all__ = [
     "is_subagent_result_message",
     "Automation",
     "AutomationRun",
+    # TokenEconomizer models
+    "TeStatus",
+    "ToolUsage",
+    "RepoFacts",
+    "LoopEnvelope",
+    "ToolPruneDecision",
+    "MicroskillsFact",
 ]

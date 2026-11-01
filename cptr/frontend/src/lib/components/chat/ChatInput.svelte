@@ -86,6 +86,10 @@
 		onplan?: () => void;
 		onstatus?: () => void;
 		onskillslist?: () => void;
+		onteStatus?: () => void;
+		onteTools?: () => void;
+		onteSkills?: () => void;
+		onteConfig?: () => void;
 		oncancel?: () => void;
 		onaskuseranswer?: (
 			messageId: string,
@@ -123,6 +127,9 @@
 		onplan,
 		onstatus,
 		onskillslist,
+		onteTools,
+		onteSkills,
+		onteConfig,
 		oncancel,
 		onaskuseranswer,
 		onqueuesendnow,
@@ -1041,10 +1048,14 @@
 		if (onplan && '/plan'.startsWith(slashCommandQuery)) ids.push('plan');
 		if (hasChatContent && onfork && '/fork'.startsWith(slashCommandQuery)) ids.push('fork');
 		if (hasChatContent && onstatus && '/status'.startsWith(slashCommandQuery)) ids.push('status');
-		if ('/model'.startsWith(slashCommandQuery)) ids.push('model');
+		if (hasChatContent && '/model'.startsWith(slashCommandQuery)) ids.push('model');
 		if (hasChatContent && onskillslist && '/skills:list'.startsWith(slashCommandQuery))
 			ids.push('skills:list');
 		if (hasChatContent && '/skills:create'.startsWith(slashCommandQuery)) ids.push('skills:create');
+		if (hasChatContent && '/te-status'.startsWith(slashCommandQuery)) ids.push('te-status');
+		if (hasChatContent && onteTools && '/te-tools'.startsWith(slashCommandQuery)) ids.push('te-tools');
+		if (hasChatContent && '/te-skills'.startsWith(slashCommandQuery)) ids.push('te-skills');
+		if (hasChatContent && onteConfig && '/te-config'.startsWith(slashCommandQuery)) ids.push('te-config');
 		return ids;
 	}
 
@@ -1198,6 +1209,26 @@
 			removeSlashCommandToken();
 			inputText = '/skills:create';
 			void tick().then(onsend);
+			return;
+		}
+		if (commandId === 'te-status' && onteStatus) {
+			removeSlashCommandToken();
+			onteStatus();
+			return;
+		}
+		if (commandId === 'te-tools' && onteTools) {
+			removeSlashCommandToken();
+			onteTools();
+			return;
+		}
+		if (commandId === 'te-skills' && onteSkills) {
+			removeSlashCommandToken();
+			onteSkills();
+			return;
+		}
+		if (commandId === 'te-config' && onteConfig) {
+			removeSlashCommandToken();
+			onteConfig();
 			return;
 		}
 		onsend();
@@ -1444,6 +1475,90 @@
 						<span class="app-muted text-[0.625rem] truncate shrink-0">
 							{$t('chat.commandStatusDesc')}
 						</span>
+					</span>
+				</button>
+			{/if}
+			{#if slashCommandIds.includes('te-status')}
+				<button
+					type="button"
+					aria-label={`${$t('chat.commandTeStatus')}: ${$t('chat.commandTeStatusDesc')}`}
+					use:tooltip={{
+						content: $t('chat.commandTeStatusDesc'),
+						placement: 'top'
+					}}
+					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
+						{selectedSlashCommand('te-status') ? 'app-interactive-active' : ''}"
+					onmousedown={(e) => e.preventDefault()}
+					onclick={() => {
+						runSlashCommand('te-status');
+					}}
+					onmouseenter={() => selectSlashCommand('te-status')}
+				>
+					<span class="app-icon-muted flex items-center justify-center w-4 shrink-0">
+						<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.34 11.34l1.42 1.42M2 12h2m16 0h2M6.34 19.07l1.42-1.42m11.34-11.34l1.42-1.42" />
+							<circle cx="12" cy="12" r="4" />
+						</svg>
+					</span>
+					<span class="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
+						<span class="truncate">{$t('chat.commandTeStatus')}</span>
+						<span class="app-muted text-[0.625rem] truncate shrink-0">/te-status</span>
+					</span>
+				</button>
+			{/if}
+			{#if slashCommandIds.includes('te-skills')}
+				<button
+					type="button"
+					aria-label="${'$'}{$t('chat.commandTeSkills')}: ${'$'}{$t('chat.commandTeSkillsDesc')}"
+					use:tooltip={{
+						content: ${'$'}$t('chat.commandTeSkillsDesc'),
+						placement: 'top'
+					}}
+					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
+						{selectedSlashCommand('te-skills') ? 'app-interactive-active' : ''}"
+					onmousedown={(e) => e.preventDefault()}
+					onclick={() => {
+						runSlashCommand('te-skills');
+					}}
+					onmouseenter={() => selectSlashCommand('te-skills')}
+				>
+					<span class="app-icon-muted flex items-center justify-center w-4 shrink-0">
+						<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.34 11.34l1.42 1.42M2 12h2m16 0h2M6.34 19.07l1.42-1.42m11.34-11.34l1.42 1.42" />
+							<circle cx="12" cy="12" r="4" />
+						</svg>
+					</span>
+					<span class="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
+						<span class="truncate">${'$'}{$t('chat.commandTeSkills')}</span>
+						<span class="app-muted text-[0.625rem] truncate shrink-0">/te-skills</span>
+					</span>
+				</button>
+			{/if}
+			{#if slashCommandIds.includes('te-config')}
+				<button
+					type="button"
+					aria-label="${'$'}{$t('chat.commandTeConfig')}: ${'$'}{$t('chat.commandTeConfigDesc')}"
+					use:tooltip={{
+						content: ${'$'}$t('chat.commandTeConfigDesc'),
+						placement: 'top'
+					}}
+					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
+						{selectedSlashCommand('te-config') ? 'app-interactive-active' : ''}"
+					onmousedown={(e) => e.preventDefault()}
+					onclick={() => {
+						runSlashCommand('te-config');
+					}}
+					onmouseenter={() => selectSlashCommand('te-config')}
+				>
+					<span class="app-icon-muted flex items-center justify-center w-4 shrink-0">
+						<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.34 11.34l1.42 1.42M2 12h2m16 0h2M6.34 19.07l1.42-1.42m11.34-11.34l1.42 1.42" />
+							<circle cx="12" cy="12" r="4" />
+						</svg>
+					</span>
+					<span class="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
+						<span class="truncate">${'$'}{$t('chat.commandTeConfig')}</span>
+						<span class="app-muted text-[0.625rem] truncate shrink-0">/te-config</span>
 					</span>
 				</button>
 			{/if}

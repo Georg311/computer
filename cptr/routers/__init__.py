@@ -18,6 +18,7 @@ from cptr.routers.notifications import router as notifications_router
 from cptr.routers.search import router as search_router
 from cptr.routers.skills import router as skills_router
 from cptr.routers.state import router as state_router
+from cptr.routers.te import router as te_router
 from cptr.routers.terminal import router as terminal_router
 from cptr.routers.workspace import router as workspace_router
 
@@ -28,6 +29,7 @@ __all__ = [
     "automations_router",
     "bridge_router",
     "browser_router",
+    "te_router",
     "webhook_router",
     "chat_router",
     "events_router",

@@ -29,6 +29,22 @@ export interface ChatInfo {
 	is_active?: boolean;
 }
 
+export interface TeToolUsageItem {
+	tool_name: string;
+	call_count: number;
+	first_seen: number;
+	last_seen: number;
+}
+
+export interface TeStatusResponse {
+	effective_tokens: number;
+	total_tokens: number;
+	cache_savings_pct: number;
+	pricing_overhead: number;
+	session_cost_usd: number;
+	tool_usage: TeToolUsageItem[];
+}
+
 export interface ContextUsage {
 	tokens: number;
 	estimated_tokens: number;
@@ -255,3 +271,74 @@ export const queueSendNow = (chatId: string, messageId: string) =>
 
 export const queueDelete = (chatId: string, messageId: string) =>
 	fetchJSON<{ ok: boolean }>(`/api/chats/${chatId}/queue/${messageId}`, { method: 'DELETE' });
+
+// ── TokenEconomizer ────────────────────────────────────────
+
+export const getTeStatus = (chatId: string): Promise<TeStatusResponse | null> =>
+	fetchJSON(`/api/chats/te/status?chat_id=${encodeURIComponent(chatId)}`);
+
+// ── Tool Pruning API ───────────────────────────────────────
+
+export interface TeToolPruningRecommendation {
+	tool_name: string;
+	call_count: number;
+	sessions_unused: number;
+	recommendation: 'immediate' | 'recommended';
+	reason: string;
+}
+
+export interface TeToolPruningResponse {
+	chat_id: string;
+	recommendations: TeToolPruningRecommendation[];
+	evidence_threshold: number;
+	total_tools: number;
+	tools: Array<{ tool_name: string; call_count: number }>;
+}
+
+export const getTeToolPruning = (chatId: string): Promise<TeToolPruningResponse | null> =>
+	fetchJSON(`/api/chats/te/toolpruning/${encodeURIComponent(chatId)}`);
+
+export const applyTeToolPruning = (chatId: string, toolNames: string[]): Promise<{ ok: boolean }> =>
+	fetchJSON(
+		`/api/chats/te/toolpruning/apply/${encodeURIComponent(chatId)}`,
+		{ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tool_names: toolNames }) }
+	);
+
+export const getTeAllToolPruning = (): Promise<TeToolPruningResponse | null> =>
+	fetchJSON('/api/chats/te/toolpruning/all');
+
+
+// ── Repo Facts API ────────────────────────────────────────
+
+export interface TeRepoFact {
+	id: string;
+	fact_text: string;
+	fire_status: number;
+	confirmation_count: number;
+	active: boolean;
+}
+
+export const getTeRepoFacts = (chatId: string): Promise<TeRepoFact[]> =>
+	fetchJSON(`/api/chats/te/repo-facts/${encodeURIComponent(chatId)}`);
+
+// ── TE Config API ────────────────────────────────────────
+
+export interface TEConfigData {
+	pricing?: Record<string, any>;
+	loopguard?: Record<string, any>;
+	microskills?: Record<string, any>;
+	toolpruning?: Record<string, any>;
+}
+
+export const getTEConfig = (chatId: string): Promise<TEConfigData | null> =>
+	fetchJSON(`/api/chats/te/config?chat_id=${encodeURIComponent(chatId)}`);
+
+export const updateTEConfig = (
+	chatId: string,
+	section: 'loopguard' | 'microskills' | 'toolpruning',
+	values: Record<string, unknown>
+): Promise<{ ok: boolean }> =>
+	fetchJSON(
+		`/api/chats/te/config/update?chat_id=${encodeURIComponent(chatId)}`,
+		{ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ section, values }) }
+	);

@@ -1,3 +1,17 @@
+## [0.9.21.18] - 2026-10-31
+
+### Added
+- 🧪 **TokenEconomizer integration (Phase 0).** Copied TE reference implementation to `cptr/utils/te/` (pricing, config, loopguard, microskills, toolprune, trace modules). Added SQLAlchemy models (`TeStatus`, `ToolUsage`, `RepoFacts`, `LoopEnvelope`) and Alembic migration for new DB tables.
+- 🧪 **TokenEconomizer integration (Phase 3).** Frontend TE Skills Panel — Svelte component in Burger menu displaying learned repository facts with fire status (🗝️/💡) and confirmation counts. Slash command `/te-skills` opens the panel. Fixed missing `onteSkills` prop chain (`ChatInput` → `ChatPanel`).
+
+## [0.9.21.19] - 2026-11-01
+
+### Added
+- 🧪 **TokenEconomizer integration (Phase 1).** Pricing/Cost Monitoring — `pricing_wrapper.py` mit absoluten Dollar-Preisen pro Model, `cost_tracker.py` für Session-Tracking in SQLite, `/api/chats/te/status` Endpoint, Frontend TE Status Panel im Burger Menü. Slash command `/te-status` öffnet Panel.
+- 🧪 **TokenEconomizer integration (Phase 2).** Tool Pruning Vorschläge — Hybrid-Ansatz: `analyze_tool_pruning()` erkennt nie genutzte oder über X Sessions ungenutzte Tools, `/api/chats/te/toolpruning/apply/{chat_id}` Endpoint, Frontend TE Tools Panel mit Apply-Buttons. Slash command `/te-tools` öffnet Panel.
+- 🧪 **TokenEconomizer integration (Phase 4).** Loop Guard — Turn-level failure-loop intervention: `loop_guard.py` mit DB-persistiertem State, 2-Tier-Cascade (Tier-0 rule-based + optional Tier-1 LLM Judge), Nudge als Toast-Nachricht, Abort-Vorschlag als Banner mit manueller Bestätigung (kein Auto-Stop!). Svelte Components `LoopNudgeToast.svelte` und `LoopAbortBanner.svelte` in `ChatPanel.svelte` integriert. Socket.IO Events (`loop_nudge`, `loop_abort_request`, `loop_guard_status`) broadcasten via `socket/main.py`.
+- 🧪 **TokenEconomizer integration (Phase 5).** Config Management — `/api/chats/te/config` + `/api/chats/te/config/update` Endpoints zum Lesen/Schreiben von TE Config in config.toml. Frontend TE Config Panel (`TEConfigPanel.svelte`) mit Core Toggles (microskills, toolpruning, loopguard) und Advanced Expandable Section (max_facts, max_tokens, thresholds). Admin Settings Integration: `/api/admin/te/pricing` CRUD endpoints zum Verwalten von Model-Preisen.
+
 ## [0.9.21.17] - 2026-10-27
 
 ### Fixed

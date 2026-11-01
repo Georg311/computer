@@ -9,10 +9,11 @@ from typing import Optional
 
 from cptr.routers.chat import invalidate_model_cache
 from cptr.models import User, Auth, Config
-from cptr.utils.config import AuthResult, _get_jwt_secret, check_access, hash_password, now_ms
+from cptr.utils.config import AuthResult, _get_jwt_secret, check_access, hash_password, now_ms, load_config, save_config, invalidate_config_cache
 from cptr.utils.crypto import decrypt_key, encrypt_key, mask_key
 from cptr.utils.agents.detection import get_agent_status, invalidate_agent_detection_cache
 from cptr.utils.agents.models import save_agent_profiles
+from cptr.utils.te.pricing_wrapper import DEFAULT_PRICING
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -500,6 +501,110 @@ async def update_model_config(request: Request, model_id: str, body: UpdateModel
         all_config[model_id] = entry
 
     await Config.upsert({CONFIG_KEY_CHAT_MODELS: all_config})
+    return {"ok": True}
+
+
+# ── TE Pricing ───────────────────────────────────────────────
+
+
+class TePricingUpdateRequest(BaseModel):
+    pricing: dict[str, float]
+
+
+class TePricingCreateRequest(BaseModel):
+    model_id: str
+    pricing: dict[str, float]
+
+
+@router.get("/te/pricing")
+async def get_te_pricing(request: Request):
+    """Return all model pricing: DEFAULT_PRICING base + config.toml overrides.
+
+    Admin-only endpoint for the TE pricing admin tab.
+    """
+    require_admin(request)
+
+    config = load_config()
+    overrides = config.get("te_pricing", {})
+    if not isinstance(overrides, dict):
+        overrides = {}
+
+    return {
+        "models": DEFAULT_PRICING.copy(),
+        "overrides": overrides,
+    }
+
+
+@router.post("/te/pricing")
+async def create_te_pricing_entry(request: Request, body: TePricingCreateRequest):
+    """Create or update pricing for a single model.
+
+    Writes an override into config.toml [te_pricing].
+    """
+    require_admin(request)
+
+    model_id = body.model_id
+    pricing = body.pricing
+    if not isinstance(pricing, dict):
+        raise HTTPException(status_code=400, detail="pricing must be a dict")
+
+    config = load_config()
+    overrides = config.get("te_pricing", {})
+    if not isinstance(overrides, dict):
+        overrides = {}
+
+    overrides[model_id] = pricing
+    config["te_pricing"] = overrides
+    save_config(config)
+    invalidate_config_cache()
+
+    return {"ok": True}
+
+
+@router.put("/te/pricing/{model_id}")
+async def update_te_pricing_entry(request: Request, model_id: str, body: TePricingUpdateRequest):
+    """Update pricing for a single model.
+
+    Writes an override into config.toml [te_pricing].
+    """
+    require_admin(request)
+
+    pricing = body.pricing
+    if not isinstance(pricing, dict):
+        raise HTTPException(status_code=400, detail="pricing must be a dict")
+
+    config = load_config()
+    overrides = config.get("te_pricing", {})
+    if not isinstance(overrides, dict):
+        overrides = {}
+
+    overrides[model_id] = pricing
+    config["te_pricing"] = overrides
+    save_config(config)
+    invalidate_config_cache()
+
+    return {"ok": True}
+
+
+@router.delete("/te/pricing/{model_id}")
+async def delete_te_pricing_entry(request: Request, model_id: str):
+    """Remove pricing override for a model (reset to default)."""
+    require_admin(request)
+
+    config = load_config()
+    overrides = config.get("te_pricing", {})
+    if not isinstance(overrides, dict):
+        overrides = {}
+
+    if model_id in overrides:
+        del overrides[model_id]
+        if overrides:
+            config["te_pricing"] = overrides
+        else:
+            config.pop("te_pricing", None)
+        save_config(config)
+        invalidate_config_cache()
+
     return {"ok": True}
 
 
