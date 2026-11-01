@@ -1,4 +1,9 @@
-"""Shared pytest fixtures for TE module tests."""
+"""Shared pytest fixtures for TE module tests.
+
+pytest-asyncio configuration: all async tests use asyncio mode 'auto'
+so they can be plain async def functions.
+"""
+import asyncio
 
 import asyncio
 import os

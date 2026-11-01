@@ -1509,9 +1509,9 @@
 			{#if slashCommandIds.includes('te-skills')}
 				<button
 					type="button"
-					aria-label="${'$'}{$t('chat.commandTeSkills')}: ${'$'}{$t('chat.commandTeSkillsDesc')}"
+					aria-label="{{$t('chat.commandTeSkills')}: {{$t('chat.commandTeSkillsDesc')}}"
 					use:tooltip={{
-						content: ${'$'}$t('chat.commandTeSkillsDesc'),
+						content: $t('chat.commandTeSkillsDesc'),
 						placement: 'top'
 					}}
 					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
@@ -1529,7 +1529,7 @@
 						</svg>
 					</span>
 					<span class="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
-						<span class="truncate">${'$'}{$t('chat.commandTeSkills')}</span>
+						<span class="truncate">{{$t('chat.commandTeSkills')}</span>
 						<span class="app-muted text-[0.625rem] truncate shrink-0">/te-skills</span>
 					</span>
 				</button>
@@ -1537,9 +1537,9 @@
 			{#if slashCommandIds.includes('te-config')}
 				<button
 					type="button"
-					aria-label="${'$'}{$t('chat.commandTeConfig')}: ${'$'}{$t('chat.commandTeConfigDesc')}"
+					aria-label="{{$t('chat.commandTeConfig')}: {{$t('chat.commandTeConfigDesc')}}"
 					use:tooltip={{
-						content: ${'$'}$t('chat.commandTeConfigDesc'),
+						content: $t('chat.commandTeConfigDesc'),
 						placement: 'top'
 					}}
 					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
@@ -1557,7 +1557,7 @@
 						</svg>
 					</span>
 					<span class="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
-						<span class="truncate">${'$'}{$t('chat.commandTeConfig')}</span>
+						<span class="truncate">{{$t('chat.commandTeConfig')}</span>
 						<span class="app-muted text-[0.625rem] truncate shrink-0">/te-config</span>
 					</span>
 				</button>
