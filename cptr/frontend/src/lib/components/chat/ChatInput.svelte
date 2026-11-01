@@ -1509,7 +1509,7 @@
 			{#if slashCommandIds.includes('te-skills')}
 				<button
 					type="button"
-					aria-label="{{$t('chat.commandTeSkills')}: {{$t('chat.commandTeSkillsDesc')}}"
+					aria-label={`${$t('chat.commandTeSkills')}: ${$t('chat.commandTeSkillsDesc')}`}
 					use:tooltip={{
 						content: $t('chat.commandTeSkillsDesc'),
 						placement: 'top'
@@ -1537,7 +1537,7 @@
 			{#if slashCommandIds.includes('te-config')}
 				<button
 					type="button"
-					aria-label="{{$t('chat.commandTeConfig')}: {{$t('chat.commandTeConfigDesc')}}"
+					aria-label={`${$t('chat.commandTeConfig')}: ${$t('chat.commandTeConfigDesc')}`}
 					use:tooltip={{
 						content: $t('chat.commandTeConfigDesc'),
 						placement: 'top'
