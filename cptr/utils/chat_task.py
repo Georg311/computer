@@ -1955,7 +1955,7 @@ async def run_chat_task(
         if chat_params.get("plan_mode", False):
             messages.append({"role": "user", "content": PLAN_MODE_PROMPT})
         # ── TokenEconomizer: inject repo facts into system prompt ──
-        active_facts = get_active_facts(chat_id)
+        active_facts = await get_active_facts(chat_id)
         if active_facts:
             fact_lines = [f"- {fact['text']}" for fact in active_facts]
             system += "\n\n# Repository Facts (learned from prior sessions)\n" + "\n".join(fact_lines)
@@ -2321,7 +2321,7 @@ async def run_chat_task(
                 system += "\n\n" + "\n\n".join(skill_blocks)
 
         # ── TokenEconomizer: inject repo facts into system prompt ──
-        active_facts = get_active_facts(chat_id)
+        active_facts = await get_active_facts(chat_id)
         if active_facts:
             fact_lines = [f"- {fact['text']}" for fact in active_facts]
             system += "\n\n# Repository Facts (learned from prior sessions)\n" + "\n".join(fact_lines)
@@ -2638,7 +2638,7 @@ async def run_chat_task(
                     if skill_blocks:
                         system += "\n\n" + "\n\n".join(skill_blocks)
                 # ── TokenEconomizer: inject repo facts into system prompt ──
-                active_facts = get_active_facts(chat_id)
+                active_facts = await get_active_facts(chat_id)
                 if active_facts:
                     fact_lines = [f"- {fact['text']}" for fact in active_facts]
                     system += "\n\n# Repository Facts (learned from prior sessions)\n" + "\n".join(fact_lines)
