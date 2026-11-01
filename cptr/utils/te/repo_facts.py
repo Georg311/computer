@@ -43,8 +43,8 @@ FACT_TEMPLATE = "Tool '{tool_name}' fehlgeschlagen wegen '{error_pattern}'"
 # Higher priority (larger index) wins when multiple patterns match.
 _ERROR_PATTERNS: list[tuple[str | re.Pattern[str], str]] = [
     # High-severity: command / binary missing
-    (re.compile(r"command not found[\s:]*(?:\S+)", re.IGNORECASE), "command_not_found"),
-    (re.compile(r"[Cc]annot find module[\"\']?(\S+)", re.IGNORECASE), "module_not_found"),
+    (re.compile(r"command not found(?::\s*\S+)?$", re.IGNORECASE), "command_not_found"),
+    (re.compile(r"(?:[Cc]annot|can['\s]t)\s+find\s+module", re.IGNORECASE), "module_not_found"),
     (re.compile(r"[Ii]nternalError.*command not found", re.IGNORECASE), "internal_command_missing"),
 
     # Medium-severity: path / file issues
@@ -295,36 +295,22 @@ def get_injected_facts(chat_id: str) -> list[dict]:
         return []
 
 
-def record_fact_fire(chat_id: str, fact_id: str) -> None:
+async def record_fact_fire(chat_id: str, fact_id: str) -> None:
     """Record that a fact was successfully used (fired) in a chat."""
     from cptr.models import RepoFacts
 
-    async def _update():
-        session = __import__("cptr.utils.db", fromlist=["get_session_factory"]).get_session_factory()()
-        stmt = (
-            __import__("sqlalchemy", fromlist=["select"])
-            .select(RepoFacts)
-            .where(RepoFacts.id == fact_id)
-        )
-        result = await session.execute(stmt)
-        row = result.scalar_one_or_none()
-        if row:
-            row.fire_status = (row.fire_status or 0) + 1
-            row.confirmation_count = (row.confirmation_count or 0) + 1
-            await session.commit()
-
-    try:
-        import asyncio
-
-        try:
-            asyncio.get_running_loop()
-            asyncio.ensure_future(_update())
-        except RuntimeError:
-            import nest_asyncio
-            nest_asyncio.apply()
-            asyncio.run(_update())
-    except Exception as exc:
-        logger.warning("[te] record_fact_fire failed for %s: %s", fact_id, exc, exc_info=True)
+    session = __import__("cptr.utils.db", fromlist=["get_session_factory"]).get_session_factory()()
+    stmt = (
+        __import__("sqlalchemy", fromlist=["select"])
+        .select(RepoFacts)
+        .where(RepoFacts.id == fact_id)
+    )
+    result = await session.execute(stmt)
+    row = result.scalar_one_or_none()
+    if row:
+        row.fire_status = (row.fire_status or 0) + 1
+        row.confirmation_count = (row.confirmation_count or 0) + 1
+        await session.commit()
 
 
 def persist_facts_from_tracker(chat_id: str, repo_hash: str = None) -> None:

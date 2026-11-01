@@ -112,7 +112,7 @@ class TestFoldCall:
         assert guard._spiral.error_outputs == 1
 
     def test_fold_call_when_disabled(self):
-        guard = self._make_guard(config_overrides={"te.loopguard.enabled": False})
+        guard = self._make_guard(**{"te.loopguard.enabled": False})
         result = guard.fold_call("bash", {"command": "ls"}, "ok")
         assert result.get("skipped") is True
 
@@ -159,8 +159,8 @@ class TestAssessAbort:
             else:
                 state.update("bash", {"command": "pytest"}, "Error in test")
 
-        abort, reason = _assess_abort(state, thr=scaled_thresholds())
-        assert abort is True  # churny + noisy + repeating
+        abort, reason = _assess_abort(state, envelope=10, thr=scaled_thresholds())
+        assert abort is True  # churny + noisy + repeating + past envelope
 
     def test_not_stuck_different_failures(self):
         """Different failures should NOT be stuck (productive grind)."""
@@ -270,27 +270,20 @@ class TestDBPersistence:
 
     def test_persist_and_load_saves_turns(self):
         """_persist_to_db should save spiral.turns to DB."""
-        from cptr.utils.te.loop_guard import LoopGuard, LoopEnvelope
+        from cptr.utils.te.loop_guard import LoopGuard
 
         mock_session = MagicMock()
-        mock_env = MagicMock()
-        mock_env.chat_id = "chat-db"
+        mock_res = MagicMock()
+        mock_res.scalar_one_or_none.return_value = None  # no existing env
+        mock_session.execute.return_value = mock_res
+        mock_session.add = MagicMock()
+        mock_session.commit = MagicMock()
 
-        def side_effect(stmt):
-            mock_res = MagicMock()
-            mock_res.scalar_one_or_none.return_value = None  # no existing env
-            return mock_res
-
-        async def mock_execute(stmt):
-            return side_effect(stmt)
-        mock_session.execute = mock_execute
-
-        with patch("cptr.utils.db.get_session_factory", return_value=lambda: mock_session):
+        with patch("cptr.utils.te.loop_guard.get_session_factory", return_value=mock_session):
             guard = LoopGuard("chat-db")
             guard._spiral.turns = 5
             guard._persist_to_db()
 
-        # Verify session.add was called (we can't easily check the exact object, but no crash)
         assert mock_session.add.called
 
 
@@ -298,23 +291,16 @@ class TestDBPersistence:
         """_load_from_db should restore nudges_done from DB."""
         from cptr.utils.te.loop_guard import LoopGuard
 
-        mock_session = MagicMock()
         mock_env = MagicMock()
-        mock_env.chat_id = "chat-load"
         mock_env.envelope_size = 10
         mock_env.nudges_done = 3
         mock_env.resolved_turns = [5, 10]
 
-        def side_effect(stmt):
-            mock_res = MagicMock()
-            mock_res.scalar_one_or_none.return_value = mock_env
-            return mock_res
+        mock_res = MagicMock()
+        mock_res.scalar_one_or_none.return_value = mock_env
 
-        async def mock_execute(stmt):
-            return side_effect(stmt)
-        mock_session.execute = mock_execute
-
-        with patch("cptr.utils.db.get_session_factory", return_value=lambda: mock_session):
+        with patch("cptr.utils.te.loop_guard.get_session_factory") as mock_sf:
+            mock_sf.return_value.execute.return_value = mock_res
             guard = LoopGuard("chat-load")
             assert guard._nudge_count == 3
             assert guard._spiral.turns == 10

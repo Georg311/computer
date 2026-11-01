@@ -55,7 +55,7 @@ class TestLearnFactsFromFailures:
         )
         assert result1 is None
 
-        for _ in range(4):
+        for _ in range(3):
             repo_facts.learn_facts_from_failures(
                 "chat-custom", "edit", "permission denied", threshold=5
             )
@@ -67,8 +67,10 @@ class TestLearnFactsFromFailures:
 
     def test_only_emitted_once_per_combo(self):
         """Should emit exactly once per (tool, error_pattern) combo."""
+        repo_facts.learn_facts_from_failures("chat-once", "bash", "command not found: foo")
+        repo_facts.learn_facts_from_failures("chat-once", "bash", "command not found: foo")
         r1 = repo_facts.learn_facts_from_failures("chat-once", "bash", "command not found: foo")
-        assert r1 is not None  # 3rd occurrence
+        assert r1 is not None  # 3rd occurrence triggers emission
 
         for _ in range(5):
             r = repo_facts.learn_facts_from_failures("chat-once", "bash", "command not found: foo")
@@ -249,7 +251,12 @@ class TestRecordFactFire:
 
         async def mock_execute(stmt):
             return mock_result
+
+        async def mock_commit():
+            pass
+
         mock_session.execute = mock_execute
+        mock_session.commit = mock_commit
 
         with patch("cptr.utils.db.get_session_factory", return_value=lambda: mock_session):
             await repo_facts.record_fact_fire("chat-fire", "fact-123")

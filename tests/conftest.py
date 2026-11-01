@@ -1,16 +1,17 @@
-"""Shared pytest fixtures for TE module tests.
-
-pytest-asyncio configuration: all async tests use asyncio mode 'auto'
-so they can be plain async def functions.
-"""
-import asyncio
-
+"""Shared pytest fixtures for TE module tests."""
 import asyncio
 import os
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import pytest_asyncio
+
+# Enable asyncio mode 'auto' so async def tests run automatically
+pytest_plugins = ['pytest_asyncio']
+
+def pytest_configure(config):
+    config.option.asyncio_mode = "auto"
 
 
 # ---------------------------------------------------------------------------

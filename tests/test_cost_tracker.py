@@ -80,7 +80,7 @@ class TestGetSessionCosts:
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute = AsyncMock(return_value=mock_result)
 
-        with patch("cptr.utils.db.get_session_factory", return_value=lambda: mock_session):
+        with patch("cptr.utils.db.get_session_factory", return_value=mock_session):
             result = await get_session_costs("nonexistent-chat")
 
         assert result["effective_tokens"] == 0
@@ -115,7 +115,7 @@ class TestGetSessionCosts:
             "output_tokens": 200, "model": "gpt-5.6-sol",
         })
 
-        with patch("cptr.utils.db.get_session_factory", return_value=lambda: mock_session):
+        with patch("cptr.utils.db.get_session_factory", return_value=mock_session):
             result = await get_session_costs("chat-aggregate")
 
         assert result["effective_tokens"] > 0
@@ -153,9 +153,9 @@ class TestGetSessionCosts:
         mock_tool_result = MagicMock()
         mock_tool_result.scalars().all.return_value = [tool_row1, tool_row2]
 
-        mock_session.execute.side_effect = [mock_status_result, mock_tool_result]
+        mock_session.execute = AsyncMock(side_effect=[mock_status_result, mock_tool_result])
 
-        with patch("cptr.utils.db.get_session_factory", return_value=lambda: mock_session):
+        with patch("cptr.utils.db.get_session_factory", return_value=mock_session):
             result = await get_session_costs("chat-tools")
 
         assert len(result["tool_usage"]) == 2
