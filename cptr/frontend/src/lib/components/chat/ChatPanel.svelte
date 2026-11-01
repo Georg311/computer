@@ -153,6 +153,7 @@
 	let messagesEl: HTMLDivElement;
 	let chatInputEl: ChatInput;
 	let statusButtonEl: HTMLButtonElement | undefined = $state();
+	let teStatusButtonEl: HTMLButtonElement | undefined = $state();
 	let sending = $state(false);
 	let autoScroll = $state(true);
 	let cancelledMessageId: string | null = null;
@@ -1869,6 +1870,20 @@
 					onclick={handleStatusCommand}
 				>
 					<Icon name="list" size={13} />
+				</button>
+				<button
+					bind:this={teStatusButtonEl}
+					type="button"
+					class="relative flex size-6 shrink-0 items-center justify-center rounded-lg transition-colors duration-75 {statusButtonClass}"
+					aria-label={$t('chat.commandTeStatus')}
+					title={$t('chat.commandTeStatusDesc')}
+					use:tooltip={$t('chat.commandTeStatusDesc')}
+					onclick={handleTeStatusCommand}
+				>
+					<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.34 11.34l1.42 1.42M2 12h2m16 0h2M6.34 19.07l1.42-1.42m11.34-11.34l1.42 1.42" />
+						<circle cx="12" cy="12" r="4" />
+					</svg>
 				</button>
 			</div>
 		</div>

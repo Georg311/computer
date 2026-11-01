@@ -13,6 +13,7 @@
 		planMode?: boolean;
 		requestParams?: Record<string, unknown>;
 		showReasoning?: boolean;
+		onteConfig?: () => void;
 		onchange?: () => void;
 		ontoolapprovalchange?: (mode: ToolApprovalMode) => void;
 	}
@@ -23,9 +24,14 @@
 		planMode = $bindable(false),
 		requestParams = $bindable({}),
 		showReasoning = $bindable(true),
+		onteConfig,
 		onchange,
 		ontoolapprovalchange
 	}: Props = $props();
+
+	function handleTEConfig() {
+		if (onteConfig) onteConfig();
+	}
 
 	let open = $state(false);
 	let tab = $state<'' | 'tools' | 'request_params'>('');
@@ -406,6 +412,19 @@
 						<span class="text-[0.625rem] text-gray-400 dark:text-gray-500">{paramCount}</span>
 					{/if}
 					<Icon name="chevron-right" size={12} class="shrink-0 text-gray-400 dark:text-gray-500" />
+				</button>
+
+				<div class="app-divider h-px mx-1 my-0.5"></div>
+
+				<button
+					class="flex items-center gap-2 w-full h-7 px-2 rounded-xl text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors duration-75"
+					onclick={handleTEConfig}
+				>
+					<svg class="size-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.34 11.34l1.42 1.42M2 12h2m16 0h2M6.34 19.07l1.42-1.42m11.34-11.34l1.42 1.42" />
+						<circle cx="12" cy="12" r="4" />
+					</svg>
+					<span class="flex-1 text-left truncate">{$t('chat.commandTeConfig')}</span>
 				</button>
 			</div>
 		{:else if tab === 'tools'}

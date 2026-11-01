@@ -1052,10 +1052,10 @@
 		if (hasChatContent && onskillslist && '/skills:list'.startsWith(slashCommandQuery))
 			ids.push('skills:list');
 		if (hasChatContent && '/skills:create'.startsWith(slashCommandQuery)) ids.push('skills:create');
-		if (hasChatContent && '/te-status'.startsWith(slashCommandQuery)) ids.push('te-status');
-		if (hasChatContent && onteTools && '/te-tools'.startsWith(slashCommandQuery)) ids.push('te-tools');
-		if (hasChatContent && '/te-skills'.startsWith(slashCommandQuery)) ids.push('te-skills');
-		if (hasChatContent && onteConfig && '/te-config'.startsWith(slashCommandQuery)) ids.push('te-config');
+		if ('/te-status'.startsWith(slashCommandQuery)) ids.push('te-status');
+	if (onteTools && '/te-tools'.startsWith(slashCommandQuery)) ids.push('te-tools');
+	if ('/te-skills'.startsWith(slashCommandQuery)) ids.push('te-skills');
+	if (onteConfig && '/te-config'.startsWith(slashCommandQuery)) ids.push('te-config');
 		return ids;
 	}
 
@@ -1772,6 +1772,7 @@
 					bind:showReasoning
 					onchange={onsettingschange}
 					{ontoolapprovalchange}
+					onteConfig={onteConfig}
 					onfiles={(files) => {
 						if (files) processFiles(Array.from(files));
 					}}
