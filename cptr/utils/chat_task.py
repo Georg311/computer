@@ -76,7 +76,7 @@ from cptr.utils.agents.events import (
 from cptr.utils.agents.attachments import prepare_agent_attachments
 from cptr.utils.model_targets import AgentModelTarget, ApiModelTarget, ModelTarget
 from cptr.utils.identity import identity_for_context
-from cptr.utils.te.repo_facts import get_active_facts
+from cptr.utils.te.repo_facts import get_injected_facts as get_active_facts
 
 logger = logging.getLogger(__name__)
 
