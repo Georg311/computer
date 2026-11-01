@@ -796,6 +796,8 @@
   "chat.commandStatusDesc": "Context usage, chat id",
   "chat.commandTeStatus": "TokenEconomizer",
   "chat.commandTeStatusDesc": "View token and cost stats",
+  "chat.commandTeConfig": "TE Config",
+  "chat.commandTeConfigDesc": "Configure TokenEconomizer settings",
   "chat.commandModel": "Model",
   "chat.commandModelDesc": "Open model selector",
   "chat.statusContextUsage": "Context usage",

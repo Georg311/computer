@@ -105,7 +105,7 @@
 	align="end"
 	className="w-80 max-w-[calc(100vw-1.5rem)] p-0"
 >
-	<div class="max-h-[70dvh] overflow-y-auto px-1 py-0.5 text-xs sm:max-h-[min(72dvh,32.5rem)]">
+	<div class="max-h-[70dvh] overflow-y-auto px-2 py-1 text-xs sm:max-h-[min(72dvh,32.5rem)]">
 
 		{#if loading}
 			<div class="rounded-xl px-1.5 py-1.5 flex items-center gap-2 text-gray-400 dark:text-gray-600">
@@ -126,33 +126,33 @@
 				</div>
 
 				<!-- Effective Tokens -->
-				<div class="flex h-7 items-center gap-3 rounded-xl px-1.5 text-gray-600 dark:text-gray-400">
+				<div class="flex h-9 items-center gap-3 rounded-xl px-2 text-gray-600 dark:text-gray-400">
 					<span class="min-w-0 flex-1 truncate">{$t('chat.teStatusEffectiveTokens')}</span>
-					<span class="shrink-0 font-mono text-[0.625rem] text-gray-400 dark:text-gray-600">{effectiveTokens}</span>
+					<span class="shrink-0 font-mono text-xs text-gray-400 dark:text-gray-600">{effectiveTokens}</span>
 				</div>
 
 				<!-- Total Tokens -->
-				<div class="flex h-7 items-center gap-3 rounded-xl px-1.5 text-gray-600 dark:text-gray-400">
+				<div class="flex h-9 items-center gap-3 rounded-xl px-2 text-gray-600 dark:text-gray-400">
 					<span class="min-w-0 flex-1 truncate">{$t('chat.teStatusTotalTokens')}</span>
-					<span class="shrink-0 font-mono text-[0.625rem] text-gray-400 dark:text-gray-600">{totalTokens}</span>
+					<span class="shrink-0 font-mono text-xs text-gray-400 dark:text-gray-600">{totalTokens}</span>
 				</div>
 
 				<!-- Cache Savings -->
-				<div class="flex h-7 items-center gap-3 rounded-xl px-1.5 text-gray-600 dark:text-gray-400">
+				<div class="flex h-9 items-center gap-3 rounded-xl px-2 text-gray-600 dark:text-gray-400">
 					<span class="min-w-0 flex-1 truncate">{$t('chat.teStatusCacheSavings')}</span>
-					<span class="shrink-0 font-mono text-[0.625rem] text-gray-400 dark:text-gray-600">{savingsPct}</span>
+					<span class="shrink-0 font-mono text-xs text-gray-400 dark:text-gray-600">{savingsPct}</span>
 				</div>
 
 				<!-- Pricing Overhead -->
-				<div class="flex h-7 items-center gap-3 rounded-xl px-1.5 text-gray-600 dark:text-gray-400">
+				<div class="flex h-9 items-center gap-3 rounded-xl px-2 text-gray-600 dark:text-gray-400">
 					<span class="min-w-0 flex-1 truncate">{$t('chat.teStatusPricingOverhead')}</span>
-					<span class="shrink-0 font-mono text-[0.625rem] text-gray-400 dark:text-gray-600">{pricingOverhead}</span>
+					<span class="shrink-0 font-mono text-xs text-gray-400 dark:text-gray-600">{pricingOverhead}</span>
 				</div>
 
 				<!-- Session Cost -->
-				<div class="flex h-7 items-center gap-3 rounded-xl px-1.5 text-gray-600 dark:text-gray-400">
+				<div class="flex h-9 items-center gap-3 rounded-xl px-2 text-gray-600 dark:text-gray-400">
 					<span class="min-w-0 flex-1 truncate">{$t('chat.teStatusSessionCost')}</span>
-					<span class="shrink-0 font-mono text-[0.625rem] text-gray-400 dark:text-gray-600">{sessionCost}</span>
+					<span class="shrink-0 font-mono text-xs text-gray-400 dark:text-gray-600">{sessionCost}</span>
 				</div>
 			</section>
 

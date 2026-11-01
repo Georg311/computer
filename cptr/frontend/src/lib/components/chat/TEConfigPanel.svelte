@@ -159,7 +159,7 @@
 	align="end"
 	className="w-80 max-w-[calc(100vw-1.5rem)] p-0"
 >
-	<div class="max-h-[70dvh] overflow-y-auto px-1 py-0.5 text-xs sm:max-h-[min(72dvh,32.5rem)]">
+	<div class="max-h-[70dvh] overflow-y-auto px-2 py-1 text-xs sm:max-h-[min(72dvh,32.5rem)]">
 
 		<!-- Header -->
 		<div class="px-1.5 pb-0.5 pt-1.5 flex items-center gap-2">
@@ -183,12 +183,12 @@
 		{:else if configData || true}
 			<!-- Core Toggles Section -->
 			<section>
-				<div class="px-1.5 pb-0.5 pt-1 text-[0.625rem] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600">
+				<div class="px-2 pb-1 pt-1.5 text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600">
 					{$t('teConfig.coreToggles')}
 				</div>
 
 				<!-- Micro-skills Toggle -->
-				<div class="flex h-7 items-center gap-3 rounded-xl px-1.5 text-gray-600 dark:text-gray-400">
+				<div class="flex h-9 items-center gap-3 rounded-xl px-2 text-gray-600 dark:text-gray-400">
 					<span class="min-w-0 flex-1 truncate" title={$t('teConfig.microskills')}>
 						{$t('teConfig.microskills')}
 					</span>
@@ -196,7 +196,7 @@
 				</div>
 
 				<!-- Tool Pruning Toggle -->
-				<div class="flex h-7 items-center gap-3 rounded-xl px-1.5 text-gray-600 dark:text-gray-400">
+				<div class="flex h-9 items-center gap-3 rounded-xl px-2 text-gray-600 dark:text-gray-400">
 					<span class="min-w-0 flex-1 truncate" title={$t('teConfig.toolPruning')}>
 						{$t('teConfig.toolPruning')}
 					</span>
@@ -204,7 +204,7 @@
 				</div>
 
 				<!-- Loop Guard Toggle -->
-				<div class="flex h-7 items-center gap-3 rounded-xl px-1.5 text-gray-600 dark:text-gray-400">
+				<div class="flex h-9 items-center gap-3 rounded-xl px-2 text-gray-600 dark:text-gray-400">
 					<span class="min-w-0 flex-1 truncate" title={$t('teConfig.loopGuard')}>
 						{$t('teConfig.loopGuard')}
 					</span>
@@ -213,9 +213,9 @@
 			</section>
 
 			<!-- Advanced Expandable Section -->
-			<section class="mt-0.5">
+			<section class="mt-1">
 				<button
-					class="flex items-center gap-2 w-full h-7 px-1.5 rounded-xl text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors duration-75"
+					class="flex items-center gap-2 w-full h-9 px-2 rounded-xl text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors duration-75"
 					onclick={() => advancedOpen = !advancedOpen}
 				>
 					<Icon name="chevron-down" size={12} class="shrink-0 transition-transform duration-150 {advancedOpen ? 'rotate-0' : '-rotate-90'}" />
@@ -223,110 +223,110 @@
 				</button>
 
 				{#if advancedOpen}
-					<div class="mt-1 space-y-0.5">
+					<div class="mt-1 space-y-1">
 						<!-- Pricing Section Header -->
-						<div class="px-1.5 pb-0.5 pt-1 text-[0.625rem] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600">
+						<div class="px-2 pb-1 pt-1.5 text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600">
 							{$t('teConfig.pricing')}
 						</div>
 
 						<!-- max_facts -->
-						<div class="flex h-7 items-center gap-3 rounded-xl px-1.5">
-							<span class="min-w-0 flex-1 truncate text-[0.6875rem] text-gray-600 dark:text-gray-400">
+						<div class="flex h-9 items-center gap-3 rounded-xl px-2">
+							<span class="min-w-0 flex-1 truncate text-xs text-gray-600 dark:text-gray-400">
 								{$t('teConfig.maxFacts')}
 							</span>
 							<input
 								type="number"
 								value={max_facts}
 								onchange={(e) => setAdvanced('max_facts', +e.currentTarget.value)}
-								class="w-14 shrink-0 bg-transparent text-[0.6875rem] font-mono text-gray-600 dark:text-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 outline-none border border-gray-200 dark:border-gray-700 rounded px-1 h-5 text-center"
+								class="w-14 shrink-0 bg-transparent text-xs font-mono text-gray-600 dark:text-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 outline-none border border-gray-200 dark:border-gray-700 rounded px-1.5 h-7 text-center"
 								min={1}
 							/>
 						</div>
 
 						<!-- max_tokens -->
-						<div class="flex h-7 items-center gap-3 rounded-xl px-1.5">
-							<span class="min-w-0 flex-1 truncate text-[0.6875rem] text-gray-600 dark:text-gray-400">
+						<div class="flex h-9 items-center gap-3 rounded-xl px-2">
+							<span class="min-w-0 flex-1 truncate text-xs text-gray-600 dark:text-gray-400">
 								{$t('teConfig.maxTokens')}
 							</span>
 							<input
 								type="number"
 								value={max_tokens}
 								onchange={(e) => setAdvanced('max_tokens', +e.currentTarget.value)}
-								class="w-14 shrink-0 bg-transparent text-[0.6875rem] font-mono text-gray-600 dark:text-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 outline-none border border-gray-200 dark:border-gray-700 rounded px-1 h-5 text-center"
+								class="w-14 shrink-0 bg-transparent text-xs font-mono text-gray-600 dark:text-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 outline-none border border-gray-200 dark:border-gray-700 rounded px-1.5 h-7 text-center"
 								min={1}
 							/>
 						</div>
 
 						<!-- evidence_threshold -->
-						<div class="flex h-7 items-center gap-3 rounded-xl px-1.5">
-							<span class="min-w-0 flex-1 truncate text-[0.6875rem] text-gray-600 dark:text-gray-400">
+						<div class="flex h-9 items-center gap-3 rounded-xl px-2">
+							<span class="min-w-0 flex-1 truncate text-xs text-gray-600 dark:text-gray-400">
 								{$t('teConfig.evidenceThreshold')}
 							</span>
 							<input
 								type="number"
 								value={evidence_threshold}
 								onchange={(e) => setAdvanced('evidence_threshold', +e.currentTarget.value)}
-								class="w-14 shrink-0 bg-transparent text-[0.6875rem] font-mono text-gray-600 dark:text-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 outline-none border border-gray-200 dark:border-gray-700 rounded px-1 h-5 text-center"
+								class="w-14 shrink-0 bg-transparent text-xs font-mono text-gray-600 dark:text-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 outline-none border border-gray-200 dark:border-gray-700 rounded px-1.5 h-7 text-center"
 								min={1}
 							/>
 						</div>
 
 						<!-- min_sessions -->
-						<div class="flex h-7 items-center gap-3 rounded-xl px-1.5">
-							<span class="min-w-0 flex-1 truncate text-[0.6875rem] text-gray-600 dark:text-gray-400">
+						<div class="flex h-9 items-center gap-3 rounded-xl px-2">
+							<span class="min-w-0 flex-1 truncate text-xs text-gray-600 dark:text-gray-400">
 								{$t('teConfig.minSessions')}
 							</span>
 							<input
 								type="number"
 								value={min_sessions}
 								onchange={(e) => setAdvanced('min_sessions', +e.currentTarget.value)}
-								class="w-14 shrink-0 bg-transparent text-[0.6875rem] font-mono text-gray-600 dark:text-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 outline-none border border-gray-200 dark:border-gray-700 rounded px-1 h-5 text-center"
+								class="w-14 shrink-0 bg-transparent text-xs font-mono text-gray-600 dark:text-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 outline-none border border-gray-200 dark:border-gray-700 rounded px-1.5 h-7 text-center"
 								min={1}
 							/>
 						</div>
 
 						<!-- Loop Guard Thresholds Header -->
-						<div class="px-1.5 pb-0.5 pt-1 text-[0.625rem] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600">
+						<div class="px-2 pb-1 pt-1.5 text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600">
 							{$t('teConfig.loopGuardThresholds')}
 						</div>
 
 						<!-- max_envelope_size -->
-						<div class="flex h-7 items-center gap-3 rounded-xl px-1.5">
-							<span class="min-w-0 flex-1 truncate text-[0.6875rem] text-gray-600 dark:text-gray-400">
+						<div class="flex h-9 items-center gap-3 rounded-xl px-2">
+							<span class="min-w-0 flex-1 truncate text-xs text-gray-600 dark:text-gray-400">
 								{$t('teConfig.maxEnvelopeSize')}
 							</span>
 							<input
 								type="number"
 								value={max_envelope_size}
 								onchange={(e) => setLoopGuardThreshold('max_envelope_size', +e.currentTarget.value)}
-								class="w-14 shrink-0 bg-transparent text-[0.6875rem] font-mono text-gray-600 dark:text-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 outline-none border border-gray-200 dark:border-gray-700 rounded px-1 h-5 text-center"
+								class="w-14 shrink-0 bg-transparent text-xs font-mono text-gray-600 dark:text-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 outline-none border border-gray-200 dark:border-gray-700 rounded px-1.5 h-7 text-center"
 								min={1}
 							/>
 						</div>
 
 						<!-- nudge_threshold -->
-						<div class="flex h-7 items-center gap-3 rounded-xl px-1.5">
-							<span class="min-w-0 flex-1 truncate text-[0.6875rem] text-gray-600 dark:text-gray-400">
+						<div class="flex h-9 items-center gap-3 rounded-xl px-2">
+							<span class="min-w-0 flex-1 truncate text-xs text-gray-600 dark:text-gray-400">
 								{$t('teConfig.nudgeThreshold')}
 							</span>
 							<input
 								type="number"
 								value={nudge_threshold}
 								onchange={(e) => setLoopGuardThreshold('nudge_threshold', +e.currentTarget.value)}
-								class="w-14 shrink-0 bg-transparent text-[0.6875rem] font-mono text-gray-600 dark:text-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 outline-none border border-gray-200 dark:border-gray-700 rounded px-1 h-5 text-center"
+								class="w-14 shrink-0 bg-transparent text-xs font-mono text-gray-600 dark:text-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 outline-none border border-gray-200 dark:border-gray-700 rounded px-1.5 h-7 text-center"
 								min={1}
 							/>
 						</div>
 
 						<!-- spiral_level Select -->
-						<div class="flex h-7 items-center gap-3 rounded-xl px-1.5">
-							<span class="min-w-0 flex-1 truncate text-[0.6875rem] text-gray-600 dark:text-gray-400">
+						<div class="flex h-9 items-center gap-3 rounded-xl px-2">
+							<span class="min-w-0 flex-1 truncate text-xs text-gray-600 dark:text-gray-400">
 								{$t('teConfig.spiralLevel')}
 							</span>
 							<select
 								value={spiral_level}
 								onchange={(e) => setSpiralLevel(e.currentTarget.value as typeof spiral_level)}
-								class="w-auto shrink-0 bg-transparent text-[0.6875rem] font-mono text-gray-600 dark:text-gray-400 outline-none border border-gray-200 dark:border-gray-700 rounded px-1 h-5 text-center appearance-none cursor-pointer"
+								class="w-auto shrink-0 bg-transparent text-xs font-mono text-gray-600 dark:text-gray-400 outline-none border border-gray-200 dark:border-gray-700 rounded px-1.5 h-7 text-center appearance-none cursor-pointer"
 							>
 								{#each SPIRAL_OPTIONS as level}
 									<option value={level} class="bg-white dark:bg-gray-800">

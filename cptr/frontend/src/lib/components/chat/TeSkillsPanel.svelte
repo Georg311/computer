@@ -46,7 +46,7 @@
 	align="end"
 	className="w-80 max-w-[calc(100vw-1.5rem)] p-0"
 >
-	<div class="max-h-[70dvh] overflow-y-auto px-1 py-0.5 text-xs sm:max-h-[min(72dvh,32.5rem)]">
+	<div class="max-h-[70dvh] overflow-y-auto px-2 py-1 text-xs sm:max-h-[min(72dvh,32.5rem)]">
 
 		{#if loading}
 			<div class="rounded-xl px-1.5 py-1.5 flex items-center gap-2 text-gray-400 dark:text-gray-600">
@@ -70,16 +70,16 @@
 				</div>
 
 				{#each facts as fact}
-					<div class="flex items-start gap-2 rounded-xl px-1.5 py-1 text-gray-600 dark:text-gray-400">
+					<div class="flex items-start gap-2 rounded-xl px-2 py-1.5 text-gray-600 dark:text-gray-400">
 						<span class="shrink-0 pt-0.5 text-[0.8125rem] w-5 text-center">{factIcon(fact)}</span>
-						<span class="min-w-0 flex-1 truncate font-mono text-[0.6875rem] leading-relaxed">
+						<span class="min-w-0 flex-1 truncate font-mono text-xs leading-relaxed">
 							{factText(fact)}
 						</span>
 					</div>
 				{/each}
 
 				<!-- Info about fact learning -->
-				<div class="px-1.5 py-1 text-[0.5625rem] leading-relaxed text-gray-400 dark:text-gray-600">
+				<div class="px-2 py-1.5 text-xs leading-relaxed text-gray-400 dark:text-gray-600">
 					{$t('chat.teRepoFactsLearned')}: {facts.filter(f => f.fire_status > 0).length} {$t('chat.teRepoFactsUsed')}
 				</div>
 			</section>

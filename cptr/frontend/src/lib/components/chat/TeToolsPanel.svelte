@@ -87,7 +87,7 @@
 	align="end"
 	className="w-80 max-w-[calc(100vw-1.5rem)] p-0"
 >
-	<div class="max-h-[70dvh] overflow-y-auto px-1 py-0.5 text-xs sm:max-h-[min(72dvh,32.5rem)]">
+	<div class="max-h-[70dvh] overflow-y-auto px-2 py-1 text-xs sm:max-h-[min(72dvh,32.5rem)]">
 
 		{#if loading}
 			<div class="rounded-xl px-1.5 py-1.5 flex items-center gap-2 text-gray-400 dark:text-gray-600">
@@ -111,10 +111,10 @@
 				</div>
 
 					{#each data.recommendations as rec}
-						<div class="flex h-7 items-center gap-3 rounded-xl px-1.5 text-gray-600 dark:text-gray-400">
+						<div class="flex h-9 items-center gap-3 rounded-xl px-2 text-gray-600 dark:text-gray-400">
 							<span class="shrink-0 text-[0.8125rem] w-5 text-center">{toolIcon(rec.tool_name)}</span>
-							<span class="min-w-0 flex-1 truncate font-mono text-[0.625rem]">{toolLabel(rec.tool_name)}</span>
-							<span class="{recommendationColor(rec.recommendation)} text-[0.5625rem] shrink-0">
+							<span class="min-w-0 flex-1 truncate font-mono text-xs">{toolLabel(rec.tool_name)}</span>
+							<span class="{recommendationColor(rec.recommendation)} text-xs shrink-0">
 								{recommendationLabel(rec.recommendation)}
 							</span>
 						</div>

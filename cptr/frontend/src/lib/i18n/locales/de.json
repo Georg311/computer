@@ -704,6 +704,8 @@
 	"chat.commandStatusDesc": "Kontextnutzung, Chat-ID",
 	"chat.commandTeStatus": "TokenEconomizer",
 	"chat.commandTeStatusDesc": "Token- und Kostenstatistik anzeigen",
+	"chat.commandTeConfig": "TE Konfiguration",
+	"chat.commandTeConfigDesc": "TokenEconomizer-Einstellungen konfigurieren",
 	"chat.statusContextUsage": "Kontextnutzung",
 	"chat.statusEstimated": "Geschätzter Kontext",
 	"chat.statusChatId": "Chat-ID",
