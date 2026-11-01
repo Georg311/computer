@@ -1529,7 +1529,7 @@
 						</svg>
 					</span>
 					<span class="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
-						<span class="truncate">{{$t('chat.commandTeSkills')}</span>
+						<span class="truncate">{$t('chat.commandTeSkills')}</span>
 						<span class="app-muted text-[0.625rem] truncate shrink-0">/te-skills</span>
 					</span>
 				</button>
@@ -1557,7 +1557,7 @@
 						</svg>
 					</span>
 					<span class="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
-						<span class="truncate">{{$t('chat.commandTeConfig')}</span>
+						<span class="truncate">{$t('chat.commandTeConfig')}</span>
 						<span class="app-muted text-[0.625rem] truncate shrink-0">/te-config</span>
 					</span>
 				</button>
