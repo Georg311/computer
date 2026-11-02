@@ -679,6 +679,7 @@ async def search_files(
     case_insensitive: bool = False,
     include: str = "",
     filenames_only: bool = False,
+    filepaths_only: bool = False,
     *,
     __context__: dict,
 ) -> str:
@@ -689,6 +690,7 @@ async def search_files(
     :param case_insensitive: Case-insensitive matching.
     :param include: Glob pattern to filter files (e.g. '*.py', '*.ts').
     :param filenames_only: Only return filenames, not matching lines.
+    :param filepaths_only: Return relative file paths instead of matches.
     """
     workspace = __context__["workspace"]
     request = __context__.get("request")
@@ -711,6 +713,7 @@ async def search_files(
             case_insensitive,
             include,
             filenames_only,
+            filepaths_only,
             await identity_for_context(__context__),
         )
     except FileNotFoundError:
@@ -722,6 +725,8 @@ async def search_files(
         for item in matches.get("results", []):
             rel = item.get("relative_path") or item.get("name") or ""
             if filenames_only or item.get("name_match"):
+                rows.append(str(rel))
+            elif filepaths_only:
                 rows.append(str(rel))
             else:
                 for match in item.get("content_matches") or []:
@@ -738,6 +743,7 @@ async def _search_rg(
     case_insensitive: bool,
     include: str,
     filenames_only: bool,
+    filepaths_only: bool,
     identity,
 ) -> str:
     """Search using ripgrep."""
@@ -750,6 +756,10 @@ async def _search_rg(
         args.append("--ignore-case")
     if filenames_only:
         args.append("--files-with-matches")
+    elif filepaths_only:
+        # Use --with-filename to get paths, then deduplicate
+        args.append("--with-filename")
+        args.append("--line-number")
     else:
         args.append("--line-number")
     if include:
@@ -779,8 +789,21 @@ async def _search_rg(
     # Make paths relative
     prefix = str(full) + os.sep
     lines = output.splitlines()[:50]
-    result = [line.replace(prefix, "") for line in lines]
-    return "\n".join(result) if result else "No matches found."
+    if filepaths_only:
+        # Extract unique relative filepaths from "filepath:linenum:text" lines
+        seen = set()
+        result = []
+        for line in lines:
+            # Strip prefix, then extract filepath (before first colon)
+            rel = line.replace(prefix, "", 1) if line.startswith(prefix) else line
+            fp = rel.split(":", 1)[0] if ":" in rel else rel
+            if fp not in seen:
+                seen.add(fp)
+                result.append(fp)
+        return "\n".join(result) if result else "No matches found."
+    else:
+        result = [line.replace(prefix, "") for line in lines]
+        return "\n".join(result) if result else "No matches found."
 
 
 async def _search_python(query: str, full: Path, case_insensitive: bool) -> str:
