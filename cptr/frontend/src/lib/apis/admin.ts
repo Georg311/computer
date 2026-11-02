@@ -291,7 +291,20 @@ export const getTePricing = async (): Promise<{
 	merged: TePricingData;
 }> => {
 	const data = await fetchJSON('/api/admin/te/pricing');
-	return data as any;
+	const raw: { models: Record<string, Record<string, number>>; overrides: Record<string, Record<string, number>> } = data as any;
+	const defaults = raw.models || {};
+	const custom = raw.overrides || {};
+	const merged: TePricingData = {};
+	for (const [modelId, def] of Object.entries(defaults)) {
+		const override = custom[modelId];
+		const current = override ? { ...def, ...override } : def;
+		merged[modelId] = {
+			default: def,
+			current,
+			overridden: !!override
+		};
+	}
+	return { defaults, custom, merged };
 };
 
 export const updateTePricing = (modelId: string, pricing: Record<string, number>) =>
