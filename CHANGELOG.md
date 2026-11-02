@@ -1,3 +1,13 @@
+## [0.9.21.25] - 2026-11-01
+
+### Fixed
+- 🐛 **TokenEconomizer frontend display.** Frontend bundle was not rebuilt after TE feature addition — `TeStatusPanel.svelte` and related UI code were missing from the production JS chunks. Rebuilt frontend and deployed to main so `/te-status` panel renders correctly in the UI.
+
+## [0.9.21.24] - 2026-11-01
+
+### Fixed
+- 🐛 **TokenEconomizer `TeStatus.get_by_chat()` query.** Method was a `@staticmethod` referencing undefined `cls`, and used `session.get(cls, chat_id)` which does a PK lookup instead of filtering by the `chat_id` FK. Changed to `@classmethod` with proper `sa_select(cls).where(cls.chat_id == chat_id)` query — now returns the correct row so TE status data is persisted and readable.
+
 ## [0.9.21.23] - 2026-11-01
 
 ### Fixed

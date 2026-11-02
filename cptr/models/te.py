@@ -42,12 +42,14 @@ class TeStatus(Base):
 
     # ── Class methods ────────────────────────────────────────
 
-    @staticmethod
-    async def get_by_chat(chat_id: str) -> TeStatus | None:
+    @classmethod
+    async def get_by_chat(cls, chat_id: str) -> TeStatus | None:
         from cptr.utils.db import get_session_factory
+        from sqlalchemy import select as sa_select
 
         session = get_session_factory()
-        return await session.get(cls, chat_id)
+        result = await session.execute(sa_select(cls).where(cls.chat_id == chat_id))
+        return result.scalar_one_or_none()
 
     @classmethod
     async def ensure(cls, chat_id: str):
