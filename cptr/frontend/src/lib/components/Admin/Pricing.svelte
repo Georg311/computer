@@ -6,6 +6,8 @@
 	import Icon from '../Icon.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
 
+	type ProviderGroup = [string, [string, TePricingEntry][]];
+
 	let loading = $state(true);
 	let saving = $state(false);
 	let pricingData = $state<{
@@ -14,6 +16,9 @@
 		merged: Record<string, TePricingEntry>;
 	} | null>(null);
 	let error = $state<string | null>(null);
+
+	// Provider-grouped data for template rendering
+	let groupedProviders = $state<ProviderGroup[]>([]);
 
 	// Edit state
 	let editingModel = $state<string | null>(null);
@@ -25,12 +30,6 @@
 	});
 
 	const PRICING_FIELDS = ['input', 'cache_read', 'cache_write', 'output'] as const;
-	const PRICING_LABELS: Record<string, string> = {
-		input: 'Input / 1M tokens',
-		cache_read: 'Cache Read / 1M tokens',
-		cache_write: 'Cache Write / 1M tokens',
-		output: 'Output / 1M tokens'
-	};
 
 	onMount(() => {
 		loadPricing();
@@ -39,12 +38,23 @@
 	async function loadPricing() {
 		try {
 			pricingData = await getTePricing();
+			groupedProviders = groupByProvider(pricingData.merged);
 			loading = false;
 		} catch (e) {
 			error = e?.message || 'Failed to load pricing';
 			loading = false;
 		}
 	}
+
+	function groupByProvider(merged: Record<string, TePricingEntry>): ProviderGroup[] {
+	const groups: Record<string, [string, TePricingEntry][]> = {};
+	for (const [modelId, entry] of Object.entries(merged)) {
+		const provider = getProviderLabel(modelId);
+		if (!groups[provider]) groups[provider] = [];
+		groups[provider].push([modelId, entry]);
+	}
+	return Object.entries(groups) as ProviderGroup[];
+}
 
 	function startEdit(modelId: string) {
 		editingModel = modelId;
@@ -76,7 +86,8 @@
 			}
 			await updateTePricing(editingModel, pricing);
 			toast.success(`Pricing updated for ${editingModel}`);
-			await loadPricing();
+			pricingData = await getTePricing();
+			groupedProviders = groupByProvider(pricingData.merged);
 			cancelEdit();
 		} catch (e) {
 			error = e?.message || 'Failed to save pricing';
@@ -91,7 +102,8 @@
 		try {
 			await resetTePricing();
 			toast.success('Pricing reset to defaults');
-			await loadPricing();
+			pricingData = await getTePricing();
+			groupedProviders = groupByProvider(pricingData.merged);
 		} catch (e) {
 			error = e?.message || 'Failed to reset pricing';
 			setTimeout(() => { error = null; }, 3000);
@@ -100,12 +112,6 @@
 
 	function formatPrice(value: number): string {
 		return value < 0.001 ? `$${Math.round(value * 1_000_000)}/M` : `$${value.toFixed(4)}`;
-	}
-
-	function formatInput(value: string): string {
-		const num = parseFloat(value);
-		if (isNaN(num)) return '';
-		return num < 0.001 ? `${Math.round(num * 1_000_000)}/M` : num.toFixed(4);
 	}
 
 	function getProviderIcon(modelId: string): string {
@@ -127,11 +133,6 @@
 		if (modelId.startsWith('claude')) return 'text-purple-400';
 		if (modelId.startsWith('gemini')) return 'text-yellow-400';
 		return 'text-gray-400';
-	}
-
-	function getModelGroup(modelId: string): string {
-		const short = modelId.split('-').slice(0, -1).join('-');
-		return short;
 	}
 
 	function getGroupColor(group: string): string {
@@ -174,76 +175,71 @@
 		</div>
 	{:else if error}
 		<div class="text-red-400 text-sm">{error}</div>
-	{:else if pricingData}
+	{:else if groupedProviders.length > 0}
 		<!-- Provider Groups -->
-		{#each Object.entries(pricingData.merged).reduce((acc: Record<string, [string, TePricingEntry][]>, [k, v]) => {
-			const provider = getProviderLabel(k);
-			if (!acc[provider]) acc[provider] = [];
-			acc[provider].push([k, v]);
-			return acc;
-		}, {}) as [string, [string, TePricingEntry][]]> as [string, [string, TePricingEntry][]]}
-		<div class="mt-2">
-			<div class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600 mb-1">
-				{provider} ({entries.length})
-			</div>
-			<div class="space-y-0.5">
-				{#each entries as [modelId, entry]}
-					{#if editingModel === modelId}
-						<!-- Edit Row -->
-						<div class="flex items-center gap-2 p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-							<span class="text-xs font-mono flex-1 truncate {getProviderColor(modelId)}">
-								{modelId}
-							</span>
-							{#each PRICING_FIELDS as field}
-								<div class="flex flex-col items-center gap-0.5">
-									<input
-										type="number"
-										value={editingPricing[field]}
-										onchange={(e) => { editingPricing[field] = e.currentTarget.value; }}
-										class="w-16 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-1 py-0.5 text-xs font-mono text-center outline-none focus:ring-1 focus:ring-blue-400"
-										step="0.001"
-										min="0"
-									/>
-									<span class="text-[0.5rem] text-gray-400">{field}</span>
-								</div>
-							{/each}
-							<div class="flex gap-1">
-								<button
-									class="text-xs px-2 py-0.5 rounded bg-green-600 text-white hover:bg-green-700 transition-colors"
-									onclick={saveEdit}
-									disabled={saving}
-								>
-									{saving ? '...' : '✓'}
-								</button>
-								<button
-									class="text-xs px-2 py-0.5 rounded bg-gray-300 dark:bg-gray-700 hover:bg-gray-400 transition-colors"
-									onclick={cancelEdit}
-								>
-									✕
-								</button>
-							</div>
-						</div>
-					{:else}
-						<!-- Normal Row -->
-						<div class="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer" onclick={() => startEdit(modelId)}>
-							<span class="shrink-0 text-base">{getProviderIcon(modelId)}</span>
-							<span class="text-xs font-mono flex-1 truncate text-gray-600 dark:text-gray-400">
-								{modelId}
-							</span>
-							<!-- Override badge -->
-							{#if entry.overridden}
-								<span class="text-[0.5rem] px-1 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400">
-									override
+		{#each groupedProviders as [provider, entries]}
+			<div class="mt-2">
+				<div class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600 mb-1">
+					{provider} ({entries.length})
+				</div>
+				<div class="space-y-0.5">
+					{#each entries as [modelId, entry]}
+						{#if editingModel === modelId}
+							<!-- Edit Row -->
+							<div class="flex items-center gap-2 p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+								<span class="text-xs font-mono flex-1 truncate {getProviderColor(modelId)}">
+									{modelId}
 								</span>
-							{/if}
-							<span class="text-xs font-mono text-gray-500 dark:text-gray-400 shrink-0">
-								{formatPrice(entry.current.input)}
-							</span>
-						</div>
-					{/if}
-				{/each}
+								{#each PRICING_FIELDS as field}
+									<div class="flex flex-col items-center gap-0.5">
+										<input
+											type="number"
+											value={editingPricing[field]}
+											onchange={(e) => { editingPricing[field] = e.currentTarget.value; }}
+											class="w-16 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-1 py-0.5 text-xs font-mono text-center outline-none focus:ring-1 focus:ring-blue-400"
+											step="0.001"
+											min="0"
+										/>
+										<span class="text-[0.5rem] text-gray-400">{field}</span>
+									</div>
+								{/each}
+								<div class="flex gap-1">
+									<button
+										class="text-xs px-2 py-0.5 rounded bg-green-600 text-white hover:bg-green-700 transition-colors"
+										onclick={saveEdit}
+										disabled={saving}
+									>
+										{saving ? '...' : '✓'}
+									</button>
+									<button
+										class="text-xs px-2 py-0.5 rounded bg-gray-300 dark:bg-gray-700 hover:bg-gray-400 transition-colors"
+										onclick={cancelEdit}
+									>
+										✕
+									</button>
+								</div>
+							</div>
+						{:else}
+							<!-- Normal Row -->
+							<div class="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer" onclick={() => startEdit(modelId)}>
+								<span class="shrink-0 text-base">{getProviderIcon(modelId)}</span>
+								<span class="text-xs font-mono flex-1 truncate text-gray-600 dark:text-gray-400">
+									{modelId}
+								</span>
+								<!-- Override badge -->
+								{#if entry.overridden}
+									<span class="text-[0.5rem] px-1 py-0.5 rounded bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400">
+										override
+									</span>
+								{/if}
+								<span class="text-xs font-mono text-gray-500 dark:text-gray-400 shrink-0">
+									{formatPrice(entry.current.input)}
+								</span>
+							</div>
+						{/if}
+					{/each}
+				</div>
 			</div>
-		</div>
 		{/each}
 
 		<!-- Info -->
