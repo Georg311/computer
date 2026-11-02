@@ -1,3 +1,8 @@
+## [0.9.21.29] - 2026-11-02
+
+### Fixed
+- 🐛 **OpenAI Chat Completions Usage-Events enthielten keine Cache-Daten.** `stream_openai_completions()` extrahierte nur `prompt_tokens`, `completion_tokens`, `total_tokens` aus dem Usage-Chunk und warf `cache_read_input_tokens` + `prompt_token_details` weg. Jetzt: beide Felder werden mitgegeben, sodass `effective_tokens` korrekt `input - cache_read` berechnet.
+
 ## [0.9.21.28] - 2026-11-02
 
 ### Fixed
