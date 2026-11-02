@@ -689,8 +689,8 @@ async def search_files(
     :param regex: Treat query as a regular expression.
     :param case_insensitive: Case-insensitive matching.
     :param include: Glob pattern to filter files (e.g. '*.py', '*.ts').
-    :param filenames_only: Only return filenames, not matching lines.
-    :param filepaths_only: Return relative file paths instead of matches.
+    :param filenames_only: Only return bare filenames (e.g. 'ai.py'), not full paths or matching lines.
+    :param filepaths_only: Return relative file paths (e.g. 'cptr/utils/ai.py') instead of matching lines.
     """
     workspace = __context__["workspace"]
     request = __context__.get("request")
