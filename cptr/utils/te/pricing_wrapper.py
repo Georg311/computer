@@ -192,7 +192,9 @@ def get_session_estimate(token_records: list[dict]) -> dict:
             "session_cost_usd": 0.0,
         }
 
-    total_eff = 0        # fresh input tokens (input - cache_read) — what model actually had to think about
+    from cptr.utils.te.pricing import effective_tokens as _te_effective
+
+    total_eff = 0        # weighted effective tokens (cache-aware)
     total_raw = 0        # raw API token count (input + cache_read + output)
     total_cost = 0.0     # USD cost
     total_input = 0      # sum of all input_tokens for savings calc
@@ -207,9 +209,8 @@ def get_session_estimate(token_records: list[dict]) -> dict:
         output_tok = rec.get("output_tokens") or 0
         raw = rec.get("total_tokens", input_tok + cache_read + cache_write + output_tok)
 
-        # Fresh input = what the model actually had to process (not cached)
-        fresh_input = max(0, input_tok - cache_read)
-        total_eff += int(fresh_input)
+        # Use TE's weighted effective tokens calculation (cache-aware)
+        total_eff += int(_te_effective(rec) or 0)
 
         total_raw += int(raw or 0)
         total_cost += calculate_cost(rec)

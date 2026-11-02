@@ -191,9 +191,9 @@ class TestGetSessionEstimate:
         result = get_session_estimate([rec1, rec2])
         assert result["effective_tokens"] > 0
         assert result["total_tokens"] > 0
-        # session_cost_usd should be the sum of individual costs
+        # session_cost_usd should be the sum of individual costs (rounded to 8 by the function)
         assert result["session_cost_usd"] == round(
-            calculate_cost(rec1) + calculate_cost(rec2), 6
+            calculate_cost(rec1) + calculate_cost(rec2), 8
         )
 
     def test_cache_savings_pct(self):
