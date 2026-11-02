@@ -798,6 +798,8 @@ async def stream_openai_completions(
                                 "input_tokens": raw.get("prompt_tokens", 0),
                                 "output_tokens": raw.get("completion_tokens", 0),
                                 "total_tokens": raw.get("total_tokens", 0),
+                                "cache_read_input_tokens": raw.get("cache_read_input_tokens", 0),
+                                "input_tokens_details": raw.get("prompt_token_details"),
                             }
 
                     # Emit any remaining reasoning if no usage event was received
