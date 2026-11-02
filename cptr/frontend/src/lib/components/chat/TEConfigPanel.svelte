@@ -353,7 +353,7 @@
 			<!-- Empty State -->
 			{#if !loading && !error}
 				<div class="px-1.5 py-1.5 text-[0.6875rem] leading-relaxed text-gray-400 dark:text-gray-600">
-					{$t('chat.teStatusNoData')}
+					{@html $t('chat.teStatusNoData')}
 				</div>
 			{/if}
 		{/if}
