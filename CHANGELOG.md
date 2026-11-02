@@ -1,3 +1,8 @@
+## [0.9.21.26] - 2026-11-02
+
+### Fixed
+- 🐛 **TokenEconomizer empty values when no te_status row exists.** The `/api/chats/te/status` endpoint returned hardcoded zeros when no `TeStatus` DB row existed (which is the case before any tool call has been recorded). Now falls back to in-memory cache via `get_session_costs()` even when no DB row exists, so cached token data from previous sessions is displayed.
+
 ## [0.9.21.25] - 2026-11-01
 
 ### Fixed
