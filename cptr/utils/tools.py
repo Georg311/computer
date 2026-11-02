@@ -791,11 +791,14 @@ async def _search_rg(
     lines = output.splitlines()[:50]
     if filepaths_only:
         # Extract unique relative filepaths from "filepath:linenum:text" lines
+        # Ripgrep may return relative or absolute paths depending on how the search dir was passed.
+        # We handle both by stripping the known prefix if present, then extracting the filepath.
         seen = set()
         result = []
         for line in lines:
-            # Strip prefix, then extract filepath (before first colon)
+            # Try to strip absolute prefix first
             rel = line.replace(prefix, "", 1) if line.startswith(prefix) else line
+            # Extract filepath (before first colon)
             fp = rel.split(":", 1)[0] if ":" in rel else rel
             if fp not in seen:
                 seen.add(fp)
