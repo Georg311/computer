@@ -1,3 +1,8 @@
+## [0.9.21.28] - 2026-11-02
+
+### Fixed
+- 🐛 **TokenEconomizer `effective_tokens` zeigte weighted cost statt fresh input.** `/api/chats/te/status` Endpoint ignorierte die `TeStatus` DB row komplett und berechnete alles neu aus Messages. Jetzt: DB-Primary (liest `te_status` direkt), Message-Fallback (berechnet live wenn keine row existiert). `effective_tokens` = `sum(input - cache_read)` pro Turn — zeigt echte uncached prompt size. `session_cost_usd` bleibt weighted für billing-Genauigkeit. Backfix: `backfill_te.py` berechnet jetzt auch fresh input tokens statt weighted cost.
+
 ## [0.9.21.27] - 2026-11-02
 
 ### Fixed
