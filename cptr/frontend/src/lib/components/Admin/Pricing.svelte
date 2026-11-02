@@ -38,23 +38,29 @@
 	async function loadPricing() {
 		try {
 			pricingData = await getTePricing();
-			groupedProviders = groupByProvider(pricingData.merged);
+			if (pricingData?.merged) {
+				groupedProviders = groupByProvider(pricingData.merged);
+			} else {
+				groupedProviders = [];
+			}
 			loading = false;
 		} catch (e) {
 			error = e?.message || 'Failed to load pricing';
+			groupedProviders = [];
 			loading = false;
 		}
 	}
 
 	function groupByProvider(merged: Record<string, TePricingEntry>): ProviderGroup[] {
-	const groups: Record<string, [string, TePricingEntry][]> = {};
-	for (const [modelId, entry] of Object.entries(merged)) {
-		const provider = getProviderLabel(modelId);
-		if (!groups[provider]) groups[provider] = [];
-		groups[provider].push([modelId, entry]);
+		if (!merged || typeof merged !== 'object') return [];
+		const groups: Record<string, [string, TePricingEntry][]> = {};
+		for (const [modelId, entry] of Object.entries(merged)) {
+			const provider = getProviderLabel(modelId);
+			if (!groups[provider]) groups[provider] = [];
+			groups[provider].push([modelId, entry]);
+		}
+		return Object.entries(groups) as ProviderGroup[];
 	}
-	return Object.entries(groups) as ProviderGroup[];
-}
 
 	function startEdit(modelId: string) {
 		editingModel = modelId;
