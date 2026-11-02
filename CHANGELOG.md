@@ -1,3 +1,8 @@
+## [0.9.21.23] - 2026-11-01
+
+### Fixed
+- 🐛 **TokenEconomizer cache data extraction.** `get_session_estimate()` and `calculate_cost()` were reading `cache_read_input_tokens` / `cache_creation_input_tokens` fields that don't exist in cptr's usage records. Data is stored as `input_tokens_details.cached_tokens`. Added `_extract_cache_tokens()` helper that handles both the standard field names and cptr's nested layout, so cache-aware token accounting now works correctly with real data. Also increased `session_cost_usd` rounding precision from 2 to 8 decimal places (values under $0.01 were being rounded to 0).
+
 ## [0.9.21.21] - 2026-11-01
 
 ### Fixed

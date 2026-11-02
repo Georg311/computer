@@ -106,6 +106,32 @@ def weights_for(rec: dict | None) -> dict[str, float]:
     return {"input": 0.015, "cache_read": 0.0015, "cache_write": 0.01875, "output": 0.075}
 
 
+def _extract_cache_tokens(rec: dict) -> tuple[int, int]:
+    """Extract cache_read and cache_write tokens from a token record.
+
+    Handles multiple possible data layouts:
+      1. Standard: cache_read_input_tokens, cache_creation_input_tokens
+      2. cptr layout: input_tokens_details.cached_tokens (as single value)
+    Returns (cache_read, cache_write).
+    """
+    # Standard fields first
+    cr = rec.get("cache_read_input_tokens") or 0
+    cw = rec.get("cache_creation_input_tokens") or 0
+
+    # If standard fields are missing, try cptr's input_tokens_details layout
+    if not cr and not cw:
+        details = rec.get("input_tokens_details")
+        if isinstance(details, dict):
+            cached = details.get("cached_tokens")
+            if cached is not None:
+                # In cptr's layout, cached_tokens is the cache_read amount
+                # cache_write (cache creation) is not separately tracked
+                cr = int(cached)
+                cw = 0
+
+    return cr, cw
+
+
 def effective_tokens(rec: dict | None) -> int:
     """Cache-aware effective cost of one task, in fresh-input-token equivalents.
 
@@ -135,8 +161,9 @@ def calculate_cost(token_record: dict | None) -> float:
 
     # Calculate individual components
     input_cost = (token_record.get("input_tokens") or 0) * w["input"] / 1_000_000
-    cache_read_cost = (token_record.get("cache_read_input_tokens") or 0) * w["cache_read"] / 1_000_000
-    cache_write_cost = (token_record.get("cache_creation_input_tokens") or 0) * w["cache_write"] / 1_000_000
+    cr, cw = _extract_cache_tokens(token_record)
+    cache_read_cost = cr * w["cache_read"] / 1_000_000
+    cache_write_cost = cw * w["cache_write"] / 1_000_000
     output_cost = (token_record.get("output_tokens") or 0) * w["output"] / 1_000_000
 
     total = input_cost + cache_read_cost + cache_write_cost + output_cost
@@ -176,8 +203,7 @@ def get_session_estimate(token_records: list[dict]) -> dict:
             continue
 
         input_tok = rec.get("input_tokens") or 0
-        cache_read = rec.get("cache_read_input_tokens") or 0
-        cache_write = rec.get("cache_creation_input_tokens") or 0
+        cache_read, cache_write = _extract_cache_tokens(rec)
         output_tok = rec.get("output_tokens") or 0
         raw = rec.get("total_tokens", input_tok + cache_read + cache_write + output_tok)
 
@@ -206,5 +232,5 @@ def get_session_estimate(token_records: list[dict]) -> dict:
         "total_tokens": total_raw,
         "cache_savings_pct": savings_pct,
         "pricing_overhead": pricing_overhead,
-        "session_cost_usd": round(total_cost, 2),
+        "session_cost_usd": round(total_cost, 8),
     }
