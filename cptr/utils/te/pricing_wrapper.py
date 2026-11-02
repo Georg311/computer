@@ -148,6 +148,13 @@ def get_session_estimate(token_records: list[dict]) -> dict:
 
     Returns dict with: effective_tokens, total_tokens, cache_savings_pct,
                       pricing_overhead, session_cost_usd.
+
+    Cache-aware calculation:
+      - effective_tokens: weighted cost in fresh-input-token equivalents
+        (cache_read at 0.1x, output at 5x) — shows real cost impact
+      - total_tokens: raw API token count (input + cache_read + output)
+      - cache_savings_pct: % of input-cost saved by caching
+        (baseline=all tokens at factor 1.0 vs actual=weighted)
     """
     if not token_records:
         return {
@@ -158,25 +165,46 @@ def get_session_estimate(token_records: list[dict]) -> dict:
             "session_cost_usd": 0.0,
         }
 
-    total_eff = 0
-    total_raw = 0
-    total_cost = 0.0
+    total_eff = 0        # fresh input tokens (input - cache_read) — what model actually had to think about
+    total_raw = 0        # raw API token count (input + cache_read + output)
+    total_cost = 0.0     # USD cost
+    total_input = 0      # sum of all input_tokens for savings calc
+    total_cache_read = 0 # sum of cache_read tokens
 
     for rec in token_records:
-        eff = effective_tokens(rec) if isinstance(rec, dict) else 0
-        raw = rec.get("total_tokens", 0) if isinstance(rec, dict) else 0
-        cost = calculate_cost(rec) if isinstance(rec, dict) else 0.0
+        if not isinstance(rec, dict):
+            continue
 
-        total_eff += int(eff)
-        total_raw += int(raw or eff)  # fallback to eff when no breakdown
-        total_cost += cost
+        input_tok = rec.get("input_tokens") or 0
+        cache_read = rec.get("cache_read_input_tokens") or 0
+        cache_write = rec.get("cache_creation_input_tokens") or 0
+        output_tok = rec.get("output_tokens") or 0
+        raw = rec.get("total_tokens", input_tok + cache_read + cache_write + output_tok)
 
-    savings_pct = round(100 * (1 - total_eff / total_raw), 2) if total_raw > 0 else 0
+        # Fresh input = what the model actually had to process (not cached)
+        fresh_input = max(0, input_tok - cache_read)
+        total_eff += int(fresh_input)
+
+        total_raw += int(raw or 0)
+        total_cost += calculate_cost(rec)
+
+        total_input += input_tok
+        total_cache_read += cache_read
+
+    # Cache savings: % of input_tokens that were served from cache vs full fresh input
+    if total_input > 0:
+        savings_pct = round(100 * total_cache_read / total_input, 2)
+        savings_pct = max(0, min(100, savings_pct))
+    else:
+        savings_pct = 0
+
+    # Pricing overhead: extra tokens from cache_write (cache creation costs)
+    pricing_overhead = int(max(0, total_raw - total_eff))
 
     return {
         "effective_tokens": total_eff,
         "total_tokens": total_raw,
         "cache_savings_pct": savings_pct,
-        "pricing_overhead": max(0, total_raw - total_eff),
-        "session_cost_usd": round(total_cost, 6),
+        "pricing_overhead": pricing_overhead,
+        "session_cost_usd": round(total_cost, 2),
     }

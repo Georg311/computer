@@ -1679,12 +1679,18 @@ async def te_status(request: Request, chat_id: str = Query(..., description="Cha
         )
         tool_rows = list(tools_result.scalars().all())
 
+        # Use get_session_costs() to fill in cache-based values when DB is still 0
+        # (handles restarts and pre-migration chats gracefully)
+        from cptr.utils.te.cost_tracker import get_session_costs as _te_get_session_costs
+
+        cost_data = await _te_get_session_costs(chat_id)
+
         return {
-            "effective_tokens": status_row.effective_tokens or 0,
-            "total_tokens": status_row.total_tokens or 0,
-            "cache_savings_pct": status_row.cache_savings_pct or 0.0,
-            "pricing_overhead": status_row.pricing_overhead or 0,
-            "session_cost_usd": round(status_row.session_cost_usd or 0.0, 6),
+            "effective_tokens": status_row.effective_tokens or cost_data["effective_tokens"],
+            "total_tokens": status_row.total_tokens or cost_data["total_tokens"],
+            "cache_savings_pct": status_row.cache_savings_pct or cost_data["cache_savings_pct"],
+            "pricing_overhead": status_row.pricing_overhead or cost_data["pricing_overhead"],
+            "session_cost_usd": round(status_row.session_cost_usd or cost_data["session_cost_usd"], 2),
             "tool_usage": [
                 {
                     "tool_name": t.tool_name,

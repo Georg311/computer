@@ -58,7 +58,16 @@ def record_tool_call(chat_id: str, tool_name: str, token_record: dict | None) ->
         if status is None:
             status = await TeStatus.ensure(chat_id)
 
+        # Sync DB values from the in-memory cache (get_session_estimate has the logic)
+        from cptr.utils.te.pricing_wrapper import get_session_estimate as _estimate
 
+        records = _last_token_records.get(chat_id, [])
+        est = _estimate(records)
+        status.effective_tokens = int(est["effective_tokens"])
+        status.total_tokens = int(est["total_tokens"])
+        status.cache_savings_pct = int(est["cache_savings_pct"]) if est["cache_savings_pct"] else 0
+        status.pricing_overhead = int(est["pricing_overhead"])
+        status.session_cost_usd = float(est["session_cost_usd"])
 
         await session.commit()
 
