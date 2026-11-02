@@ -1,3 +1,18 @@
+## [0.9.21.21] - 2026-11-01
+
+### Added
+- 🔍 **`search_files` — `filepaths_only` parameter.** Returns relative file paths (e.g. `cptr/utils/ai.py`) instead of matching lines, for use-cases that only need file discovery.
+- 💰 **TE Pricing admin settings.** Full CRUD for custom model pricing (`/api/admin/te/pricing`) with a new Settings tab, grouped by provider, showing defaults, overrides, and merged values. Add/delete custom models supported.
+
+### Fixed
+- 🐛 **Admin pricing UI fixes.** Null-checked `groupByProvider` to prevent `'can't convert undefined to object'`, moved Svelte template reduce logic out of the template, removed duplicate TE Pricing routes from `admin.py`, removed redundant data transform (backend already returns `{defaults, custom, merged}`), adapted `getTePricing` to actual `{models, overrides}` API response format, switched pricing tab to 'dollar' icon (Iconoir SVG).
+- 🐛 **`search_files` — `filepaths_only` path extraction.** Corrected path extraction logic for relative paths so deduplicated file paths are properly returned.
+- 🐛 **TE UI fixes.** Removed `hasChatContent` guard that disabled TE UI buttons, added header button and plus menu entry, fixed missing `commandTeConfig` key, improved padding/spacing, added missing `teConfig` translations to all locales, fixed HTML escaping in TE status messages, fixed Svelte `$props()` destructuring for `onteStatus`.
+- 🐛 **Frontend:** Load fonts locally instead of from Google Fonts.
+
+### Docs
+- 📝 **Clarify `filenames_only` vs `filepaths_only`.** Updated docstrings to clearly distinguish bare filenames (`ai.py`) from relative file paths (`cptr/utils/ai.py`).
+
 ## [0.9.21.20] - 2026-11-01
 
 ### Fixed
