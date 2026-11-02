@@ -51,17 +51,47 @@ async def backfill():
 
         await session.commit()
 
-        # Now compute te_status per chat
+        # Now compute te_status per chat — fresh input tokens (not weighted cost)
         for chat_id, records in chat_data.items():
+            total_fresh_input = 0
+            total_raw = 0
+            total_cache_read = 0
+            total_input = 0
+
+            for rec in records:
+                if not isinstance(rec, dict):
+                    continue
+                input_tok = rec.get("input_tokens") or 0
+                cache_read = rec.get("cache_read_input_tokens") or 0
+                # Also check cptr's legacy layout (input_tokens_details.cached_tokens)
+                details = rec.get("input_tokens_details")
+                if isinstance(details, dict):
+                    cache_read = max(cache_read, int(details.get("cached_tokens") or 0))
+                output_tok = rec.get("output_tokens") or 0
+                total_fresh_input += max(0, input_tok - cache_read)
+                total_raw += input_tok + cache_read + output_tok
+                total_cache_read += cache_read
+                total_input += input_tok
+
+            # Cache savings: % of input_tokens served from cache
+            if total_input > 0:
+                savings_pct = round(100 * total_cache_read / total_input, 2)
+                savings_pct = max(0, min(100, savings_pct))
+            else:
+                savings_pct = 0
+
+            # Session cost (weighted, for billing accuracy)
             est = get_session_estimate(records)
+            session_cost_usd = float(est.get("session_cost_usd", 0.0))
+
             status = await TeStatus.get_by_chat(chat_id)
             if status is None:
                 status = await TeStatus.ensure(chat_id)
-            status.effective_tokens = int(est["effective_tokens"])
-            status.total_tokens = int(est["total_tokens"])
-            status.cache_savings_pct = int(est["cache_savings_pct"]) if est.get("cache_savings_pct") else 0
-            status.pricing_overhead = int(max(0, est["total_tokens"] - est["effective_tokens"]))
-            status.session_cost_usd = float(est.get("session_cost_usd", 0.0))
+            status.effective_tokens = total_fresh_input
+            status.total_tokens = total_raw
+            status.cache_savings_pct = int(savings_pct)
+            status.pricing_overhead = int(max(0, total_raw - total_fresh_input))
+            status.session_cost_usd = session_cost_usd
 
             session.add(status)
 
