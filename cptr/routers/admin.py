@@ -507,105 +507,91 @@ async def update_model_config(request: Request, model_id: str, body: UpdateModel
 # ── TE Pricing ───────────────────────────────────────────────
 
 
-class TePricingUpdateRequest(BaseModel):
-    pricing: dict[str, float]
-
-
-class TePricingCreateRequest(BaseModel):
-    model_id: str
-    pricing: dict[str, float]
-
-
 @router.get("/te/pricing")
 async def get_te_pricing(request: Request):
-    """Return all model pricing: DEFAULT_PRICING base + config.toml overrides.
+    """Return current TE pricing configuration.
 
-    Admin-only endpoint for the TE pricing admin tab.
+    Merges DEFAULT_PRICING with any custom overrides from config.toml [te_pricing].
     """
     require_admin(request)
 
-    config = load_config()
-    overrides = config.get("te_pricing", {})
-    if not isinstance(overrides, dict):
-        overrides = {}
+    try:
+        from cptr.utils.te.pricing_wrapper import DEFAULT_PRICING as default_pricing, _get_pricing_table
 
-    return {
-        "models": DEFAULT_PRICING.copy(),
-        "overrides": overrides,
-    }
+        defaults = {k.lower(): v for k, v in default_pricing.items()}
+        custom = _get_pricing_table()
+        custom = {k.lower(): v for k, v in custom.items()}
+
+        # Build merged view: show defaults + highlight overrides
+        merged = {}
+        for model_id, pricing in defaults.items():
+            merged[model_id] = {
+                "default": pricing,
+                "current": custom.get(model_id, pricing),
+                "overridden": model_id in custom,
+            }
+
+        return {
+            "defaults": defaults,
+            "custom": custom,
+            "merged": merged,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/te/pricing")
-async def create_te_pricing_entry(request: Request, body: TePricingCreateRequest):
-    """Create or update pricing for a single model.
+@router.post("/te/pricing/update")
+async def update_te_pricing(request: Request):
+    """Update TE pricing in config.toml [te_pricing].
 
-    Writes an override into config.toml [te_pricing].
+    POST body: { "model_id": "gpt-5.6-sol", "pricing": {"input": 0.012, ...} }
     """
     require_admin(request)
 
-    model_id = body.model_id
-    pricing = body.pricing
-    if not isinstance(pricing, dict):
-        raise HTTPException(status_code=400, detail="pricing must be a dict")
+    try:
+        from cptr.utils.te.pricing_wrapper import DEFAULT_PRICING as default_pricing
 
-    config = load_config()
-    overrides = config.get("te_pricing", {})
-    if not isinstance(overrides, dict):
-        overrides = {}
+        body = await request.json()
+        model_id = body.get("model_id", "").lower().strip()
+        pricing = body.get("pricing", {})
 
-    overrides[model_id] = pricing
-    config["te_pricing"] = overrides
-    save_config(config)
-    invalidate_config_cache()
+        if not model_id or model_id not in {k.lower(): k for k in default_pricing}:
+            raise HTTPException(status_code=400, detail=f"Unknown model: {model_id}")
 
-    return {"ok": True}
+        if not isinstance(pricing, dict):
+            raise HTTPException(status_code=400, detail="pricing must be a dict")
 
+        config = load_config()
+        overrides = config.get("te_pricing", {})
+        if not isinstance(overrides, dict):
+            overrides = {}
 
-@router.put("/te/pricing/{model_id}")
-async def update_te_pricing_entry(request: Request, model_id: str, body: TePricingUpdateRequest):
-    """Update pricing for a single model.
-
-    Writes an override into config.toml [te_pricing].
-    """
-    require_admin(request)
-
-    pricing = body.pricing
-    if not isinstance(pricing, dict):
-        raise HTTPException(status_code=400, detail="pricing must be a dict")
-
-    config = load_config()
-    overrides = config.get("te_pricing", {})
-    if not isinstance(overrides, dict):
-        overrides = {}
-
-    overrides[model_id] = pricing
-    config["te_pricing"] = overrides
-    save_config(config)
-    invalidate_config_cache()
-
-    return {"ok": True}
-
-
-@router.delete("/te/pricing/{model_id}")
-async def delete_te_pricing_entry(request: Request, model_id: str):
-    """Remove pricing override for a model (reset to default)."""
-    require_admin(request)
-
-    config = load_config()
-    overrides = config.get("te_pricing", {})
-    if not isinstance(overrides, dict):
-        overrides = {}
-
-    if model_id in overrides:
-        del overrides[model_id]
-        if overrides:
-            config["te_pricing"] = overrides
-        else:
-            config.pop("te_pricing", None)
+        overrides[model_id] = pricing
+        config["te_pricing"] = overrides
         save_config(config)
         invalidate_config_cache()
 
-    return {"ok": True}
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/te/pricing/reset-all")
+async def reset_te_pricing(request: Request):
+    """Reset all TE pricing to defaults."""
+    require_admin(request)
+
+    try:
+        config = load_config()
+        if "te_pricing" in config:
+            del config["te_pricing"]
+        save_config(config)
+        invalidate_config_cache()
+        return {"ok": True, "message": "All TE pricing reset to defaults"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ── Tool servers ─────────────────────────────────────────────
@@ -862,147 +848,4 @@ async def verify_tool_server(request: Request, server_id: str):
         return JSONResponse({"ok": False, "message": str(e)}, 400)
 
 
-# ── TE Pricing Admin Endpoints ────────────────────────────────
 
-
-class TePricingModel(BaseModel):
-    model_id: str
-    pricing: dict[str, float]
-
-
-@router.get("/te/pricing")
-async def get_te_pricing(request: Request):
-    """Return current TE pricing configuration.
-
-    Merges DEFAULT_PRICING with any custom overrides from config.toml [te_pricing].
-    """
-    require_admin(request)
-
-    try:
-        from cptr.utils.te.pricing_wrapper import DEFAULT_PRICING as default_pricing, _get_pricing_table
-
-        defaults = {k.lower(): v for k, v in default_pricing.items()}
-        custom = _get_pricing_table()
-        custom = {k.lower(): v for k, v in custom.items()}
-
-        # Build merged view: show defaults + highlight overrides
-        merged = {}
-        for model_id, pricing in defaults.items():
-            merged[model_id] = {
-                "default": pricing,
-                "current": custom.get(model_id, pricing),
-                "overridden": model_id in custom,
-            }
-
-        return {
-            "defaults": defaults,
-            "custom": custom,
-            "merged": merged,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/te/pricing/update")
-async def update_te_pricing(request: Request):
-    """Update TE pricing in config.toml [te_pricing].
-
-    POST body: { "model_id": "gpt-5.6-sol", "pricing": {"input": 0.012, ...} }
-    Removes a model from custom pricing when { "reset": true } is sent.
-    """
-    require_admin(request)
-
-    body = await request.json()
-    model_id = (body.get("model_id") or "").strip().lower()
-    reset = body.get("reset", False)
-
-    if not model_id and not reset:
-        return JSONResponse({"ok": False, "message": "model_id required"}, 400)
-
-    try:
-        config = load_config()
-        custom: dict = config.get("te_pricing", {})
-        if not isinstance(custom, dict):
-            custom = {}
-
-        if reset:
-            # Remove all custom pricing and restore defaults
-            if "te_pricing" in config:
-                del config["te_pricing"]
-            save_config(config)
-            invalidate_config_cache()
-            return {"ok": True, "message": "Pricing reset to defaults"}
-
-        pricing = body.get("pricing", {})
-        if not isinstance(pricing, dict):
-            return JSONResponse({"ok": False, "message": "pricing must be a dict"}, 400)
-
-        custom[model_id] = pricing
-        config["te_pricing"] = custom
-        save_config(config)
-        invalidate_config_cache()
-
-        return {
-            "ok": True,
-            "model_id": model_id,
-            "message": f"Pricing updated for {model_id}",
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/te/pricing/bulk-update")
-async def bulk_update_te_pricing(request: Request):
-    """Bulk update multiple model pricing entries at once.
-
-    POST body: { "updates": [{"model_id": "...", "pricing": {...}}, ...] }
-    """
-    require_admin(request)
-
-    body = await request.json()
-    updates: list[dict] = body.get("updates", [])
-
-    if not isinstance(updates, list):
-        return JSONResponse({"ok": False, "message": "updates must be a list"}, 400)
-
-    try:
-        config = load_config()
-        custom: dict = config.get("te_pricing", {})
-        if not isinstance(custom, dict):
-            custom = {}
-
-        updated_models = []
-        for entry in updates:
-            model_id = (entry.get("model_id") or "").strip().lower()
-            pricing = entry.get("pricing", {})
-            if model_id and isinstance(pricing, dict):
-                custom[model_id] = pricing
-                updated_models.append(model_id)
-
-        config["te_pricing"] = custom
-        save_config(config)
-        invalidate_config_cache()
-
-        return {
-            "ok": True,
-            "updated_models": updated_models,
-            "message": f"Updated pricing for {len(updated_models)} model(s)",
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/te/pricing/reset-all")
-async def reset_te_pricing(request: Request):
-    """Reset all TE pricing to defaults."""
-    require_admin(request)
-
-    try:
-        config = load_config()
-        if "te_pricing" in config:
-            del config["te_pricing"]
-        save_config(config)
-        invalidate_config_cache()
-        return {"ok": True, "message": "All TE pricing reset to defaults"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
