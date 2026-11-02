@@ -127,6 +127,7 @@
 		onplan,
 		onstatus,
 		onskillslist,
+		onteStatus,
 		onteTools,
 		onteSkills,
 		onteConfig,
