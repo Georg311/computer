@@ -300,5 +300,11 @@ export const updateTePricing = (modelId: string, pricing: Record<string, number>
 export const resetTePricing = () =>
 	fetchJSON('/api/admin/te/pricing/reset-all', { method: 'POST' });
 
+export const addCustomModel = (modelId: string, pricing: Record<string, number>) =>
+	fetchJSON('/api/admin/te/pricing/update', jsonBody({ model_id: modelId, pricing }));
+
+export const deleteCustomModel = (modelId: string) =>
+	fetchJSON(`/api/admin/te/pricing/${encodeURIComponent(modelId)}`, { method: 'DELETE' });
+
 export const bulkUpdateTePricing = (updates: Array<{ model_id: string; pricing: Record<string, number> }>) =>
 	fetchJSON('/api/admin/te/pricing/bulk-update', jsonBody({ updates }));

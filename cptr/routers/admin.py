@@ -545,6 +545,8 @@ async def update_te_pricing(request: Request):
     """Update TE pricing in config.toml [te_pricing].
 
     POST body: { "model_id": "gpt-5.6-sol", "pricing": {"input": 0.012, ...} }
+    
+    For custom models (not in DEFAULT_PRICING), any model_id is accepted.
     """
     require_admin(request)
 
@@ -555,11 +557,19 @@ async def update_te_pricing(request: Request):
         model_id = body.get("model_id", "").lower().strip()
         pricing = body.get("pricing", {})
 
-        if not model_id or model_id not in {k.lower(): k for k in default_pricing}:
-            raise HTTPException(status_code=400, detail=f"Unknown model: {model_id}")
+        if not model_id:
+            raise HTTPException(status_code=400, detail="model_id is required")
 
         if not isinstance(pricing, dict):
             raise HTTPException(status_code=400, detail="pricing must be a dict")
+
+        # Only validate against known models if it's NOT a custom model
+        known_models = {k.lower(): k for k in default_pricing}
+        if model_id not in known_models:
+            # Custom model — allow any non-empty ID
+            pass
+        elif not pricing:
+            raise HTTPException(status_code=400, detail="pricing is required")
 
         config = load_config()
         overrides = config.get("te_pricing", {})
@@ -578,18 +588,28 @@ async def update_te_pricing(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/te/pricing/reset-all")
-async def reset_te_pricing(request: Request):
-    """Reset all TE pricing to defaults."""
+@router.delete("/te/pricing/{model_id}")
+async def delete_te_pricing_entry(request: Request, model_id: str):
+    """Remove pricing override for a single model (custom or default)."""
     require_admin(request)
 
     try:
         config = load_config()
-        if "te_pricing" in config:
-            del config["te_pricing"]
-        save_config(config)
-        invalidate_config_cache()
-        return {"ok": True, "message": "All TE pricing reset to defaults"}
+        overrides = config.get("te_pricing", {})
+        if not isinstance(overrides, dict):
+            overrides = {}
+
+        model_id = model_id.lower().strip()
+        if model_id in overrides:
+            del overrides[model_id]
+            if overrides:
+                config["te_pricing"] = overrides
+            else:
+                config.pop("te_pricing", None)
+            save_config(config)
+            invalidate_config_cache()
+
+        return {"ok": True, "model_id": model_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

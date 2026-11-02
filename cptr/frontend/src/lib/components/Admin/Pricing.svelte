@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { getTePricing, updateTePricing, resetTePricing, type TePricingEntry } from '$lib/apis/admin';
+	import { getTePricing, updateTePricing, resetTePricing, addCustomModel, deleteCustomModel, type TePricingEntry } from '$lib/apis/admin';
 	import { t } from '$lib/i18n';
 	import Icon from '../Icon.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
@@ -19,10 +19,21 @@
 
 	// Provider-grouped data for template rendering
 	let groupedProviders = $state<ProviderGroup[]>([]);
+	let customModels = $state<Record<string, Record<string, number>>>({});
 
 	// Edit state
 	let editingModel = $state<string | null>(null);
 	let editingPricing = $state<Record<string, string>>({
+		input: '',
+		cache_read: '',
+		cache_write: '',
+		output: ''
+	});
+
+	// Custom model form state
+	let showAddCustomForm = $state(false);
+	let newModelId = $state('');
+	let newPricing = $state<Record<string, string>>({
 		input: '',
 		cache_read: '',
 		cache_write: '',
@@ -40,13 +51,16 @@
 			pricingData = await getTePricing();
 			if (pricingData?.merged) {
 				groupedProviders = groupByProvider(pricingData.merged);
+				customModels = pricingData.custom || {};
 			} else {
 				groupedProviders = [];
+				customModels = {};
 			}
 			loading = false;
 		} catch (e) {
 			error = e?.message || 'Failed to load pricing';
 			groupedProviders = [];
+			customModels = {};
 			loading = false;
 		}
 	}
@@ -94,6 +108,7 @@
 			toast.success(`Pricing updated for ${editingModel}`);
 			pricingData = await getTePricing();
 			groupedProviders = groupByProvider(pricingData.merged);
+			customModels = pricingData.custom || {};
 			cancelEdit();
 		} catch (e) {
 			error = e?.message || 'Failed to save pricing';
@@ -110,8 +125,56 @@
 			toast.success('Pricing reset to defaults');
 			pricingData = await getTePricing();
 			groupedProviders = groupByProvider(pricingData.merged);
+			customModels = pricingData.custom || {};
 		} catch (e) {
 			error = e?.message || 'Failed to reset pricing';
+			setTimeout(() => { error = null; }, 3000);
+		}
+	}
+
+	async function handleAddCustomModel() {
+		if (!newModelId.trim()) {
+			toast.error('Model ID is required');
+			return;
+		}
+		const pricing: Record<string, number> = {};
+		let hasValue = false;
+		for (const field of PRICING_FIELDS) {
+			const val = parseFloat(newPricing[field]);
+			if (!isNaN(val) && val >= 0) {
+				pricing[field] = val;
+				hasValue = true;
+			}
+		}
+		if (!hasValue) {
+			toast.error('At least one pricing field is required');
+			return;
+		}
+		try {
+			await addCustomModel(newModelId.trim(), pricing);
+			toast.success(`Custom model ${newModelId} added`);
+			newModelId = '';
+			newPricing = { input: '', cache_read: '', cache_write: '' };
+			showAddCustomForm = false;
+			pricingData = await getTePricing();
+			groupedProviders = groupByProvider(pricingData.merged);
+			customModels = pricingData.custom || {};
+		} catch (e) {
+			error = e?.message || 'Failed to add custom model';
+			setTimeout(() => { error = null; }, 3000);
+		}
+	}
+
+	async function handleDeleteCustomModel(modelId: string) {
+		if (!confirm(`Remove custom pricing for ${modelId}?`)) return;
+		try {
+			await deleteCustomModel(modelId);
+			toast.success(`Custom pricing removed for ${modelId}`);
+			pricingData = await getTePricing();
+			groupedProviders = groupByProvider(pricingData.merged);
+			customModels = pricingData.custom || {};
+		} catch (e) {
+			error = e?.message || 'Failed to delete custom model';
 			setTimeout(() => { error = null; }, 3000);
 		}
 	}
@@ -124,21 +187,21 @@
 		if (modelId.startsWith('gpt')) return '🤖';
 		if (modelId.startsWith('claude')) return '🟣';
 		if (modelId.startsWith('gemini')) return '🔶';
-		return '⚙️';
+		return '🛠️';
 	}
 
 	function getProviderLabel(modelId: string): string {
 		if (modelId.startsWith('gpt')) return 'OpenAI';
 		if (modelId.startsWith('claude')) return 'Anthropic';
 		if (modelId.startsWith('gemini')) return 'Google';
-		return 'Other';
+		return 'Custom';
 	}
 
 	function getProviderColor(modelId: string): string {
 		if (modelId.startsWith('gpt')) return 'text-blue-400';
 		if (modelId.startsWith('claude')) return 'text-purple-400';
 		if (modelId.startsWith('gemini')) return 'text-yellow-400';
-		return 'text-gray-400';
+		return 'text-orange-400';
 	}
 
 	function getGroupColor(group: string): string {
@@ -148,6 +211,7 @@
 			case 'claude-sonnet': return 'text-violet-300';
 			case 'claude-haiku': return 'text-sky-300';
 			case 'gemini': return 'text-yellow-300';
+			case 'Custom': return 'text-orange-400';
 			default: return 'text-gray-400';
 		}
 	}
@@ -169,6 +233,12 @@
 			>
 				{$t('admin.tePricingReset')}
 			</button>
+			<button
+				class="text-xs px-2 py-1 rounded-lg bg-orange-600 text-white hover:bg-orange-700 transition-colors"
+				onclick={() => showAddCustomForm = !showAddCustomForm}
+			>
+				{showAddCustomForm ? '×' : '+ '}{$t('admin.tePricingAddCustom')}
+			</button>
 		</div>
 	</div>
 
@@ -181,11 +251,90 @@
 		</div>
 	{:else if error}
 		<div class="text-red-400 text-sm">{error}</div>
-	{:else if groupedProviders.length > 0}
+	{:else}
+		<!-- Add Custom Model Form -->
+		{#if showAddCustomForm}
+			<div class="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
+				<div class="flex flex-col gap-2">
+					<label class="text-xs font-medium text-gray-600 dark:text-gray-400">
+						{$t('admin.tePricingCustomModelId')}
+					</label>
+					<input
+						type="text"
+						value={newModelId}
+						onchange={(e) => { newModelId = e.currentTarget.value; }}
+						placeholder="my-custom-model"
+						class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-xs font-mono outline-none focus:ring-1 focus:ring-orange-400"
+					/>
+					<div class="grid grid-cols-2 gap-2">
+						{#each PRICING_FIELDS as field}
+							<div class="flex flex-col gap-0.5">
+								<label class="text-[0.6rem] text-gray-500 dark:text-gray-500 uppercase">{field}</label>
+								<input
+									type="number"
+									value={newPricing[field]}
+									onchange={(e) => { newPricing[field] = e.currentTarget.value; }}
+									class="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-1 py-0.5 text-xs font-mono text-center outline-none focus:ring-1 focus:ring-orange-400"
+									step="0.001"
+									min="0"
+								/>
+							</div>
+						{/each}
+					</div>
+					<div class="flex gap-2 mt-1">
+						<button
+							class="text-xs px-3 py-1 rounded bg-orange-600 text-white hover:bg-orange-700 transition-colors"
+							onclick={handleAddCustomModel}
+							disabled={saving}
+						>
+							{saving ? '...' : '✓ Add'}
+						</button>
+						<button
+							class="text-xs px-3 py-1 rounded bg-gray-300 dark:bg-gray-700 hover:bg-gray-400 transition-colors"
+							onclick={() => { showAddCustomForm = false; newModelId = ''; newPricing = { input: '', cache_read: '', cache_write: '' }; }}
+						>
+							{$t('admin.tePricingCancel')}
+						</button>
+					</div>
+				</div>
+			</div>
+		{/if}
+
+		<!-- Custom Models Section -->
+		{#if Object.keys(customModels).length > 0}
+			<div class="mt-3">
+				<div class="text-xs font-medium uppercase tracking-wide text-orange-400 dark:text-orange-600 mb-1 flex items-center gap-2">
+					<span>🛠️</span> {$t('admin.tePricingCustomModels')} ({Object.keys(customModels).length})
+				</div>
+				<div class="space-y-0.5">
+					{#each Object.entries(customModels) as [modelId, pricing]}
+						<div class="flex items-center gap-2 p-1.5 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors">
+							<span class="shrink-0 text-base">🛠️</span>
+							<span class="text-xs font-mono flex-1 truncate text-orange-600 dark:text-orange-400">
+								{modelId}
+							</span>
+							<span class="text-[0.5rem] px-1 py-0.5 rounded bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 font-medium">
+								CUSTOM
+							</span>
+							<span class="text-xs font-mono text-gray-500 dark:text-gray-400 shrink-0">
+								{formatPrice(pricing.input || 0)}
+							</span>
+							<button
+								class="text-xs px-1.5 py-0.5 rounded bg-red-600 text-white hover:bg-red-700 transition-colors"
+								onclick={() => handleDeleteCustomModel(modelId)}
+							>
+								✕
+							</button>
+						</div>
+					{/each}
+				</div>
+			</div>
+		{/if}
+
 		<!-- Provider Groups -->
 		{#each groupedProviders as [provider, entries]}
 			<div class="mt-2">
-				<div class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600 mb-1">
+				<div class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600 mb-1 {getGroupColor(provider)}">
 					{provider} ({entries.length})
 				</div>
 				<div class="space-y-0.5">
