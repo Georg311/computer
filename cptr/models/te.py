@@ -47,23 +47,23 @@ class TeStatus(Base):
         from cptr.utils.db import get_session_factory
         from sqlalchemy import select as sa_select
 
-        session = get_session_factory()
-        result = await session.execute(sa_select(cls).where(cls.chat_id == chat_id))
-        return result.scalar_one_or_none()
+        async with get_session_factory()() as session:
+            result = await session.execute(sa_select(cls).where(cls.chat_id == chat_id))
+            return result.scalar_one_or_none()
 
     @classmethod
     async def ensure(cls, chat_id: str):
         """Create or return existing TeStatus for *chat_id*."""
         from cptr.utils.db import get_session_factory
 
-        session = get_session_factory()
-        instance = await session.get(cls, chat_id)
-        if instance is None:
-            instance = cls(chat_id=chat_id)
-            session.add(instance)
-            await session.commit()
-            await session.refresh(instance)
-        return instance
+        async with get_session_factory()() as session:
+            instance = await session.get(cls, chat_id)
+            if instance is None:
+                instance = cls(chat_id=chat_id)
+                session.add(instance)
+                await session.commit()
+                await session.refresh(instance)
+            return instance
 
 
 class ToolUsage(Base):

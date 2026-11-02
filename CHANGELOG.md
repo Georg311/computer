@@ -1,3 +1,8 @@
+## [0.9.21.27] - 2026-11-02
+
+### Fixed
+- 🐛 **TokenEconomizer `record_tool_call()` never wrote to DB.** `get_session_factory()` returned an async_sessionmaker, not a session — calling `.execute()` on it raised AttributeError silently, so tool_usage and te_status stayed empty. Rewrote all DB access to use `async with get_session_factory()() as session:` (correct async context manager pattern). Also fixed `TeStatus.get_by_chat()` and `TeStatus.ensure()` in models/te.py and `get_session_costs()` in cost_tracker.py to use the same pattern.
+
 ## [0.9.21.26] - 2026-11-02
 
 ### Fixed

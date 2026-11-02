@@ -35,23 +35,23 @@ def record_tool_call(chat_id: str, tool_name: str, token_record: dict | None) ->
     async def _update():
         from cptr.utils.db import get_session_factory
 
-        session = get_session_factory()
-
         # 1. Upsert tool_usage entry
-        existing = await session.execute(
-            __import__("sqlalchemy", fromlist=["select"]).select(ToolUsage).where(
-                (ToolUsage.chat_id == chat_id) & (ToolUsage.tool_name == tool_name),
+        async with get_session_factory()() as session:
+            existing = await session.execute(
+                __import__("sqlalchemy", fromlist=["select"]).select(ToolUsage).where(
+                    (ToolUsage.chat_id == chat_id) & (ToolUsage.tool_name == tool_name),
+                )
             )
-        )
-        entry = existing.scalar_one_or_none()
+            entry = existing.scalar_one_or_none()
 
-        now_ms = _now_ms()
-        if entry is None:
-            entry = ToolUsage(chat_id=chat_id, tool_name=tool_name, first_seen=now_ms)
-            session.add(entry)
-            await session.flush()
-        entry.call_count += 1
-        entry.last_seen = now_ms
+            now_ms = _now_ms()
+            if entry is None:
+                entry = ToolUsage(chat_id=chat_id, tool_name=tool_name, first_seen=now_ms)
+                session.add(entry)
+                await session.flush()
+            entry.call_count += 1
+            entry.last_seen = now_ms
+            await session.commit()
 
         # 2. Ensure te_status exists and update it with latest token records
         status = await TeStatus.get_by_chat(chat_id)
@@ -69,7 +69,10 @@ def record_tool_call(chat_id: str, tool_name: str, token_record: dict | None) ->
         status.pricing_overhead = int(est["pricing_overhead"])
         status.session_cost_usd = float(est["session_cost_usd"])
 
-        await session.commit()
+        # Save updated te_status
+        async with get_session_factory()() as sess:
+            sess.add(status)
+            await sess.commit()
 
     # Run synchronously via asyncio to avoid blocking the main loop
     try:
@@ -112,27 +115,26 @@ async def get_session_costs(chat_id: str) -> dict:
     async def _fetch():
         from cptr.utils.db import get_session_factory
 
-        session = get_session_factory()
+        async with get_session_factory()() as session:
+            # Get te_status
+            status_row = await session.execute(sa_select(TeStatus).where(TeStatus.chat_id == chat_id))
+            status = status_row.scalar_one_or_none()
 
-        # Get te_status
-        status_row = await session.execute(sa_select(TeStatus).where(TeStatus.chat_id == chat_id))
-        status = status_row.scalar_one_or_none()
+            if not status:
+                return {
+                    "effective_tokens": 0,
+                    "total_tokens": 0,
+                    "cache_savings_pct": 0,
+                    "pricing_overhead": 0,
+                    "session_cost_usd": 0.0,
+                    "tool_usage": [],
+                }
 
-        if not status:
-            return {
-                "effective_tokens": 0,
-                "total_tokens": 0,
-                "cache_savings_pct": 0,
-                "pricing_overhead": 0,
-                "session_cost_usd": 0.0,
-                "tool_usage": [],
-            }
-
-        # Get tool usage breakdown
-        tools = await session.execute(
-            sa_select(ToolUsage).where(ToolUsage.chat_id == chat_id)
-        )
-        tool_rows = list(tools.scalars().all())
+            # Get tool usage breakdown
+            tools = await session.execute(
+                sa_select(ToolUsage).where(ToolUsage.chat_id == chat_id)
+            )
+            tool_rows = list(tools.scalars().all())
 
         from cptr.utils.te.pricing_wrapper import calculate_cost, get_session_estimate
 
