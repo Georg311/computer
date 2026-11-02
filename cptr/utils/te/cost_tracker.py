@@ -58,16 +58,42 @@ def record_tool_call(chat_id: str, tool_name: str, token_record: dict | None) ->
         if status is None:
             status = await TeStatus.ensure(chat_id)
 
-        # Sync DB values from the in-memory cache (get_session_estimate has the logic)
-        from cptr.utils.te.pricing_wrapper import get_session_estimate as _estimate
+        # Compute fresh input tokens + session cost from in-memory records
+        total_fresh_input = 0
+        total_raw = 0
+        total_cache_read = 0
+        total_input = 0
+        for rec in records:
+            if not isinstance(rec, dict):
+                continue
+            input_tok = rec.get("input_tokens") or 0
+            cache_read = rec.get("cache_read_input_tokens") or 0
+            # Also check cptr's legacy layout (input_tokens_details.cached_tokens)
+            details = rec.get("input_tokens_details")
+            if isinstance(details, dict):
+                cache_read = max(cache_read, int(details.get("cached_tokens") or 0))
+            output_tok = rec.get("output_tokens") or 0
+            total_fresh_input += max(0, input_tok - cache_read)
+            total_raw += input_tok + cache_read + output_tok
+            total_cache_read += cache_read
+            total_input += input_tok
 
-        records = _last_token_records.get(chat_id, [])
+        # Cache savings: % of input_tokens served from cache
+        if total_input > 0:
+            savings_pct = round(100 * total_cache_read / total_input, 2)
+            savings_pct = max(0, min(100, savings_pct))
+        else:
+            savings_pct = 0
+
+        # Session cost (weighted, for billing accuracy)
         est = _estimate(records)
-        status.effective_tokens = int(est["effective_tokens"])
-        status.total_tokens = int(est["total_tokens"])
-        status.cache_savings_pct = int(est["cache_savings_pct"]) if est["cache_savings_pct"] else 0
-        status.pricing_overhead = int(est["pricing_overhead"])
-        status.session_cost_usd = float(est["session_cost_usd"])
+        session_cost_usd = float(est.get("session_cost_usd", 0.0))
+
+        status.effective_tokens = total_fresh_input
+        status.total_tokens = total_raw
+        status.cache_savings_pct = int(savings_pct)
+        status.pricing_overhead = int(max(0, total_raw - total_fresh_input))
+        status.session_cost_usd = session_cost_usd
 
         # Save updated te_status
         async with get_session_factory()() as sess:

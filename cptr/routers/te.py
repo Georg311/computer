@@ -42,18 +42,47 @@ class TeStatusResponse(BaseModel):
 async def get_te_status(request: Request, chat_id: str = Query(...)):
     """Return token & cost status for a single chat.
 
-    Reads TeStatus + ToolUsage from the database and returns them as JSON.
-    Falls back to computing session estimates from ChatMessage.usage records.
+    DB Primary: reads TeStatus from the database (fast, uses live tracking).
+    Message-Fallback: if no TeStatus row exists, computes estimates from
+    ChatMessage.usage records.
+    Fresh input tokens: effective_tokens = sum(input_tokens - cache_read)
+    per turn — shows real uncached prompt size, not weighted cost.
     """
     _get_user(request)
 
     async with get_session_factory()() as session:
-        # Fetch TE status (may be None if not yet computed)
+        # ── DB Primary: read TeStatus ────────────────────────────
         status = (await session.execute(
             select(TeStatus).where(TeStatus.chat_id == chat_id)
         )).scalar_one_or_none()
 
-        # Compute token cost estimates from ChatMessage.usage records
+        if status and (status.effective_tokens or 0) > 0:
+            # DB has live tracking data — use it directly
+            tools_result = await session.execute(
+                select(ToolUsage).where(ToolUsage.chat_id == chat_id)
+            )
+            tools_rows = tools_result.scalars().all()
+
+            tool_usage = [
+                TeToolUsageItem(
+                    tool_name=t.tool_name,
+                    call_count=t.call_count,
+                    first_seen=t.first_seen,
+                    last_seen=t.last_seen,
+                )
+                for t in tools_rows
+            ]
+
+            return TeStatusResponse(
+                effective_tokens=int(status.effective_tokens or 0),
+                total_tokens=int(status.total_tokens or 0),
+                cache_savings_pct=int(status.cache_savings_pct or 0),
+                pricing_overhead=int(status.pricing_overhead or 0),
+                session_cost_usd=float(status.session_cost_usd or 0.0),
+                tool_usage=tool_usage,
+            )
+
+        # ── Message-Fallback: compute from ChatMessage.usage ─────
         result = await session.execute(
             select(ChatMessage).where(ChatMessage.chat_id == chat_id)
         )
@@ -63,14 +92,33 @@ async def get_te_status(request: Request, chat_id: str = Query(...)):
         for msg in messages:
             usage = getattr(msg, "usage", None) if hasattr(msg, "usage") else None
             if isinstance(usage, dict):
-                # Add a model field so pricing_wrapper can resolve per-model costs
                 record = dict(usage)
                 model = getattr(msg, "model", None)
                 if model:
                     record["model"] = model
                 token_records.append(record)
 
-        # Calculate session estimates from usage records
+        # Compute fresh input tokens (not weighted cost)
+        total_fresh_input = 0
+        total_output = 0
+        total_cache_read = 0
+        for rec in token_records:
+            if not isinstance(rec, dict):
+                continue
+            input_tok = rec.get("input_tokens") or 0
+            cache_read = rec.get("cache_read_input_tokens") or 0
+            # Also check cptr's legacy layout
+            details = rec.get("input_tokens_details")
+            if isinstance(details, dict):
+                cache_read = max(cache_read, int(details.get("cached_tokens") or 0))
+            output_tok = rec.get("output_tokens") or 0
+            total_fresh_input += max(0, input_tok - cache_read)
+            total_output += output_tok
+            total_cache_read += cache_read
+
+        total_raw = sum(rec.get("input_tokens", 0) + rec.get("cache_read_input_tokens", 0) + rec.get("output_tokens", 0) for rec in token_records if isinstance(rec, dict))
+
+        # Compute session cost from usage records (weighted)
         estimate = get_session_estimate(token_records)
 
         # Fetch tool usage for this chat
@@ -89,14 +137,24 @@ async def get_te_status(request: Request, chat_id: str = Query(...)):
             for t in tools_rows
         ]
 
-    return TeStatusResponse(
-        effective_tokens=int(estimate.get("effective_tokens", 0)),
-        total_tokens=int(estimate.get("total_tokens", 0)),
-        cache_savings_pct=int(estimate.get("cache_savings_pct", 0)),
-        pricing_overhead=int(max(0, estimate.get("total_tokens", 0) - estimate.get("effective_tokens", 0))),
-        session_cost_usd=float(estimate.get("session_cost_usd", 0.0)),
-        tool_usage=tool_usage,
-    )
+        # Cache savings: % of input_tokens that were served from cache
+        total_input = sum((rec.get("input_tokens") or 0) for rec in token_records if isinstance(rec, dict))
+        if total_input > 0:
+            savings_pct = round(100 * total_cache_read / total_input, 2)
+            savings_pct = max(0, min(100, savings_pct))
+        else:
+            savings_pct = 0
+
+        pricing_overhead = int(max(0, total_raw - total_fresh_input))
+
+        return TeStatusResponse(
+            effective_tokens=total_fresh_input,
+            total_tokens=total_raw,
+            cache_savings_pct=int(savings_pct),
+            pricing_overhead=pricing_overhead,
+            session_cost_usd=float(estimate.get("session_cost_usd", 0.0)),
+            tool_usage=tool_usage,
+        )
 
 
 # ── Optional: RepoFacts & LoopEnvelope endpoints (future phases) ──
