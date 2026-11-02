@@ -1,5 +1,8 @@
 ## [0.9.21.21] - 2026-11-01
 
+### Fixed
+- 🐛 **TokenEconomizer empty values fix.** `effective_tokens`, `total_tokens`, `cache_savings_pct`, `pricing_overhead` and `session_cost_usd` were always 0 because (a) `record_tool_call()` never wrote DB values — only created empty rows; (b) the `/api/chats/te/status` endpoint read only from DB, ignoring the in-memory cache where actual data lived. Fixed by: syncing DB `te_status` row with computed values on every tool call; adding `get_session_costs()` fallback in the endpoint so cached values fill in when DB is still 0 (handles restarts and pre-migration chats). Also fixed `get_session_estimate()` formula — `effective_tokens` is now fresh input tokens (`input - cache_read`) instead of weighted cost, `cache_savings_pct` correctly shows % of input served from cache, `session_cost_usd` rounded to 2 decimal places.
+
 ### Added
 - 🔍 **`search_files` — `filepaths_only` parameter.** Returns relative file paths (e.g. `cptr/utils/ai.py`) instead of matching lines, for use-cases that only need file discovery.
 - 💰 **TE Pricing admin settings.** Full CRUD for custom model pricing (`/api/admin/te/pricing`) with a new Settings tab, grouped by provider, showing defaults, overrides, and merged values. Add/delete custom models supported.
