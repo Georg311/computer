@@ -27,6 +27,7 @@
 	import ToolServers from './Admin/ToolServers.svelte';
 	import Subagents from './Admin/Subagents.svelte';
 	import Workspace from './Admin/Workspace.svelte';
+	import AdminPricing from './Admin/Pricing.svelte';
 	import { session } from '$lib/session';
 	import { t } from '$lib/i18n';
 
@@ -54,7 +55,8 @@
 		| 'web'
 		| 'toolservers'
 		| 'subagents'
-		| 'workspace';
+		| 'workspace'
+		| 'pricing';
 
 	interface Props {
 		onclose: () => void;
@@ -89,7 +91,8 @@
 			'web',
 			'toolservers',
 			'subagents',
-			'workspace'
+			'workspace',
+			'pricing'
 		];
 		return validTabs.includes(tab as Tab) ? (tab as Tab) : 'general';
 	}
@@ -157,6 +160,7 @@
 		{ id: 'toolservers', label: tr('admin.toolServers'), icon: 'plug' },
 		{ id: 'subagents', label: tr('admin.subagents'), icon: 'user' },
 		{ id: 'workspace', label: tr('admin.workspace'), icon: 'folder' },
+		{ id: 'pricing', label: tr('admin.tePricing'), icon: 'currency-dollar' },
 		{ id: 'memory', label: tr('settings.memory'), icon: 'brain' },
 		{ id: 'skills', label: tr('chat.skills'), icon: 'spark' }
 	]);
@@ -291,6 +295,8 @@
 			<Subagents />
 		{:else if activeTab === 'workspace'}
 			<Workspace />
+		{:else if activeTab === 'pricing'}
+			<AdminPricing />
 		{/if}
 	</div>
 </Modal>

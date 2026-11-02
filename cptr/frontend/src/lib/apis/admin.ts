@@ -274,3 +274,31 @@ export const verifyToolServer = (id: string) =>
 		`/api/admin/tools/servers/${id}/verify`,
 		{ method: 'POST' }
 	);
+
+// ── TE Pricing Admin API ───────────────────────────────────────
+
+export interface TePricingEntry {
+	default: Record<string, number>;
+	current: Record<string, number>;
+	overridden: boolean;
+}
+
+export type TePricingData = Record<string, TePricingEntry>;
+
+export const getTePricing = async (): Promise<{
+	defaults: Record<string, Record<string, number>>;
+	custom: Record<string, Record<string, number>>;
+	merged: TePricingData;
+}> => {
+	const data = await fetchJSON('/api/admin/te/pricing');
+	return data as any;
+};
+
+export const updateTePricing = (modelId: string, pricing: Record<string, number>) =>
+	fetchJSON('/api/admin/te/pricing/update', jsonBody({ model_id: modelId, pricing }));
+
+export const resetTePricing = () =>
+	fetchJSON('/api/admin/te/pricing/reset-all', { method: 'POST' });
+
+export const bulkUpdateTePricing = (updates: Array<{ model_id: string; pricing: Record<string, number> }>) =>
+	fetchJSON('/api/admin/te/pricing/bulk-update', jsonBody({ updates }));
