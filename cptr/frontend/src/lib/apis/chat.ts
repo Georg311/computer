@@ -272,6 +272,23 @@ export const queueSendNow = (chatId: string, messageId: string) =>
 export const queueDelete = (chatId: string, messageId: string) =>
 	fetchJSON<{ ok: boolean }>(`/api/chats/${chatId}/queue/${messageId}`, { method: 'DELETE' });
 
+
+// ── Paginated Chat Messages (Lazy Loading) ────────────────────
+
+export interface PaginatedMessagesResponse {
+	messages: ChatMessage[];
+	total: number;
+	limit: number;
+	offset: number;
+	has_more: boolean;
+}
+
+export const getChatMessagesPaginated = (
+	chatId: string,
+	limit: number = 50,
+	offset: number = 0
+): Promise<PaginatedMessagesResponse> =>
+	fetchJSON(`/api/chats/${chatId}/messages?limit=${limit}&offset=${offset}`);
 // ── TokenEconomizer ────────────────────────────────────────
 
 export const getTeStatus = (chatId: string): Promise<TeStatusResponse | null> =>

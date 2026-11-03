@@ -653,6 +653,7 @@ async def _fetch_provider_models(conn: dict) -> list[str] | None:
 async def get_chat(
     chat_id: str,
     request: Request,
+    lazy: bool = Query(False, description="Only return first 50 messages for lazy loading"),
     model_id: str | None = Query(None, description="Model used for system prompt context"),
 ):
     """Get chat metadata + all messages."""
@@ -661,7 +662,11 @@ async def get_chat(
     if not chat or chat.user_id != user_id:
         raise HTTPException(404, "chat not found")
 
-    messages = await ChatMessage.get_all_by_chat(chat_id)
+    # Load messages (paginate if lazy loading requested)
+    if lazy:
+        messages, total = await ChatMessage.get_by_chat_paginated(chat_id, limit=50, offset=0)
+    else:
+        messages = await ChatMessage.get_all_by_chat(chat_id)
     context_usage = await _get_chat_context_usage(request, chat, model_id)
     from cptr.utils.chat_task import get_active_chat_ids
     from cptr.utils.tools import _normalize_tasks
@@ -682,6 +687,7 @@ async def get_chat(
         "messages": [_message_dict(m) for m in messages],
         "tasks": tasks,
         "context_usage": context_usage,
+        "total": len(messages) if not lazy else (await ChatMessage.get_by_chat_paginated(chat_id, limit=1, offset=0)[1]) if lazy else None,
     }
 
 
