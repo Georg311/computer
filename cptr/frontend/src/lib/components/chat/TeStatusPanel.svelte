@@ -27,7 +27,6 @@
 	onMount(() => {
 		if (!chatId) return;
 		getTeStatus(chatId).then((data) => {
-		getTeStatus(chatId).then((data) => {
 			teData = data;
 			loading = false;
 		}).catch((err) => {
