@@ -10,6 +10,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from cptr.utils.te.pricing_wrapper import get_session_estimate
 # Cache the last seen token records per chat_id so we can associate them with tools later.
 _last_token_records: dict[str, list[dict]] = {}
 
@@ -59,6 +60,7 @@ def record_tool_call(chat_id: str, tool_name: str, token_record: dict | None) ->
             status = await TeStatus.ensure(chat_id)
 
         # Compute fresh input tokens + session cost from in-memory records
+        records = _last_token_records.get(chat_id, [])
         total_fresh_input = 0
         total_raw = 0
         total_cache_read = 0
@@ -86,7 +88,7 @@ def record_tool_call(chat_id: str, tool_name: str, token_record: dict | None) ->
             savings_pct = 0
 
         # Session cost (weighted, for billing accuracy)
-        est = _estimate(records)
+        est = get_session_estimate(records)
         session_cost_usd = float(est.get("session_cost_usd", 0.0))
 
         status.effective_tokens = total_fresh_input
