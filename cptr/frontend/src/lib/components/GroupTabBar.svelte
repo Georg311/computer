@@ -416,6 +416,12 @@
 					onpointerdown={() => handleTabClick(tab)}
 					onclick={() => handleTabClick(tab)}
 					oncontextmenu={(e) => handleContextMenu(e, tab)}
+					onmousedown={(e) => {
+						if (e.button === 1 && !tab.permanent) {
+							e.preventDefault();
+							handleClose(e, tab.id);
+						}
+					}}
 				>
 					{#if tab.type === 'chat' && (chatStatus?.active || $streamingChatTabs.has(tab.id))}
 						<Spinner size={14} />
