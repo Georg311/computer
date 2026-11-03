@@ -1479,6 +1479,49 @@ class UpdateMessageRequest(BaseModel):
     output: Optional[list] = None
 
 
+
+# ── Paginated chat messages (lazy loading) ────────────────────
+
+
+class PaginatedMessagesResponse(BaseModel):
+    """Response for paginated chat messages."""
+    messages: list[dict]
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
+
+
+@router.get("/{chat_id}/messages")
+async def get_chat_messages_paginated(
+    request: Request,
+    chat_id: str,
+    limit: int = Query(50, ge=1, le=200, description="Messages per page"),
+    offset: int = Query(0, ge=0, description="Number of messages to skip"),
+):
+    """Get chat messages with pagination for lazy loading.
+    
+    Returns newest messages first. Use offset to load older messages.
+    """
+    user_id = _get_user(request)
+    chat = await Chat.get_by_id(chat_id)
+    if not chat or chat.user_id != user_id:
+        raise HTTPException(404, "chat not found")
+    
+    # Get paginated messages
+    messages, total = await ChatMessage.get_by_chat_paginated(chat_id, limit=limit, offset=offset)
+    
+    # Serialize messages
+    serialized = [_message_dict(msg) for msg in messages]
+    
+    return PaginatedMessagesResponse(
+        messages=serialized,
+        total=total,
+        limit=limit,
+        offset=offset,
+        has_more=(offset + limit) < total,
+    )
+
 @router.patch("/{chat_id}/messages/{message_id}")
 async def update_message(
     chat_id: str, message_id: str, body: UpdateMessageRequest, request: Request

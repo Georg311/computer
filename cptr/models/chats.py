@@ -564,6 +564,33 @@ class ChatMessage(Base):
             )
             return list(result.scalars().all())
 
+
+    @staticmethod
+    async def get_by_chat_paginated(chat_id: str, limit: int = 50, offset: int = 0) -> tuple[list[ChatMessage], int]:
+        """Get messages for a chat with pagination, ordered by creation time (newest first).
+        
+        Returns tuple of (messages, total_count).
+        """
+        async with await get_db() as db:
+            # Get total count
+            from sqlalchemy import func
+            count_result = await db.execute(
+                select(func.count(ChatMessage.id))
+                .where(ChatMessage.chat_id == chat_id)
+            )
+            total = count_result.scalar() or 0
+            
+            # Get paginated messages (newest first)
+            result = await db.execute(
+                select(ChatMessage)
+                .where(ChatMessage.chat_id == chat_id)
+                .order_by(ChatMessage.created_at.desc())
+                .offset(offset)
+                .limit(limit)
+            )
+            messages = list(result.scalars().all())
+            
+            return messages, total
     @staticmethod
     async def get_children(parent_id: str) -> list[ChatMessage]:
         """Get child messages (for branching conversations)."""
