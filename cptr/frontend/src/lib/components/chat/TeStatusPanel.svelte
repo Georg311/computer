@@ -27,11 +27,12 @@
 	onMount(() => {
 		if (!chatId) return;
 		getTeStatus(chatId).then((data) => {
-			teData = data;
-			loading = false;
+		getTeStatus(chatId).then((data) => {
+			teData.set(data);
+			loading.set(false);
 		}).catch((err) => {
-			error = err?.message || 'Failed to load TE status';
-			loading = false;
+			error.set(err?.message || 'Failed to load TE status');
+			loading.set(false);
 		});
 	});
 
