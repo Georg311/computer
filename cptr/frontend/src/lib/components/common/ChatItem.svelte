@@ -16,9 +16,7 @@
 		/** Optional menu button click handler */
 		onmenu?: (e: MouseEvent) => void;
 	}
-	/** Optional middle-click handler (close chat) */
-	onmiddleclick?: () => void;
-	let { chat, isSelected = false, onclick, onmenu, onmiddleclick }: Props = $props();
+	let { chat, isSelected = false, onclick, onmenu }: Props = $props();
 	let status = $derived($chatStatuses.get(chat.id));
 	let active = $derived(status?.active ?? chat.is_active ?? false);
 	let unread = $derived(
@@ -51,12 +49,6 @@
 	role="button"
 	tabindex="0"
 	{onclick}
-	onmousedown={(e) => {
-		if (e.button === 1 && onmiddleclick) {
-			e.preventDefault();
-			onmiddleclick();
-		}
-	}}
 	onkeydown={(e) => {
 		if (e.key === 'Enter') onclick();
 	}}

@@ -135,7 +135,7 @@
 		{/if}
 
 		{#each chats as chat (chat.id)}
-			<ChatItem {chat} onclick={() => onopen(chat.id)} onmenu={(e) => openMenu(e, chat.id)} onmiddleclick={() => ondelete(chat.id)} />
+			<ChatItem {chat} onclick={() => onopen(chat.id)} onmenu={(e) => openMenu(e, chat.id)} />
 		{/each}
 		{#if onpagechange}
 			<Pagination {page} {totalPages} {onpagechange} />
