@@ -3188,6 +3188,16 @@ async def run_chat_task(
                     _sync_state()
                     sequential_result_items.append(result_item)
 
+                    # ── Steering injection point (between tool calls) ──
+                    steering_msg_between = await _check_steering_pending(chat_id)
+                    if steering_msg_between:
+                        logger.info(
+                            "[task %s] steering message injected between tool calls: %s",
+                            message_id[:8],
+                            steering_msg_between[:100],
+                        )
+                        messages.append({"role": "user", "content": f"[STEERING] {steering_msg_between}"})
+
                     artifact_item = build_artifact_item(tc["name"], tc["arguments"], result)
                     if artifact_item:
                         output_items.append(artifact_item)
@@ -3243,6 +3253,16 @@ async def run_chat_task(
                             await emit(output=result_item)
                             _sync_state()
                             delegate_result_items.append(result_item)
+
+                            # ── Steering injection point (between delegate tasks) ──
+                            steering_msg_del = await _check_steering_pending(chat_id)
+                            if steering_msg_del:
+                                logger.info(
+                                    "[task %s] steering message injected between delegate tasks: %s",
+                                    message_id[:8],
+                                    steering_msg_del[:100],
+                                )
+                                messages.append({"role": "user", "content": f"[STEERING] {steering_msg_del}"})
 
                 new_messages = _output_items_to_messages(
                     [
