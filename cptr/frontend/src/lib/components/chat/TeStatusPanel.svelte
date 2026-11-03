@@ -70,6 +70,7 @@
 			pricingOverhead = '—';
 			sessionCost = '—';
 		}
+	});
 
 	function toolIcon(name: string): string {
 		switch (name) {
