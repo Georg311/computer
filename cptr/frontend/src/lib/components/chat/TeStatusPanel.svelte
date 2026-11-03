@@ -50,25 +50,25 @@
 		return `$${usd.toFixed(4)}`;
 	}
 
-	let effectiveTokens = '';
-	let totalTokens = '';
-	let savingsPct = '';
-	let pricingOverhead = '';
-	let sessionCost = '';
+	let effectiveTokens = $state('');
+	let totalTokens = $state('');
+	let savingsPct = $state('');
+	let pricingOverhead = $state('');
+	let sessionCost = $state('');
 
 	$effect(() => {
 		if (teData) {
-			effectiveTokens = formatTokenCount(teData.effective_tokens);
-			totalTokens = formatTokenCount(teData.total_tokens);
-			savingsPct = `${teData.cache_savings_pct}%`;
-			pricingOverhead = teData.pricing_overhead > 0 ? `+${formatTokenCount(teData.pricing_overhead)}` : '0';
-			sessionCost = formatCurrency(teData.session_cost_usd);
+			effectiveTokens.set(formatTokenCount(teData.effective_tokens));
+			totalTokens.set(formatTokenCount(teData.total_tokens));
+			savingsPct.set(`${teData.cache_savings_pct}%`);
+			pricingOverhead.set(teData.pricing_overhead > 0 ? `+${formatTokenCount(teData.pricing_overhead)}` : '0');
+			sessionCost.set(formatCurrency(teData.session_cost_usd));
 		} else {
-			effectiveTokens = '—';
-			totalTokens = '—';
-			savingsPct = '—';
-			pricingOverhead = '—';
-			sessionCost = '—';
+			effectiveTokens.set('—');
+			totalTokens.set('—');
+			savingsPct.set('—');
+			pricingOverhead.set('—');
+			sessionCost.set('—');
 		}
 	});
 
