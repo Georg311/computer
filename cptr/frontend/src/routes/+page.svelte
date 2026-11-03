@@ -268,7 +268,7 @@
 				}
 			};
 		}
-		if (chatId !== null) return { kind: 'openChat', workspace, chatId: chatId || null };
+		if (chatId && chatId !== '') return { kind: 'openChat', workspace, chatId };
 		if (filePath) return { kind: 'openFile', workspace, filePath };
 		if (dirPath) return { kind: 'openDir', workspace, dirPath };
 		return null;
