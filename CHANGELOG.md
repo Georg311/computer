@@ -1,3 +1,8 @@
+## [0.9.21.30] - 2026-11-02
+
+### Fixed
+- 🐛 **TokenEconomizer Micro Skills fehlgeschlagen wegen `nest_asyncio` ImportError.** `get_injected_facts()` und `persist_facts_from_tracker()` in `repo_facts.py` importierten `nest_asyncio`, das nicht im venv installiert war. Jetzt: `nest_asyncio` nachinstalliert (`pip3 install nest_asyncio`), Micro Skills funktionieren wieder — rule-based error pattern learning (≥3 repeats) und system-prompt injection aktiv.
+- 🔧 **TeStatusPanel Svelte 5 Migration abgeschlossen.** Alle `$state` primitive values verwenden jetzt direkte Assignment (`=`) statt `.set()`, duplicate `getTeStatus()` calls entfernt, `$effect(() => { ... })` Block geschlossen. Frontend zeigt korrekte Token-Statistiken: `effective_tokens`, `total_tokens`, `cache_savings_pct`, `session_cost_usd`.
 ## [0.9.21.29] - 2026-11-02
 
 ### Fixed
