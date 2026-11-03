@@ -127,15 +127,35 @@ async def get_te_status(request: Request, chat_id: str = Query(...)):
         )
         tools_rows = tools_result.scalars().all()
 
-        tool_usage = [
-            TeToolUsageItem(
-                tool_name=t.tool_name,
-                call_count=t.call_count,
-                first_seen=t.first_seen,
-                last_seen=t.last_seen,
-            )
-            for t in tools_rows
-        ]
+        # Fallback: if no tool_usage rows, try to extract from ChatMessage.usage
+        if not tools_rows:
+            try:
+                from cptr.models import ChatMessage
+                result = await session.execute(select(ChatMessage).where(ChatMessage.chat_id == chat_id))
+                messages = result.scalars().all()
+                tool_counts = {}
+                for msg in messages:
+                    usage = getattr(msg, "usage", None) if hasattr(msg, "usage") else None
+                    if isinstance(usage, dict):
+                        tool_calls = usage.get("tool_calls", [])
+                        if isinstance(tool_calls, list):
+                            for tc in tool_calls:
+                                if isinstance(tc, dict):
+                                    tool_name = tc.get("function", {}).get("name", "unknown")
+                                    tool_counts[tool_name] = tool_counts.get(tool_name, 0) + 1
+                # Build tool_usage from extracted data
+                now_ms = _now_ms()
+                tool_usage = [
+                    TeToolUsageItem(
+                        tool_name=tool_name,
+                        call_count=count,
+                        first_seen=now_ms,
+                        last_seen=now_ms,
+                    )
+                    for tool_name, count in tool_counts.items()
+                ]
+            except Exception:
+                tool_usage = []
 
         # Cache savings: % of input_tokens that were served from cache
         total_input = sum((rec.get("input_tokens") or 0) for rec in token_records if isinstance(rec, dict))
