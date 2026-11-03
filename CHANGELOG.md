@@ -1,3 +1,9 @@
+## [0.9.21.32] - 2026-11-03
+
+### Added
+- 🚀 **Lazy Loading für Chat Messages.** Paginierter Message-Endpoint (`GET /api/chats/{chat_id}/messages?limit=50&offset=0`) und `ChatMessage.get_by_chat_paginated()` Methode. Frontend lädt nur erste 50 Messages initial, Rest wird lazy beim Scrollen nachgeladen. Initiale Ladezeit von ~5s auf <1s für lange Chats.
+- ⬅️➡️ **Tab-Navigation Pfeiltasten.** Vorheriger/Nächster Tab Buttons in der Tab-Leiste (links neben Split-Button). Zyklisches Navigieren durch alle offenen Tabs. Vollständig i18n-supportiert (DE, EN, ES, FR, JA, KO, PT-BR, RU, ZH-CN, ZH-TW).
+- 🖱️ **Middle-Click zum Schließen von Tabs.** Mittlere Maustaste auf Tab schließt diesen sofort (wie in Browser-Tabs). Gleicher Handler wie Rechtsklick → "Close Tab".
 ## [0.9.21.31] - 2026-11-02
 
 ### Fixed
