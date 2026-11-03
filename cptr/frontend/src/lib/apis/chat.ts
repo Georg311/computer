@@ -272,6 +272,14 @@ export const queueSendNow = (chatId: string, messageId: string) =>
 export const queueDelete = (chatId: string, messageId: string) =>
 	fetchJSON<{ ok: boolean }>(`/api/chats/${chatId}/queue/${messageId}`, { method: 'DELETE' });
 
+// ── Steering ────────────────────────────────────────────────
+
+export const steerMessage = (chatId: string, messageId: string, steeringText: string) =>
+	fetchJSON<{ ok: boolean; message_id: string }>(
+		`/api/chats/${chatId}/steer/${messageId}`,
+		{ method: 'POST', body: JSON.stringify({ message: steeringText }) }
+	);
+
 
 // ── Paginated Chat Messages (Lazy Loading) ────────────────────
 

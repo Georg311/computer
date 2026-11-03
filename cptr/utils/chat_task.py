@@ -501,6 +501,30 @@ def _apply_skills_create_prompt(
     return False
 
 
+# ── Steering message injection ──────────────────────────────
+
+_steering_pending: dict[str, str] = {}  # chat_id → steering_text
+
+
+async def _check_steering_pending(chat_id: str) -> str | None:
+    """Prüft ob eine Steering-Nachricht vorliegt. Gibt text zurück oder None.
+    
+    Atomic pop aus _steering_pending. Nur die letzte Nachricht wird behalten.
+    """
+    msg = await asyncio.to_thread(_steering_pending.pop, chat_id, None)
+    return msg
+
+
+def get_steering_pending(chat_id: str) -> str | None:
+    """Synchroner Zugriff auf pending steering (für config checks)."""
+    return _steering_pending.get(chat_id)
+
+
+def set_steering_pending(chat_id: str, text: str) -> None:
+    """Setzt eine Steering-Nachricht (wird vom API endpoint aufgerufen)."""
+    _steering_pending[chat_id] = text
+
+
 # ── Task registry ───────────────────────────────────────────
 
 _tasks: dict[str, asyncio.Task] = {}  # message_id → asyncio.Task
@@ -657,6 +681,9 @@ def _is_pending_internal_subagent_result(message: ChatMessage) -> bool:
 
 def _is_pending_chat_input(message: ChatMessage) -> bool:
     meta = message.meta or {}
+    # Steering messages are NOT regular pending inputs — they go into _steering_pending
+    if meta.get("steering"):
+        return False
     return bool(meta.get("queued") or is_pending_subagent_result_message(meta))
 
 
@@ -2014,6 +2041,16 @@ async def run_chat_task(
             attachments=agent_attachments,
             identity=identity,
         ):
+            # ── Steering injection point (before processing events) ──
+            steering_msg = await _check_steering_pending(chat_id)
+            if steering_msg:
+                logger.info(
+                    "[task %s] steering message injected: %s",
+                    message_id[:8],
+                    steering_msg[:100],
+                )
+                messages.append({"role": "user", "content": f"[STEERING] {steering_msg}"})
+
             if isinstance(event, AgentTextDelta):
                 await _finish_reasoning_item()
                 content += event.text
@@ -2163,6 +2200,17 @@ async def run_chat_task(
                 _upsert_output_item(output_items, output_item)
                 await emit(output=output_item)
                 _sync_state()
+
+                # ── Steering injection point (after tool output) ──
+                steering_msg2 = await _check_steering_pending(chat_id)
+                if steering_msg2:
+                    logger.info(
+                        "[task %s] steering message injected after tool output: %s",
+                        message_id[:8],
+                        steering_msg2[:100],
+                    )
+                    messages.append({"role": "user", "content": f"[STEERING] {steering_msg2}"})
+
             elif isinstance(event, AgentError):
                 raise RuntimeError(event.message)
             elif isinstance(event, AgentDone):
@@ -2693,6 +2741,16 @@ async def run_chat_task(
             # Invariant: at least one user message must remain after compaction.
             api_messages = _ensure_user_query(api_messages)
 
+            # ── Steering injection point (before next API call) ──
+            steering_msg_api = await _check_steering_pending(chat_id)
+            if steering_msg_api:
+                logger.info(
+                    "[task %s] steering message injected before API call: %s",
+                    message_id[:8],
+                    steering_msg_api[:100],
+                )
+                api_messages.append({"role": "user", "content": f"[STEERING] {steering_msg_api}"})
+
             form_data = ChatCompletionForm(
                 model=model,
                 messages=api_messages,
@@ -3201,6 +3259,16 @@ async def run_chat_task(
                 # Persist after all tool calls
                 await _save_message("tool calls complete", content=content, output=output_items)
                 restart = True
+
+                # ── Steering injection point (after tool calls, before next iteration) ──
+                steering_msg_post = await _check_steering_pending(chat_id)
+                if steering_msg_post:
+                    logger.info(
+                        "[task %s] steering message injected after tool calls: %s",
+                        message_id[:8],
+                        steering_msg_post[:100],
+                    )
+                    messages.append({"role": "user", "content": f"[STEERING] {steering_msg_post}"})
 
             if not restart:
                 flushed_item = _flush_text()

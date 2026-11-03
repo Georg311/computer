@@ -1674,6 +1674,66 @@ async def queue_delete(request: Request, chat_id: str, message_id: str):
     return {"ok": True}
 
 
+# ── Steering Endpoint ─────────────────────────────────────
+@router.post("/{chat_id}/steer/{message_id}")
+async def steer_task(request: Request, chat_id: str, message_id: str):
+    """Inject a steering message into a running task's prompt.
+    
+    Unlike queue/normal messages, steering is injected directly between
+    tool calls without cancelling the current task.
+    """
+    user_id = _get_user(request)
+    chat = await Chat.get_by_id(chat_id)
+    if not chat or chat.user_id != user_id:
+        raise HTTPException(404, "chat not found")
+
+    msg = await ChatMessage.get_by_id(message_id)
+    if not msg or msg.chat_id != chat_id:
+        raise HTTPException(404, "message not found")
+
+    from cptr.utils.chat_task import (
+        _check_steering_pending,
+        get_steering_pending,
+        set_steering_pending,
+    )
+
+    # Get the steering text from the request body
+    try:
+        body = await request.json()
+        steering_text = body.get("message", "") or ""
+    except Exception:
+        raise HTTPException(400, "invalid request body")
+
+    if not steering_text.strip():
+        raise HTTPException(400, "steering message cannot be empty")
+
+    # Store steering message in DB (visible in chat history)
+    steer_msg = await ChatMessage.create(
+        chat_id=chat_id,
+        role="user",
+        content=f"[STEERING] {steering_text}",
+        parent_id=message_id,
+        meta={"steering": True},
+        created_at=now_ms(),
+    )
+
+    # Set steering pending for the running task
+    set_steering_pending(chat_id, steering_text)
+
+    # Notify frontend that steering was injected
+    await emit_to_user(
+        user_id,
+        {
+            "type": "chat:steering_injected",
+            "chat_id": chat_id,
+            "message_id": steer_msg.id,
+            "content": f"[STEERING] {steering_text}",
+        },
+    )
+
+    return {"ok": True, "message_id": steer_msg.id}
+
+
 # ── TokenEconomizer Status Endpoint ───────────────────────
 # NOTE: The canonical /api/chats/te/status endpoint lives in cptr/routers/te.py
 # to avoid route conflicts. This file kept for legacy compatibility but will be removed.

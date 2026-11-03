@@ -23,6 +23,8 @@
 		oncancel?: () => void;
 		/** If in 'chat' mode, the function to call when the queue action is triggered. */
 		onqueue?: () => void;
+		/** If in 'chat' mode, the function to call when the steer action is triggered (short click). */
+		onsteer?: () => void;
 		/** If in 'chat' mode, what color/icon to show for queue/steer. */
 		isQueued?: boolean;
 	}
@@ -35,6 +37,7 @@
 		onsend,
 		oncancel,
 		onqueue,
+		onsteer,
 		isQueued = false
 	}: Props = $props();
 
@@ -87,10 +90,10 @@
 		// Normal click
 		console.log('[UnifiedButton] handleClick — mode:', mode, 'streaming:', streaming, 'canSend:', canSend, 'onqueue:', !!onqueue, 'oncancel:', !!oncancel, 'onsend:', !!onsend);
 		if (streaming && canSend) {
-			// Streaming + text = queue the message
-			console.log('[UnifiedButton] → calling onqueue');
-			if (onqueue) {
-				onqueue();
+			// Streaming + text = steer the message into the running task
+			console.log('[UnifiedButton] → calling onsteer');
+			if (onsteer) {
+				onsteer();
 			}
 		} else if (streaming && !canSend && oncancel) {
 			// Streaming + no text = stop generation
@@ -118,8 +121,14 @@
 	}
 
 	function handlePointerUp(e: Event) {
-		// Don't clear the timer here — let the click handler decide
-		// On touch devices pointerup fires before the 500ms timeout
+		// If long press was detected, open dialog immediately.
+		// On touch devices 'click' never fires after a long press,
+		// so we must handle it here instead of waiting for handleClick.
+		if (isLongPress) {
+			isLongPress = false;
+			showActionDialog = true;
+			console.log('[UnifiedButton] handlePointerUp → long press detected, opening dialog');
+		}
 		console.log('[UnifiedButton] handlePointerUp');
 	}
 
@@ -139,6 +148,7 @@
 		// Chat mode
 		if (streaming) {
 			if (isQueued) return 'arrow-up-circle';
+			if (onsteer && !canSend) return 'stop';  // canSend=true = steer mode
 			if (oncancel) return 'stop';
 		}
 
@@ -160,7 +170,11 @@
 
 		let base = 'flex items-center justify-center rounded-full p-3 transition h-12 w-12 ';
 
-		if (streaming && oncancel && !isQueued) {
+		if (streaming && onsteer && canSend) {
+			// Steer button: orange (short click injects message into running task)
+			return base + 'bg-orange-500 text-white hover:bg-orange-600';
+		}
+		if (streaming && oncancel && !isQueued && !canSend) {
 			// Stop button: gray
 			return base + 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600';
 		}
@@ -275,8 +289,8 @@
 		showActionDialog = false;
 		if (action === 'queue' && onqueue) {
 			onqueue();
-		} else if (action === 'steer' && oncancel) {
-			oncancel();
+		} else if (action === 'steer' && onsteer) {
+			onsteer();
 		}
 	}
 

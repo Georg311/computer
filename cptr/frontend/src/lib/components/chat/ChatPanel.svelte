@@ -15,6 +15,7 @@
 		createMessage,
 		queueSendNow as apiQueueSendNow,
 		queueDelete as apiQueueDelete,
+		steerMessage as apiSteerMessage,
 		updateChatSettings,
 		type ChatMessageRow,
 		type ChatSendParams,
@@ -1302,6 +1303,18 @@
 		send();
 	}
 
+	async function handleSteer() {
+		const active = allMessages.find((m) => m.role === 'assistant' && !m.done);
+		if (!active || !chatId || !inputText.trim()) return;
+		try {
+			await apiSteerMessage(chatId, active.id, inputText);
+			inputText = '';
+			chatInputEl?.focus();
+		} catch (e) {
+			console.error('[chat] steer error', e);
+		}
+	}
+
 	async function handleCancel() {
 		const active = allMessages.find((m) => m.role === 'assistant' && !m.done);
 		if (!active || !chatId) return;
@@ -2093,6 +2106,7 @@
 					onqueueedit={handleQueueEdit}
 					onqueuedelete={handleQueueDelete}
 					onqueue={handleQueue}
+					onsteer={handleSteer}
 				/>
 			</div>
 		</div>

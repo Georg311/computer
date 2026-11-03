@@ -188,6 +188,13 @@ export function bindGlobalChatListener() {
 			if (typeof data.last_read_at === 'number') {
 				setChatReadAt(data.chat_id, data.last_read_at);
 			}
+			// ── Steering injection notification ────────────────
+			if (data.type === 'chat:steering_injected' && data.content) {
+				toast.info(data.content.replace('[STEERING] ', ''), {
+					duration: 3000,
+					position: 'bottom-center'
+				});
+			}
 			if (!data.done) return;
 
 			// Clear streaming indicator for the tab

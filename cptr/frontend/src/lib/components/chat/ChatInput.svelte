@@ -103,6 +103,7 @@
 		onsettingschange?: () => void;
 		ontoolapprovalchange?: (mode: ToolApprovalMode) => void;
 		onqueue?: () => void;
+		onsteer?: () => void;
 	}
 	let {
 		inputText = $bindable(),
@@ -138,7 +139,8 @@
 		onqueuedelete,
 		onsettingschange,
 		ontoolapprovalchange,
-		onqueue
+		onqueue,
+		onsteer
 	}: Props = $props();
 
 	let editorEl: HTMLDivElement | undefined = $state();
@@ -1249,6 +1251,11 @@
 
 	function handleQueue() {
 		onqueue?.();
+	}
+
+	async function handleSteer() {
+		if (!onsteer) return;
+		await onsteer();
 	}
 
 	async function focusAfterModelSelectorClose() {
