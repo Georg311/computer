@@ -180,7 +180,7 @@
 			<div class="rounded-xl px-1.5 py-1.5 text-red-400 dark:text-red-500">
 				{error}
 			</div>
-		{:else if configData || true}
+		{:else if configData}
 			<!-- Core Toggles Section -->
 			<section>
 				<div class="px-2 pb-1 pt-1.5 text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600">
@@ -351,7 +351,7 @@
 			</section>
 
 			<!-- Empty State -->
-			{#if !loading && !error}
+			{#if !loading && !error && !configData}
 				<div class="px-1.5 py-1.5 text-[0.6875rem] leading-relaxed text-gray-400 dark:text-gray-600">
 					{@html $t('chat.teStatusNoData')}
 				</div>
