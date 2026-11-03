@@ -83,7 +83,7 @@
 	import { t } from '$lib/i18n';
 
 	// Steering queue for this panel's chat
-	let steeringQueueItems = $derived(get(steeringQueues).get(chatId) ?? []);
+	let steeringQueueItems = $derived($steeringQueues?.get(chatId) ?? []);
 
 	// ── Loop Guard UI state ──────────────────────────────────────
 	let loopNudgeMessage = $state<string | null>(null);
