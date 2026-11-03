@@ -66,6 +66,8 @@
 	"bar.new": "Novo...",
 	"bar.sidebar": "Barra lateral",
 	"bar.toggleSidebar": "Alternar barra lateral",
+  "bar.prevTab": "Aba anterior",
+  "bar.nextTab": "Próxima aba",
 	"files.filter": "Filtrar...",
 	"files.refresh": "Atualizar",
 	"files.sort": "Ordenar",

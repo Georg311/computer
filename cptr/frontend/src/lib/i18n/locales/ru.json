@@ -66,6 +66,8 @@
 	"bar.new": "Создать...",
 	"bar.sidebar": "Боковая панель",
 	"bar.toggleSidebar": "Переключить боковую панель",
+  "bar.prevTab": "Предыдущая вкладка",
+  "bar.nextTab": "Следующая вкладка",
 	"files.filter": "Фильтр...",
 	"files.refresh": "Обновить",
 	"files.sort": "Сортировка",

@@ -66,6 +66,8 @@
 	"bar.new": "Nouveau...",
 	"bar.sidebar": "Barre latérale",
 	"bar.toggleSidebar": "Afficher/masquer la barre latérale",
+  "bar.prevTab": "Onglet précédent",
+  "bar.nextTab": "Onglet suivant",
 	"files.filter": "Filtrer...",
 	"files.refresh": "Actualiser",
 	"files.sort": "Trier",

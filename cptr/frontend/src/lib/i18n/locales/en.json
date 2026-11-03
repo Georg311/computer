@@ -67,6 +67,8 @@
   "bar.new": "New...",
   "bar.sidebar": "Sidebar",
   "bar.toggleSidebar": "Toggle sidebar",
+  "bar.prevTab": "Previous tab",
+  "bar.nextTab": "Next tab",
   "files.filter": "Filter...",
   "files.searchFilesAndContents": "Search filenames and contents...",
   "files.refresh": "Refresh",

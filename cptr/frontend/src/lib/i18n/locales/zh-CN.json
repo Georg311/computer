@@ -66,6 +66,8 @@
 	"bar.new": "新建...",
 	"bar.sidebar": "侧边栏",
 	"bar.toggleSidebar": "切换侧边栏",
+  "bar.prevTab": "上一个标签页",
+  "bar.nextTab": "下一个标签页",
 	"files.filter": "筛选...",
 	"files.refresh": "刷新",
 	"files.sort": "排序",

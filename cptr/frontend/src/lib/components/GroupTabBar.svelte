@@ -123,6 +123,24 @@
 		setActiveTab(tab.id, group.id);
 	}
 
+	function handleTabNav(direction: 'prev' | 'next') {
+		const tabs = displayTabs;
+		if (!tabs || tabs.length === 0) return;
+		const currentIndex = tabs.findIndex((t) => t.id === group.activeTabId);
+		if (currentIndex === -1) return;
+		
+		let newIndex: number;
+		if (direction === 'prev') {
+			newIndex = currentIndex === 0 ? tabs.length - 1 : currentIndex - 1;
+		} else {
+			newIndex = currentIndex === tabs.length - 1 ? 0 : currentIndex + 1;
+		}
+		
+		const newTab = tabs[newIndex];
+		if (home) return onHomeSelect?.(newTab.id);
+		setActiveTab(newTab.id, group.id);
+	}
+
 	function handleClose(e: Event, tabId: string) {
 		e.stopPropagation();
 		if (home) return onHomeClose?.(tabId);
@@ -470,6 +488,25 @@
 	<!-- Right-side controls -->
 	<div class="flex items-center gap-0.5 shrink-0">
 		<!-- Split button (wide screens) -->
+		<!-- Tab navigation arrows -->
+		{#if displayTabs.length > 1}
+			<button
+				class="flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 shrink-0"
+				onclick={() => handleTabNav('prev')}
+				aria-label={$t('bar.prevTab')}
+				use:tooltip={$t('bar.prevTab')}
+			>
+				<Icon name="chevron-left" size={14} />
+			</button>
+			<button
+				class="flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100 shrink-0"
+				onclick={() => handleTabNav('next')}
+				aria-label={$t('bar.nextTab')}
+				use:tooltip={$t('bar.nextTab')}
+			>
+				<Icon name="chevron-right" size={14} />
+			</button>
+		{/if}
 		{#if isWideScreen}
 			<button
 				bind:this={splitBtnEl}

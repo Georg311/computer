@@ -67,6 +67,8 @@
   "bar.new": "Neu...",
   "bar.sidebar": "Seitenleiste",
   "bar.toggleSidebar": "Seitenleiste umschalten",
+  "bar.prevTab": "Vorheriger Tab",
+  "bar.nextTab": "Nächster Tab",
   "files.filter": "Filtern...",
   "files.refresh": "Aktualisieren",
   "files.sort": "Sortieren",

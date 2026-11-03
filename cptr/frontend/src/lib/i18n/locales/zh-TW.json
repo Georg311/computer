@@ -66,6 +66,8 @@
 	"bar.new": "新增...",
 	"bar.sidebar": "側邊欄",
 	"bar.toggleSidebar": "切換側邊欄",
+  "bar.prevTab": "上一個標籤頁",
+  "bar.nextTab": "下一個標籤頁",
 	"files.filter": "篩選...",
 	"files.refresh": "重新整理",
 	"files.sort": "排序",

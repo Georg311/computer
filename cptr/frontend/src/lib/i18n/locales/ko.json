@@ -66,6 +66,8 @@
 	"bar.new": "새로 만들기...",
 	"bar.sidebar": "사이드바",
 	"bar.toggleSidebar": "사이드바 전환",
+  "bar.prevTab": "이전 탭",
+  "bar.nextTab": "다음 탭",
 	"files.filter": "필터...",
 	"files.refresh": "새로고침",
 	"files.sort": "정렬",

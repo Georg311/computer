@@ -66,6 +66,8 @@
 	"bar.new": "新規...",
 	"bar.sidebar": "サイドバー",
 	"bar.toggleSidebar": "サイドバー切り替え",
+  "bar.prevTab": "前のタブ",
+  "bar.nextTab": "次のタブ",
 	"files.filter": "フィルター...",
 	"files.refresh": "更新",
 	"files.sort": "並び替え",
