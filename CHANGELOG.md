@@ -1,3 +1,7 @@
+## [0.9.21.31] - 2026-11-02
+
+### Fixed
+- 🔧 **TEConfigPanel "No TokenEconomizer data available" Bug.** `{#else if configData || true}` Bedingung zeigte Config-Bereich IMMER an, auch wenn `configData` null war — dadurch wurde Empty State Meldung (`!loading && !error`) parallel zur Config angezeigt. Jetzt: `{#else if configData}` (ohne `|| true`) und Empty State nur bei `!loading && !error && !configData`. Config-UI zeigt korrekte Toggles mit Default-Werten an, auch wenn keine TE Config in config.toml existiert.
 ## [0.9.21.30] - 2026-11-02
 
 ### Fixed
