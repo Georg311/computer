@@ -144,7 +144,7 @@ async def get_te_status(request: Request, chat_id: str = Query(...)):
                                     tool_name = tc.get("function", {}).get("name", "unknown")
                                     tool_counts[tool_name] = tool_counts.get(tool_name, 0) + 1
                 # Build tool_usage from extracted data
-                now_ms = _now_ms()
+                now_ms = now_ms()
                 tool_usage = [
                     TeToolUsageItem(
                         tool_name=tool_name,
