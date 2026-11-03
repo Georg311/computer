@@ -127,29 +127,50 @@ async def get_te_status(request: Request, chat_id: str = Query(...)):
         )
         tools_rows = tools_result.scalars().all()
 
-        # Fallback: if no tool_usage rows, try to extract from ChatMessage.usage
+        # Fallback: if no tool_usage rows, try to extract from ChatMessage.output
+        # (tool calls are stored as function_call items in the output array,
+        # not in the usage field which only contains token metrics)
         if not tools_rows:
             try:
                 result = await session.execute(select(ChatMessage).where(ChatMessage.chat_id == chat_id))
                 messages = result.scalars().all()
-                tool_counts = {}
+                tool_counts: dict[str, int] = {}
                 for msg in messages:
-                    usage = getattr(msg, "usage", None) if hasattr(msg, "usage") else None
-                    if isinstance(usage, dict):
-                        tool_calls = usage.get("tool_calls", [])
-                        if isinstance(tool_calls, list):
-                            for tc in tool_calls:
-                                if isinstance(tc, dict):
-                                    tool_name = tc.get("function", {}).get("name", "unknown")
+                    output_list = getattr(msg, "output", None) if hasattr(msg, "output") else None
+                    if isinstance(output_list, list):
+                        for item in output_list:
+                            if not isinstance(item, dict):
+                                continue
+                            # Match function_call items (both old and Responses API format)
+                            is_func_call = (
+                                item.get("type") == "function_call"
+                                or item.get("type") == "tool_use"
+                                or item.get("role") == "assistant"
+                                and any(
+                                    part.get("type") == "tool_use"
+                                    for part in (item.get("content", []) if isinstance(item.get("content"), list) else [])
+                                )
+                            )
+                            if is_func_call:
+                                # Old format: {type: "function_call", name: "..."}
+                                tool_name = item.get("name") or item.get("tool_name")
+                                if tool_name:
                                     tool_counts[tool_name] = tool_counts.get(tool_name, 0) + 1
+                                continue
+                            # Responses API format: assistant message with content blocks
+                            if (item.get("role") == "assistant" or item.get("type") == "message") and isinstance(item.get("content"), list):
+                                for part in item["content"]:
+                                    if isinstance(part, dict) and part.get("type") == "tool_use":
+                                        tool_name = part.get("name", "unknown")
+                                        tool_counts[tool_name] = tool_counts.get(tool_name, 0) + 1
                 # Build tool_usage from extracted data
-                now_ms = now_ms()
+                now_ms_val = now_ms()
                 tool_usage = [
                     TeToolUsageItem(
                         tool_name=tool_name,
                         call_count=count,
-                        first_seen=now_ms,
-                        last_seen=now_ms,
+                        first_seen=now_ms_val,
+                        last_seen=now_ms_val,
                     )
                     for tool_name, count in tool_counts.items()
                 ]

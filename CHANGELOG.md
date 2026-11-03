@@ -1,3 +1,8 @@
+## [0.9.21.33] - 2026-11-03
+
+### Fixed
+- 🐛 **TE Status Panel "No tool calls in this session."** Der Fallback im TE-Status-Endpoint (`routers/te.py`) hat Tool-Calls in `ChatMessage.usage` gesucht, aber das `usage`-JSON enthält nur Token-Metriken. Tool-Calls stehen in der `output`-Spalte als `function_call` Items im JSON-Array. Der Fallback liest jetzt Tool-Calls korrekt aus `ChatMessage.output` und extrahiert `name` aus `function_call`-Items (sowohl old-format `{type: "function_call", name: "..."}` als auch Responses API format `{role: "assistant", content: [{type: "tool_use", name: "..."}]}`).
+
 ## [0.9.21.32] - 2026-11-03
 
 ### Added
