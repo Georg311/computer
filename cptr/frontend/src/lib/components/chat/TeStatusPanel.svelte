@@ -27,11 +27,12 @@
 	onMount(() => {
 		if (!chatId) return;
 		getTeStatus(chatId).then((data) => {
-			teData.set(data);
-			loading.set(false);
+		getTeStatus(chatId).then((data) => {
+			teData = data;
+			loading = false;
 		}).catch((err) => {
-			error.set(err?.message || 'Failed to load TE status');
-			loading.set(false);
+			error = err?.message || 'Failed to load TE status';
+			loading = false;
 		});
 	});
 
@@ -58,19 +59,18 @@
 
 	$effect(() => {
 		if (teData) {
-			effectiveTokens.set(formatTokenCount(teData.effective_tokens));
-			totalTokens.set(formatTokenCount(teData.total_tokens));
-			savingsPct.set(`${teData.cache_savings_pct}%`);
-			pricingOverhead.set(teData.pricing_overhead > 0 ? `+${formatTokenCount(teData.pricing_overhead)}` : '0');
-			sessionCost.set(formatCurrency(teData.session_cost_usd));
+			effectiveTokens = formatTokenCount(teData.effective_tokens);
+			totalTokens = formatTokenCount(teData.total_tokens);
+			savingsPct = `${teData.cache_savings_pct}%`;
+			pricingOverhead = teData.pricing_overhead > 0 ? `+${formatTokenCount(teData.pricing_overhead)}` : '0';
+			sessionCost = formatCurrency(teData.session_cost_usd);
 		} else {
-			effectiveTokens.set('—');
-			totalTokens.set('—');
-			savingsPct.set('—');
-			pricingOverhead.set('—');
-			sessionCost.set('—');
+			effectiveTokens = '—';
+			totalTokens = '—';
+			savingsPct = '—';
+			pricingOverhead = '—';
+			sessionCost = '—';
 		}
-	});
 
 	function toolIcon(name: string): string {
 		switch (name) {
