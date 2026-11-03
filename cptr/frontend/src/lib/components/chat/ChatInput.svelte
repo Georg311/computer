@@ -1843,6 +1843,7 @@
 					onsend={handleSubmit}
 					oncancel={oncancel || handleCancel}
 					onqueue={handleQueue}
+					onsteer={handleSteer}
 					isQueued={streaming && inputText.trim() !== ''}
 					mode="chat"
 				/>
