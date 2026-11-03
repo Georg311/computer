@@ -16,6 +16,8 @@
 		queueSendNow as apiQueueSendNow,
 		queueDelete as apiQueueDelete,
 		steerMessage as apiSteerMessage,
+		steerQueueMessage as apiSteerQueueMessage,
+		steerQueueDelete as apiSteerQueueDelete,
 		updateChatSettings,
 		type ChatMessageRow,
 		type ChatSendParams,
@@ -32,7 +34,9 @@
 		registerStreamingChat,
 		unregisterStreamingChat,
 		updateChatStatuses,
-		registerToolApprovalShortcutHandler
+		registerToolApprovalShortcutHandler,
+		steeringQueues,
+		removeSteeringQueueItem
 	} from '$lib/stores/chat';
 	import { socketStore } from '$lib/stores/socket.svelte';
 	import { onMount, onDestroy, tick } from 'svelte';
@@ -77,6 +81,9 @@
 	import { tooltip } from '$lib/tooltip';
 	import { toast } from 'svelte-sonner';
 	import { t } from '$lib/i18n';
+
+	// Steering queue for this panel's chat
+	$derived(steeringQueueItems = steeringQueues?.get(chatId) ?? []);
 
 	// ── Loop Guard UI state ──────────────────────────────────────
 	let loopNudgeMessage = $state<string | null>(null);
@@ -1315,6 +1322,28 @@
 		}
 	}
 
+	async function handleSteerQueue() {
+		const active = allMessages.find((m) => m.role === 'assistant' && !m.done);
+		if (!active || !chatId || !inputText.trim()) return;
+		try {
+			const res = await apiSteerQueueMessage(chatId, active.id, inputText);
+			addSteeringQueueItem(chatId, res.message_id, `[STEERING] ${inputText}`);
+			inputText = '';
+			chatInputEl?.focus();
+		} catch (e) {
+			console.error('[chat] steer queue error', e);
+		}
+	}
+
+	async function handleSteerQueueDelete(messageId: string) {
+		try {
+			await apiSteerQueueDelete(chatId, messageId);
+			removeSteeringQueueItem(chatId, messageId);
+		} catch (e) {
+			console.error('[chat] steer queue delete error', e);
+		}
+	}
+
 	async function handleCancel() {
 		const active = allMessages.find((m) => m.role === 'assistant' && !m.done);
 		if (!active || !chatId) return;
@@ -1940,6 +1969,10 @@
 					onqueuesendnow={handleQueueSendNow}
 					onqueueedit={handleQueueEdit}
 					onqueuedelete={handleQueueDelete}
+					steeringQueue={steeringQueueItems}
+					onsteerqueue={handleSteerQueue}
+					onsteerqueuedelete={handleSteerQueueDelete}
+					onsteer={handleSteer}
 				/>
 				<ChatHistory
 					chats={previousChats}
@@ -2107,6 +2140,9 @@
 					onqueuedelete={handleQueueDelete}
 					onqueue={handleQueue}
 					onsteer={handleSteer}
+						steeringQueue={steeringQueueItems}
+						onsteerqueue={handleSteerQueue}
+						onsteerqueuedelete={handleSteerQueueDelete}
 				/>
 			</div>
 		</div>

@@ -280,6 +280,20 @@ export const steerMessage = (chatId: string, messageId: string, steeringText: st
 		{ method: 'POST', body: JSON.stringify({ message: steeringText }) }
 	);
 
+export const steerQueueMessage = (chatId: string, messageId: string, steeringText: string) =>
+	fetchJSON<{ ok: boolean; message_id: string }>(
+		`/api/chats/${chatId}/steer/${messageId}/queue`,
+		{ method: 'POST', body: JSON.stringify({ message: steeringText }) }
+	);
+
+export const steerQueueDelete = (chatId: string, messageId: string) =>
+	fetchJSON<{ ok: boolean }>(`/api/chats/${chatId}/steer/queue/${messageId}`, { method: 'DELETE' });
+
+export const steerQueueList = (chatId: string) =>
+	fetchJSON<{ queued: { content: string }[]; count: number }>(
+		`/api/chats/${chatId}/steer/queue`
+	);
+
 
 // ── Paginated Chat Messages (Lazy Loading) ────────────────────
 

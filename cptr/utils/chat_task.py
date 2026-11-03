@@ -503,26 +503,36 @@ def _apply_skills_create_prompt(
 
 # ── Steering message injection ──────────────────────────────
 
-_steering_pending: dict[str, str] = {}  # chat_id → steering_text
+from collections import deque
+
+_steering_pending: dict[str, deque] = {}  # chat_id → deque of steering_text
 
 
 async def _check_steering_pending(chat_id: str) -> str | None:
     """Prüft ob eine Steering-Nachricht vorliegt. Gibt text zurück oder None.
     
-    Atomic pop aus _steering_pending. Nur die letzte Nachricht wird behalten.
+    Atomic pop aus der Queue. Wenn die Queue leer ist, wird sie entfernt.
     """
-    msg = await asyncio.to_thread(_steering_pending.pop, chat_id, None)
-    return msg
+    q = _steering_pending.get(chat_id)
+    if q is not None:
+        msg = await asyncio.to_thread(q.popleft)
+        if not q:
+            _steering_pending.pop(chat_id, None)
+        return msg
+    return None
 
 
-def get_steering_pending(chat_id: str) -> str | None:
-    """Synchroner Zugriff auf pending steering (für config checks)."""
-    return _steering_pending.get(chat_id)
+def get_steering_pending(chat_id: str) -> bool:
+    """Prüft ob pending steering messages vorhanden sind."""
+    q = _steering_pending.get(chat_id)
+    return q is not None and len(q) > 0
 
 
 def set_steering_pending(chat_id: str, text: str) -> None:
-    """Setzt eine Steering-Nachricht (wird vom API endpoint aufgerufen)."""
-    _steering_pending[chat_id] = text
+    """Append eine Steering-Nachricht zur Queue (wird vom API endpoint aufgerufen)."""
+    if chat_id not in _steering_pending:
+        _steering_pending[chat_id] = deque()
+    _steering_pending[chat_id].append(text)
 
 
 # ── Task registry ───────────────────────────────────────────

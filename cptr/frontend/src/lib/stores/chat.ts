@@ -87,6 +87,41 @@ export function isChatUnread(status: ChatStatus | undefined): boolean {
 /** Set of tab IDs whose chat is currently streaming (assistant message not done). */
 export const streamingChatTabs = writable<Set<string>>(new Set());
 
+/** Steering queue: maps chatId → array of {id, content} queued steering messages. */
+export const steeringQueues = writable<Map<string, { id: string; content: string }[]>>(
+	new Map()
+);
+
+/** Add a steering message to the queue for a chat. */
+export function addSteeringQueueItem(chatId: string, id: string, content: string) {
+	steeringQueues.update((queues) => {
+		const next = new Map(queues);
+		const items = next.get(chatId) ?? [];
+		next.set(chatId, [...items, { id, content }]);
+		return next;
+	});
+}
+
+/** Remove a steering message from the queue. */
+export function removeSteeringQueueItem(chatId: string, messageId: string) {
+	steeringQueues.update((queues) => {
+		const items = queues.get(chatId);
+		if (!items || !items.length) return queues;
+		const next = new Map(queues);
+		next.set(chatId, items.filter((item) => item.id !== messageId));
+		return next;
+	});
+}
+
+/** Clear all steering queue items for a chat. */
+export function clearSteeringQueue(chatId: string) {
+	steeringQueues.update((queues) => {
+		const next = new Map(queues);
+		next.delete(chatId);
+		return next;
+	});
+}
+
 /**
  * Maps chatId -> tab IDs so we can clear streamingChatTabs from a global
  * socket listener even when the ChatPanel component is unmounted.
@@ -190,6 +225,14 @@ export function bindGlobalChatListener() {
 			}
 			// ── Steering injection notification ────────────────
 			if (data.type === 'chat:steering_injected' && data.content) {
+				toast.info(data.content.replace('[STEERING] ', ''), {
+					duration: 3000,
+					position: 'bottom-center'
+				});
+			}
+			// ── Steering queue notification ────────────────────
+			if (data.type === 'chat:steering_queued' && data.content) {
+				addSteeringQueueItem(data.chat_id, data.message_id, data.content);
 				toast.info(data.content.replace('[STEERING] ', ''), {
 					duration: 3000,
 					position: 'bottom-center'

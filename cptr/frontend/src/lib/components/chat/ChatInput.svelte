@@ -104,6 +104,9 @@
 		ontoolapprovalchange?: (mode: ToolApprovalMode) => void;
 		onqueue?: () => void;
 		onsteer?: () => void;
+		steeringQueue?: { id: string; content: string }[];
+		onsteerqueue?: () => void;
+		onsteerqueuedelete?: (id: string) => void;
 	}
 	let {
 		inputText = $bindable(),
@@ -1258,6 +1261,15 @@
 		await onsteer();
 	}
 
+	async function handleSteerQueue() {
+		if (!onsteerqueue) return;
+		await onsteerqueue();
+	}
+
+	function handleSteerQueueDelete(messageId: string) {
+		onsteerqueuedelete?.(messageId);
+	}
+
 	async function focusAfterModelSelectorClose() {
 		await tick();
 		focus();
@@ -1315,6 +1327,33 @@
 					onedit={onqueueedit ?? (() => {})}
 					ondelete={onqueuedelete ?? (() => {})}
 				/>
+			{/each}
+		</div>
+	{/if}
+
+	<!-- Steering queue (parallel queue for steering messages) -->
+	{#if steeringQueue.length > 0}
+		<div
+			class="app-subtle-surface mb-1 mx-2 py-0.5 px-1.5 rounded-2xl border overflow-x-hidden overflow-y-auto max-h-[25vh]"
+		>
+			<div class="flex items-center gap-1 px-1 pb-0.5">
+				<span class="text-[0.625rem] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Steering Queue</span>
+				<span class="text-[0.625rem] text-gray-400 dark:text-gray-500">({steeringQueue.length})</span>
+			</div>
+			{#each steeringQueue as sq (sq.id)}
+				<div class="flex items-start gap-1.5 py-1 px-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
+					<span class="text-xs text-gray-400 dark:text-gray-500 mt-px">⚡</span>
+					<span class="flex-1 text-xs text-gray-700 dark:text-gray-200 truncate">{sq.content.replace('[STEERING] ', '')}</span>
+					<button
+						class="text-gray-400 hover:text-red-500 transition-colors p-0.5 rounded"
+						onclick={() => onsteerqueuedelete?.(sq.id)}
+						use:tooltip={{ content: 'Remove', placement: 'top' }}
+					>
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<path d="M18 6L6 18M6 6l12 12"/>
+						</svg>
+					</button>
+				</div>
 			{/each}
 		</div>
 	{/if}
@@ -1844,6 +1883,7 @@
 					oncancel={oncancel || handleCancel}
 					onqueue={handleQueue}
 					onsteer={handleSteer}
+					onsteerqueue={handleSteerQueue}
 					isQueued={streaming && inputText.trim() !== ''}
 					mode="chat"
 				/>

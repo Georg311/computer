@@ -1734,6 +1734,102 @@ async def steer_task(request: Request, chat_id: str, message_id: str):
     return {"ok": True, "message_id": steer_msg.id}
 
 
+# ── Steering Queue Endpoint ──────────────────────────────
+@router.post("/{chat_id}/steer/{message_id}/queue")
+async def steer_queue(request: Request, chat_id: str, message_id: str):
+    """Queue a steering message to be injected between tool calls.
+    
+    Unlike steer_task which injects immediately, this queues the steering
+    message so it's applied in order after the current and subsequent
+    tool calls complete.
+    """
+    user_id = _get_user(request)
+    chat = await Chat.get_by_id(chat_id)
+    if not chat or chat.user_id != user_id:
+        raise HTTPException(404, "chat not found")
+
+    msg = await ChatMessage.get_by_id(message_id)
+    if not msg or msg.chat_id != chat_id:
+        raise HTTPException(404, "message not found")
+
+    from cptr.utils.chat_task import set_steering_pending
+
+    # Get the steering text from the request body
+    try:
+        body = await request.json()
+        steering_text = body.get("message", "") or ""
+    except Exception:
+        raise HTTPException(400, "invalid request body")
+
+    if not steering_text.strip():
+        raise HTTPException(400, "steering message cannot be empty")
+
+    # Store steering message in DB (visible in chat history)
+    steer_msg = await ChatMessage.create(
+        chat_id=chat_id,
+        role="user",
+        content=f"[STEERING] {steering_text}",
+        parent_id=message_id,
+        meta={"steering": True, "queued": True},
+        created_at=now_ms(),
+    )
+
+    # Queue steering pending for the running task
+    set_steering_pending(chat_id, steering_text)
+
+    # Notify frontend that steering was queued
+    await emit_to_user(
+        user_id,
+        {
+            "type": "chat:steering_queued",
+            "chat_id": chat_id,
+            "message_id": steer_msg.id,
+            "content": f"[STEERING] {steering_text}",
+        },
+    )
+
+    return {"ok": True, "message_id": steer_msg.id}
+
+
+# ── Steering Queue Delete Endpoint ───────────────────────
+@router.delete("/{chat_id}/steer/queue/{message_id}")
+async def steer_queue_delete(request: Request, chat_id: str, message_id: str):
+    """Remove a queued steering message."""
+    user_id = _get_user(request)
+    chat = await Chat.get_by_id(chat_id)
+    if not chat or chat.user_id != user_id:
+        raise HTTPException(404, "chat not found")
+
+    msg = await ChatMessage.get_by_id(message_id)
+    if not msg or msg.chat_id != chat_id:
+        raise HTTPException(404, "message not found")
+    if not (msg.meta and msg.meta.get("queued")):
+        raise HTTPException(400, "message is not queued")
+
+    await ChatMessage.delete(message_id)
+    return {"ok": True}
+
+
+# ── Steering Queue List Endpoint ─────────────────────────
+@router.get("/{chat_id}/steer/queue")
+async def steer_queue_list(request: Request, chat_id: str):
+    """List queued steering messages for a chat."""
+    user_id = _get_user(request)
+    chat = await Chat.get_by_id(chat_id)
+    if not chat or chat.user_id != user_id:
+        raise HTTPException(404, "chat not found")
+
+    from cptr.utils.chat_task import get_steering_pending
+
+    queued = []
+    q = get_steering_pending(chat_id)
+    if q:
+        for item in q:
+            queued.append({"content": f"[STEERING] {item}"})
+
+    return {"queued": queued, "count": len(queued)}
+
+
 # ── TokenEconomizer Status Endpoint ───────────────────────
 # NOTE: The canonical /api/chats/te/status endpoint lives in cptr/routers/te.py
 # to avoid route conflicts. This file kept for legacy compatibility but will be removed.
