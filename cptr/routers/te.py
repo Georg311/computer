@@ -130,7 +130,6 @@ async def get_te_status(request: Request, chat_id: str = Query(...)):
         # Fallback: if no tool_usage rows, try to extract from ChatMessage.usage
         if not tools_rows:
             try:
-                from cptr.models import ChatMessage
                 result = await session.execute(select(ChatMessage).where(ChatMessage.chat_id == chat_id))
                 messages = result.scalars().all()
                 tool_counts = {}
