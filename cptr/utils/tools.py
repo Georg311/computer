@@ -747,7 +747,7 @@ async def _search_rg(
     identity,
 ) -> str:
     """Search using ripgrep."""
-    args = ["rg", "--no-heading", "--max-count=50", "--color=never"]
+    args = ["rg", "--no-heading", "--color=never"]
     # Never search .env files
     args.extend(["--glob", "!.env", "--glob", "!.env.*"])
     if not regex:
@@ -788,7 +788,7 @@ async def _search_rg(
 
     # Make paths relative
     prefix = str(full) + os.sep
-    lines = output.splitlines()[:50]
+    lines = output.splitlines()[:200]
     if filepaths_only:
         # Extract unique relative filepaths from "filepath:linenum:text" lines
         # Ripgrep may return relative or absolute paths depending on how the search dir was passed.
