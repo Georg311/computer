@@ -36,6 +36,7 @@
 		updateChatStatuses,
 		registerToolApprovalShortcutHandler,
 		steeringQueues,
+		addSteeringQueueItem,
 		removeSteeringQueueItem
 	} from '$lib/stores/chat';
 	import { socketStore } from '$lib/stores/socket.svelte';

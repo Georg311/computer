@@ -1285,13 +1285,27 @@ interface QueuedItem {
 	content: string;
 	type: 'queue' | 'steer';
 }
-
-const combinedQueue = $derived(
-	[
-		...queuedMessages.map((m) => ({ id: m.id, content: m.content, type: 'queue' as const })),
-		...steeringQueue.map((s) => ({ id: s.id, content: s.content.replace('[STEERING] ', ''), type: 'steer' as const })),
-	] satisfies QueuedItem[]
-);
+const combinedQueue = $derived(() => {
+	const seen = new Set<string>();
+	const result: QueuedItem[] = [];
+	// Add steering items first (they take priority)
+	for (const s of steeringQueue) {
+		const id = s.id;
+		if (!seen.has(id)) {
+			seen.add(id);
+			result.push({ id, content: s.content.replace('[STEERING] ', ''), type: 'steer' as const });
+		}
+	}
+	// Then add regular queued messages (skip if already in steering)
+	for (const m of queuedMessages) {
+		const id = m.id;
+		if (!seen.has(id)) {
+			seen.add(id);
+			result.push({ id, content: m.content, type: 'queue' as const });
+		}
+	}
+	return result;
+});
 </script>
 
 <div
