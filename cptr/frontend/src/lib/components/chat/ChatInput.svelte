@@ -143,7 +143,8 @@
 		onsettingschange,
 		ontoolapprovalchange,
 		onqueue,
-		onsteer
+		onsteer,
+		steeringQueue = []
 	}: Props = $props();
 
 	let editorEl: HTMLDivElement | undefined = $state();

@@ -131,6 +131,8 @@
 			isLongPress = false;
 			showActionDialog = true;
 			console.log('[UnifiedButton] handlePointerUp → long press detected, opening dialog');
+			e.preventDefault();
+			return;
 		}
 		console.log('[UnifiedButton] handlePointerUp');
 	}
