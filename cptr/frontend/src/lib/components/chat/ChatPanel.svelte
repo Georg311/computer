@@ -646,6 +646,11 @@
 			return;
 		}
 
+		// Steering message injected — remove from queue
+		if (data.type === 'chat:steering_injected' && data.message_id) {
+			removeSteeringQueueItem(chatId, data.message_id);
+		}
+
 		// Title updates also keep open chat tabs in sync.
 		if (data.title && tabId) {
 			chatTitle = data.title;
