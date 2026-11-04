@@ -506,6 +506,7 @@ def _apply_skills_create_prompt(
 from collections import deque
 
 _steering_pending: dict[str, deque] = {}  # chat_id → deque of steering_text
+_steering_wake_events: dict[str, asyncio.Event] = {}  # chat_id → asyncio.Event for wake-up
 
 
 async def _check_steering_pending(chat_id: str) -> str | None:
@@ -518,9 +519,14 @@ async def _check_steering_pending(chat_id: str) -> str | None:
         msg = await asyncio.to_thread(q.popleft)
         if not q:
             _steering_pending.pop(chat_id, None)
+        # Clear the wake event so the loop can wait again
+        if chat_id in _steering_wake_events:
+            _steering_wake_events[chat_id].clear()
         return msg
+    # No message available - clear any stale event and return None
+    if chat_id in _steering_wake_events:
+        _steering_wake_events[chat_id].clear()
     return None
-
 
 def get_steering_pending(chat_id: str) -> bool:
     """Prüft ob pending steering messages vorhanden sind."""
@@ -533,6 +539,10 @@ def set_steering_pending(chat_id: str, text: str) -> None:
     if chat_id not in _steering_pending:
         _steering_pending[chat_id] = deque()
     _steering_pending[chat_id].append(text)
+    # Wake up the task loop if it's waiting for events
+    if chat_id not in _steering_wake_events:
+        _steering_wake_events[chat_id] = asyncio.Event()
+    _steering_wake_events[chat_id].set()
 
 
 # ── Task registry ───────────────────────────────────────────
