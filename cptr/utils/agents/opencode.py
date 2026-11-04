@@ -28,9 +28,7 @@ from cptr.utils.identity import env_for, preexec_for
 
 
 _LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
-
-# ── Steering message check helper ──────────────────────────────
-from cptr.utils.chat_task import get_steering_pending
+_OPENCODE_ACTIVITY = object()
 _OPENCODE_ACTIVITY = object()
 
 
