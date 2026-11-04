@@ -1350,9 +1350,12 @@ async function handleQueue() {
 
 async function handleSteer() {
 		if (sending) return;
-		const active = allMessages.find((m) => m.role === 'assistant' && !m.done);
-		if (!active || !chatId || !inputText.trim()) return;
 		sending = true;
+		const active = allMessages.find((m) => m.role === 'assistant' && !m.done);
+		if (!active || !chatId || !inputText.trim()) {
+			sending = false;
+			return;
+		}
 		const id = `sq_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 		addSteeringQueueItem(chatId, id, inputText.trim());
 		try {
@@ -1373,9 +1376,12 @@ async function handleSteer() {
 
 async function handleSteerQueue() {
 		if (sending) return;
-		const active = allMessages.find((m) => m.role === 'assistant' && !m.done);
-		if (!active || !chatId || !inputText.trim()) return;
 		sending = true;
+		const active = allMessages.find((m) => m.role === 'assistant' && !m.done);
+		if (!active || !chatId || !inputText.trim()) {
+			sending = false;
+			return;
+		}
 		const id = `sq_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 		addSteeringQueueItem(chatId, id, inputText.trim());
 		try {
