@@ -1280,6 +1280,18 @@
 
 	// Allow sending during streaming (message will be enqueued server-side)
 	const canSend = $derived(!!(inputText.trim() && selectedModel && !sending));
+interface QueuedItem {
+	id: string;
+	content: string;
+	type: 'queue' | 'steer';
+}
+
+const combinedQueue = $derived(
+	[
+		...queuedMessages.map((m) => ({ id: m.id, content: m.content, type: 'queue' as const })),
+		...steeringQueue.map((s) => ({ id: s.id, content: s.content.replace('[STEERING] ', ''), type: 'steer' as const })),
+	] satisfies QueuedItem[]
+);
 </script>
 
 <div
@@ -1317,46 +1329,38 @@
 		</div>
 	{/if}
 
-	<!-- Queued messages (above input, matching open-webui layout) -->
-	{#if queuedMessages.length > 0}
+	<!-- Combined queue: regular messages + steering (color-coded) -->
+	{#if combinedQueue.length > 0}
 		<div
 			class="app-subtle-surface mb-1 mx-2 py-0.5 px-1.5 rounded-2xl border overflow-x-hidden overflow-y-auto max-h-[25vh]"
 		>
-			{#each queuedMessages as qm (qm.id)}
-				<QueuedMessageItem
-					id={qm.id}
-					content={qm.content}
-					onsendnow={onqueuesendnow ?? (() => {})}
-					onedit={onqueueedit ?? (() => {})}
-					ondelete={onqueuedelete ?? (() => {})}
-				/>
-			{/each}
-		</div>
-	{/if}
-
-	<!-- Steering queue (parallel queue for steering messages) -->
-	{#if steeringQueue.length > 0}
-		<div
-			class="app-subtle-surface mb-1 mx-2 py-0.5 px-1.5 rounded-2xl border overflow-x-hidden overflow-y-auto max-h-[25vh]"
-		>
-			<div class="flex items-center gap-1 px-1 pb-0.5">
-				<span class="text-[0.625rem] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Steering Queue</span>
-				<span class="text-[0.625rem] text-gray-400 dark:text-gray-500">({steeringQueue.length})</span>
-			</div>
-			{#each steeringQueue as sq (sq.id)}
-				<div class="flex items-start gap-1.5 py-1 px-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
-					<span class="text-xs text-gray-400 dark:text-gray-500 mt-px">⚡</span>
-					<span class="flex-1 text-xs text-gray-700 dark:text-gray-200 truncate">{sq.content.replace('[STEERING] ', '')}</span>
-					<button
-						class="text-gray-400 hover:text-red-500 transition-colors p-0.5 rounded"
-						onclick={() => onsteerqueuedelete?.(sq.id)}
-						use:tooltip={{ content: 'Remove', placement: 'top' }}
-					>
-						<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-							<path d="M18 6L6 18M6 6l12 12"/>
-						</svg>
-					</button>
-				</div>
+			{#each combinedQueue as item (item.id)}
+				{#if item.type === 'steer'}
+					<!-- Steering queue item (amber accent) -->
+					<div class="flex items-center gap-2 px-2 py-1 border-l-4 border-amber-400 rounded-r-lg bg-amber-50/30 dark:bg-amber-500/5 dark:border-amber-500">
+						<span class="shrink-0 text-[0.625rem] font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">⚡ steer</span>
+						<p class="flex-1 min-w-0 text-xs text-gray-700 dark:text-gray-200 truncate">{item.content}</p>
+						<button
+							type="button"
+							class="shrink-0 p-1 rounded-md text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors duration-100"
+							title="Remove"
+							onclick={() => onsteerqueuedelete?.(item.id)}
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M18 6L6 18M6 6l12 12"/>
+							</svg>
+						</button>
+					</div>
+				{:else}
+					<!-- Regular queued message -->
+					<QueuedMessageItem
+						id={item.id}
+						content={item.content}
+						onsendnow={onqueuesendnow ?? (() => {})}
+						onedit={onqueueedit ?? (() => {})}
+						ondelete={onqueuedelete ?? (() => {})}
+					/>
+				{/if}
 			{/each}
 		</div>
 	{/if}
