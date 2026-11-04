@@ -1285,7 +1285,7 @@ interface QueuedItem {
 	content: string;
 	type: 'queue' | 'steer';
 }
-const combinedQueue = $derived(() => {
+const combinedQueue = $derived.by(() => {
 	const seen = new Set<string>();
 	const result: QueuedItem[] = [];
 	// Add steering items first (they take priority)
