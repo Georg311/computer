@@ -36,7 +36,7 @@
 		updateChatStatuses,
 		registerToolApprovalShortcutHandler,
 		steeringQueues,
-		removeSteeringQueueItem
+		addSteeringQueueItem, removeSteeringQueueItem
 	} from '$lib/stores/chat';
 	import { socketStore } from '$lib/stores/socket.svelte';
 	import { onMount, onDestroy, tick } from 'svelte';
@@ -1314,6 +1314,8 @@
 	async function handleSteer() {
 		const active = allMessages.find((m) => m.role === 'assistant' && !m.done);
 		if (!active || !chatId || !inputText.trim()) return;
+		const id = crypto.randomUUID();
+		addSteeringQueueItem(chatId, id, inputText.trim());
 		try {
 			await apiSteerMessage(chatId, active.id, inputText);
 			inputText = '';
@@ -1326,6 +1328,8 @@
 	async function handleSteerQueue() {
 		const active = allMessages.find((m) => m.role === 'assistant' && !m.done);
 		if (!active || !chatId || !inputText.trim()) return;
+		const id = crypto.randomUUID();
+		addSteeringQueueItem(chatId, id, inputText.trim());
 		try {
 			const res = await apiSteerQueueMessage(chatId, active.id, inputText);
 			inputText = '';
