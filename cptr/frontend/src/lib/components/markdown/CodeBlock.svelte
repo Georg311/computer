@@ -2,7 +2,6 @@
 	import { t } from '$lib/i18n';
 	import { getHighlighter } from '$lib/utils/shiki';
 
-
 	interface Props {
 		language: string;
 		code: string;
@@ -33,7 +32,6 @@
 						: ('ctx' as const)
 		}));
 	});
-
 
 	// Highlight non-diff code: reactive so it re-runs on prop changes (streaming)
 	$effect(() => {

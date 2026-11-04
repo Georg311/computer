@@ -10,11 +10,11 @@
 	};
 
 	const tokenCache = new Map<string, HighlightToken[]>();
-
-
+</script>
 <script lang="ts">
 	import type { DiffLineType, InlineDiffSegment } from '$lib/utils/diff';
 	import { getHighlighter } from '$lib/utils/shiki';
+
 
 	interface Props {
 		type: DiffLineType;
