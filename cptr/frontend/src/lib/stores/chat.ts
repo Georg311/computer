@@ -229,6 +229,9 @@ export function bindGlobalChatListener() {
 					duration: 3000,
 					position: 'bottom-center'
 				});
+				if (data.chat_id && data.message_id) {
+					removeSteeringQueueItem(data.chat_id, data.message_id);
+				}
 			}
 			// ── Steering queue notification ────────────────────
 			if (data.type === 'chat:steering_queued' && data.content) {
