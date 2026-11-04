@@ -121,6 +121,7 @@ async def run_claude_code_agent(
     resume_state: dict[str, Any] | None,
     attachments: PreparedAgentAttachments,
     identity=None,
+    chat_id: str = None,
 ) -> AsyncIterator[AgentEvent]:
     try:
         import claude_agent_sdk as sdk

@@ -28,6 +28,9 @@ from cptr.utils.identity import env_for, preexec_for
 
 
 _LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
+
+# ── Steering message check helper ──────────────────────────────
+from cptr.utils.chat_task import get_steering_pending
 _OPENCODE_ACTIVITY = object()
 
 
@@ -337,6 +340,7 @@ async def run_opencode_agent(
     resume_state: dict[str, Any] | None,
     attachments: PreparedAgentAttachments,
     identity=None,
+    chat_id: str = None,
 ) -> AsyncIterator[AgentEvent]:
     del chat_params
     try:
@@ -414,6 +418,27 @@ async def run_opencode_agent(
                                     if item is None:
                                         break
                                     last_activity = asyncio.get_running_loop().time()
+                                    # ── Check for steering messages during event collection ──
+                                    from cptr.utils.chat_task import _check_steering_pending
+                                    steering_msg_id, steering_msg = await _check_steering_pending(chat_id)
+                                    if steering_msg:
+                                        # Abort current session and restart with updated messages
+                                        last_activity = asyncio.get_running_loop().time()
+                                        try:
+                                            await _request(client, headers, "POST", [
+                                                f"session/{session_id}/abort",
+                                                "session.abort",
+                                                "session/abort",
+                                            ], json_body={"sessionID": session_id})
+                                        except Exception:
+                                            pass
+                                        # Start a new session with updated messages
+                                        event_task.cancel()
+                                        with suppress(asyncio.CancelledError):
+                                            await event_task
+                                        session_id = await _create_opencode_session(client, headers)
+                                        resumed = False
+                                        break  # Break to outer loop to re-prompt
                                     yield item
                             except asyncio.CancelledError:
                                 with suppress(Exception):
