@@ -88,7 +88,6 @@
 			isLongPress = false;
 			onqueue?.();
 			return;
-			return;
 		}
 
 		// Normal click
