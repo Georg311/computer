@@ -311,7 +311,6 @@
 	}
 
 	function toggle() {
-	function toggle() {
 		if (open) {
 			closeMenu();
 		} else {
@@ -477,7 +476,6 @@
 {/if}
 
 
-	<button
 
 	<button
 	bind:this={btnEl}
