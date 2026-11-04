@@ -141,7 +141,6 @@
 			} else {
 				onqueue?.();
 			}
-			}
 			e.preventDefault();
 			return;
 		}
