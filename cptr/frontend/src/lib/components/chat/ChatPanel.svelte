@@ -36,7 +36,7 @@
 		updateChatStatuses,
 		registerToolApprovalShortcutHandler,
 		steeringQueues,
-		addSteeringQueueItem, removeSteeringQueueItem
+		addSteeringQueueItem, removeSteeringQueueItem, clearSteeringQueue
 	} from '$lib/stores/chat';
 	import { socketStore } from '$lib/stores/socket.svelte';
 	import { onMount, onDestroy, tick } from 'svelte';
@@ -779,6 +779,28 @@
 			allMessages = [...allMessages];
 			loadChat(data.chat_id);
 		}
+
+		// Requeue steering items when chat ends before they were injected
+		if (data.done && data.chat_id === chatId) {
+			const steerItems = $steeringQueues.get(chatId);
+			if (steerItems?.length) {
+				const parentId = allMessages.length > 0 ? allMessages[allMessages.length - 1].id : null;
+				const requeued: ChatMessageRow[] = steerItems.map((item) => ({
+					id: `requeued-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+					parent_id: parentId,
+					role: 'user' as const,
+					content: item.content.replace('[STEERING] ', ''),
+					model: selectedModel || null,
+					done: true,
+					output: null,
+					usage: null,
+					meta: { queued: true },
+					created_at: Date.now() / 1000
+				}));
+				allMessages = [...allMessages, ...requeued];
+				clearSteeringQueue(chatId);
+			}
+		}
 	}
 
 	function handleReconnect() {
@@ -1025,10 +1047,7 @@
 			/\[@\s+id="([^"]+)"\s+label="([^"]+)"\]/g,
 			(_: string, id: string, label: string) => `[${label}](file://${id})`
 		);
-		inputText = '';
-		chatInputEl?.clearInput();
-		chatInputEl?.clearUploads();
-		autoScroll = true;
+autoScroll = true;
 		await tick();
 		chatInputEl?.resetHeight();
 
@@ -1092,6 +1111,9 @@
 					sending = false;
 					chatInputEl?.focus();
 				}
+				inputText = '';
+				chatInputEl?.clearInput();
+				chatInputEl?.clearUploads();
 				return;
 			} // end queue behavior
 		} // end streaming check
@@ -1143,11 +1165,15 @@
 			if (isNew && tabId) {
 				updateTab(tabId, result.chat_id, text.slice(0, 40) || $t('chat.fallbackTitle'));
 			}
+			// Clear input only after successful API call
+			inputText = '';
+			chatInputEl?.clearInput();
+			chatInputEl?.clearUploads();
 		} catch (e) {
 			console.error('[chat] send error', e);
 			allMessages = allMessages.filter((m) => m.id !== tempId);
 			currentMessageId = parentId;
-			throw e;
+			toast.error($t('chat.sendFailed') || 'Send failed');
 		} finally {
 			sending = false;
 			chatInputEl?.focus();
@@ -1312,12 +1338,18 @@
 		}
 	}
 
-	function handleQueue() {
+async function handleQueue() {
 		if (!chatId || !inputText.trim()) return;
-		send();
+		try {
+			await send();
+		} catch (e) {
+			console.error('[chat] queue error', e);
+			toast.error($t('chat.sendFailed') || 'Send failed');
+		}
 	}
 
-	async function handleSteer() {
+async function handleSteer() {
+		if (sending) return;
 		const active = allMessages.find((m) => m.role === 'assistant' && !m.done);
 		if (!active || !chatId || !inputText.trim()) return;
 		const id = `sq_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -1329,10 +1361,15 @@
 			chatInputEl?.focus();
 		} catch (e) {
 			console.error('[chat] steer error', e);
+			inputText = '';
+			chatInputEl?.clearInput();
+			removeSteeringQueueItem(chatId, id);
+			toast.error($t('chat.steerFailed') || 'Steer failed');
 		}
 	}
 
-	async function handleSteerQueue() {
+async function handleSteerQueue() {
+		if (sending) return;
 		const active = allMessages.find((m) => m.role === 'assistant' && !m.done);
 		if (!active || !chatId || !inputText.trim()) return;
 		const id = `sq_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -1344,6 +1381,10 @@
 			chatInputEl?.focus();
 		} catch (e) {
 			console.error('[chat] steer queue error', e);
+			inputText = '';
+			chatInputEl?.clearInput();
+			removeSteeringQueueItem(chatId, id);
+			toast.error($t('chat.steerFailed') || 'Steer failed');
 		}
 	}
 

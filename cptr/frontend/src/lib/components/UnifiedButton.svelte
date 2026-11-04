@@ -82,14 +82,8 @@
 			return;
 		}
 
-		// Prevent default click behavior for long press
-		if (isLongPress) {
-			e.preventDefault();
-			isLongPress = false;
-			onqueue?.();
-			return;
-		}
-
+		// Normal click
+		console.log('[UnifiedButton] handleClick — mode:', mode, 'streaming:', streaming, 'canSend:', canSend, 'onqueue:', !!onqueue, 'oncancel:', !!oncancel, 'onsend:', !!onsend);
 		// Normal click
 		console.log('[UnifiedButton] handleClick — mode:', mode, 'streaming:', streaming, 'canSend:', canSend, 'onqueue:', !!onqueue, 'oncancel:', !!oncancel, 'onsend:', !!onsend);
 		if (streaming && canSend) {
