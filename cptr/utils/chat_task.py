@@ -2071,6 +2071,14 @@ async def run_chat_task(
                 )
                 messages.append({"role": "user", "content": f"[STEERING] {steering_msg}"})
 
+            # ── Poll for new steering messages while waiting for runner events ──
+            if chat_id in _steering_wake_events:
+                try:
+                    await asyncio.wait_for(_steering_wake_events[chat_id].wait(), timeout=0.1)
+                    await _check_steering_pending(chat_id)
+                except asyncio.TimeoutError:
+                    pass  # No new steering message, continue waiting for runner event
+
             if isinstance(event, AgentTextDelta):
                 await _finish_reasoning_item()
                 content += event.text
