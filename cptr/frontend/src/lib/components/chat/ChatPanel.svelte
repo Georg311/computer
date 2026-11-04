@@ -468,6 +468,10 @@
 			}
 			loadedChatId = id;
 			updateChatStatuses([data.chat], workspace);
+		} catch (e) {
+			console.error('[chat] load error', e);
+			allMessages = [];
+			loadedChatId = null;
 		} finally {
 			if (isInitialLoad && gen === loadGeneration) loading = false;
 		}
