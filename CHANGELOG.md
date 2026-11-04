@@ -1,4 +1,29 @@
-## [0.9.21.33] - 2026-11-03
+## [0.9.21.34] - 2026-11-03
+
+### Added
+- 🎯 **Steering Queue mit Short/Long Press.** Kurzer Klick auf den Button steuert sofort (sofortiges Senden), langer Druck queue'd die Nachricht für die Bearbeitung nach Abschluss. `UnifiedButton` unterstützt jetzt beide Modi mit visuellem Feedback.
+- ⌨️ **Ctrl+Enter queue't statt zu steeren.** Strg+Eingabe fügt Nachrichten in die Steering Queue ein, statt sie sofort zu senden.
+- 📋 **Combined Steering Queue UI.** Steering und Combined Queue sind in einer einzigen, farbcodierten Liste zusammengefasst (`SteerQueueList.svelte`). Steer-Nachrichten (grün) und Combined-Nachrichten (amber) werden visuell unterschieden.
+- 💬 **Steering messages im Chat-Verlauf.** Injizierte Steering-Nachrichten werden im Chat als inline-Zwischennachrichten angezeigt, mit demselben Stil wie normale Steer-Messages.
+- 🔄 **Wake-up mechanism für Steering Queue.** Task Loop pollt aktiv auf neue Steering Queue Items und weckt den Loop bei neuen Einträgen auf — keine Messages mehr verloren.
+
+### Fixed
+- 🐛 **Input clearing bei queue operations.** Input wird jetzt synchron via `clearInput()` export cleared, nicht asynchron — verhindert Race Conditions beim Senden/Queue'n.
+- 🐛 **Race condition im chat sending flow.** `sending` guard wird sofort nach der Prüfung gesetzt (nicht erst nach API-Aufruf), verhindert duplicate steer-queue calls und lost messages.
+- 🐛 **Duplicate code entfernt.** Doppelte `toggle` functions, `button` tags, closing braces und return statements in `ChatPanel.svelte`, `UnifiedButton.svelte` und `handleClick` bereinigt.
+- 🐛 **Steering message management.** Steering messages werden korrekt aus der regular `queuedMessages` Filter ausgeschlossen, duplicate additions entfernt, und bei `chat:steering_injected` aus der Queue gelöscht.
+- 🐛 **Missing imports behoben.** `emit_to_user` in `steer_task`, `steer_queue` und `steer_task` importiert — verhindert 500 errors. Circular import in `opencode.py` aufgelöst.
+- 🐛 **Svelte 5 reactivity fixes.** `$derived.by` statt `$derived` für komplexe derived logic, optional chaining auf `$steeringQueues` entfernt, `onsteerqueue`/`onsteerqueuedelete` korrekt in `$props()` destructuriert.
+- 🐛 **Browser-compatible UUID generation.** `crypto.randomUUID()` durch browser-kompatibles ID-Generator ersetzt.
+- 🐛 **Enter key behavior.** Sendet normal wenn nicht gestreamt, steert nur während Streaming — verhindert versehentliches Steeren bei normalem Chat.
+- 🐛 **Shiki highlighter singleton.** Shiki Highlighter wird als Singleton geteilt, verhindert multiple Instanzen und Memory-Leaks.
+- 🐛 **Error handling.** `loadChat` catch block hinzugefügt für unhandled 'chat not found' errors. Missing catch clauses in `handleSteer` und `handleSteerQueue` wiederhergestellt.
+- 🐛 **Dead code cleanup.** Unused `chat_id` parameter aus runner functions entfernt, dead steering check in `opencode` bereinigt.
+- 🐛 **Toast notifications entfernt.** Unnötige Toasts bei queue operationen entfernt für saubereres UX.
+
+### Changed
+- 🔧 **Steering message prefix entfernt.** `[STEERING]` Prefix aus injizierten Messages gelöscht — steering messages werden jetzt als normale inline messages gerendert, nicht mehr mit Prefix.
+
 
 ### Fixed
 - 🐛 **TE Status Panel "No tool calls in this session."** Der Fallback im TE-Status-Endpoint (`routers/te.py`) hat Tool-Calls in `ChatMessage.usage` gesucht, aber das `usage`-JSON enthält nur Token-Metriken. Tool-Calls stehen in der `output`-Spalte als `function_call` Items im JSON-Array. Der Fallback liest jetzt Tool-Calls korrekt aus `ChatMessage.output` und extrahiert `name` aus `function_call`-Items (sowohl old-format `{type: "function_call", name: "..."}` als auch Responses API format `{role: "assistant", content: [{type: "tool_use", name: "..."}]}`).
