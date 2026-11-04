@@ -2063,7 +2063,7 @@ async def run_chat_task(
             resume_state=resume_state,
             attachments=agent_attachments,
             identity=identity,
-            chat_id=chat_id,
+):
 ):
             # ── Steering injection point (before processing events) ──
             steering_msg_id, steering_msg = await _check_steering_pending(chat_id)

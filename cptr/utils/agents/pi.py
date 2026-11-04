@@ -267,7 +267,6 @@ async def run_pi_agent(
     resume_state: dict[str, Any] | None,
     attachments: PreparedAgentAttachments,
     identity=None,
-    chat_id: str = None,
 ) -> AsyncIterator[AgentEvent]:
     env = env_for(identity, workspace) if identity and identity.is_pam else os.environ.copy()
     if profile.get("home"):
