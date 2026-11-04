@@ -1693,7 +1693,6 @@ async def steer_task(request: Request, chat_id: str, message_id: str):
 
     from cptr.utils.chat_task import (
         _check_steering_pending,
-        get_steering_pending,
         set_steering_pending,
     )
     from cptr.socket.main import emit_to_user
@@ -1820,10 +1819,10 @@ async def steer_queue_list(request: Request, chat_id: str):
     if not chat or chat.user_id != user_id:
         raise HTTPException(404, "chat not found")
 
-    from cptr.utils.chat_task import get_steering_pending
+    from cptr.utils.chat_task import _steering_pending
 
     queued = []
-    q = get_steering_pending(chat_id)
+    q = _steering_pending.get(chat_id)
     if q:
         for item in q:
             queued.append({"content": f"[STEERING] {item}"})
