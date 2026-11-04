@@ -393,6 +393,7 @@
 				(m) =>
 					m.role === 'user' &&
 					m.meta?.queued &&
+					m.meta?.steering !== true &&
 					(m.parent_id ? activePathIds.has(m.parent_id) : activePath.length === 0)
 			)
 			.map((m) => ({ id: m.id, content: m.content }))
