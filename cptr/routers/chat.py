@@ -1718,7 +1718,7 @@ async def steer_task(request: Request, chat_id: str, message_id: str):
     )
 
     # Set steering pending for the running task
-    set_steering_pending(chat_id, steering_text)
+    set_steering_pending(chat_id, steer_msg.id, steering_text)
 
     # Notify frontend that steering was injected
     await emit_to_user(
@@ -1775,7 +1775,7 @@ async def steer_queue(request: Request, chat_id: str, message_id: str):
     )
 
     # Queue steering pending for the running task
-    set_steering_pending(chat_id, steering_text)
+    set_steering_pending(chat_id, steer_msg.id, steering_text)
 
     # Notify frontend that steering was queued
     await emit_to_user(
