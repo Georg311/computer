@@ -1026,6 +1026,7 @@
 			(_: string, id: string, label: string) => `[${label}](file://${id})`
 		);
 		inputText = '';
+		chatInputEl?.clearInput();
 		chatInputEl?.clearUploads();
 		autoScroll = true;
 		await tick();
@@ -1324,8 +1325,8 @@
 		try {
 			await apiSteerMessage(chatId, active.id, inputText);
 			inputText = '';
+			chatInputEl?.clearInput();
 			chatInputEl?.focus();
-		} catch (e) {
 			console.error('[chat] steer error', e);
 		}
 	}
@@ -1338,8 +1339,8 @@
 		try {
 			const res = await apiSteerQueueMessage(chatId, active.id, inputText);
 			inputText = '';
+			chatInputEl?.clearInput();
 			chatInputEl?.focus();
-		} catch (e) {
 			console.error('[chat] steer queue error', e);
 		}
 	}

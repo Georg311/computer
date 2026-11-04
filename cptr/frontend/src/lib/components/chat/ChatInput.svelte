@@ -701,9 +701,9 @@
 							event.preventDefault();
 							// Ctrl+Enter = steer-queue, plain Enter = steer (during streaming) or send (otherwise)
 							if (event.ctrlKey || event.metaKey) {
-								await handleSteerQueue();
+								handleSteerQueue();
 							} else if (streaming) {
-								await handleSteer();
+								handleSteer();
 							} else {
 								handleSubmit();
 							}
@@ -744,6 +744,12 @@
 
 	export function focus() {
 		editor?.commands.focus();
+	}
+
+	export function clearInput() {
+		if (editor) {
+			editor.commands.clearContent();
+		}
 	}
 
 	export function resetHeight() {
