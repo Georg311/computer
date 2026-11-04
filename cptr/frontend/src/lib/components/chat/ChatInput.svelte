@@ -701,9 +701,9 @@
 							event.preventDefault();
 							// Ctrl+Enter = steer-queue, plain Enter = steer (during streaming) or send (otherwise)
 							if (event.ctrlKey || event.metaKey) {
-								handleSteerQueue();
+								await handleSteerQueue();
 							} else if (streaming) {
-								handleSteer();
+								await handleSteer();
 							} else {
 								handleSubmit();
 							}
