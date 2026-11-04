@@ -1366,18 +1366,19 @@ const combinedQueue = $derived.by(() => {
 						</button>
 					</div>
 				{:else}
-					<!-- Regular queued message -->
-					<QueuedMessageItem
-						id={item.id}
-						content={item.content}
-						onsendnow={onqueuesendnow ?? (() => {})}
-						onedit={onqueueedit ?? (() => {})}
-						ondelete={onqueuedelete ?? (() => {})}
-					/>
+					<!-- Regular queued message (blue accent) -->
+					<div class="flex items-center gap-2 px-2 py-1 border-l-4 border-blue-400 rounded-r-lg bg-blue-50/30 dark:bg-blue-500/5 dark:border-blue-500">
+						<span class="shrink-0 text-[0.625rem] font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">↗ queue</span>
+						<p class="flex-1 min-w-0 text-xs text-gray-700 dark:text-gray-200 truncate">{item.content}</p>
+						<button type="button" class="shrink-0 p-1 rounded-md text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors duration-100" title="Remove" onclick={() => onqueuedelete?.(item.id)}>
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+						</button>
+					</div>
 				{/if}
 			{/each}
 		</div>
 	{/if}
+
 
 	{#if showSlashCommands}
 		<div
