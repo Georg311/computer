@@ -1754,7 +1754,7 @@ async def steer_queue(request: Request, chat_id: str, message_id: str):
         raise HTTPException(404, "message not found")
 
     from cptr.utils.chat_task import set_steering_pending
-
+    from cptr.socket.main import emit_to_user
     # Get the steering text from the request body
     try:
         body = await request.json()
