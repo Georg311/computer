@@ -1327,6 +1327,7 @@
 			inputText = '';
 			chatInputEl?.clearInput();
 			chatInputEl?.focus();
+		} catch (e) {
 			console.error('[chat] steer error', e);
 		}
 	}
@@ -1341,6 +1342,7 @@
 			inputText = '';
 			chatInputEl?.clearInput();
 			chatInputEl?.focus();
+		} catch (e) {
 			console.error('[chat] steer queue error', e);
 		}
 	}
