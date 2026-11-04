@@ -1352,6 +1352,47 @@ async function handleQueue() {
 		}
 	}
 
+	// Queue during streaming regardless of streamingBehavior setting
+	async function handleQueueDuringStreaming() {
+		if (!chatId || !inputText.trim()) return;
+		try {
+			const text = inputText.trim();
+			inputText = '';
+			const parentId = activePath.length > 0 ? activePath[activePath.length - 1].msg.id : null;
+			const result = await apiSendMessage(
+				text,
+				selectedModel,
+				workspace,
+				chatId,
+				parentId,
+				getChatSendParams(),
+				undefined,
+				chatInputEl?.getFiles() ?? []
+			);
+			if (result.queued) {
+				allMessages = [
+					...allMessages,
+					{
+						id: result.message_id,
+						parent_id: parentId,
+						role: 'user' as const,
+						content: text,
+						model: selectedModel,
+						done: true,
+						output: null,
+						usage: null,
+						meta: { queued: true },
+						created_at: Date.now()
+					}
+				];
+			}
+		} catch (e) {
+			console.error('[chat] queue during streaming error', e);
+			toast.error($t('chat.sendFailed') || 'Send failed');
+		}
+	}
+
+
 async function handleSteer() {
 		if (sending) return;
 		sending = true;
@@ -2039,9 +2080,10 @@ async function handleSteerQueue() {
 					onqueueedit={handleQueueEdit}
 					onqueuedelete={handleQueueDelete}
 					steeringQueue={steeringQueueItems}
-					onsteerqueue={handleSteerQueue}
 					onsteerqueuedelete={handleSteerQueueDelete}
 					onsteer={handleSteer}
+					onqueue={handleQueue}
+					onqueuestreaming={handleQueueDuringStreaming}
 				/>
 				<ChatHistory
 					chats={previousChats}
@@ -2209,8 +2251,8 @@ async function handleSteerQueue() {
 					onqueuedelete={handleQueueDelete}
 					onqueue={handleQueue}
 					onsteer={handleSteer}
+					onqueuestreaming={handleQueueDuringStreaming}
 						steeringQueue={steeringQueueItems}
-						onsteerqueue={handleSteerQueue}
 						onsteerqueuedelete={handleSteerQueueDelete}
 				/>
 			</div>

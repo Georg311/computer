@@ -103,8 +103,8 @@
 		onsettingschange?: () => void;
 		ontoolapprovalchange?: (mode: ToolApprovalMode) => void;
 		onqueue?: () => void;
+		onqueuestreaming?: () => void;
 		onsteer?: () => void;
-		steeringQueue?: { id: string; content: string }[];
 		onsteerqueue?: () => void;
 		onsteerqueuedelete?: (id: string) => void;
 	}
@@ -143,6 +143,7 @@
 		onsettingschange,
 		ontoolapprovalchange,
 		onqueue,
+		onqueuestreaming,
 		onsteer,
 		onsteerqueue,
 		onsteerqueuedelete,
@@ -699,9 +700,9 @@
 						}
 						if (!inside) {
 							event.preventDefault();
-							// Ctrl+Enter = steer-queue, plain Enter = steer (during streaming) or send (otherwise)
+							// Ctrl+Enter = queue (am Ende), plain Enter = steer (vor nächstem Toolcall) oder send (sonst)
 							if (event.ctrlKey || event.metaKey) {
-								handleSteerQueue();
+								onqueuestreaming?.();
 							} else if (streaming) {
 								handleSteer();
 							} else {
@@ -1918,7 +1919,6 @@ const combinedQueue = $derived.by(() => {
 					oncancel={oncancel || handleCancel}
 					onqueue={handleQueue}
 					onsteer={handleSteer}
-					onsteerqueue={handleSteerQueue}
 					isQueued={streaming && inputText.trim() !== ''}
 					mode="chat"
 				/>

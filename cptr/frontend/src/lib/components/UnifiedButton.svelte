@@ -87,11 +87,11 @@
 		// Normal click
 		console.log('[UnifiedButton] handleClick — mode:', mode, 'streaming:', streaming, 'canSend:', canSend, 'onqueue:', !!onqueue, 'oncancel:', !!oncancel, 'onsend:', !!onsend);
 		if (streaming && canSend) {
-			// Streaming + text: short click = steer (immediate), long press = steer-queue (after completion)
+			// Streaming + text: short click = steer (inject vor nächstem Toolcall), long press = queue (am Ende)
 			if (isLongPressQueuing) {
-				console.log('[UnifiedButton] → calling onsteerqueue (long press)');
+				console.log('[UnifiedButton] → calling onqueue (long press)');
 				isLongPressQueuing = false;
-				onsteerqueue?.();
+				onqueue?.();
 			} else {
 				console.log('[UnifiedButton] → calling onsteer (short click)');
 				onsteer?.();
