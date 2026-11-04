@@ -63,9 +63,6 @@
 	let filenameInput: HTMLInputElement | undefined = $state();
 	let filenameType = $state(''); // 'file' or 'folder'
 
-	// Action dialog state (for long press in chat)
-	let showActionDialog = $state(false);
-
 	function handleClick(e: Event) {
 		// Always clear the timer on click (prevents late long-press)
 		if (pressTimer) {
@@ -89,7 +86,8 @@
 		if (isLongPress) {
 			e.preventDefault();
 			isLongPress = false;
-			showActionDialog = true;
+			onqueue?.();
+			return;
 			return;
 		}
 
@@ -141,7 +139,8 @@
 				isLongPressQueuing = true;
 				console.log('[UnifiedButton] handlePointerUp → long press in streaming, queued for next click');
 			} else {
-				showActionDialog = true;
+				onqueue?.();
+			}
 			}
 			e.preventDefault();
 			return;
@@ -313,19 +312,7 @@
 		showFilenameDialog = false;
 	}
 
-	function handleActionSelect(action: 'queue' | 'steer' | 'steerqueue' | 'cancel') {
-		showActionDialog = false;
-		if (action === 'queue' && onqueue) {
-			onqueue();
-		} else if (action === 'steer' && onsteer) {
-			onsteer();
-		} else if (action === 'steerqueue' && onsteerqueue) {
-			onsteerqueue();
-		} else if (action === 'cancel' && oncancel) {
-			oncancel();
-		}
-	}
-
+	function toggle() {
 	function toggle() {
 		if (open) {
 			closeMenu();
@@ -491,40 +478,8 @@
 	</div>
 {/if}
 
-<!-- Action Dialog (long press in chat) -->
-{#if showActionDialog}
-	<div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onclick={() => showActionDialog = false}>
-		<div class="app-theme app-surface rounded-2xl border shadow-xl p-6 w-80">
-			<h3 class="text-base font-semibold mb-3">{$t('chat.queueAction')}</h3>
-			<div class="flex flex-col gap-2">
-				{#if onqueue}
-				<button class="w-full px-4 py-3 rounded-lg text-sm text-left bg-orange-500 text-white hover:bg-orange-600" onclick={() => handleActionSelect('queue')}>
-					<Icon name="arrow-up-circle" size={18} />
-					<span class="ml-2">{$t('chat.queueMessage')}</span>
-				</button>
-				{/if}
-				{#if onsteerqueue}
-				<button class="w-full px-4 py-3 rounded-lg text-sm text-left bg-amber-500 text-white hover:bg-amber-600" onclick={() => handleActionSelect('steerqueue')}>
-					<Icon name="clock" size={18} />
-					<span class="ml-2">Steer in Queue</span>
-				</button>
-				{/if}
-				{#if onsteer}
-				<button class="w-full px-4 py-3 rounded-lg text-sm text-left bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600" onclick={() => handleActionSelect('steer')}>
-					<Icon name="bolt" size={18} />
-					<span class="ml-2">Steer (sofort)</span>
-				</button>
-				{/if}
-				{#if oncancel}
-				<button class="w-full px-4 py-3 rounded-lg text-sm text-left bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/50" onclick={() => handleActionSelect('cancel')}>
-					<Icon name="stop" size={18} />
-					<span class="ml-2">{$t('chat.stopGeneration')}</span>
-				</button>
-				{/if}
-			</div>
-		</div>
-	</div>
-{/if}
+
+	<button
 
 	<button
 	bind:this={btnEl}
