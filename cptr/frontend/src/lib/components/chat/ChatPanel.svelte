@@ -1319,7 +1319,7 @@
 	async function handleSteer() {
 		const active = allMessages.find((m) => m.role === 'assistant' && !m.done);
 		if (!active || !chatId || !inputText.trim()) return;
-		const id = crypto.randomUUID();
+		const id = `sq_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 		addSteeringQueueItem(chatId, id, inputText.trim());
 		try {
 			await apiSteerMessage(chatId, active.id, inputText);
@@ -1333,7 +1333,7 @@
 	async function handleSteerQueue() {
 		const active = allMessages.find((m) => m.role === 'assistant' && !m.done);
 		if (!active || !chatId || !inputText.trim()) return;
-		const id = crypto.randomUUID();
+		const id = `sq_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 		addSteeringQueueItem(chatId, id, inputText.trim());
 		try {
 			const res = await apiSteerQueueMessage(chatId, active.id, inputText);
