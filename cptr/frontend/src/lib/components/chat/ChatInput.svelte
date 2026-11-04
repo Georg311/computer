@@ -144,6 +144,8 @@
 		ontoolapprovalchange,
 		onqueue,
 		onsteer,
+		onsteerqueue,
+		onsteerqueuedelete,
 		steeringQueue = []
 	}: Props = $props();
 
