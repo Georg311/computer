@@ -55,6 +55,9 @@
 	let isLongPress = false;
 	const LONG_PRESS_MS = 500;
 
+	// When long-pressed during streaming, the next click queues instead of steering
+	let isLongPressQueuing = $state(false);
+
 	// Filename dialog state
 	let showFilenameDialog = $state(false);
 	let filenameInput: HTMLInputElement | undefined = $state();
@@ -93,10 +96,14 @@
 		// Normal click
 		console.log('[UnifiedButton] handleClick — mode:', mode, 'streaming:', streaming, 'canSend:', canSend, 'onqueue:', !!onqueue, 'oncancel:', !!oncancel, 'onsend:', !!onsend);
 		if (streaming && canSend) {
-			// Streaming + text = steer the message into the running task
-			console.log('[UnifiedButton] → calling onsteer');
-			if (onsteer) {
-				onsteer();
+			// Streaming + text: long-press queues to regular queue, otherwise steer-queue
+			if (isLongPressQueuing) {
+				console.log('[UnifiedButton] → calling onqueue (long press mode)');
+				isLongPressQueuing = false;
+				onqueue?.();
+			} else {
+				console.log('[UnifiedButton] → calling onsteerqueue');
+				onsteerqueue?.();
 			}
 		} else if (streaming && !canSend && oncancel) {
 			// Streaming + no text = stop generation
@@ -124,13 +131,18 @@
 	}
 
 	function handlePointerUp(e: Event) {
-		// If long press was detected, open dialog immediately.
+		// If long press was detected during streaming, set queuing mode.
 		// On touch devices 'click' never fires after a long press,
 		// so we must handle it here instead of waiting for handleClick.
 		if (isLongPress) {
 			isLongPress = false;
-			showActionDialog = true;
-			console.log('[UnifiedButton] handlePointerUp → long press detected, opening dialog');
+			// During streaming: long press → red button + queue mode
+			if (streaming && canSend) {
+				isLongPressQueuing = true;
+				console.log('[UnifiedButton] handlePointerUp → long press in streaming, queued for next click');
+			} else {
+				showActionDialog = true;
+			}
 			e.preventDefault();
 			return;
 		}
@@ -142,6 +154,7 @@
 			clearTimeout(pressTimer);
 			pressTimer = null;
 		}
+		isLongPressQueuing = false;  // Reset if pointer cancelled mid-press
 		console.log('[UnifiedButton] handlePointerCancel');
 	}
 
@@ -153,8 +166,9 @@
 		// Chat mode
 		if (streaming) {
 			if (isQueued) return 'arrow-up-circle';
-			if (onsteer && !canSend) return 'stop';  // canSend=true = steer mode
-			if (onsteerqueue && canSend) return 'stop';  // steer-queue mode: orange arrow
+			if (isLongPressQueuing) return 'arrow-up-circle';  // long-press queue mode: red arrow
+			if (onsteerqueue && canSend) return 'stop';  // steer-queue mode: amber stop
+			if (onsteer && !canSend) return 'stop';  // steer mode: gray stop
 			if (oncancel) return 'stop';
 		}
 
@@ -179,6 +193,10 @@
 		if (streaming && onsteer && canSend) {
 			// Steer button: orange (short click injects message into running task)
 			return base + 'bg-orange-500 text-white hover:bg-orange-600';
+		}
+		if (streaming && isLongPressQueuing) {
+			// Long-press queue mode: red (message will go to regular queue on next click)
+			return base + 'bg-red-500 text-white hover:bg-red-600';
 		}
 		if (streaming && onsteerqueue && canSend) {
 			// Steer-queue button: amber (short click queues steering message)
@@ -316,11 +334,21 @@
 		}
 	}
 
+	// Reset long-press queuing when streaming ends or conditions change
+	$effect(() => {
+		void streaming;  // track streaming
+		void canSend;  // track canSend
+		if (!streaming || !canSend) {
+			isLongPressQueuing = false;
+		}
+	});
+
 	$effect(() => {
 		if (open && btnEl && menuEl) {
 			setTimeout(() => updatePosition(), 0);
 		}
 	});
+
 
 	function updatePosition() {
 		if (!btnEl || !menuEl) return;
