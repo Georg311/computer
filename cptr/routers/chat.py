@@ -1711,7 +1711,7 @@ async def steer_task(request: Request, chat_id: str, message_id: str):
     steer_msg = await ChatMessage.create(
         chat_id=chat_id,
         role="user",
-        content=f"[STEERING] {steering_text}",
+        content=steering_text,
         parent_id=message_id,
         meta={"steering": True},
         created_at=now_ms(),
@@ -1727,7 +1727,7 @@ async def steer_task(request: Request, chat_id: str, message_id: str):
             "type": "chat:steering_injected",
             "chat_id": chat_id,
             "message_id": steer_msg.id,
-            "content": f"[STEERING] {steering_text}",
+            "content": steering_text,
         },
     )
 
@@ -1768,7 +1768,7 @@ async def steer_queue(request: Request, chat_id: str, message_id: str):
     steer_msg = await ChatMessage.create(
         chat_id=chat_id,
         role="user",
-        content=f"[STEERING] {steering_text}",
+        content=steering_text,
         parent_id=message_id,
         meta={"steering": True, "queued": True},
         created_at=now_ms(),
@@ -1784,7 +1784,7 @@ async def steer_queue(request: Request, chat_id: str, message_id: str):
             "type": "chat:steering_queued",
             "chat_id": chat_id,
             "message_id": steer_msg.id,
-            "content": f"[STEERING] {steering_text}",
+            "content": steering_text,
         },
     )
 
@@ -1825,7 +1825,7 @@ async def steer_queue_list(request: Request, chat_id: str):
     q = _steering_pending.get(chat_id)
     if q:
         for item in q:
-            queued.append({"content": f"[STEERING] {item}"})
+            queued.append({"content": item})
 
     return {"queued": queued, "count": len(queued)}
 

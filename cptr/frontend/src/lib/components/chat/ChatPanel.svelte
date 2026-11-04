@@ -793,7 +793,7 @@
 					id: `requeued-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
 					parent_id: parentId,
 					role: 'user' as const,
-					content: item.content.replace('[STEERING] ', ''),
+					content: item.content,
 					model: selectedModel || null,
 					done: true,
 					output: null,
@@ -1386,6 +1386,8 @@ async function handleQueue() {
 					}
 				];
 			}
+			chatInputEl?.clearInput();
+			chatInputEl?.focus();
 		} catch (e) {
 			console.error('[chat] queue during streaming error', e);
 			toast.error($t('chat.sendFailed') || 'Send failed');

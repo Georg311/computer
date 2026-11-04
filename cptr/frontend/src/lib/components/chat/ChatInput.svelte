@@ -1307,7 +1307,7 @@ const combinedQueue = $derived.by(() => {
 		const id = s.id;
 		if (!seen.has(id)) {
 			seen.add(id);
-			result.push({ id, content: s.content.replace('[STEERING] ', ''), type: 'steer' as const });
+			result.push({ id, content: s.content, type: 'steer' as const });
 		}
 	}
 	// Then add regular queued messages (skip if already in steering)

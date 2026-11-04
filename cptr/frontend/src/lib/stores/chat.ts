@@ -225,10 +225,6 @@ export function bindGlobalChatListener() {
 			}
 			// ── Steering injection notification ────────────────
 			if (data.type === 'chat:steering_injected' && data.content) {
-				toast.info(data.content.replace('[STEERING] ', ''), {
-					duration: 3000,
-					position: 'bottom-center'
-				});
 				if (data.chat_id && data.message_id) {
 					removeSteeringQueueItem(data.chat_id, data.message_id);
 				}
@@ -236,10 +232,6 @@ export function bindGlobalChatListener() {
 			// ── Steering queue notification ────────────────────
 			if (data.type === 'chat:steering_queued' && data.content) {
 				addSteeringQueueItem(data.chat_id, data.message_id, data.content);
-				toast.info(data.content.replace('[STEERING] ', ''), {
-					duration: 3000,
-					position: 'bottom-center'
-				});
 			}
 			if (!data.done) return;
 
