@@ -699,8 +699,15 @@
 						}
 						if (!inside) {
 							event.preventDefault();
-							handleSubmit();
-							return true;
+							// Ctrl+Enter = steer-queue, plain Enter = steer (during streaming) or send (otherwise)
+							if (event.ctrlKey || event.metaKey) {
+								handleSteerQueue();
+							} else if (streaming) {
+								handleSteer();
+							} else {
+								handleSubmit();
+							}
+						
 						}
 					}
 					return false;
