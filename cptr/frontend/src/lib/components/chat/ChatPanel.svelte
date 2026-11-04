@@ -36,7 +36,6 @@
 		updateChatStatuses,
 		registerToolApprovalShortcutHandler,
 		steeringQueues,
-		addSteeringQueueItem,
 		removeSteeringQueueItem
 	} from '$lib/stores/chat';
 	import { socketStore } from '$lib/stores/socket.svelte';
@@ -1328,7 +1327,6 @@
 		if (!active || !chatId || !inputText.trim()) return;
 		try {
 			const res = await apiSteerQueueMessage(chatId, active.id, inputText);
-			addSteeringQueueItem(chatId, res.message_id, `[STEERING] ${inputText}`);
 			inputText = '';
 			chatInputEl?.focus();
 		} catch (e) {
