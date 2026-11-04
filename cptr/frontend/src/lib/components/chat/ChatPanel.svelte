@@ -1352,6 +1352,7 @@ async function handleSteer() {
 		if (sending) return;
 		const active = allMessages.find((m) => m.role === 'assistant' && !m.done);
 		if (!active || !chatId || !inputText.trim()) return;
+		sending = true;
 		const id = `sq_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 		addSteeringQueueItem(chatId, id, inputText.trim());
 		try {
@@ -1365,6 +1366,8 @@ async function handleSteer() {
 			chatInputEl?.clearInput();
 			removeSteeringQueueItem(chatId, id);
 			toast.error($t('chat.steerFailed') || 'Steer failed');
+		} finally {
+			sending = false;
 		}
 	}
 
@@ -1372,6 +1375,7 @@ async function handleSteerQueue() {
 		if (sending) return;
 		const active = allMessages.find((m) => m.role === 'assistant' && !m.done);
 		if (!active || !chatId || !inputText.trim()) return;
+		sending = true;
 		const id = `sq_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 		addSteeringQueueItem(chatId, id, inputText.trim());
 		try {
@@ -1385,6 +1389,8 @@ async function handleSteerQueue() {
 			chatInputEl?.clearInput();
 			removeSteeringQueueItem(chatId, id);
 			toast.error($t('chat.steerFailed') || 'Steer failed');
+		} finally {
+			sending = false;
 		}
 	}
 
