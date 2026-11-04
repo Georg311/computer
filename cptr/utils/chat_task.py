@@ -2064,7 +2064,6 @@ async def run_chat_task(
             attachments=agent_attachments,
             identity=identity,
 ):
-):
             # ── Steering injection point (before processing events) ──
             steering_msg_id, steering_msg = await _check_steering_pending(chat_id)
             if steering_msg:
