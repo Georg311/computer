@@ -1696,6 +1696,7 @@ async def steer_task(request: Request, chat_id: str, message_id: str):
         get_steering_pending,
         set_steering_pending,
     )
+    from cptr.socket.main import emit_to_user
 
     # Get the steering text from the request body
     try:
