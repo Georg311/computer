@@ -680,17 +680,45 @@ async def search_files(
     include: str = "",
     filenames_only: bool = False,
     filepaths_only: bool = False,
+    context_before: int = 0,
+    context_after: int = 0,
+    mode: Literal["content", "files_with_matches", "count"] = "content",
+    head_limit: int = 200,
+    offset: int = 0,
     *,
     __context__: dict,
 ) -> str:
     """Search files for a pattern using ripgrep. Fast, respects .gitignore.
+    
     :param query: Search pattern (plain text or regex).
-    :param path: Directory to search in, relative to workspace.
+    :param path: Directory to search in, relative to workspace. Can also be a single file path.
     :param regex: Treat query as a regular expression.
     :param case_insensitive: Case-insensitive matching.
     :param include: Glob pattern to filter files (e.g. '*.py', '*.ts').
-    :param filenames_only: Only return bare filenames (e.g. 'ai.py'), not full paths or matching lines.
-    :param filepaths_only: Return relative file paths (e.g. 'cptr/utils/ai.py') instead of matching lines.
+    
+    :param mode: Output format (choose exactly one):
+        - "content" (default): Returns file:line:text lines, e.g. "src/main.py:42: def foo()".
+        - "files_with_matches": Returns only filenames that contain matches, one per line.
+          Use this when you want to know WHICH files match, not what matches.
+        - "count": Returns filename: count pairs, e.g. "src/main.py: 5".
+          Use this when you want to know HOW MANY matches exist per file.
+    
+    :param context_before: Number of lines to show BEFORE each match line (default 0).
+        Combined with context_after via ripgrep's -C flag (symmetric context).
+        Example: context_before=2, context_after=1 → shows 2 lines before + match + 1 line after.
+    
+    :param context_after: Number of lines to show AFTER each match line (default 0).
+        Same as context_before – ripgrep uses symmetric -C flag internally.
+    
+    :param head_limit: Maximum number of result lines to return (default 200).
+        Set to 0 for no limit (not recommended – can cause memory issues with huge result sets).
+        Applied AFTER offset.
+    
+    :param offset: Number of result lines to skip from the beginning (default 0).
+        Use with head_limit for pagination: offset=50, head_limit=50 → page 2.
+        Applied BEFORE head_limit.
+    
+    Note: filenames_only and filepaths_only are legacy parameters. Use mode instead.
     """
     workspace = __context__["workspace"]
     request = __context__.get("request")
@@ -698,10 +726,61 @@ async def search_files(
         full = _resolve_path(path, workspace)
         if request is None:
             return "Error: request context unavailable"
-        directory = await Runtime.stat(request, str(full))
+        file_stat = await Runtime.stat(request, str(full))
     except (ValueError, FileError, IdentityUnavailable) as e:
         return f"Error: {e}"
-    if directory.get("type") != "directory":
+
+    # Resolve mode vs legacy flags
+    filenames_only_resolved = False
+    filepaths_only_resolved = False
+    if mode == "files_with_matches":
+        filenames_only_resolved = True
+    elif mode == "count":
+        pass  # special handling in _search_rg
+    # else: mode == "content" (default), keep existing flags
+
+    is_file = file_stat.get("type") == "file"
+
+    if is_file:
+        # Direct search on a single file
+        try:
+            res = await _search_rg(
+                query,
+                full,
+                regex,
+                case_insensitive,
+                include,
+                filenames_only_resolved or filenames_only,
+                filepaths_only_resolved or filepaths_only,
+                await identity_for_context(__context__),
+                is_file=True,
+                context_before=context_before,
+                context_after=context_after,
+                mode=mode,
+                head_limit=head_limit,
+                offset=offset,
+            )
+        except FileNotFoundError:
+            try:
+                matches = await Runtime.file_matches(request, query, str(full), False, 0, 50)
+            except FileError as e:
+                return f"Error: {e}"
+            rows = []
+            for item in matches.get("results", []):
+                rel = item.get("relative_path") or item.get("name") or ""
+                if filenames_only_resolved or filenames_only or item.get("name_match"):
+                    rows.append(str(rel))
+                elif filepaths_only_resolved or filepaths_only:
+                    rows.append(str(rel))
+                else:
+                    for match in item.get("content_matches") or []:
+                        rows.append(f"{rel}:{match.get('line')}: {match.get('text')}")
+            res = "\n".join(rows) if rows else "No matches found."
+
+        return _truncate_output(res, max_chars=CHAT_TOOL_MAX_CHARS)
+
+    # Directory search – check it's actually a directory
+    if file_stat.get("type") != "directory":
         return f"Error: not a directory: {path}"
 
     # Try ripgrep first
@@ -712,9 +791,15 @@ async def search_files(
             regex,
             case_insensitive,
             include,
-            filenames_only,
-            filepaths_only,
+            filenames_only_resolved or filenames_only,
+            filepaths_only_resolved or filepaths_only,
             await identity_for_context(__context__),
+            is_file=False,
+            context_before=context_before,
+            context_after=context_after,
+            mode=mode,
+            head_limit=head_limit,
+            offset=offset,
         )
     except FileNotFoundError:
         try:
@@ -724,9 +809,9 @@ async def search_files(
         rows = []
         for item in matches.get("results", []):
             rel = item.get("relative_path") or item.get("name") or ""
-            if filenames_only or item.get("name_match"):
+            if filenames_only_resolved or filenames_only or item.get("name_match"):
                 rows.append(str(rel))
-            elif filepaths_only:
+            elif filepaths_only_resolved or filepaths_only:
                 rows.append(str(rel))
             else:
                 for match in item.get("content_matches") or []:
@@ -745,24 +830,44 @@ async def _search_rg(
     filenames_only: bool,
     filepaths_only: bool,
     identity,
+    is_file: bool = False,
+    context_before: int = 0,
+    context_after: int = 0,
+    mode: str = "content",
+    head_limit: int = 0,
+    offset: int = 0,
 ) -> str:
     """Search using ripgrep."""
     args = ["rg", "--no-heading", "--color=never"]
-    # Never search .env files
-    args.extend(["--glob", "!.env", "--glob", "!.env.*"])
+
+    # Never search .env files (only for directory searches)
+    if not is_file:
+        args.extend(["--glob", "!.env", "--glob", "!.env.*"])
+
     if not regex:
         args.append("--fixed-strings")
     if case_insensitive:
         args.append("--ignore-case")
-    if filenames_only:
+
+    # Handle context lines with -C (ripgrep doesn't support separate -A/-B)
+    if context_before or context_after:
+        ctx = max(context_before, context_after)
+        args.extend(["-C", str(ctx)])
+
+    # Mode handling
+    if mode == "count":
+        args.append("--count")
+    elif filenames_only:
         args.append("--files-with-matches")
     elif filepaths_only:
         # Use --with-filename to get paths, then deduplicate
         args.append("--with-filename")
         args.append("--line-number")
     else:
+        # mode == "content" (default)
         args.append("--line-number")
-    if include:
+
+    if include and not is_file:
         for glob in include.split(","):
             glob = glob.strip()
             if glob:
@@ -786,19 +891,39 @@ async def _search_rg(
         err = stderr.decode(errors="replace").strip()
         raise FileNotFoundError(err) if "not found" in err.lower() else Exception(err)
 
+    lines = output.splitlines()
+
+    # Apply offset and head_limit (pagination over ALL results)
+    # Safety: if head_limit is 0 (no limit), default to 200 to prevent memory issues
+    effective_head_limit = head_limit if head_limit > 0 else 200
+    if offset > 0:
+        lines = lines[offset:]
+    lines = lines[:effective_head_limit]
+
+    if mode == "count":
+        # Format: "filepath: count" or just "count" for single file
+        if is_file:
+            return f"{full.name}: {lines[0]}" if lines else "0"
+        prefix = str(full) + os.sep
+        result = []
+        for line in lines:
+            rel = line.replace(prefix, "", 1) if line.startswith(prefix) else line
+            result.append(f"{rel}")
+        return "\n".join(result) if result else "No matches found."
+
     # Make paths relative
     prefix = str(full) + os.sep
-    lines = output.splitlines()[:200]
+    if is_file:
+        # For single file, just format with filename and line numbers
+        result = [f"{full.name}:{line}" for line in lines]
+        return "\n".join(result) if result else "No matches found."
+
     if filepaths_only:
         # Extract unique relative filepaths from "filepath:linenum:text" lines
-        # Ripgrep may return relative or absolute paths depending on how the search dir was passed.
-        # We handle both by stripping the known prefix if present, then extracting the filepath.
         seen = set()
         result = []
         for line in lines:
-            # Try to strip absolute prefix first
             rel = line.replace(prefix, "", 1) if line.startswith(prefix) else line
-            # Extract filepath (before first colon)
             fp = rel.split(":", 1)[0] if ":" in rel else rel
             if fp not in seen:
                 seen.add(fp)
