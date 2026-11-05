@@ -1,3 +1,13 @@
+## [0.9.21.35] - 2026-11-05
+
+### Added
+- 🔍 **`search_files` — erweiterte Parameter.** Neue `mode`-Parameter für Ausgabeformat (`content`, `files_with_matches`, `count`). Kontextzeilen vor/nach Matches mit `context_before`/`context_after` (intern ripgrep `-C`). Pagination über `head_limit` und `offset`. Einzelne Dateipfade als Suchziel unterstützt (nicht nur Verzeichnisse).
+
+### Changed
+- 🔧 **`search_files` — Legacy-Flags.** `filenames_only` und `filepaths_only` sind jetzt veraltet; `mode` wird bevorzugt.
+
+---
+
 ## [0.9.21.34] - 2026-11-03
 
 ### Added
