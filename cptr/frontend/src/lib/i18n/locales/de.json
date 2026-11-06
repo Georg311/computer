@@ -894,6 +894,7 @@
   "chat.edit.tool": "Werkzeug",
   "chat.edit.item": "Element",
   "chat.dictate.unsupported": "Spracherkennung wird in diesem Browser nicht unterstützt.",
+  "chat.voiceModeOff": "Sprachmodus deaktiviert",
   "chat.voiceModeOn": "Sprachmodus aktiv",
   "chat.voiceListening": "Hört zu...",
   "chat.voiceWaiting": "Wartet auf Antwort...",

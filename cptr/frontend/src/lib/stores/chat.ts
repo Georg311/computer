@@ -122,6 +122,20 @@ export function clearSteeringQueue(chatId: string) {
 	});
 }
 
+/** Reorder steering queue items (swap two indices). */
+export function reorderSteeringQueueItem(chatId: string, fromIndex: number, toIndex: number) {
+	steeringQueues.update((queues) => {
+		const items = queues.get(chatId);
+		if (!items || !items.length || fromIndex === toIndex) return queues;
+		const next = new Map(queues);
+		const copy = [...items];
+		const [item] = copy.splice(fromIndex, 1);
+		copy.splice(toIndex, 0, item);
+		next.set(chatId, copy);
+		return next;
+	});
+}
+
 /**
  * Maps chatId -> tab IDs so we can clear streamingChatTabs from a global
  * socket listener even when the ChatPanel component is unmounted.

@@ -1,0 +1,289 @@
+{
+  "audit_metadata": {
+    "repo": "cptr",
+    "target_path": "/home/cptr/cptr-dev/repo/",
+    "source_ref": "HEAD (unspecified commit)",
+    "profile": "standard",
+    "run_date": "2025-06-27",
+    "phases_completed": ["reconnaissance", "hunting_wave_1", "candidate_validation"]
+  },
+  "findings": [
+    {
+      "id": "T1-01",
+      "title": "Shell-Injection via LLM Command Execution",
+      "severity": "critical",
+      "status": "confirmed",
+      "category": "command_injection",
+      "description": "Der LLM-generierte Command-String wird ohne jegliche Sanitization, Escape-Funktion oder Whitelisting direkt an subprocess.Popen(shell=True) und asyncio.create_subprocess_shell() übergeben. Keine Input-Validierung vorhanden.",
+      "affected_principal": "Authenticated User via Chat/LLM",
+      "resource": "Host Operating System, all user files, network stack",
+      "concrete_result": "Arbitrary shell command execution — RCE on host as authenticated user",
+      "file_paths": [
+        {"path": "/home/cptr/cptr-dev/repo/cptr/utils/tools.py", "lines": "82-83"},
+        {"path": "/home/cptr/cptr-dev/repo/cptr/utils/tools.py", "lines": "1469-1544"}
+      ],
+      "smallest_effective_fix": "Command-Whitelisting für erlaubte Binary-Pfade implementieren. shell=False mit expliziter Argument-Validierung statt subprocess shell=True verwenden.",
+      "cvss_v3_score": 8.8,
+      "cwe_id": "CWE-78",
+      "verification_status": "confirmed_by_verifier"
+    },
+    {
+      "id": "#1",
+      "title": "SSRF via Unrestricted Browser Proxy HTTP Client",
+      "severity": "critical",
+      "status": "confirmed",
+      "category": "ssrf",
+      "description": "target_url() validiert nur Schema (http/https) und netloc-Existenz. Keine IP-Binding-Checks, keine DNS-Rebinding-Schutz, kein Redirect-Limit. httpx.AsyncClient mit follow_redirects=True folgt unbegrenzten Redirects zu beliebigen IPs.",
+      "affected_principal": "Authenticated User with Browser Session",
+      "resource": "Server-side HTTP client (httpx), internal services, cloud metadata APIs",
+      "concrete_result": "Cloud-Metadata-Exfiltration (169.254.169.254), Localhost-Dienste-Kompromittierung, Private-Network-Reconnaissance via SSRF und DNS-Rebinding",
+      "file_paths": [
+        {"path": "/home/cptr/cptr-dev/repo/cptr/utils/browser/proxy.py", "lines": "135-139"},
+        {"path": "/home/cptr/cptr-dev/repo/cptr/routers/browser.py", "lines": "142-152"},
+        {"path": "/home/cptr/cptr-dev/repo/cptr/utils/browser/proxy.py", "lines": "106-112"}
+      ],
+      "smallest_effective_fix": "IP-Blocklist in target_url() implementieren (private ranges, loopback, cloud metadata). Redirect-Limit setzen. DNS-Auflösung mit IP-Komparison vor jedem Request.",
+      "cvss_v3_score": 8.6,
+      "cwe_id": "CWE-918",
+      "verification_status": "confirmed_by_verifier"
+    },
+    {
+      "id": "T1-02",
+      "title": "Environment Injection via os.environ.copy()",
+      "severity": "high",
+      "status": "confirmed",
+      "category": "environment_injection",
+      "description": "os.environ.copy() kopiert das gesamte Host-Environment including LD_PRELOAD, PYTHONPATH, und andere potenziell schädliche Variablen. Keine Whitelist oder Negativliste für Environment-Variablen.",
+      "affected_principal": "Authenticated User via Chat/LLM",
+      "resource": "Host environment variables, process context isolation",
+      "concrete_result": "LD_PRELOAD/PYTHONPATH Injection ermöglicht Code Execution auch ohne direkte Shell-Befehle. Kombiniert mit T1-01 eskaliert zu vollständiger Host-Kompromittierung.",
+      "file_paths": [
+        {"path": "/home/cptr/cptr-dev/repo/cptr/utils/identity.py", "lines": "150-169"}
+      ],
+      "smallest_effective_fix": "Allowlist von Environment-Variablen erstellen: allowed = {\"HOME\",\"USER\",\"LOGNAME\",\"SHELL\",\"PWD\",\"PATH\",\"TERM\"} und nur diese aus os.environ extrahieren statt copy().",
+      "cvss_v3_score": 7.5,
+      "cwe_id": "CWE-613",
+      "verification_status": "confirmed_by_verifier"
+    },
+    {
+      "id": "T1-03",
+      "title": "Trusted-Header Auth-Bypass bei leerem trusted_sources",
+      "severity": "critical",
+      "status": "confirmed",
+      "category": "authentication_bypass",
+      "description": "Wenn auth.trusted_sources = [] gesetzt ist, wird der Check komplett übersprungen (Falsy-Evaluation von []). Jeder Request mit beliebigem Header-Wert erhält einen AuthResult. Username 1:1 vom Header übernommen ohne Sanitization.",
+      "affected_principal": "Remote Client (unauthenticated)",
+      "resource": "Full API access — all authenticated and admin endpoints",
+      "concrete_result": "Vollständiger Authentifizierungs-Bypass ohne Credentials. Beliebiges Username-Spoofing möglich. /api/config in Skip-Liste potenziert den Effekt.",
+      "file_paths": [
+        {"path": "/home/cptr/cptr-dev/repo/cptr/utils/config.py", "lines": "387-397"},
+        {"path": "/home/cptr/cptr-dev/repo/cptr/routers/auth.py", "lines": "59-62"},
+        {"path": "/home/cptr/cptr-dev/repo/cptr/app.py", "lines": "157-191"}
+      ],
+      "smallest_effective_fix": "if not trusted_sources: return None (leere Liste zurückweisen). Username validieren und sanitizen. /api/config aus Middleware Skip-Liste entfernen.",
+      "cvss_v3_score": 9.0,
+      "cwe_id": "CWE-287",
+      "verification_status": "confirmed_by_verifier"
+    },
+    {
+      "id": "T1-04",
+      "title": "PTY Escape Sequence Injection via WebSocket stdin",
+      "severity": "medium",
+      "status": "candidate",
+      "category": "input_validation",
+      "description": "Raw Bytes (nach 0x00 Prefix) werden ungefiltert auf PTY slave geschrieben. ESC-Sequenzen können Terminal-State manipulieren, Ctrl-C/D Signale an foreground process senden.",
+      "affected_principal": "WebSocket Client with PTY Session",
+      "resource": "Terminal state, line discipline, foreground process group",
+      "concrete_result": "Screen-Spoofing via ESC-Sequenzen, Signal-Injection (Ctrl-C/D) kann Schutzmechanismen unterbrechen.",
+      "file_paths": [
+        {"path": "/home/cptr/cptr-dev/repo/cptr/routers/terminal.py", "lines": "321-322"},
+        {"path": "/home/cptr/cptr-dev/repo/cptr/utils/tools.py", "lines": "405"}
+      ],
+      "smallest_effective_fix": "Input-Filterung vor os.write(master_fd, data): Strip ESC-Sequenzen (\\x1b), blockiere raw Control-Chars außer \\n, \\r, \\x08(Backspace), \\x03(Ctrl-C), \\x04(Ctrl-D).",
+      "cvss_v3_score": 5.5,
+      "cwe_id": "CWE-74",
+      "verification_status": "candidate"
+    },
+    {
+      "id": "T1-05",
+      "title": "Missing Resource Limits for Command Execution",
+      "severity": "medium",
+      "status": "candidate",
+      "category": "resource_exhaustion",
+      "description": "Kein prlimit64, kein seccomp, keine RLIMIT-Nutzung für CPU/RAM/Files. Angreifer kann dd if=/dev/zero of=/dev/sda oder Python-Memory-Exhaustion ausführen.",
+      "affected_principal": "Authenticated User via Chat/LLM",
+      "resource": "CPU, RAM, File Descriptors, Disk Space",
+      "concrete_result": "Denial-of-Service durch RAM/CPU/Disk-Erschöpfung. Host-Stabilität gefährdet.",
+      "file_paths": [
+        {"path": "/home/cptr/cptr-dev/repo/cptr/utils/identity.py", "lines": "172-187"}
+      ],
+      "smallest_effective_fix": "In _drop_privileges(): resource.setrlimit(resource.RLIMIT_AS, (512*1024**2, 512*1024**2)) und resource.setrlimit(resource.RLIMIT_CPU, ((60,), (60,))). Optional: seccomp-Filter für Kernel-Aufrufe.",
+      "cvss_v3_score": 5.0,
+      "cwe_id": "CWE-770",
+      "verification_status": "candidate"
+    },
+    {
+      "id": "#2",
+      "title": "SSTI/XSS via final_url in injected <script> Tag",
+      "severity": "high",
+      "status": "candidate",
+      "category": "xss_ssti",
+      "description": "rewrite_html() injiziert final_url (von upstream httpx Response URL nach Redirects) direkt in einen <script>-Tag. Unsichere Daten-Stringifizierung möglich.",
+      "affected_principal": "Authenticated User with Browser Session navigating to crafted upstream URL",
+      "resource": "Injected JavaScript runtime snippet: window.__cptrBrowser={session:{...},url:{...}};",
+      "concrete_result": "Redirect-basierte XSS durch URL-Manipulation mit Sonderzeichen. Same-Origin-Policy-Breaking möglich.",
+      "file_paths": [
+        {"path": "/home/cptr/cptr-dev/repo/cptr/utils/browser/proxy.py", "lines": "227-240"}
+      ],
+      "smallest_effective_fix": "HTML-escape + JS-string-safe escape für final_url. Alternativ: json.dumps() statt f-string Injektion verwenden.",
+      "cvss_v3_score": 7.2,
+      "cwe_id": "CWE-79",
+      "verification_status": "candidate"
+    },
+    {
+      "id": "#5",
+      "title": "Redirect Chaining SSRF Amplification via HTTP Redirects",
+      "severity": "medium",
+      "status": "candidate",
+      "category": "ssrf_amplification",
+      "description": "httpx.AsyncClient mit follow_redirects=True ohne Limit. Kombination aus unbegrenzten Redirects + localhost-Fallback ermöglicht SSRF-Amplifikation.",
+      "affected_principal": "Authenticated User with Browser Session",
+      "resource": "HTTP Client mit unbegrenzten Redirects (Standard: 30)",
+      "concrete_result": "Umgehung von URL-Filtern via Multi-Hop Redirect-Chains. Verstärkt Finding #1.",
+      "file_paths": [
+        {"path": "/home/cptr/cptr-dev/repo/cptr/utils/browser/proxy.py", "lines": "108"},
+        {"path": "/home/cptr/cptr-dev/repo/cptr/routers/browser.py", "lines": "142-152"}
+      ],
+      "smallest_effective_fix": "httpx.AsyncClient(follow_redirects=True, max_redirects=5) setzen. Redirect-Ziel-Validierung vor jedem Hop.",
+      "cvss_v3_score": 6.8,
+      "cwe_id": "CWE-918",
+      "verification_status": "candidate"
+    },
+    {
+      "id": "#3",
+      "title": "Content-Type Validation Gap — MIME-Sniffing Bypass",
+      "severity": "medium",
+      "status": "candidate",
+      "category": "mime_sniffing",
+      "description": "Rewriting-Logik prüft nur Content-Type Header. Upstream kann JavaScript mit falschem MIME-Type senden um Rewriting zu umgehen — Same-Origin-Policy wird gebrochen.",
+      "affected_principal": "Authenticated User with Browser Session",
+      "resource": "Response Content-Type Header, Rewriting-Logik",
+      "concrete_result": "URLs im JS werden NICHT umgeschrieben → Same-Origin-Breaking. Runtime-JS fehlt ohne text/html detection.",
+      "file_paths": [
+        {"path": "/home/cptr/cptr-dev/repo/cptr/routers/browser.py", "lines": "155-192"}
+      ],
+      "smallest_effective_fix": "Body-inspection für MIME-Typen: wenn '<html' im Body aber 'text/html' nicht in Content-Type → als HTML treaten und Rewriting anwenden.",
+      "cvss_v3_score": 5.8,
+      "cwe_id": "CWE-16",
+      "verification_status": "candidate"
+    },
+    {
+      "id": "#4",
+      "title": "WebSocket Subprotocol/Origin Gap — Session Hijack Potential",
+      "severity": "medium",
+      "status": "candidate",
+      "category": "session_hijacking",
+      "description": "WebSocket Proxy validiert Origin-Header nicht, nur cookie-basierte Session. Subprotocol des Clients wird ungefiltert an upstream weitergegeben.",
+      "affected_principal": "Authenticated User with WebSocket Access",
+      "resource": "WebSocket Proxy Channel, upstream WSS connection",
+      "concrete_result": "Session-Takeover via gestohlene Cookies + unvalidierte Origin. Subprotocol-Manipulation möglich.",
+      "file_paths": [
+        {"path": "/home/cptr/cptr-dev/repo/cptr/routers/browser.py", "lines": "452-506"}
+      ],
+      "smallest_effective_fix": "Subprotocol-Whitelist + Origin-Header Check: if not origin.startswith(client_origin): await websocket.close(code=4003).",
+      "cvss_v3_score": 5.5,
+      "cwe_id": "CWE-319",
+      "verification_status": "candidate"
+    },
+    {
+      "id": "#6",
+      "title": "CSS @import/Font Rewrite Gap — Same-Origin-Breaking",
+      "severity": "low",
+      "status": "candidate",
+      "category": "rewriting_incompleteness",
+      "description": "CSS URL Rewriting erfasst nicht alle Pattern: @font-face { src: url(...) } wird NICHT umgeschrieben. Multiline CSS mit comments könnte Regex stören.",
+      "affected_principal": "Authenticated User with Browser Session",
+      "resource": "CSS URL Rewriting Engine, Same-Origin-Policy",
+      "concrete_result": "Externe Assets geladen ohne Rewriting → Same-Origin-Breaking, aber schwer ausnutzbar.",
+      "file_paths": [
+        {"path": "/home/cptr/cptr-dev/repo/cptr/utils/browser/proxy.py", "lines": "249-253"}
+      ],
+      "smallest_effective_fix": "Erweiterte CSS-URL-Erkennung: font-face src handling hinzufügen, multiline comment-aware regex.",
+      "cvss_v3_score": 4.0,
+      "cwe_id": "CWE-16",
+      "verification_status": "candidate"
+    },
+    {
+      "id": "T2-01",
+      "title": "Timing Side-Channel in Gateway API Key Enumeration",
+      "severity": "medium",
+      "status": "candidate",
+      "category": "timing_side_channel",
+      "description": "Lineare Suche über API Key-Hashes mit Early-Exit. Antwortzeit variiert linear mit Key-Position (0 bis N-1 Vergleiche). secrets.compare_digest() nicht verwendet.",
+      "affected_principal": "External Client with HTTP access to /v1/*",
+      "resource": "API Key Store — Anzahl und Position der Credentials",
+      "concrete_result": "Response-Zeit-Messung verrät Struktur und Anzahl der API Keys im Store.",
+      "file_paths": [
+        {"path": "/home/cptr/cptr-dev/repo/cptr/routers/gateway.py", "lines": "89-101"}
+      ],
+      "smallest_effective_fix": "secrets.compare_digest() für konstanten Hash-Vergleich. Kein Early Exit im Loop — alle Keys iterieren.",
+      "cvss_v3_score": 5.0,
+      "cwe_id": "CWE-208",
+      "verification_status": "candidate"
+    },
+    {
+      "id": "T1-06",
+      "title": "Process Group Escape via setsid()",
+      "severity": "low-medium",
+      "status": "candidate",
+      "category": "process_isolation",
+      "description": "Kindprozess kann durch Aufruf von setsid() oder os.fork() einer neuen Session beitreten und dem _kill_process_group-Kill entgehen.",
+      "affected_principal": "Authenticated User via Chat/LLM",
+      "resource": "Prozess-Isolation, Kill-Scope",
+      "concrete_result": "Parent-Prozess bleibt nach Stop unkontrolliert. Ressource-Leak möglich.",
+      "file_paths": [
+        {"path": "/home/cptr/cptr-dev/repo/cptr/utils/tools.py", "lines": "88"}
+      ],
+      "smallest_effective_fix": "Nach _kill_process_group: Rekursives Finden aller Kinder via /proc/<pid>/task oder psutil.Process(pid).children(recursive=True) und terminieren.",
+      "cvss_v3_score": 4.5,
+      "cwe_id": "CWE-829",
+      "verification_status": "candidate"
+    },
+    {
+      "id": "#7",
+      "title": "Unrestricted Config Write via PUT /api/admin/config",
+      "severity": "high",
+      "status": "candidate",
+      "category": "insecure_config_write",
+      "description": "ConfigUpdateRequest hat kein Schema, keine Feld-Validierung. Jeder beliebige Key-Value-Pair wird direkt in DB geschrieben — kein Whitelist, kein Type-Check auf auth.mode etc.",
+      "affected_principal": "Authenticated Admin (jeder mit admin role)",
+      "resource": "Instance Config DB — beliebige Key-Value-Pairs ohne Schema",
+      "concrete_result": "Admin kann auth.mode auf trusted_header setzen, CORS manipulieren — Auth-Bypass durch Konfigurationsmanipulation.",
+      "file_paths": [
+        {"path": "/home/cptr/cptr-dev/repo/cptr/routers/admin.py", "lines": "152-157"},
+        {"path": "/home/cptr/cptr-dev/repo/cptr/routers/admin.py", "lines": "396-397"}
+      ],
+      "smallest_effective_fix": "ConfigUpdateRequest mit explizitem Schema. Whitelist allowed keys oder validate types vor Config.upsert().",
+      "cvss_v3_score": 6.5,
+      "cwe_id": "CWE-20",
+      "verification_status": "candidate"
+    }
+  ],
+  "summary": {
+    "total_findings": 14,
+    "confirmed": 4,
+    "candidate": 10,
+    "rejected": 0,
+    "severity_breakdown": {
+      "critical": 3,
+      "high": 2,
+      "medium": 7,
+      "low": 1,
+      "informational": 0
+    },
+    "verification_status": {
+      "confirmed_by_verifier": 4,
+      "candidate": 10
+    }
+  }
+}

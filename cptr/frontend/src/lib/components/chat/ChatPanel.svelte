@@ -36,7 +36,7 @@
 		updateChatStatuses,
 		registerToolApprovalShortcutHandler,
 		steeringQueues,
-		addSteeringQueueItem, removeSteeringQueueItem, clearSteeringQueue
+		addSteeringQueueItem, removeSteeringQueueItem, clearSteeringQueue, reorderSteeringQueueItem
 	} from '$lib/stores/chat';
 	import { socketStore } from '$lib/stores/socket.svelte';
 	import { onMount, onDestroy, tick } from 'svelte';
@@ -1456,6 +1456,37 @@ async function handleSteerQueue() {
 		}
 	}
 
+	function handleSteerQueueMove(index: number, direction: 'up' | 'down') {
+		const items = steeringQueues.get(chatId);
+		if (!items || !items.length) return;
+		let targetIndex = index + (direction === 'up' ? -1 : 1);
+		if (targetIndex < 0 || targetIndex >= items.length) return;
+		reorderSteeringQueueItem(chatId, index, targetIndex);
+	}
+
+	function handleQueuedMessageMove(index: number, direction: 'up' | 'down') {
+		const items = [...queuedMessages];
+		let targetIndex = index + (direction === 'up' ? -1 : 1);
+		if (targetIndex < 0 || targetIndex >= items.length) return;
+		const swapA = { ...items[index] };
+		const swapB = { ...items[targetIndex] };
+		items[index] = swapB;
+		items[targetIndex] = swapA;
+		// Swap the underlying messages in allMessages to maintain reactive ordering
+		let idxA = -1, idxB = -1;
+		for (let i = 0; i < allMessages.length; i++) {
+			if (allMessages[i].meta?.queued && !allMessages[i].meta?.steering) {
+				if (idxA === -1 && allMessages[i].id === swapA.id) idxA = i;
+				else if (idxB === -1 && allMessages[i].id === swapB.id) idxB = i;
+			}
+		}
+		if (idxA !== -1 && idxB !== -1) {
+			const tmp = allMessages[idxA];
+			allMessages[idxA] = allMessages[idxB];
+			allMessages[idxB] = tmp;
+		}
+	}
+
 	async function handleCancel() {
 		const active = allMessages.find((m) => m.role === 'assistant' && !m.done);
 		if (!active || !chatId) return;
@@ -2256,6 +2287,10 @@ async function handleSteerQueue() {
 					onqueuestreaming={handleQueueDuringStreaming}
 						steeringQueue={steeringQueueItems}
 						onsteerqueuedelete={handleSteerQueueDelete}
+						onSteerQueueMoveUp={(index) => handleSteerQueueMove(index, 'up')}
+						onSteerQueueMoveDown={(index) => handleSteerQueueMove(index, 'down')}
+						onQueuedMessageMoveUp={(index) => handleQueuedMessageMove(index, 'up')}
+						onQueuedMessageMoveDown={(index) => handleQueuedMessageMove(index, 'down')}
 				/>
 			</div>
 		</div>

@@ -29,6 +29,10 @@
 		onsteerqueue?: () => void;
 		/** If in 'chat' mode, what color/icon to show for queue/steer. */
 		isQueued?: boolean;
+		/** If in 'chat' mode, callback to toggle Voice Mode (STT/TTS conversation). */
+		onvoice?: () => void;
+		/** If in 'chat' mode, whether Voice Mode is currently active. */
+		isVoiceActive?: boolean;
 	}
 
 	let {
@@ -41,7 +45,9 @@
 		onqueue,
 		onsteer,
 		onsteerqueue,
-		isQueued = false
+		isQueued = false,
+		onvoice,
+		isVoiceActive = false
 	}: Props = $props();
 
 	let open = $state(false);
@@ -50,13 +56,20 @@
 	let pos = $state<{ x: number; bottom: number }>({ x: -9999, bottom: -9999 });
 	let ready = $state(false);
 
-	// Long press detection for chat mode
+	// Touch/mobile: onPointerUp directly queues (no long press needed)
+	// Desktop/mouse: keep long press for queue toggle
+	const LONG_PRESS_MS = 500;
 	let pressTimer: ReturnType<typeof setTimeout> | null = null;
 	let isLongPress = false;
-	const LONG_PRESS_MS = 500;
 
-	// When long-pressed during streaming, the next click queues instead of steering
-	let isLongPressQueuing = $state(false);
+	function isTouchDevice(): boolean {
+		return (
+			typeof window !== 'undefined' &&
+			window.matchMedia('(hover: none) and (pointer: coarse)').matches
+		);
+	}
+
+	let wasLongPressQueuing = $state(false); // tracks if current pointer-down started in queuing mode
 
 	// Filename dialog state
 	let showFilenameDialog = $state(false);
@@ -64,48 +77,41 @@
 	let filenameType = $state(''); // 'file' or 'folder'
 
 	function handleClick(e: Event) {
-		// Always clear the timer on click (prevents late long-press)
-		if (pressTimer) {
-			clearTimeout(pressTimer);
-			pressTimer = null;
-		}
-
 		if (mode === 'fab' || mode === 'files') {
 			toggle();
 			return;
 		}
 
-		// Chat mode
-		// If menu is open, close it
+		// Chat mode — if menu is open, close it
 		if (open) {
 			closeMenu();
 			return;
 		}
 
-		// Normal click
-		console.log('[UnifiedButton] handleClick — mode:', mode, 'streaming:', streaming, 'canSend:', canSend, 'onqueue:', !!onqueue, 'oncancel:', !!oncancel, 'onsend:', !!onsend);
-		// Normal click
-		console.log('[UnifiedButton] handleClick — mode:', mode, 'streaming:', streaming, 'canSend:', canSend, 'onqueue:', !!onqueue, 'oncancel:', !!oncancel, 'onsend:', !!onsend);
+		console.log('[UnifiedButton] handleClick — mode:', mode, 'streaming:', streaming, 'canSend:', canSend);
+
 		if (streaming && canSend) {
-			// Streaming + text: short click = steer (inject vor nächstem Toolcall), long press = queue (am Ende)
-			if (isLongPressQueuing) {
-				console.log('[UnifiedButton] → calling onqueue (long press)');
-				isLongPressQueuing = false;
+			// Streaming + text: use the action determined by pointer interaction
+			// wasLongPressQueuing = true → queue (user held down or long-pressed)
+			// wasLongPressQueuing = false → steer (quick tap on desktop)
+			if (wasLongPressQueuing) {
+				console.log('[UnifiedButton] → calling onqueue');
+				wasLongPressQueuing = false;
 				onqueue?.();
 			} else {
-				console.log('[UnifiedButton] → calling onsteer (short click)');
+				console.log('[UnifiedButton] → calling onsteer');
 				onsteer?.();
 			}
 		} else if (streaming && !canSend && oncancel) {
-			// Streaming + no text = stop generation
 			console.log('[UnifiedButton] → calling oncancel');
 			oncancel();
 		} else if (canSend && onsend) {
-			// Not streaming + text = send message
 			console.log('[UnifiedButton] → calling onsend');
 			onsend();
+		} else if (!streaming && isVoiceActive && onvoice) {
+			console.log('[UnifiedButton] → calling onvoice (disable)');
+			onvoice();
 		} else {
-			// No text, not streaming: open menu (like FAB)
 			console.log('[UnifiedButton] → calling toggle');
 			toggle();
 		}
@@ -114,6 +120,7 @@
 	function handlePointerDown() {
 		if (mode !== 'chat') return;
 		isLongPress = false;
+		wasLongPressQueuing = false; // reset for this pointer cycle
 		pressTimer = setTimeout(() => {
 			isLongPress = true;
 			console.log('[UnifiedButton] LONG PRESS triggered!', mode);
@@ -122,22 +129,37 @@
 	}
 
 	function handlePointerUp(e: Event) {
-		// If long press was detected during streaming, set queuing mode.
-		// On touch devices 'click' never fires after a long press,
-		// so we must handle it here instead of waiting for handleClick.
+		if (mode !== 'chat') return;
+
+		// Touch device during streaming + canSend → simple release = queue
+		const isTouch = isTouchDevice();
+		if (isTouch && streaming && canSend && !isLongPress) {
+			console.log('[UnifiedButton] handlePointerUp → TOUCH: streaming+release = queue');
+			wasLongPressQueuing = true; // mark next click as queue action
+			e.preventDefault();
+			return;
+		}
+
+		// Long press detected (desktop or touch after 500ms hold)
 		if (isLongPress) {
 			isLongPress = false;
-			// During streaming: long press → red button + queue mode
 			if (streaming && canSend) {
-				isLongPressQueuing = true;
-				console.log('[UnifiedButton] handlePointerUp → long press in streaming, queued for next click');
-			} else {
+				wasLongPressQueuing = !wasLongPressQueuing; // toggle queue mode
+				console.log('[UnifiedButton] handlePointerUp → long press: wasLongPressQueuing toggled to', wasLongPressQueuing);
+			} else if (canSend) {
 				onqueue?.();
 			}
 			e.preventDefault();
 			return;
 		}
-		console.log('[UnifiedButton] handlePointerUp');
+
+		// Desktop short release during streaming → steer (default behavior)
+		if (streaming && canSend) {
+			console.log('[UnifiedButton] handlePointerUp → DESKTOP: streaming+release = steer');
+			wasLongPressQueuing = false; // ensure steer mode
+		}
+
+		console.log('[UnifiedButton] handlePointerUp done');
 	}
 
 	function handlePointerCancel() {
@@ -145,7 +167,7 @@
 			clearTimeout(pressTimer);
 			pressTimer = null;
 		}
-		isLongPressQueuing = false;  // Reset if pointer cancelled mid-press
+		wasLongPressQueuing = false; // reset if pointer cancelled mid-press
 		console.log('[UnifiedButton] handlePointerCancel');
 	}
 
@@ -157,15 +179,21 @@
 		// Chat mode
 		if (streaming) {
 			if (isQueued) return 'arrow-up-circle';
-			if (isLongPressQueuing) return 'arrow-up-circle';  // long-press queue mode: red arrow
+			if (wasLongPressQueuing) return 'arrow-up-circle';  // queued for next click
 			if (onsteerqueue && canSend) return 'stop';  // steer-queue mode: amber stop
 			if (onsteer && !canSend) return 'stop';  // steer mode: gray stop
 			if (oncancel) return 'stop';
 		}
 
+		// Chat mode — Voice Mode check first
+		if (!streaming && isVoiceActive && onvoice) {
+			return 'microphone';  // Active voice → mic icon (click to disable)
+		}
+
 		// Not streaming, no text: blue plus
 		if (!canSend && !streaming) {
-			return 'plus';
+			if (onvoice) return 'microphone';  // Voice available → mic icon (click to enable)
+			return 'plus';                     // No voice → FAB menu
 		}
 
 		return 'arrow-right';
@@ -185,8 +213,8 @@
 			// Steer button: orange (short click injects message into running task)
 			return base + 'bg-orange-500 text-white hover:bg-orange-600';
 		}
-		if (streaming && isLongPressQueuing) {
-			// Long-press queue mode: red (message will go to regular queue on next click)
+		if (streaming && wasLongPressQueuing) {
+			// Queued for next click: red (message will go to regular queue on next click)
 			return base + 'bg-red-500 text-white hover:bg-red-600';
 		}
 		if (streaming && onsteerqueue && canSend) {
@@ -205,10 +233,13 @@
 			// Send button: gradient
 			return base + 'bg-gradient-to-br from-blue-600 to-indigo-800 text-white hover:from-blue-700 hover:to-indigo-900 shadow-md shadow-indigo-600/20';
 		}
-		// No text, not streaming: blue plus
+		if (!streaming && isVoiceActive) {
+			// Voice active: green + pulse (click to disable)
+			return base + 'bg-emerald-500 text-white animate-pulse shadow-md shadow-emerald-600/20 cursor-pointer';
+		}
+		// No text, not streaming: blue plus (or mic if voice available in getIcon)
 		return base + 'bg-gradient-to-br from-blue-600 to-indigo-800 text-white hover:from-blue-700 hover:to-indigo-900 cursor-pointer shadow-md shadow-indigo-600/20';
 	}
-
 	function handleNewChat() {
 		const ag = get(activeGroup);
 		const hs = get(homeState);
@@ -258,6 +289,11 @@
 		} catch (e) {
 			console.error(e);
 		}
+		closeMenu();
+	}
+
+	function handleToggleVoice() {
+		onvoice?.();
 		closeMenu();
 	}
 
@@ -312,12 +348,12 @@
 		}
 	}
 
-	// Reset long-press queuing when streaming ends or conditions change
+	// Reset queuing state when streaming ends or conditions change
 	$effect(() => {
 		void streaming;  // track streaming
 		void canSend;  // track canSend
 		if (!streaming || !canSend) {
-			isLongPressQueuing = false;
+			wasLongPressQueuing = false;
 		}
 	});
 
@@ -436,6 +472,15 @@
 				<Icon name="globe" size={20} />
 				<span class="flex-1 text-left truncate">{$t('bar.newBrowser')}</span>
 			</button>
+
+			{#if onvoice && !streaming && !canSend}
+			<button class="flex items-center gap-3 w-full h-12 px-3 text-sm rounded-xl transition-colors {isVoiceActive ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5'}"
+				onclick={handleToggleVoice}
+			>
+				<Icon name="mic" size={20} />
+				<span class="flex-1 text-left truncate">{isVoiceActive ? $t('chat.voiceModeOff') : $t('chat.voiceModeOn')}</span>
+			</button>
+			{/if}
 		{/if}
 	</div>
 {/if}

@@ -107,6 +107,10 @@
 		onsteer?: () => void;
 		onsteerqueue?: () => void;
 		onsteerqueuedelete?: (id: string) => void;
+		onSteerQueueMoveUp?: (index: number) => void;
+		onSteerQueueMoveDown?: (index: number) => void;
+		onQueuedMessageMoveUp?: (index: number) => void;
+		onQueuedMessageMoveDown?: (index: number) => void;
 	}
 	let {
 		inputText = $bindable(),
@@ -147,6 +151,10 @@
 		onsteer,
 		onsteerqueue,
 		onsteerqueuedelete,
+		onSteerQueueMoveUp,
+		onSteerQueueMoveDown,
+		onQueuedMessageMoveUp,
+		onQueuedMessageMoveDown,
 		steeringQueue = []
 	}: Props = $props();
 
@@ -1362,15 +1370,35 @@ const combinedQueue = $derived.by(() => {
 		<div
 			class="app-subtle-surface mb-1 mx-2 py-0.5 px-1.5 rounded-2xl border overflow-x-hidden overflow-y-auto max-h-[25vh]"
 		>
-			{#each combinedQueue as item (item.id)}
+			{#each combinedQueue as item, index (item.id)}
 				{#if item.type === 'steer'}
 					<!-- Steering queue item (amber accent) -->
-					<div class="flex items-center gap-2 px-2 py-1 border-l-4 border-amber-400 rounded-r-lg bg-amber-50/30 dark:bg-amber-500/5 dark:border-amber-500">
-						<span class="shrink-0 text-[0.625rem] font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">⚡ steer</span>
+					<div class="flex items-center gap-1 px-2 py-1 border-l-4 border-amber-400 rounded-r-lg bg-amber-50/30 dark:bg-amber-500/5 dark:border-amber-500">
+						<span class="shrink-0 text-[0.625rem] font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">⚡</span>
 						<p class="flex-1 min-w-0 text-xs text-gray-700 dark:text-gray-200 truncate">{item.content}</p>
+						{#if combinedQueue.length > 1}
+							<button
+								type="button"
+								class="shrink-0 p-1 rounded-md text-gray-400 dark:text-gray-500 hover:text-blue-600 transition-colors duration-100 ${index === 0 ? 'opacity-30 pointer-events-none' : ''}"
+								title="Move up"
+								onclick={() => onSteerQueueMoveUp?.(index)}
+								ontouchend={(e) => e.preventDefault()}
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
+							</button>
+							<button
+								type="button"
+								class="shrink-0 p-1 rounded-md text-gray-400 dark:text-gray-500 hover:text-blue-600 transition-colors duration-100 ${index === combinedQueue.length - 1 ? 'opacity-30 pointer-events-none' : ''}"
+								title="Move down"
+								onclick={() => onSteerQueueMoveDown?.(index)}
+								ontouchend={(e) => e.preventDefault()}
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+							</button>
+						{/if}
 						<button
 							type="button"
-							class="shrink-0 p-1 rounded-md text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors duration-100"
+							class="shrink-0 p-1 rounded-md text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors duration-100 active:scale-90 touch-manipulation"
 							title="Remove"
 							onclick={() => onsteerqueuedelete?.(item.id)}
 						>
@@ -1381,10 +1409,30 @@ const combinedQueue = $derived.by(() => {
 					</div>
 				{:else}
 					<!-- Regular queued message (blue accent) -->
-					<div class="flex items-center gap-2 px-2 py-1 border-l-4 border-blue-400 rounded-r-lg bg-blue-50/30 dark:bg-blue-500/5 dark:border-blue-500">
-						<span class="shrink-0 text-[0.625rem] font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">↗ queue</span>
+					<div class="flex items-center gap-1 px-2 py-1 border-l-4 border-blue-400 rounded-r-lg bg-blue-50/30 dark:bg-blue-500/5 dark:border-blue-500">
+						<span class="shrink-0 text-[0.625rem] font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">↗</span>
 						<p class="flex-1 min-w-0 text-xs text-gray-700 dark:text-gray-200 truncate">{item.content}</p>
-						<button type="button" class="shrink-0 p-1 rounded-md text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors duration-100" title="Remove" onclick={() => onqueuedelete?.(item.id)}>
+						{#if combinedQueue.length > 1}
+							<button
+								type="button"
+								class="shrink-0 p-1 rounded-md text-gray-400 dark:text-gray-500 hover:text-blue-600 transition-colors duration-100 ${index === 0 ? 'opacity-30 pointer-events-none' : ''}"
+								title="Move up"
+								onclick={() => onQueuedMessageMoveUp?.(index)}
+								ontouchend={(e) => e.preventDefault()}
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
+							</button>
+							<button
+								type="button"
+								class="shrink-0 p-1 rounded-md text-gray-400 dark:text-gray-500 hover:text-blue-600 transition-colors duration-100 ${index === combinedQueue.length - 1 ? 'opacity-30 pointer-events-none' : ''}"
+								title="Move down"
+								onclick={() => onQueuedMessageMoveDown?.(index)}
+								ontouchend={(e) => e.preventDefault()}
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+							</button>
+						{/if}
+						<button type="button" class="shrink-0 p-1 rounded-md text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors duration-100 active:scale-90 touch-manipulation" title="Remove" onclick={() => onqueuedelete?.(item.id)}>
 							<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
 						</button>
 					</div>
@@ -1920,6 +1968,8 @@ const combinedQueue = $derived.by(() => {
 					onqueue={handleQueue}
 					onsteer={handleSteer}
 					isQueued={streaming && inputText.trim() !== ''}
+					onvoice={voiceModeAvailable ? toggleVoiceMode : undefined}
+					isVoiceActive={voiceModeEnabled && (voiceListening || voiceRearming)}
 					mode="chat"
 				/>
 			</div>

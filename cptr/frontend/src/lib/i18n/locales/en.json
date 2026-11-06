@@ -1006,6 +1006,7 @@
   "chat.edit.tool": "Tool",
   "chat.edit.item": "Item",
   "chat.dictate.unsupported": "Speech recognition not supported in this browser.",
+   "chat.voiceModeOff": "Voice mode off",
   "chat.voiceModeOn": "Voice mode on",
   "chat.voiceListening": "Listening...",
   "chat.voiceWaiting": "Waiting for response...",
