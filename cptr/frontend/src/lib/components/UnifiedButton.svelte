@@ -192,7 +192,7 @@
 
 		// Not streaming, no text: blue plus or mic depending on voice state
 		if (!canSend && !streaming) {
-			if (onvoice && isVoiceActive) return 'microphone';  // Voice available & active → mic icon (click to enable/disable)
+			if (onvoice) return 'microphone';  // Voice available → mic icon (click to enable/disable if inactive, click to disable if active)
 			return 'plus';                     // No voice or voice inactive → FAB menu
 		}
 
