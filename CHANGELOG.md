@@ -1,3 +1,15 @@
+## [0.9.21.36] - 2026-11-07
+
+### Added
+- 📱 **Mobile release→queue toggle.** Umschaltknopf zum Wechseln zwischen Release und Queue auf mobilen Geräten.
+- ⬆️⬇️ **Queue move up/down buttons.** Items in der Steering Queue können per Button nach oben/unten verschoben werden.
+- 👆 **Touch-friendly delete.** Touch-freundliche Lösch-Buttons für mobile Geräte.
+
+### Fixed
+- 🎤 **Voice Mode Icon Logik.** Zeigt Plus-Icon im initialen Chat an (wenn Voice nicht aktiv), Mikrofon nur wenn Voice aktiv. Verhindert falsches Mikrofon-Icon beim Öffnen eines neuen Chats.
+
+---
+
 ## [0.9.21.35] - 2026-11-05
 
 ### Added
