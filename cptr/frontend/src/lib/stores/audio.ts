@@ -163,6 +163,7 @@ export async function unlockTtsAudioPlayback() {
 
 export async function refreshAudioState() {
 	try {
+		console.log('[audio] refreshAudioState: fetching /api/audio/state');
 		const data = await fetchJSON<{
 			voice_memos_enabled: boolean;
 			transcribe_enabled: boolean;
@@ -176,6 +177,7 @@ export async function refreshAudioState() {
 			tts_auto_stream_enabled?: boolean;
 			voice_mode_stt_mode?: string;
 		}>('/api/audio/state');
+		console.log('[audio] refreshAudioState: got data', JSON.stringify(data));
 		voiceMemosEnabled.set(data.voice_memos_enabled === true);
 		transcribeEnabled.set(data.transcribe_enabled !== false);
 		sttConfigured.set(data.stt_configured === true);
@@ -190,7 +192,9 @@ export async function refreshAudioState() {
 		ttsPlaybackSpeed.set(Number.isFinite(speed) ? Math.min(Math.max(speed, 0.5), 2) : 1);
 		ttsAutoStreamEnabled.set(data.tts_auto_stream_enabled === true);
 		voiceModeSttMode.set(data.voice_mode_stt_mode === 'provider' ? 'provider' : 'browser');
-	} catch {
+		console.log('[audio] refreshAudioState: stores updated, voiceModeSttMode=', data.voice_mode_stt_mode);
+	} catch (e) {
+		console.error('[audio] refreshAudioState ERROR:', e);
 		voiceMemosEnabled.set(false);
 		sttConfigured.set(false);
 		ttsEnabled.set(false);
