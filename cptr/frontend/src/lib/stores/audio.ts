@@ -162,8 +162,9 @@ export async function unlockTtsAudioPlayback() {
 }
 
 export async function refreshAudioState() {
+	console.log('[audio] refreshAudioState START');
 	try {
-		console.log('[audio] refreshAudioState: fetching /api/audio/state');
+		console.log('[audio] fetching /api/audio/state...');
 		const data = await fetchJSON<{
 			voice_memos_enabled: boolean;
 			transcribe_enabled: boolean;
@@ -177,22 +178,29 @@ export async function refreshAudioState() {
 			tts_auto_stream_enabled?: boolean;
 			voice_mode_stt_mode?: string;
 		}>('/api/audio/state');
-		console.log('[audio] refreshAudioState: got data', JSON.stringify(data));
+		console.log('[audio] got data:', JSON.stringify(data));
+		const ttsEn = data.tts_enabled === true;
+		const ttsConf = data.tts_configured === true;
+		const sttConf = data.stt_configured === true;
+		console.log('[audio] ttsEnabled=', ttsEn, 'ttsConfigured=', ttsConf, 'sttConfigured=', sttConf);
 		voiceMemosEnabled.set(data.voice_memos_enabled === true);
 		transcribeEnabled.set(data.transcribe_enabled !== false);
-		sttConfigured.set(data.stt_configured === true);
+		sttConfigured.set(sttConf);
 		const q = data.recording_quality;
 		if (q === 'medium' || q === 'low') recordingQuality.set(q);
 		else recordingQuality.set('high');
-		ttsEnabled.set(data.tts_enabled === true);
-		ttsConfigured.set(data.tts_configured === true);
+		ttsEnabled.set(ttsEn);
+		ttsConfigured.set(ttsConf);
 		ttsVoice.set(data.tts_voice || 'alloy');
 		ttsFormat.set(data.tts_format || 'mp3');
 		const speed = Number(data.tts_playback_speed);
 		ttsPlaybackSpeed.set(Number.isFinite(speed) ? Math.min(Math.max(speed, 0.5), 2) : 1);
 		ttsAutoStreamEnabled.set(data.tts_auto_stream_enabled === true);
-		voiceModeSttMode.set(data.voice_mode_stt_mode === 'provider' ? 'provider' : 'browser');
-		console.log('[audio] refreshAudioState: stores updated, voiceModeSttMode=', data.voice_mode_stt_mode);
+		const vmMode = data.voice_mode_stt_mode === 'provider' ? 'provider' : 'browser';
+		voiceModeSttMode.set(vmMode);
+		console.log('[audio] stores set: voiceModeSttMode=', vmMode, '(from', data.voice_mode_stt_mode + ')');
+		const available = ttsEn && ttsConf && (vmMode === 'browser' || sttConf);
+		console.log('[audio] voiceModeAvailable=', available);
 	} catch (e) {
 		console.error('[audio] refreshAudioState ERROR:', e);
 		voiceMemosEnabled.set(false);
