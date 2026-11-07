@@ -183,6 +183,7 @@ export async function refreshAudioState() {
 		const ttsConf = data.tts_configured === true;
 		const sttConf = data.stt_configured === true;
 		console.log('[audio] ttsEnabled=', ttsEn, 'ttsConfigured=', ttsConf, 'sttConfigured=', sttConf);
+		window.__AUDIO_DEBUG = { ttsEn, ttsConf, sttConf, voiceModeSttMode: data.voice_mode_stt_mode };
 		voiceMemosEnabled.set(data.voice_memos_enabled === true);
 		transcribeEnabled.set(data.transcribe_enabled !== false);
 		sttConfigured.set(sttConf);
@@ -200,9 +201,11 @@ export async function refreshAudioState() {
 		voiceModeSttMode.set(vmMode);
 		console.log('[audio] stores set: voiceModeSttMode=', vmMode, '(from', data.voice_mode_stt_mode + ')');
 		const available = ttsEn && ttsConf && (vmMode === 'browser' || sttConf);
+		window.__AUDIO_DEBUG.available = available;
 		console.log('[audio] voiceModeAvailable=', available);
 	} catch (e) {
 		console.error('[audio] refreshAudioState ERROR:', e);
+		window.__AUDIO_DEBUG_ERROR = String(e);
 		voiceMemosEnabled.set(false);
 		sttConfigured.set(false);
 		ttsEnabled.set(false);
