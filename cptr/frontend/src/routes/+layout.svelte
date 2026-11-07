@@ -199,7 +199,7 @@
 				authState = 'authenticated';
 				initState();
 				refreshChatState();
-				refreshAudioState();
+				await refreshAudioState();
 
 				// Check for version updates (admin only, after session is set)
 				checkForUpdates();
@@ -214,7 +214,7 @@
 			authState = 'authenticated';
 			initState();
 			refreshChatState();
-			refreshAudioState();
+			await refreshAudioState();
 		}
 	}
 
@@ -234,7 +234,7 @@
 				authState = 'authenticated';
 				initState();
 				refreshChatState();
-				refreshAudioState();
+				await refreshAudioState();
 				if (wasSetup) showSetup = true;
 				return;
 			}
