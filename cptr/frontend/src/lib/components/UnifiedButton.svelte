@@ -108,8 +108,8 @@
 		} else if (canSend && onsend) {
 			console.log('[UnifiedButton] → calling onsend');
 			onsend();
-		} else if (!streaming && isVoiceActive && onvoice) {
-			console.log('[UnifiedButton] → calling onvoice (disable)');
+		} else if (!streaming && !canSend && onvoice) {
+			console.log('[UnifiedButton] → calling onvoice', isVoiceActive ? '(disable)' : '(enable)');
 			onvoice();
 		} else {
 			console.log('[UnifiedButton] → calling toggle');
@@ -237,8 +237,12 @@
 			// Voice active: green + pulse (click to disable)
 			return base + 'bg-emerald-500 text-white animate-pulse shadow-md shadow-emerald-600/20 cursor-pointer';
 		}
-		// No text, not streaming: blue plus (or mic if voice available in getIcon)
-		return base + 'bg-gradient-to-br from-blue-600 to-indigo-800 text-white hover:from-blue-700 hover:to-indigo-900 cursor-pointer shadow-md shadow-indigo-600/20';
+		// No voice at all or no available handler: blue plus
+		if (!onvoice) {
+			return base + 'bg-gradient-to-br from-blue-600 to-indigo-800 text-white hover:from-blue-700 hover:to-indigo-900 cursor-pointer shadow-md shadow-indigo-600/20';
+		}
+		// Voice available but inactive: lighter blue with ring (click to enable)
+		return base + 'bg-gradient-to-br from-sky-500 to-blue-600 text-white hover:from-sky-600 hover:to-blue-700 cursor-pointer shadow-md shadow-sky-600/20';
 	}
 	function handleNewChat() {
 		const ag = get(activeGroup);
