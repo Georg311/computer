@@ -1038,6 +1038,7 @@
 				inputText = inputText.trim();
 				handleSubmit();
 				voiceCollectedText = '';
+			}
 
 			voiceListening = false;
 			stopVoiceCapture();
@@ -1086,6 +1087,7 @@
 			void acquireVoiceWakeLock();
 			voiceWaitingForResponse = false;
 			voiceSawStreaming = false;
+			void startVoiceRecognition().catch(() => {});
 		} else {
 			releaseVoiceWakeLock();
 			voiceWaitingForResponse = false;
