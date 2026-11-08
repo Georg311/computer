@@ -36,9 +36,9 @@ export class ApiError extends Error {
 	}
 }
 
-/** Shorthand for JSON POST/PUT body. */
-export const jsonBody = (data: unknown): RequestInit => ({
-	method: 'POST',
+/** Shorthand for JSON POST/PUT/PATCH body. */
+export const jsonBody = (data: unknown, method?: string): RequestInit => ({
+	method: method ?? 'POST',
 	headers: { 'Content-Type': 'application/json' },
 	body: JSON.stringify(data)
 });

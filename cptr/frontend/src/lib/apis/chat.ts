@@ -164,7 +164,7 @@ export const updateChatTitle = (chatId: string, title: string) =>
 export const updateChatSettings = (chatId: string, modelId: string, params: ChatSendParams) =>
 	fetchJSON<{ ok: boolean }>(
 		`/api/chats/${chatId}/settings`,
-		jsonBody({ model_id: modelId, params })
+		jsonBody({ model_id: modelId, params }, 'PATCH')
 	);
 
 export const forkChat = (chatId: string, messageId?: string | null) =>
