@@ -468,7 +468,7 @@
 			<button class="flex items-center gap-3 w-full h-12 px-3 text-sm rounded-xl transition-colors {isVoiceActive ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5'}"
 				onclick={handleToggleVoice}
 			>
-				<Icon name="mic" size={20} />
+				<Icon name="microphone" size={20} />
 				<span class="flex-1 text-left truncate">{isVoiceActive ? $t('chat.voiceModeOff') : $t('chat.voiceModeOn')}</span>
 			</button>
 			{/if}
