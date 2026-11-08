@@ -933,6 +933,7 @@
 
 	async function startVoiceRecognition() {
 		clearVoiceRestartTimer(false);
+		console.log("[Voice] startVoiceRecognition called — voiceModeAvailable:", voiceModeAvailable, "voiceModeEnabled:", voiceModeEnabled, "waitingForResponse:", voiceWaitingForResponse, "listening:", voiceListening, "hasRecognition:", !!voiceRecognition, "streaming:", streaming, "sending:", sending, "inputText:", JSON.stringify(inputText));
 		if (
 			!voiceModeAvailable ||
 			!voiceModeEnabled ||
@@ -966,6 +967,7 @@
 		recognition.onresult = async (event: any) => {
 			let finalResult = '';
 			let interimResult = '';
+			console.log("[Voice] onresult — sttMode:", $voiceModeSttMode, "resultsLen:", event.results?.length);
 
 			for (let i = event.resultIndex; i < event.results.length; i++) {
 				const result = event.results[i];
@@ -978,6 +980,7 @@
 
 			const combinedText = (finalResult + interimResult).trim();
 			if (!combinedText || !voiceListening) return;
+			console.log("[Voice] onresult — combinedText:", JSON.stringify(combinedText), "voiceListening:", voiceListening);
 
 			// Kumulativ sammeln
 			voiceCollectedText += finalResult;
@@ -1025,6 +1028,7 @@
 
 		recognition.onend = () => {
 			if (voiceRecognition !== recognition) return;
+			console.log("[Voice] onend — voiceStopRequested:", voiceStopRequested, "voiceCollectedTextLen:", voiceCollectedText.length, "inputText:", JSON.stringify(inputText));
 			voiceRecognition = null;
 
 			// Gesammelten Text verarbeiten bevor wir stoppen
@@ -1063,6 +1067,7 @@
 			};
 
 			recognition.start();
+			console.log("[Voice] Starting recognition — voiceListening will be true");
 			voiceListening = true;
 			voiceRearming = false;
 			recorder.start();
@@ -1080,6 +1085,7 @@
 			return;
 		}
 		const next = !voiceModeEnabled;
+		console.log("[Voice] toggleVoiceMode — next:", next, "voiceModeAvailable:", voiceModeAvailable);
 		voiceModeEnabled = next;
 		onsettingschange?.();
 		if (next) {
