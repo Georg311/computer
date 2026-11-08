@@ -108,9 +108,6 @@
 		} else if (canSend && onsend) {
 			console.log('[UnifiedButton] → calling onsend');
 			onsend();
-		} else if (!streaming && !canSend && onvoice) {
-			console.log('[UnifiedButton] → calling onvoice', isVoiceActive ? '(disable)' : '(enable)');
-			onvoice();
 		} else {
 			console.log('[UnifiedButton] → calling toggle');
 			toggle();
@@ -185,15 +182,9 @@
 			if (oncancel) return 'stop';
 		}
 
-		// Chat mode — Voice Mode check first
-		if (!streaming && isVoiceActive && onvoice) {
-			return 'microphone';  // Active voice → mic icon (click to disable)
-		}
-
-		// Not streaming, no text: blue plus or mic depending on voice state
+		// Not streaming, no text: always show plus (voice mode is in the menu)
 		if (!canSend && !streaming) {
-			if (onvoice) return 'microphone';  // Voice available → mic icon (click to enable/disable if inactive, click to disable if active)
-			return 'plus';                     // No voice or voice inactive → FAB menu
+			return 'plus';                     
 		}
 
 		return 'arrow-right';
@@ -233,15 +224,11 @@
 			// Send button: gradient
 			return base + 'bg-gradient-to-br from-blue-600 to-indigo-800 text-white hover:from-blue-700 hover:to-indigo-900 shadow-md shadow-indigo-600/20';
 		}
-		if (!streaming && isVoiceActive) {
-			// Voice active: green + pulse (click to disable)
-			return base + 'bg-emerald-500 text-white animate-pulse shadow-md shadow-emerald-600/20 cursor-pointer';
-		}
-		// No voice at all or no available handler: blue plus
+		// No voice at all or no available handler: blue plus (voice mode is in the menu)
 		if (!onvoice) {
 			return base + 'bg-gradient-to-br from-blue-600 to-indigo-800 text-white hover:from-blue-700 hover:to-indigo-900 cursor-pointer shadow-md shadow-indigo-600/20';
 		}
-		// Voice available but inactive: lighter blue with ring (click to enable)
+		// Voice available but inactive: lighter blue (click opens menu)
 		return base + 'bg-gradient-to-br from-sky-500 to-blue-600 text-white hover:from-sky-600 hover:to-blue-700 cursor-pointer shadow-md shadow-sky-600/20';
 	}
 	function handleNewChat() {
