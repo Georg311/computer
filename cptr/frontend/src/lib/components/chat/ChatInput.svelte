@@ -1033,7 +1033,11 @@
 				inputText = pendingText;
 				handleSubmit();
 				voiceCollectedText = '';
-			}
+			} else if (!voiceStopRequested && inputText.trim() && !voiceWaitingForResponse) {
+				// Interim-Text (ohne Final-Result) als Fallback submiten
+				inputText = inputText.trim();
+				handleSubmit();
+				voiceCollectedText = '';
 
 			voiceListening = false;
 			stopVoiceCapture();
@@ -1082,12 +1086,19 @@
 			void acquireVoiceWakeLock();
 			voiceWaitingForResponse = false;
 			voiceSawStreaming = false;
-			void startVoiceRecognition().catch(() => {});
 		} else {
 			releaseVoiceWakeLock();
 			voiceWaitingForResponse = false;
 			voiceSawStreaming = false;
 			stopVoiceRecognition();
+		}
+	}
+
+	function startStopListening() {
+		if (voiceListening || voiceRearming) {
+			stopVoiceRecognition();
+		} else {
+			void startVoiceRecognition().catch(() => {});
 		}
 	}
 
