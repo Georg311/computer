@@ -800,10 +800,10 @@
 		)
 			return;
 		voiceRearming = true;
-		voiceRestartTimer = window.setTimeout(() => {
+		voiceRestartTimer = window.setTimeout(async () => {
 			voiceRestartTimer = 0;
 			voiceRearming = false;
-			startVoiceRecognition();
+			await startVoiceRecognition().catch(() => {});
 		}, delay);
 	}
 
@@ -930,7 +930,7 @@
 		return (data?.text || '').trim();
 	}
 
-	function startVoiceRecognition() {
+	async function startVoiceRecognition() {
 		clearVoiceRestartTimer(false);
 		if (
 			!voiceModeAvailable ||
@@ -1017,10 +1017,25 @@
 		};
 
 		try {
+			const captureStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			const mimeType = chooseVoiceCaptureMimeType();
+			if (!mimeType) {
+				captureStream.getTracks().forEach((t) => t.stop());
+				throw new Error('No supported mime type for voice capture');
+			}
+			const recorder = new MediaRecorder(captureStream, { mimeType });
+			voiceCaptureStream = captureStream;
+			voiceCaptureRecorder = recorder;
+			voiceCaptureChunks = [];
+			voiceCaptureMimeType = mimeType;
+			recorder.ondataavailable = (event) => {
+				if (event.data.size > 0) voiceCaptureChunks.push(event.data);
+			};
+
 			recognition.start();
 			voiceListening = true;
 			voiceRearming = false;
-			void startVoiceCapture();
+			recorder.start();
 		} catch {
 			voiceRecognition = null;
 			voiceListening = false;
@@ -1042,7 +1057,7 @@
 			void acquireVoiceWakeLock();
 			voiceWaitingForResponse = false;
 			voiceSawStreaming = false;
-			startVoiceRecognition();
+			void startVoiceRecognition().catch(() => {});
 		} else {
 			releaseVoiceWakeLock();
 			voiceWaitingForResponse = false;
