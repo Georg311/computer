@@ -1119,9 +1119,7 @@
 	});
 
 	$effect(() => {
-		if (voiceModeEnabled && inputText.trim()) {
-			stopVoiceRecognition();
-		}
+		// Voice mode active with interim results — don't stop recognition for inputText changes.
 	});
 
 	function getSlashCommandIds(query: string) {
