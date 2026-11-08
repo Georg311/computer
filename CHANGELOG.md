@@ -7,6 +7,7 @@
 
 ### Fixed
 - 🎤 **Voice Mode Icon Logik.** Zeigt Plus-Icon im initialen Chat an (wenn Voice nicht aktiv), Mikrofon nur wenn Voice aktiv. Verhindert falsches Mikrofon-Icon beim Öffnen eines neuen Chats.
+- 🎤 **Voice Mode Transkription Race Condition.** Startet Audio-Capture (`getUserMedia` + `MediaRecorder`) VOR `SpeechRecognition.start()`. Zuvor war das Recognition-Objekt stumm, weil `getUserMedia` erst nach `recognition.start()` aufgerufen wurde — der Browser hat den Mic-Zugriff blockiert und keine Transkription kam an.
 
 ---
 
