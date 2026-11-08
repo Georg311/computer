@@ -173,6 +173,7 @@
 	let voiceCaptureMimeType = 'audio/webm';
 	let selectedSlashCommandIndex = $state(0);
 	let modelSelector: ModelSelector | undefined = $state();
+	let voiceCollectedText = ''; // kumulativer Text über Interim+Final-Ergebnisse
 	const voiceModeAvailable = $derived(
 		$ttsEnabled && $ttsConfigured && ($voiceModeSttMode === 'browser' || $sttConfigured)
 	);
@@ -963,40 +964,55 @@
 		recognition.lang = navigator.language || 'en-US';
 
 		recognition.onresult = async (event: any) => {
-			let browserText = '';
+			let finalResult = '';
+			let interimResult = '';
+
 			for (let i = event.resultIndex; i < event.results.length; i++) {
 				const result = event.results[i];
-				if (result?.isFinal) browserText += ` ${result[0]?.transcript || ''}`;
-			}
-			browserText = browserText.trim();
-			if (!browserText) return;
-			voiceWaitingForResponse = true;
-			voiceSawStreaming = false;
-			const capturePromise = stopVoiceCapture();
-			stopVoiceRecognition(false);
-			const capture = await capturePromise;
-			let text = browserText;
-			if ($voiceModeSttMode === 'provider' && capture) {
-				try {
-					text = (await transcribeVoiceModeCapture(capture)) || browserText;
-				} catch (err: any) {
-					const detail = err?.message ? ` ${err.message}` : '';
-					toast.error(`${$t('chat.voiceProviderSttFallback')}${detail}`);
-					text = browserText;
+				if (result?.isFinal && result[0]?.transcript != null) {
+					finalResult += ` ${result[0].transcript.trim()}`;
+				} else if (result?.isInterim && result[0]?.transcript != null) {
+					interimResult = ` ${result[0].transcript.trim()}`;
 				}
-			} else if ($voiceModeSttMode === 'provider') {
-				toast.error($t('chat.voiceProviderSttNoAudio'));
-			} else if (capture) {
-				void saveVoiceModeSttCapture(capture, browserText);
 			}
-			if (!text.trim()) {
-				voiceWaitingForResponse = false;
-				scheduleVoiceRestart(500);
-				return;
+
+			const combinedText = (finalResult + interimResult).trim();
+			if (!combinedText || !voiceListening) return;
+
+			// Kumulativ sammeln
+			voiceCollectedText += finalResult;
+
+			if (finalResult && !voiceWaitingForResponse) {
+				voiceWaitingForResponse = true;
+				const capturePromise = stopVoiceCapture();
+				stopVoiceRecognition(false);
+				const capture = await capturePromise;
+
+				let text = voiceCollectedText.trim() || finalResult.trim();
+				if ($voiceModeSttMode === 'provider' && capture) {
+					try {
+						text = (await transcribeVoiceModeCapture(capture)) || text;
+					} catch (err: any) {
+						const detail = err?.message ? ` ${err.message}` : '';
+						toast.error(`${$t('chat.voiceProviderSttFallback')}${detail}`);
+					}
+				} else if ($voiceModeSttMode === 'provider' && !capture) {
+					toast.error($t('chat.voiceProviderSttNoAudio'));
+				}
+
+				if (text.trim()) {
+					inputText = text;
+					await tick();
+					handleSubmit();
+				} else {
+					voiceWaitingForResponse = false;
+					scheduleVoiceRestart(500);
+				}
+			} else if (!finalResult && interimResult) {
+				// Nur Interim — live im Input anzeigen, aber noch nicht submit
+				inputText = voiceCollectedText.trim() + (interimResult || '').trim();
+				await tick();
 			}
-			inputText = text;
-			await tick();
-			handleSubmit();
 		};
 
 		recognition.onerror = (event: any) => {
@@ -1010,6 +1026,15 @@
 		recognition.onend = () => {
 			if (voiceRecognition !== recognition) return;
 			voiceRecognition = null;
+
+			// Gesammelten Text verarbeiten bevor wir stoppen
+			const pendingText = voiceCollectedText.trim();
+			if (!voiceStopRequested && pendingText && !voiceWaitingForResponse) {
+				inputText = pendingText;
+				handleSubmit();
+				voiceCollectedText = '';
+			}
+
 			voiceListening = false;
 			stopVoiceCapture();
 			if (!voiceStopRequested) scheduleVoiceRestart(1200);
