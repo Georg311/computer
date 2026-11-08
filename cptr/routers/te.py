@@ -36,6 +36,7 @@ class TeStatusResponse(BaseModel):
     pricing_overhead: int
     session_cost_usd: float
     tool_usage: List[TeToolUsageItem]
+    pricing_warning: Optional[str] = None
 
 
 @router.get("/te/status", response_model=TeStatusResponse)
@@ -118,8 +119,21 @@ async def get_te_status(request: Request, chat_id: str = Query(...)):
 
         total_raw = sum(rec.get("input_tokens", 0) + rec.get("cache_read_input_tokens", 0) + rec.get("output_tokens", 0) for rec in token_records if isinstance(rec, dict))
 
-        # Compute session cost from usage records (weighted)
-        estimate = get_session_estimate(token_records)
+        # Compute session cost from usage records (weighted); catch pricing errors gracefully
+        estimate: dict = {}
+        pricing_warning: Optional[str] = None
+        try:
+            estimate = get_session_estimate(token_records)
+        except ValueError as e:
+            msg = str(e)
+            if "no weight entry" in msg or "MODEL_WEIGHTS" in msg:
+                # Extract the unknown model name from the error message
+                import re
+                m = re.search(r"'([^']+)'", msg.split("model")[1] if "model" in msg else "")
+                model_name = m.group(1) if m else "unbekanntes Modell"
+                pricing_warning = f"Pricing nicht konfiguriert für Modell '{model_name}'. Bitte füge es zu MODEL_WEIGHTS hinzu."
+
+        # Fetch tool usage for this chat
 
         # Fetch tool usage for this chat
         tools_result = await session.execute(
@@ -194,6 +208,7 @@ async def get_te_status(request: Request, chat_id: str = Query(...)):
             pricing_overhead=pricing_overhead,
             session_cost_usd=float(estimate.get("session_cost_usd", 0.0)),
             tool_usage=tool_usage,
+            pricing_warning=pricing_warning,
         )
 
 

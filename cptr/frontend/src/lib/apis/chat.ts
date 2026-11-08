@@ -43,6 +43,7 @@ export interface TeStatusResponse {
 	pricing_overhead: number;
 	session_cost_usd: number;
 	tool_usage: TeToolUsageItem[];
+	pricing_warning?: string;
 }
 
 export interface ContextUsage {

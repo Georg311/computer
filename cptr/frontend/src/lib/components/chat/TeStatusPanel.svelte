@@ -20,6 +20,7 @@
 		pricing_overhead: number;
 		session_cost_usd: number;
 		tool_usage: TeToolUsageItem[];
+		pricing_warning?: string;
 	}>(null);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
@@ -117,6 +118,11 @@
 		{:else if error}
 			<div class="rounded-xl px-1.5 py-1.5 text-red-400 dark:text-red-500">
 				{error}
+			</div>
+		{:else if teData?.pricing_warning}
+			<!-- Pricing Warning -->
+			<div class="mb-1 rounded-xl border border-yellow-300/20 bg-yellow-50 px-1.5 py-1.5 text-[0.6875rem] leading-relaxed text-yellow-600 dark:border-yellow-400/20 dark:bg-yellow-900/10 dark:text-yellow-400">
+				⚠️ {@html teData.pricing_warning}
 			</div>
 		{:else if teData}
 			<!-- Token Stats Section -->
