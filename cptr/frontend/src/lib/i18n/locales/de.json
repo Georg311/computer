@@ -900,6 +900,8 @@
   "chat.voiceWaiting": "Wartet auf Antwort...",
   "chat.voiceProviderSttFallback": "Konfigurierte Spracherkennung fehlgeschlagen. Browser-Transkript verwendet.",
   "chat.voiceProviderSttNoAudio": "Konfigurierte Spracherkennung benötigt Mikrofon-Audio, aber es wurde keine Sprachmodus-Aufnahme erfasst.",
+  "chat.voiceNoResults": "Keine Spracherkennungsergebnisse — bitte versuche es erneut.",
+  "chat.voicePermissionDenied": "Mikrofon-Zugriff wurde verweigert.",
   "chat.ttsNotConfigured": "Sprachausgabe ist nicht aktiviert oder konfiguriert.",
   "chat.speakResponses": "Antworten vorlesen",
   "chat.stopSpeaking": "Vorlesen stoppen",

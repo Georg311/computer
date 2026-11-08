@@ -1012,6 +1012,8 @@
   "chat.voiceWaiting": "Waiting for response...",
   "chat.voiceProviderSttFallback": "Configured STT failed. Used browser transcript.",
   "chat.voiceProviderSttNoAudio": "Configured STT needs microphone audio, but no voice-mode recording was captured.",
+  "chat.voiceNoResults": "No speech recognition results — please try again.",
+  "chat.voicePermissionDenied": "Microphone access was denied.",
   "chat.ttsNotConfigured": "Text-to-Speech is not enabled or configured.",
   "chat.speakResponses": "Speak responses",
   "chat.stopSpeaking": "Stop speaking",

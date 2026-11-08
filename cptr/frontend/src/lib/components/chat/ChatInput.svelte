@@ -171,6 +171,7 @@
 	let voiceCaptureStream: MediaStream | null = null;
 	let voiceCaptureChunks: Blob[] = [];
 	let voiceCaptureMimeType = 'audio/webm';
+	let voiceRecognitionRetries = $state(0);
 	let selectedSlashCommandIndex = $state(0);
 	let modelSelector: ModelSelector | undefined = $state();
 	let voiceCollectedText = ''; // kumulativer Text über Interim+Final-Ergebnisse
@@ -798,8 +799,10 @@
 			streaming ||
 			sending ||
 			inputText.trim()
-		)
+		) {
+			voiceRecognitionRetries = 0;
 			return;
+		}
 		voiceRearming = true;
 		voiceRestartTimer = window.setTimeout(async () => {
 			voiceRestartTimer = 0;
@@ -1019,10 +1022,20 @@
 		};
 
 		recognition.onerror = (event: any) => {
+			console.log("[Voice] onerror — error:", event?.error, "message:", event?.message);
 			voiceListening = false;
+			if (event?.error === 'no-rematch' || event?.error === 'aborted') {
+				// Silent errors from browser STT — just restart
+				if (!voiceStopRequested) scheduleVoiceRestart(500);
+				return;
+			}
 			if (event?.error === 'not-allowed' || event?.error === 'service-not-allowed') {
+				toast.error($t('chat.voicePermissionDenied'));
 				voiceModeEnabled = false;
 				stopVoiceRecognition();
+			} else if (event?.error) {
+				console.warn("[Voice] Unhandled STT error:", event.error);
+				if (!voiceStopRequested) scheduleVoiceRestart(500);
 			}
 		};
 
@@ -1046,7 +1059,18 @@
 
 			voiceListening = false;
 			stopVoiceCapture();
-			if (!voiceStopRequested) scheduleVoiceRestart(1200);
+			if (!voiceStopRequested) {
+				voiceRecognitionRetries += 1;
+				console.log("[Voice] onend — retries:", voiceRecognitionRetries);
+				if (voiceRecognitionRetries >= 3) {
+					console.warn("[Voice] Max retries reached, stopping recognition");
+					toast.error($t('chat.voiceNoResults'));
+					voiceModeEnabled = false;
+					stopVoiceRecognition();
+				} else {
+					scheduleVoiceRestart(1200);
+				}
+			}
 			voiceStopRequested = false;
 		};
 
@@ -1067,7 +1091,8 @@
 			};
 
 			recognition.start();
-			console.log("[Voice] Starting recognition — voiceListening will be true");
+			console.log("[Voice] Starting recognition — voiceListening will be true, retries reset");
+			voiceRecognitionRetries = 0;
 			voiceListening = true;
 			voiceRearming = false;
 			recorder.start();
