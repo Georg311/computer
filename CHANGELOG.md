@@ -1,3 +1,10 @@
+## [0.9.21.38] - 2026-11-07
+
+### Added
+- ⚠️ **Pricing Warning für unbekannte Modelle.** Graceful error handling bei fehlenden MODEL_WEIGHTS-Einträgen im TE Status Endpoint. Frontend zeigt Warnung an (gelb, mit HTML-Sanitization), wenn Pricing nicht konfiguriert ist — Modellname wird aus Error-Message extrahiert.
+
+---
+
 ## [0.9.21.37] - 2025-08-04
 
 ### Changed
