@@ -47,6 +47,7 @@ When the per-task breakdown is absent (older runs), effective_tokens() falls bac
 MODEL_WEIGHTS = {
     # --- per-model price snapshot (2026-07-27) ------------------------------
     "default":                 dict(input=1.0, cache_read=0.10,   cache_write=1.25,  output=5.0),
+    "default-mtp":            dict(input=1.0, cache_read=0.10,   cache_write=1.25,  output=5.0),
     "claude-haiku-4-5":        dict(input=1.0, cache_read=0.10,   cache_write=1.25,  output=5.0),
     "claude-opus-4-6":         dict(input=1.0, cache_read=0.10,   cache_write=1.25,  output=5.0),
     "claude-opus-4-7":         dict(input=1.0, cache_read=0.10,   cache_write=1.25,  output=5.0),
