@@ -464,7 +464,7 @@
 				<span class="flex-1 text-left truncate">{$t('bar.newBrowser')}</span>
 			</button>
 
-			{#if onvoice && !streaming && !canSend}
+			{#if onvoice}
 			<button class="flex items-center gap-3 w-full h-12 px-3 text-sm rounded-xl transition-colors {isVoiceActive ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5'}"
 				onclick={handleToggleVoice}
 			>

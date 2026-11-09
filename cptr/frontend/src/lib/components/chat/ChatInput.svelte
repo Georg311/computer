@@ -975,6 +975,14 @@
 		recognition.interimResults = true;
 		recognition.lang = navigator.language || 'en-US';
 
+		voiceListening = true;
+		try {
+			await recognition.start();
+		} catch (err) {
+			console.warn("[Voice] recognition.start failed:", err);
+			voiceListening = false;
+		}
+
 		recognition.onresult = async (event: any) => {
 			let finalResult = '';
 			let interimResult = '';
