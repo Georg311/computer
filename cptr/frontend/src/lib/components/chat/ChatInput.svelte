@@ -173,6 +173,14 @@
 	let voiceCaptureChunks: Blob[] = [];
 	let voiceCaptureMimeType = 'audio/webm';
 	let voiceRecognitionRetries = $state(0);
+
+	// Provider-STT VAD (Voice Activity Detection) state
+	let vadAnalyser: AnalyserNode | null = null;
+	let vadAudioContext: AudioContext | null = null;
+	let vadVolumeThreshold = 30; // -30 dB silence threshold
+	let vadSilenceTimer = 0;
+	let vadIsListeningForSpeech = false;
+
 	let selectedSlashCommandIndex = $state(0);
 	let modelSelector: ModelSelector | undefined = $state();
 	let voiceCollectedText = ''; // kumulativer Text über Interim+Final-Ergebnisse
@@ -822,6 +830,15 @@
 	function stopVoiceRecognition(stopCapture = true) {
 		clearVoiceRestartTimer();
 		clearVoiceInterimTimer();
+
+		// Provider-STT: VAD Loop und AudioContext stoppen
+		vadIsListeningForSpeech = false;
+		if (vadAudioContext) {
+			try { vadAudioContext.close(); } catch {}
+			vadAudioContext = null;
+			vadAnalyser = null;
+		}
+
 		const recognition = voiceRecognition;
 		voiceRecognition = null;
 		voiceStopRequested = true;
@@ -945,13 +962,13 @@
 
 	async function startVoiceRecognition() {
 		clearVoiceRestartTimer(false);
-		console.log("[Voice] startVoiceRecognition called — voiceModeAvailable:", voiceModeAvailable, "voiceModeEnabled:", voiceModeEnabled, "waitingForResponse:", voiceWaitingForResponse, "listening:", voiceListening, "hasRecognition:", !!voiceRecognition, "streaming:", streaming, "sending:", sending, "inputText:", JSON.stringify(inputText));
+		console.log("[Voice] startVoiceRecognition called — voiceModeAvailable:", voiceModeAvailable, "voiceModeEnabled:", voiceModeEnabled, "sttMode:", $voiceModeSttMode);
+
 		if (
 			!voiceModeAvailable ||
 			!voiceModeEnabled ||
 			voiceWaitingForResponse ||
 			voiceListening ||
-			voiceRecognition ||
 			streaming ||
 			sending
 		) {
@@ -959,6 +976,13 @@
 			return;
 		}
 
+		// Provider-STT: Kein SpeechRecognition nötig — nutze VAD (Voice Activity Detection)
+		if ($voiceModeSttMode === 'provider') {
+			await startProviderVoiceRecognition();
+			return;
+		}
+
+		// Browser-STT: Nutzt Web Speech API (nur Chrome/Chromium)
 		const SpeechRecognition =
 			(window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 		if (!SpeechRecognition) {
@@ -1003,15 +1027,13 @@
 				const capture = await capturePromise;
 
 				let text = voiceCollectedText.trim() || finalResult.trim();
-				if ($voiceModeSttMode === 'provider' && capture) {
+				if (capture && $sttConfigured) {
 					try {
 						text = (await transcribeVoiceModeCapture(capture)) || text;
 					} catch (err: any) {
 						const detail = err?.message ? ` ${err.message}` : '';
 						toast.error(`${$t('chat.voiceProviderSttFallback')}${detail}`);
 					}
-				} else if ($voiceModeSttMode === 'provider' && !capture) {
-					toast.error($t('chat.voiceProviderSttNoAudio'));
 				}
 
 				if (text.trim()) {
@@ -1048,7 +1070,6 @@
 			console.log("[Voice] onerror — error:", event?.error, "message:", event?.message);
 			voiceListening = false;
 			if (event?.error === 'no-rematch' || event?.error === 'aborted') {
-				// Silent errors from browser STT — just restart
 				if (!voiceStopRequested) scheduleVoiceRestart(500);
 				return;
 			}
@@ -1062,23 +1083,19 @@
 			}
 		};
 
-		recognition.onend = () => {
+		recognition.onend = async () => {
 			if (voiceRecognition !== recognition) return;
 			clearVoiceInterimTimer();
-			console.log("[Voice] onend — voiceStopRequested:", voiceStopRequested, "voiceCollectedTextLen:", voiceCollectedText.length, "inputText:", JSON.stringify(inputText));
+			console.log("[Voice] onend — voiceStopRequested:", voiceStopRequested, "voiceCollectedTextLen:", voiceCollectedText.length);
 			voiceRecognition = null;
 
-			// Gesammelten Text verarbeiten bevor wir stoppen
 			const pendingText = voiceCollectedText.trim();
-			if (!voiceStopRequested && pendingText && !voiceWaitingForResponse) {
-				inputText = pendingText;
-				handleSubmit();
-				voiceCollectedText = '';
-			} else if (!voiceStopRequested && inputText.trim() && !voiceWaitingForResponse) {
-				// Interim-Text (ohne Final-Result) als Fallback submiten
-				inputText = inputText.trim();
-				handleSubmit();
-				voiceCollectedText = '';
+			if (!voiceStopRequested && !voiceWaitingForResponse) {
+				if (pendingText || inputText.trim()) {
+					inputText = pendingText || inputText.trim();
+					handleSubmit();
+					voiceCollectedText = '';
+				}
 			}
 
 			voiceListening = false;
@@ -1114,20 +1131,171 @@
 				if (event.data.size > 0) voiceCaptureChunks.push(event.data);
 			};
 
-			// Alle Flags setzen, BEVOR die Recognition Ergebnisse liefert
 			voiceRecognitionRetries = 0;
 			voiceListening = true;
 			voiceRearming = false;
 
 			recorder.start();
 			await recognition.start();
-			console.log("[Voice] Starting recognition — voiceListening=true, retries=0");
+			console.log("[Voice] Starting browser STT — voiceListening=true");
 		} catch {
 			voiceRecognition = null;
 			voiceListening = false;
 			voiceRearming = false;
 			scheduleVoiceRestart(1500);
 		}
+	}
+
+	// ── Provider-STT mit VAD (Voice Activity Detection) ────────────────
+	// Funktioniert in ALLEN Browsern (Firefox, Chrome, Safari etc.)
+	async function startProviderVoiceRecognition() {
+		console.log("[Voice] Starting provider STT with VAD");
+
+		try {
+			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+		} catch (err) {
+			console.error("[Voice] Provider STT — microphone access failed:", err);
+			toast.error($t('chat.voicePermissionDenied'));
+			voiceModeEnabled = false;
+			return;
+		}
+
+		// AudioContext + AnalyserNode für Volume-Metering erstellen
+		try {
+			vadAudioContext = new AudioContext();
+			const source = vadAudioContext.createMediaStreamSource(stream);
+			vadAnalyser = vadAudioContext.createAnalyser();
+			vadAnalyser.fftSize = 256;
+			vadAnalyser.smoothingTimeConstant = 0.8;
+			source.connect(vadAnalyser);
+		} catch (err) {
+			console.error("[Voice] Provider STT — AudioContext failed:", err);
+			stream?.getTracks().forEach((t) => t.stop());
+			toast.error('Audio processing not available');
+			voiceModeEnabled = false;
+			return;
+		}
+
+		// MediaRecorder starten
+		const mimeType = chooseVoiceCaptureMimeType();
+		try {
+			voiceCaptureStream = stream;
+			voiceCaptureRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+			voiceCaptureChunks = [];
+			voiceCaptureMimeType = voiceCaptureRecorder?.mimeType || mimeType || 'audio/webm';
+
+			voiceCaptureRecorder.ondataavailable = (event) => {
+				if (event.data.size > 0) voiceCaptureChunks.push(event.data);
+			};
+			voiceCaptureRecorder.start();
+
+			console.log("[Voice] Provider STT — recorder started, starting VAD loop");
+		} catch (err) {
+			console.error("[Voice] Provider STT — MediaRecorder failed:", err);
+			stream?.getTracks().forEach((t) => t.stop());
+			vadAudioContext?.close();
+			toast.error('Recording not available');
+			voiceModeEnabled = false;
+			return;
+		}
+
+		// Flags setzen
+		voiceListening = true;
+		voiceRearming = false;
+		voiceStopRequested = false;
+		vadIsListeningForSpeech = true;
+		vadSilenceTimer = 0;
+
+		// VAD Loop starten — prüft kontinuierlich das Volume
+		startVadLoop();
+	}
+
+	function startVadLoop() {
+		if (!vadAnalyser || !vadAudioContext) return;
+
+		const dataArray = new Uint8Array(vadAnalyser!.frequencyBinCount);
+
+		function checkVolume() {
+			if (!vadIsListeningForSpeech || !voiceListening) return;
+
+			vadAnalyser!.getByteFrequencyData(dataArray);
+
+			// RMS berechnen (Root Mean Square) für Lautstärke
+			let sum = 0;
+			for (let i = 0; i < dataArray.length; i++) {
+				sum += dataArray[i] * dataArray[i];
+			}
+			const rms = Math.sqrt(sum / dataArray.length);
+
+			console.log("[Voice] VAD — volume RMS:", rms.toFixed(2), "threshold:", vadVolumeThreshold);
+
+			if (rms > vadVolumeThreshold) {
+				// Sprache erkannt — Silence-Timer zurücksetzen
+				vadSilenceTimer = 0;
+			} else {
+				// Stille — Timer erhöhen
+				vadSilenceTimer += 16.67; // ~60fps
+
+				if (vadSilenceTimer > 1500) {
+					// 1.5s Stille → Transkription starten
+					console.log("[Voice] VAD — silence detected, stopping capture");
+					vadIsListeningForSpeech = false;
+					stopProviderTranscription();
+				}
+			}
+
+			if (vadIsListeningForSpeech && voiceListening) {
+				requestAnimationFrame(checkVolume);
+			}
+		}
+
+		requestAnimationFrame(checkVolume);
+	}
+
+	async function stopProviderTranscription() {
+		console.log("[Voice] Provider STT — stopping transcription");
+		vadIsListeningForSpeech = false;
+		voiceListening = false;
+
+		// AudioContext und Recorder stoppen
+		try {
+			vadAudioContext?.close();
+			vadAudioContext = null;
+			vadAnalyser = null;
+		} catch {}
+
+		stopVoiceCapture();
+
+		// Capture an Provider senden
+		if (!voiceStopRequested && voiceCaptureChunks.length > 0) {
+			console.log("[Voice] Provider STT — transcribing capture...");
+			try {
+				const blob = new Blob(voiceCaptureChunks, { type: voiceCaptureMimeType });
+				const capture = {
+					blob,
+					filename: 'provider-capture.webm',
+					contentType: voiceCaptureMimeType || 'audio/webm'
+				};
+
+				const text = await transcribeVoiceModeCapture(capture);
+				if (text) {
+					inputText = text;
+					await tick();
+					handleSubmit(text);
+					console.log("[Voice] Provider STT — transcription result:", JSON.stringify(text));
+				} else {
+					console.warn("[Voice] Provider STT — empty transcription");
+					toast.error($t('chat.voiceNoResults'));
+				}
+			} catch (err: any) {
+				console.error("[Voice] Provider STT — transcription error:", err);
+				const detail = err?.message ? ` ${err.message}` : '';
+				toast.error(`${$t('chat.voiceProviderSttFallback')}${detail}`);
+			}
+		}
+
+		voiceStopRequested = false;
+		voiceCaptureChunks = [];
 	}
 
 	function toggleVoiceMode() {
