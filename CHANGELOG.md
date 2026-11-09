@@ -1,3 +1,10 @@
+## [0.9.21.41] - 2026-11-13
+
+### Changed
+- 🔧 **`search_files` — Parameterumbenennung `regex` → `is_regex`.** Klarere Benennung für besseren Intent-Ausdruck: ``is_regex=true`` erzwingt Regex, ``is_regex=false`` erzwingt Literal (auch bei erkannten Patterns), kein Wert/None → Auto-Detect. Backwards compatible – der Parameter-Name im Tool-Schema wurde geändert, die Logik und Auto-Detection bleiben unverändert.
+
+---
+
 ## [0.9.21.40] - 2026-11-13
 
 ### Changed
