@@ -1352,6 +1352,7 @@
 			return;
 		}
 		onsend(presetText);
+	}
 
 	function handleCancel() {
 		oncancel?.();
