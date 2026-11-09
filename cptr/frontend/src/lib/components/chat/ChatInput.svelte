@@ -789,6 +789,14 @@
 		if (resetRearming) voiceRearming = false;
 	}
 
+	function clearVoiceInterimTimer() {
+		if (voiceInterimTimer) {
+			clearTimeout(voiceInterimTimer);
+			voiceInterimTimer = 0;
+		}
+	}
+
+
 	function scheduleVoiceRestart(delay = 350) {
 		clearVoiceRestartTimer();
 		if (
@@ -813,6 +821,7 @@
 
 	function stopVoiceRecognition(stopCapture = true) {
 		clearVoiceRestartTimer();
+		clearVoiceInterimTimer();
 		const recognition = voiceRecognition;
 		voiceRecognition = null;
 		voiceStopRequested = true;
