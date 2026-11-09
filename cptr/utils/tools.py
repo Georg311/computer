@@ -692,7 +692,13 @@ async def search_files(
     
     :param query: Search pattern (plain text or regex).
     :param path: Directory to search in, relative to workspace. Can also be a single file path.
-    :param regex: Set to true if query contains regex operators (| for OR, .\*, etc.). Without this, all characters are matched literally.
+    :param regex: Set to true if query contains regex operators (| for OR, \w, +, ?, (), [], ^, $, etc.). Without this, all characters are matched literally.
+    
+        Examples:
+          - Plain text: search_files(query="TODO", regex=false)
+          - Regex:      search_files(query="class.*Handler", regex=true)
+          - OR pattern: search_files(query="foo|bar", regex=true)
+    
     :param case_insensitive: Case-insensitive matching.
     :param include: Glob pattern to filter files (e.g. '*.py', '*.ts').
     

@@ -1,3 +1,10 @@
+## [0.9.21.39] - 2025-07-14
+
+### Changed
+- 🔍 **`search_files` — regex-Doku verbessert.** Explizite Liste aller Regex-Sonderzeichen (`|`, `\w`, `+`, `?`, `()`, `[]`, `^`, `$`). Drei konkrete Beispiele: Plain Text, Regex-Match und OR-Pattern.
+
+---
+
 ## [0.9.21.38] - 2026-11-07
 
 ### Added
