@@ -1266,19 +1266,14 @@
 			vadAnalyser = null;
 		} catch {}
 
-		stopVoiceCapture();
+		// Capture erhalten — stopVoiceCapture() gibt { blob, filename, contentType } zurück
+		const capture = await stopVoiceCapture();
 
-		// Capture an Provider senden
-		if (!voiceStopRequested && voiceCaptureChunks.length > 0) {
+		console.log("[Voice] Provider STT — capture:", !!capture, "chunks:", voiceCaptureChunks?.length);
+
+		if (!voiceStopRequested && capture) {
 			console.log("[Voice] Provider STT — transcribing capture...");
 			try {
-				const blob = new Blob(voiceCaptureChunks, { type: voiceCaptureMimeType });
-				const capture = {
-					blob,
-					filename: 'provider-capture.webm',
-					contentType: voiceCaptureMimeType || 'audio/webm'
-				};
-
 				const text = await transcribeVoiceModeCapture(capture);
 				if (text) {
 					inputText = text;
