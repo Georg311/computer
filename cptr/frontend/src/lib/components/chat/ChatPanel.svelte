@@ -1015,9 +1015,8 @@
 		return params;
 	}
 
-	async function send() {
-		let text = inputText.trim();
-		if (!text || !selectedModel) return;
+	async function send(presetText?: string) {
+		let text = (presetText !== undefined ? presetText : inputText).trim();
 		if (sending) return;
 		if (hasChatContent && text === '/compact') {
 			await handleManualCompact();

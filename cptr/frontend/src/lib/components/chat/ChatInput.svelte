@@ -80,7 +80,7 @@
 		askUser?: any;
 		queuedMessages?: { id: string; content: string }[];
 		hasChatContent?: boolean;
-		onsend: () => void;
+		onsend: (presetText?: string) => void;
 		oncompact?: () => void;
 		onfork?: () => void;
 		onplan?: () => void;
@@ -945,7 +945,6 @@
 			voiceRecognition ||
 			streaming ||
 			sending ||
-			inputText.trim()
 		) {
 			voiceRearming = false;
 			return;
@@ -1009,7 +1008,7 @@
 				if (text.trim()) {
 					inputText = text;
 					await tick();
-					handleSubmit();
+					handleSubmit(text);
 				} else {
 					voiceWaitingForResponse = false;
 					scheduleVoiceRestart(500);
@@ -1347,13 +1346,12 @@
 		onsend();
 	}
 
-	function handleSubmit() {
+	function handleSubmit(presetText?: string) {
 		if (showSlashCommands) {
 			runSlashSuggestion(slashSuggestionIds[selectedSlashCommandIndex]);
 			return;
 		}
-		onsend();
-	}
+		onsend(presetText);
 
 	function handleCancel() {
 		oncancel?.();
