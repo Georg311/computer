@@ -1151,8 +1151,10 @@
 	async function startProviderVoiceRecognition() {
 		console.log("[Voice] Starting provider STT with VAD");
 
+		let stream: MediaStream | null = null;
+
 		try {
-			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 		} catch (err) {
 			console.error("[Voice] Provider STT — microphone access failed:", err);
 			toast.error($t('chat.voicePermissionDenied'));
