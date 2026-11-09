@@ -799,7 +799,6 @@
 			voiceRecognition ||
 			streaming ||
 			sending ||
-
 		) {
 			voiceRecognitionRetries = 0;
 			return;
@@ -1015,9 +1014,24 @@
 					scheduleVoiceRestart(500);
 				}
 			} else if (!finalResult && interimResult) {
-				// Nur Interim — live im Input anzeigen, aber noch nicht submit
+				// Nur Interim — live im Input anzeigen
 				inputText = voiceCollectedText.trim() + (interimResult || '').trim();
 				await tick();
+
+				// Auto-Submit nach 2s Schweigezeit ohne Final-Ergebnis
+				if (!voiceWaitingForResponse && (voiceCollectedText.trim() || interimResult)) {
+					voiceInterimTimer = window.setTimeout(() => {
+						const pending = voiceCollectedText.trim() + (interimResult || '').trim();
+						if (pending && !voiceWaitingForResponse) {
+							inputText = pending;
+							handleSubmit(pending);
+							voiceCollectedText = '';
+						}
+					}, 2000);
+				}
+			} else if (finalResult && voiceWaitingForResponse) {
+				// Final-Ergebnis während Response-Wartezeit — nur sammeln, nicht submiten
+				voiceCollectedText += finalResult;
 			}
 		};
 
@@ -1041,6 +1055,7 @@
 
 		recognition.onend = () => {
 			if (voiceRecognition !== recognition) return;
+			clearVoiceInterimTimer();
 			console.log("[Voice] onend — voiceStopRequested:", voiceStopRequested, "voiceCollectedTextLen:", voiceCollectedText.length, "inputText:", JSON.stringify(inputText));
 			voiceRecognition = null;
 
