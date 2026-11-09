@@ -806,7 +806,7 @@
 			voiceListening ||
 			voiceRecognition ||
 			streaming ||
-			sending,
+			sending
 		) {
 			voiceRecognitionRetries = 0;
 			return;
