@@ -944,7 +944,7 @@
 			voiceListening ||
 			voiceRecognition ||
 			streaming ||
-			sending ||
+			sending
 		) {
 			voiceRearming = false;
 			return;
