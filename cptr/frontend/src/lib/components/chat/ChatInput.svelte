@@ -177,7 +177,7 @@
 	// Provider-STT VAD (Voice Activity Detection) state
 	let vadAnalyser: AnalyserNode | null = null;
 	let vadAudioContext: AudioContext | null = null;
-	let vadVolumeThreshold = 30; // -30 dB silence threshold
+	let vadVolumeThreshold = 8; // RMS threshold for speech detection (lowered from 30)
 	let vadSilenceTimer = 0;
 	let vadIsListeningForSpeech = false;
 
@@ -1170,6 +1170,12 @@
 			vadAnalyser.fftSize = 256;
 			vadAnalyser.smoothingTimeConstant = 0.8;
 			source.connect(vadAnalyser);
+
+			// WICHTIG: AudioContext muss resume() für Firefox/Chromium!
+			if (vadAudioContext.state === 'suspended') {
+				await vadAudioContext.resume();
+			}
+			console.log("[Voice] Provider STT — AudioContext state:", vadAudioContext.state);
 		} catch (err) {
 			console.error("[Voice] Provider STT — AudioContext failed:", err);
 			stream?.getTracks().forEach((t) => t.stop());

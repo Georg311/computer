@@ -1,7 +1,7 @@
-## [0.9.21.39] - 2025-07-14
+## [0.9.21.40] - 2026-11-13
 
 ### Changed
-- 🔍 **`search_files` — regex-Doku verbessert.** Explizite Liste aller Regex-Sonderzeichen (`|`, `\w`, `+`, `?`, `()`, `[]`, `^`, `$`). Drei konkrete Beispiele: Plain Text, Regex-Match und OR-Pattern.
+- 🔍 **`search_files` — Auto-Detect für Regex-Patterns.** Heuristische Erkennung von Regex-Symbolen (`.*`, `\w`, `[a-z]`, `^`, `$`, `|`) im Query. Expliziter Override: ``regex=true`` erzwingt Regex, ``regex=false`` erzwingt Literal (auch bei erkannten Patterns). Legacy-Parameter ``filenames_only``/``filepaths_only`` als LEGACY markiert. Pagination-Beschreibung vereinfacht (offset → head_limit Reihenfolge klarer).
 
 ---
 

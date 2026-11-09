@@ -11,6 +11,7 @@ never exposed to the LLM — they carry injected execution context:
 
 from __future__ import annotations
 
+import re
 import asyncio
 import inspect
 import json
@@ -541,6 +542,60 @@ def _read_image_data(data: bytes, suffix: str, path: str) -> str:
     return f"data:{media_type};base64,{b64}"
 
 
+# ── Regex auto-detect helper ────────────────────────────────
+
+def _should_enable_regex(query: str) -> bool:
+    """Heuristically detect whether *query* is likely a regex pattern.
+
+    Returns True when the query contains clear regex operators that are
+    unlikely to appear as literal search text.  Intentionally conservative –
+    only triggers on patterns that strongly indicate regex intent.
+
+    Common literal strings (filenames, config paths) are excluded so they
+    stay literal even if they contain dots or slashes.
+    """
+    # Check for obvious regex patterns in the query string itself
+    
+    # .* pattern (any char × any count)
+    if '.*' in query or '..*' in query:
+        return True
+        
+    # \w, \d, \s etc. escape sequences
+    if re.search(r'\\\w', query):
+        return True
+    
+    # [a-z] character class ranges  
+    if '[' in query and ']' in query:
+        return True
+    
+    # ^ at start or $ at end (anchors) – literal characters, not regex match
+    if (query.startswith('^') or query.endswith('$')):
+        return True
+        
+    # | OR operator (unescaped)
+    parts = query.split('|')
+    if len(parts) > 1 and not any(p.startswith('\\|') for p in parts):
+        return True
+    
+    # Common literal file extensions → never auto-detect as regex
+    literal_extensions = [
+        '.js', '.ts', '.json', '.py', '.env', '.md', '.css',
+        '.html', '.txt', '.yaml', '.yml', '.toml', '.xml',
+        '.sh', '.bash', '.rb', '.go', '.rs', '.java', '.c',
+        '.h', '.cpp', '.cc', '.cs', '.php', '.sql', '.sqlite',
+    ]
+    for ext in literal_extensions:
+        if query.endswith(ext) or f' {ext}' in query or f'.{ext.split(".")[-1]}/' in query:
+            return False
+
+    # Short simple strings are almost always literal (e.g. "TODO", "main.py")
+    safe_literals = set('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._/\\-')
+    if len(query) < 15 and all(c in safe_literals for c in query):
+        return False
+
+    return False
+
+
 # ── Tool functions ──────────────────────────────────────────
 
 
@@ -675,11 +730,11 @@ async def list_directory(
 async def search_files(
     query: str,
     path: str = ".",
-    regex: bool = False,
+    regex: bool | None = None,
     case_insensitive: bool = False,
     include: str = "",
-    filenames_only: bool = False,
-    filepaths_only: bool = False,
+    filenames_only: bool = False,  # LEGACY - use mode="files_with_matches" instead
+    filepaths_only: bool = False,  # LEGACY - use mode="content" with explicit path format
     context_before: int = 0,
     context_after: int = 0,
     mode: Literal["content", "files_with_matches", "count"] = "content",
@@ -689,42 +744,49 @@ async def search_files(
     __context__: dict,
 ) -> str:
     """Search files for a pattern using ripgrep. Fast, respects .gitignore.
+
+    :param query: Search pattern (plain text or regex). Auto-detects regex patterns
+        based on common operators like ``.*``, backslash-w, pipe operator etc. Use explicit ``regex=true`` 
+        to force regex mode, or ``regex=false`` to force literal matching regardless of auto-detect.
+
+    :param path: Directory to search in, relative to workspace root. Can also be a single file path.
     
-    :param query: Search pattern (plain text or regex).
-    :param path: Directory to search in, relative to workspace. Can also be a single file path.
-    :param regex: Set to true if query contains regex operators (| for OR, \w, +, ?, (), [], ^, $, etc.). Without this, all characters are matched literally.
-    
-        Examples:
-          - Plain text: search_files(query="TODO", regex=false)
-          - Regex:      search_files(query="class.*Handler", regex=true)
-          - OR pattern: search_files(query="foo|bar", regex=true)
-    
+    :param regex: Force regex or literal mode. Default (None) = auto-detect based on query content.
+        - ``regex=true`` → force regex interpretation
+        - ``regex=false`` → force literal matching (overrides auto-detect)
+        - No value / None → heuristically detect from query pattern
+
     :param case_insensitive: Case-insensitive matching.
+
     :param include: Glob pattern to filter files (e.g. '*.py', '*.ts').
-    
+
     :param mode: Output format (choose exactly one):
-        - "content" (default): Returns file:line:text lines, e.g. "src/main.py:42: def foo()".
+        - "content" (default): Returns ``file:line:text`` lines, e.g. ``src/main.py:42: def foo()``.
         - "files_with_matches": Returns only filenames that contain matches, one per line.
           Use this when you want to know WHICH files match, not what matches.
-        - "count": Returns filename: count pairs, e.g. "src/main.py: 5".
+        - "count": Returns ``filename: count`` pairs, e.g. ``src/main.py: 5``.
           Use this when you want to know HOW MANY matches exist per file.
-    
+
     :param context_before: Number of lines to show BEFORE each match line (default 0).
         Combined with context_after via ripgrep's -C flag (symmetric context).
-        Example: context_before=2, context_after=1 → shows 2 lines before + match + 1 line after.
-    
+        Example: ``context_before=2, context_after=1`` → shows 2 lines before + match + 1 line after.
+
     :param context_after: Number of lines to show AFTER each match line (default 0).
         Same as context_before – ripgrep uses symmetric -C flag internally.
-    
+
     :param head_limit: Maximum number of result lines to return (default 200).
         Set to 0 for no limit (not recommended – can cause memory issues with huge result sets).
-        Applied AFTER offset.
-    
+        
     :param offset: Number of result lines to skip from the beginning (default 0).
-        Use with head_limit for pagination: offset=50, head_limit=50 → page 2.
-        Applied BEFORE head_limit.
+        Use with ``head_limit`` for pagination. The order is: first apply **offset**, then **head_limit**.
+        Example: ``offset=50, head_limit=50`` → returns results 51-100.
+
+    Note: ``filenames_only`` and ``filepaths_only`` are LEGACY parameters. Use ``mode="files_with_matches"`` instead.
     
-    Note: filenames_only and filepaths_only are legacy parameters. Use mode instead.
+    Examples:
+      - Plain text search: ``search_files(query="TODO")`` or ``search_files("TODO", regex=false)``
+      - Regex search: ``search_files("class.*Handler", regex=true)`` or auto-detected from ".*" pattern
+      - Find files only: ``search_files("import", mode="files_with_matches")``
     """
     workspace = __context__["workspace"]
     request = __context__.get("request")
@@ -744,6 +806,11 @@ async def search_files(
     elif mode == "count":
         pass  # special handling in _search_rg
     # else: mode == "content" (default), keep existing flags
+
+    # Auto-detect regex from query when regex parameter is not explicitly set
+    if regex is None:
+        regex = _should_enable_regex(query)
+    # Explicit False always overrides auto-detect
 
     is_file = file_stat.get("type") == "file"
 
