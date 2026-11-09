@@ -975,14 +975,6 @@
 		recognition.interimResults = true;
 		recognition.lang = navigator.language || 'en-US';
 
-		voiceListening = true;
-		try {
-			await recognition.start();
-		} catch (err) {
-			console.warn("[Voice] recognition.start failed:", err);
-			voiceListening = false;
-		}
-
 		recognition.onresult = async (event: any) => {
 			let finalResult = '';
 			let interimResult = '';
@@ -1122,12 +1114,14 @@
 				if (event.data.size > 0) voiceCaptureChunks.push(event.data);
 			};
 
-			recognition.start();
-			console.log("[Voice] Starting recognition — voiceListening will be true, retries reset");
+			// Alle Flags setzen, BEVOR die Recognition Ergebnisse liefert
 			voiceRecognitionRetries = 0;
 			voiceListening = true;
 			voiceRearming = false;
+
 			recorder.start();
+			await recognition.start();
+			console.log("[Voice] Starting recognition — voiceListening=true, retries=0");
 		} catch {
 			voiceRecognition = null;
 			voiceListening = false;
