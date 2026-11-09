@@ -166,6 +166,7 @@
 	let voiceRecognition: any = null;
 	let voiceRestartTimer = 0;
 	let voiceStopRequested = false;
+	let voiceInterimTimer = 0;
 	let voiceRearming = $state(false);
 	let voiceCaptureRecorder: MediaRecorder | null = null;
 	let voiceCaptureStream: MediaStream | null = null;
@@ -798,7 +799,7 @@
 			voiceRecognition ||
 			streaming ||
 			sending ||
-			inputText.trim()
+
 		) {
 			voiceRecognitionRetries = 0;
 			return;
