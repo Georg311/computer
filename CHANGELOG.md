@@ -1,3 +1,10 @@
+## [0.9.21.44] - 2026-11-14
+
+### Fixed
+- 🐛 **Steering Queue — Messages bleiben im Hauptstrang und erscheinen sofort.** Steering messages erhalten keinen `parent_id` mehr, damit sie im Chat-Verlauf nicht als Child-Thread erscheinen. Frontend zeigt steering_queued und steering_injected Events sofort an statt erst nach Reload.
+
+---
+
 ## [0.9.21.43] - 2026-11-14
 
 ### Fixed
