@@ -650,9 +650,62 @@
 			return;
 		}
 
-		// Steering message injected — remove from queue
+		// Steering message queued — display immediately so user sees their steering request
+		if (data.type === 'chat:steering_queued' && data.message_id) {
+			const steerMsg = allMessages.find((m) => m.id === data.message_id);
+			if (!steerMsg && data.content) {
+				allMessages = [
+					...allMessages,
+					{
+						id: data.message_id,
+						parent_id: null,
+						role: 'user' as const,
+						content: `[STEERING] ${data.content}`,
+						model: selectedModel || null,
+						done: true,
+						output: null,
+						usage: null,
+						meta: { steering_queued: true },
+						created_at: Date.now() / 1000
+					} as ChatMessageRow
+				];
+			} else if (steerMsg && data.content) {
+				if (!steerMsg.content.startsWith('[STEERING]')) {
+					steerMsg.content = `[STEERING] ${data.content}`;
+				}
+				allMessages = [...allMessages];
+			}
+		}
+
+		// Steering message injected — remove from queue and display content
 		if (data.type === 'chat:steering_injected' && data.message_id) {
 			removeSteeringQueueItem(chatId, data.message_id);
+			
+			// Find existing msg or create new steering user message
+			let steerMsg = allMessages.find((m) => m.id === data.message_id);
+			if (!steerMsg && data.content) {
+				allMessages = [
+					...allMessages,
+					{
+						id: data.message_id,
+						parent_id: null,
+						role: 'user' as const,
+						content: `[STEERING] ${data.content}`,
+						model: selectedModel || null,
+						done: true,
+						output: null,
+						usage: null,
+						meta: { steering_injected: true },
+						created_at: Date.now() / 1000
+					} as ChatMessageRow
+				];
+			} else if (steerMsg && data.content) {
+				// Update existing msg with steering content
+				if (!steerMsg.content.startsWith('[STEERING]')) {
+					steerMsg.content = `[STEERING] ${data.content}`;
+				}
+				allMessages = [...allMessages];
+			}
 		}
 
 		// Title updates also keep open chat tabs in sync.

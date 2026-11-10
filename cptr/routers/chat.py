@@ -1764,12 +1764,11 @@ async def steer_queue(request: Request, chat_id: str, message_id: str):
     if not steering_text.strip():
         raise HTTPException(400, "steering message cannot be empty")
 
-    # Store steering message in DB (visible in chat history)
+    # Store steering message in DB (visible in chat history) — no parent_id so it stays in main thread
     steer_msg = await ChatMessage.create(
         chat_id=chat_id,
         role="user",
         content=steering_text,
-        parent_id=message_id,
         meta={"steering": True, "queued": True},
         created_at=now_ms(),
     )
