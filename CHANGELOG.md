@@ -1,3 +1,13 @@
+## [0.9.21.42] - 2026-11-13
+
+### Fixed
+- 🔧 **Automations — Strukturierte Error-Messages auf REST API.** Der Router umging die strukturierten Errors aus `tools.py`. Ersetzt durch konsistente, kontextreiche Fehler:
+  - `create_automation` / `update_automation`: Invalid RRULE → HTTP 422 mit `{error:"invalid_rrule", detail:{rule,missing_required,valid_examples}, suggestion}` statt raw `HTTPException(400, str(e))`.
+  - Alle Endpoints mit Automation-ID (`get`, `toggle`, `delete`, `run`, `webhook`, `runs`): HTTP 404 → strukturierte Error mit `{error:"Automation ... not found.", detail:{exists:false, active_count:N, recent_ids:[...]}, suggestion}` statt `{detail:"automation not found"}`.
+- 🔧 **Automations — Helper-Funktionen.** Neue `_get_recent_automations(user_id)` und `_automation_not_found_error(automation_id, recent_ids, active_count)` für konsistente 404-Response-Generierung über alle Endpoints hinweg.
+
+---
+
 ## [0.9.21.41] - 2026-11-13
 
 ### Changed
