@@ -784,24 +784,32 @@
 			loadChat(data.chat_id);
 		}
 
-		// Requeue steering items when chat ends before they were injected
+		// Requeue steering items when chat ends before they were injected (batched into single message)
 		if (data.done && data.chat_id === chatId) {
 			const steerItems = $steeringQueues.get(chatId);
 			if (steerItems?.length) {
 				const parentId = allMessages.length > 0 ? allMessages[allMessages.length - 1].id : null;
-				const requeued: ChatMessageRow[] = steerItems.map((item) => ({
-					id: `requeued-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-					parent_id: parentId,
-					role: 'user' as const,
-					content: item.content,
-					model: selectedModel || null,
-					done: true,
-					output: null,
-					usage: null,
-					meta: { queued: true },
-					created_at: Date.now() / 1000
-				}));
-				allMessages = [...allMessages, ...requeued];
+				
+				// Combine all steering items into ONE message instead of multiple separate ones
+				const combinedContent = steerItems.map((item, i) => 
+					`### ${i + 1}. ${item.content}`
+				).join('\n\n');
+				
+				allMessages = [
+					...allMessages,
+					{
+						id: `requeued-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+						parent_id: parentId,
+						role: 'user' as const,
+						content: combinedContent,
+						model: selectedModel || null,
+						done: true,
+						output: null,
+						usage: null,
+						meta: { queued: true },
+						created_at: Date.now() / 1000
+					} as ChatMessageRow
+				];
 				clearSteeringQueue(chatId);
 			}
 		}
