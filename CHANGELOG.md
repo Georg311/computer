@@ -1,3 +1,12 @@
+## [0.9.21.43] - 2026-11-14
+
+### Fixed
+- 🐛 **Steer Queue — server message_id speichern.** `message_id` vom Server wird jetzt korrekt in der Datenbank gespeichert, damit Steering Queue Items beim Löschen die richtige Referenz haben.
+- 🎤 **STT — Voice Recognition nach leerer Transkription/Error neu starten.** Provider-basierte STT restartet die Recognition automatisch nach leeren Ergebnissen oder Fehlern, statt stehenzubleiben.
+- 📋 **Plus Menu — Overlay schließt Menü nicht mehr beim Button-Klick.** Prevents the overlay from accidentally closing the PlusMenu when clicking inside it.
+
+---
+
 ## [0.9.21.42] - 2026-11-13
 
 ### Fixed
