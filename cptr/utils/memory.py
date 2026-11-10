@@ -830,9 +830,21 @@ def apply_markdown_memory_batch(
         operation_name = f"Operation {index + 1} ({action or 'unknown'})"
 
         if action == "add":
+            # Check for unknown keys first
+            expected_keys_add = {"action", "content", "target", "file", "memory_id", "heading", "title"}
+            unexpected_keys = set(operation.keys()) - expected_keys_add
+            if unexpected_keys:
+                return {
+                    "success": False,
+                    "error": f"{operation_name}: unknown parameter(s) {sorted(unexpected_keys)}; did you mean 'content' instead of '{list(unexpected_keys)[0]}'?",
+                }
             content = str(operation.get("content") or "").strip()
             if not content:
-                return {"success": False, "error": f"{operation_name}: content is required"}
+                provided_fields = [k for k in operation.keys() if k != "action"]
+                return {
+                    "success": False,
+                    "error": f"{operation_name}: required field 'content' is missing. Provided fields: {sorted(provided_fields)}. Use 'add', then provide 'content': '<text>'.",
+                }
             validation_error = memory_text_error(content)
             if validation_error:
                 backup = _backup_to_trash(root.baseline_path, "unsafe", root.root)
@@ -1068,27 +1080,48 @@ def apply_memory_batch(
                 )
 
         if action == "add":
-            if not content:
+            # Check for unknown keys first
+            expected_keys_add = {"action", "content"}
+            unexpected_keys = set(operation.keys()) - expected_keys_add
+            if unexpected_keys:
                 return (
                     False,
-                    f"{operation_name}: content is required",
+                    f"{operation_name}: unknown parameter(s) {sorted(unexpected_keys)}; did you mean 'content' instead of '{list(unexpected_keys)[0]}'?",
+                    current_entries,
+                    current_usage,
+                )
+            if not content:
+                provided_fields = [k for k in operation.keys() if k != "action"]
+                return (
+                    False,
+                    f"{operation_name}: required field 'content' is missing. Provided fields: {sorted(provided_fields)}. Use 'add', then provide 'content': '<text>'.",
                     current_entries,
                     current_usage,
                 )
             if content not in next_entries:
                 next_entries.append(content)
         elif action == "replace":
-            if not old_text:
+            expected_keys_replace = {"action", "content", "old_text"}
+            unexpected_keys = set(operation.keys()) - expected_keys_replace
+            if unexpected_keys:
                 return (
                     False,
-                    f"{operation_name}: old_text is required",
+                    f"{operation_name}: unknown parameter(s) {sorted(unexpected_keys)}; did you mean 'content' or 'old_text'?",
+                    current_entries,
+                    current_usage,
+                )
+            if not old_text:
+                provided_fields = [k for k in operation.keys() if k != "action"]
+                return (
+                    False,
+                    f"{operation_name}: required field 'old_text' is missing. Provided fields: {sorted(provided_fields)}. Use 'replace', then provide 'old_text': '<text>' and 'content': '<new>'.",
                     current_entries,
                     current_usage,
                 )
             if not content:
                 return (
                     False,
-                    f"{operation_name}: content is required",
+                    f"{operation_name}: required field 'content' is missing. Provided fields: {sorted([k for k in operation.keys() if k != 'action'])}. Use 'replace', then provide 'old_text': '<text>' and 'content': '<new>'.",
                     current_entries,
                     current_usage,
                 )
@@ -1109,10 +1142,20 @@ def apply_memory_batch(
                 )
             next_entries[matches[0]] = content
         elif action == "remove":
-            if not old_text:
+            expected_keys_remove = {"action", "old_text"}
+            unexpected_keys = set(operation.keys()) - expected_keys_remove
+            if unexpected_keys:
                 return (
                     False,
-                    f"{operation_name}: old_text is required",
+                    f"{operation_name}: unknown parameter(s) {sorted(unexpected_keys)}; did you mean 'old_text'?",
+                    current_entries,
+                    current_usage,
+                )
+            if not old_text:
+                provided_fields = [k for k in operation.keys() if k != "action"]
+                return (
+                    False,
+                    f"{operation_name}: required field 'old_text' is missing. Provided fields: {sorted(provided_fields)}. Use 'remove', then provide 'old_text': '<text>'.",
                     current_entries,
                     current_usage,
                 )

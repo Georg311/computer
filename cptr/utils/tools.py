@@ -556,7 +556,7 @@ def _should_enable_regex(query: str) -> bool:
     """
     # Check for obvious regex patterns in the query string itself
     
-    # .* pattern (any char × any count)
+    # .* pattern (any char × any count) – unescaped OR escaped (\.\*)
     if '.*' in query or '..*' in query:
         return True
         
@@ -572,10 +572,13 @@ def _should_enable_regex(query: str) -> bool:
     if (query.startswith('^') or query.endswith('$')):
         return True
         
-    # | OR operator (unescaped)
-    parts = query.split('|')
-    if len(parts) > 1 and not any(p.startswith('\\|') for p in parts):
-        return True
+    # | OR operator – both escaped (\|) AND unescaped
+    if '|' in query:
+        parts = query.split('|')
+        # If there are multiple parts and they don't all start with \, treat as regex OR
+        non_escaped_parts = [p for p in parts if not p.startswith('\\')]
+        if len(parts) > 1 and len(non_escaped_parts) >= 1:
+            return True
     
     # Common literal file extensions → never auto-detect as regex
     literal_extensions = [
@@ -730,7 +733,7 @@ async def list_directory(
 async def search_files(
     query: str,
     path: str = ".",
-    regex: bool | None = None,
+    is_regex: bool | None = None,
     case_insensitive: bool = False,
     include: str = "",
     filenames_only: bool = False,  # LEGACY - use mode="files_with_matches" instead
@@ -746,14 +749,14 @@ async def search_files(
     """Search files for a pattern using ripgrep. Fast, respects .gitignore.
 
     :param query: Search pattern (plain text or regex). Auto-detects regex patterns
-        based on common operators like ``.*``, backslash-w, pipe operator etc. Use explicit ``regex=true`` 
-        to force regex mode, or ``regex=false`` to force literal matching regardless of auto-detect.
+        based on common operators like ``.*``, backslash-w, pipe operator etc. Use explicit ``is_regex=true`` 
+        to force regex mode, or ``is_regex=false`` to force literal matching regardless of auto-detect.
 
     :param path: Directory to search in, relative to workspace root. Can also be a single file path.
     
-    :param regex: Force regex or literal mode. Default (None) = auto-detect based on query content.
-        - ``regex=true`` → force regex interpretation
-        - ``regex=false`` → force literal matching (overrides auto-detect)
+    :param is_regex: Force regex or literal mode. Default (None) = auto-detect based on query content.
+        - ``is_regex=true`` → force regex interpretation
+        - ``is_regex=false`` → force literal matching (overrides auto-detect)
         - No value / None → heuristically detect from query pattern
 
     :param case_insensitive: Case-insensitive matching.
@@ -784,8 +787,8 @@ async def search_files(
     Note: ``filenames_only`` and ``filepaths_only`` are LEGACY parameters. Use ``mode="files_with_matches"`` instead.
     
     Examples:
-      - Plain text search: ``search_files(query="TODO")`` or ``search_files("TODO", regex=false)``
-      - Regex search: ``search_files("class.*Handler", regex=true)`` or auto-detected from ".*" pattern
+      - Plain text search: ``search_files(query="TODO")`` or ``search_files("TODO", is_regex=false)``
+      - Regex search: ``search_files("class.*Handler", is_regex=true)`` or auto-detected from ".*" pattern
       - Find files only: ``search_files("import", mode="files_with_matches")``
     """
     workspace = __context__["workspace"]
@@ -807,9 +810,9 @@ async def search_files(
         pass  # special handling in _search_rg
     # else: mode == "content" (default), keep existing flags
 
-    # Auto-detect regex from query when regex parameter is not explicitly set
-    if regex is None:
-        regex = _should_enable_regex(query)
+    # Auto-detect regex from query when is_regex parameter is not explicitly set
+    if is_regex is None:
+        is_regex = _should_enable_regex(query)
     # Explicit False always overrides auto-detect
 
     is_file = file_stat.get("type") == "file"
@@ -820,7 +823,7 @@ async def search_files(
             res = await _search_rg(
                 query,
                 full,
-                regex,
+                is_regex,
                 case_insensitive,
                 include,
                 filenames_only_resolved or filenames_only,
@@ -861,7 +864,7 @@ async def search_files(
         res = await _search_rg(
             query,
             full,
-            regex,
+            is_regex,
             case_insensitive,
             include,
             filenames_only_resolved or filenames_only,
@@ -897,7 +900,7 @@ async def search_files(
 async def _search_rg(
     query: str,
     full: Path,
-    regex: bool,
+    is_regex: bool,
     case_insensitive: bool,
     include: str,
     filenames_only: bool,
@@ -917,7 +920,7 @@ async def _search_rg(
     if not is_file:
         args.extend(["--glob", "!.env", "--glob", "!.env.*"])
 
-    if not regex:
+    if not is_regex:
         args.append("--fixed-strings")
     if case_insensitive:
         args.append("--ignore-case")
@@ -1401,13 +1404,23 @@ async def edit_file(
         region = "".join(lines[s:e])
 
         if target not in region:
-            return f"Error: target text not found in lines {s + 1}-{e} of {path}"
+            # Provide context: show first actual line from file as hint
+            first_line = lines[0].strip() if lines else "(empty file)"
+            return (
+                f"Error: target text not found in lines {s + 1}-{e} of {path}\n"
+                f"Hint: First line is '{first_line}'. "
+                f"Lies die Datei neu, bevor du editierst."
+            )
 
         count = region.count(target)
         if count > 1:
+            # Find all matching lines in the region for ambiguity hint
+            region_lines = [l.strip() for l in region.splitlines()]
+            match_indices = [i + s + 1 for i, l in enumerate(lines[s:e]) if target in l]
             return (
                 f"Error: target text found {count} times in lines {s + 1}-{e}. "
-                f"Narrow the line range or use a more specific target."
+                f"Narrow the line range or use a more specific target. "
+                f"Match positions: {match_indices}"
             )
 
         new_region = region.replace(target, replacement, 1)
@@ -1415,11 +1428,24 @@ async def edit_file(
     else:
         count = content.count(target)
         if count == 0:
-            return f"Error: target text not found in {path}"
+            # Provide context: show first few lines from file as hint
+            lines = content.splitlines()
+            sample_lines = [l.strip() for l in lines[:3] if l.strip()]
+            hint = (
+                f"Sample lines: {', '.join(sample_lines[:2])}" 
+                if sample_lines else "(empty file)"
+            )
+            return (
+                f"Error: target text not found in {path}\n"
+                f"Hint: {hint}. Lies die Datei neu, bevor du editierst."
+            )
         if count > 1:
+            # Find all matching lines for ambiguity hint
+            match_lines = [i+1 for i, l in enumerate(lines) if target in l]
             return (
                 f"Error: target text found {count} times in {path}. "
-                f"Use start_line/end_line to disambiguate."
+                f"Use start_line/end_line to disambiguate. "
+                f"Match positions: lines {match_lines[:5]}"
             )
         new_content = content.replace(target, replacement, 1)
 
@@ -1476,16 +1502,29 @@ async def multi_edit_file(
         replacement = edit.get("replacement", "")
 
         if not target:
-            return f"Error: edit {i + 1} missing 'target'"
+            return f"Error: edit {i + 1} missing 'target'. Each edit object requires a non-empty 'target' string."
 
         if target not in content:
-            return f"Error: target not found for edit {i + 1}: {target[:100]}..."
+            # Provide context: show first few lines from file as hint
+            lines = content.splitlines()
+            sample_lines = [l.strip() for l in lines[:3] if l.strip()]
+            hint = (
+                f"Sample lines: {', '.join(sample_lines[:2])}" 
+                if sample_lines else "(empty file)"
+            )
+            return (
+                f"Error: target not found for edit {i + 1}: {target[:100]}...\n"
+                f"Hint: {hint}. Lies die Datei neu, bevor du editierst."
+            )
 
         count = content.count(target)
         if count > 1:
+            # Find all matching lines for ambiguity hint
+            match_lines = [i+1 for i, l in enumerate(lines) if target in l]
             return (
                 f"Error: edit {i + 1} target found {count} times. "
-                f"Each target must be unique in the file."
+                f"Each target must be unique in the file. "
+                f"Match positions: lines {match_lines[:5]}"
             )
 
         content = content.replace(target, replacement, 1)
@@ -1764,13 +1803,21 @@ def _resolve_path(path: str, workspace: str) -> Path:
         ws = Path(workspace).resolve()
         if full.is_relative_to(uploads) or full.is_relative_to(ws):
             return full
-        raise ValueError(f"Path outside allowed directories: {path}")
+        raise ValueError(
+            f"Path outside allowed directories: {path}\n"
+            f"Allowed: workspace ({ws}) and uploads ({uploads}). "
+            f"Nutze einen relativen Pfad oder lege die Datei innerhalb des Workspaces ab."
+        )
 
     # Relative paths resolve against workspace
     ws = Path(workspace).resolve()
     full = (ws / path).resolve()
     if not full.is_relative_to(ws):
-        raise ValueError(f"Path traversal rejected: {path}")
+        raise ValueError(
+            f"Path traversal rejected: {path}\n"
+            f"Workspace root: {ws}. Der aufgelöste Pfad ({full}) liegt außerhalb des Workspaces. "
+            f"Verwende keine '..' Traversals, die den Workspace verlassen."
+        )
     return full
 
 
@@ -1805,7 +1852,18 @@ async def create_automation(
         try:
             validate_rrule(rrule)
         except ValueError as e:
-            return json.dumps({"error": f"Invalid schedule: {e}"})
+            error_msg = str(e).lower()
+            suggestion = (
+                "Beispielhafte gültige Formate:\n"
+                "- Täglich: 'DTSTART:20250101T090000\\nRRULE:FREQ=DAILY'\n"
+                "- Wöchentlich: 'RRULE:FREQ=WEEKLY;BYDAY=MO'\n"
+                "- Stündlich: 'RRULE:FREQ=HOURLY;INTERVAL=1'\n"
+                "- Einmalig: 'DTSTART:20250415T140000\\nRRULE:FREQ=DAILY;COUNT=1'"
+            )
+            detail = f"{e}" if "interval" in error_msg else str(e)
+            return json.dumps({
+                "error": f"Invalid schedule: {detail}\n{suggestion}",
+            })
 
         if not model_id:
             return json.dumps({"error": "Could not detect model from current chat context."})
@@ -1955,7 +2013,25 @@ async def toggle_automation(
 
         automation = await AutomationModel.get_by_id(automation_id)
         if not automation:
-            return json.dumps({"error": "Automation not found"})
+            from cptr.models.automations import Automation as _AutoModel
+            items, total = await _AutoModel.get_by_workspace(
+                user_id=__context__["user_id"],
+                workspace=workspace or None,
+                status="",
+                limit=5,
+            )
+            recent_ids = [i.id for i in items[:5]] if items else []
+            active_count = total if items else 0
+            return json.dumps({
+                "error": f'Automation "{automation_id}" not found.',
+                "detail": {
+                    "automation_id": automation_id,
+                    "exists": False,
+                    "active_count": active_count,
+                    "recent_ids": recent_ids[:3],
+                },
+                "suggestion": "Nutze 'list_automations' um verfügbare Automationen zu sehen.",
+            })
 
         nxt = next_run_ns(automation.rrule) if not automation.is_active else None
         toggled = await AutomationModel.toggle(automation_id, next_run_at=nxt)
@@ -1987,7 +2063,25 @@ async def delete_automation(
 
         automation = await AutomationModel.get_by_id(automation_id)
         if not automation:
-            return json.dumps({"error": "Automation not found"})
+            from cptr.models.automations import Automation as _AutoModel
+            items, total = await _AutoModel.get_by_workspace(
+                user_id=__context__["user_id"],
+                workspace=workspace or None,
+                status="",
+                limit=5,
+            )
+            recent_ids = [i.id for i in items[:5]] if items else []
+            active_count = total if items else 0
+            return json.dumps({
+                "error": f'Automation "{automation_id}" not found.',
+                "detail": {
+                    "automation_id": automation_id,
+                    "exists": False,
+                    "active_count": active_count,
+                    "recent_ids": recent_ids[:3],
+                },
+                "suggestion": "Nutze 'list_automations' um verfügbare Automationen zu sehen.",
+            })
 
         name = automation.name
         success = await AutomationModel.delete(automation_id)
@@ -2023,7 +2117,14 @@ async def view_skill(
 
     skill = load_skill(workspace, skill_name)
     if not skill:
-        return f"Error: skill '{skill_name}' not found. Check <available_skills> for valid names."
+        from cptr.utils.skills import discover_skills as _discover_skills
+        available = sorted({s.name for s in _discover_skills(workspace)})
+        return (
+            f"Error: skill '{skill_name}' not found.\n"
+            f"Requested name: {skill_name}\n"
+            f"Available skills ({len(available)}): {', '.join(available[:10])}" +
+            ("..." if len(available) > 10 else "")
+        )
 
     if file_path:
         skill_dir = Path(skill.location).parent
