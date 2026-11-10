@@ -317,7 +317,8 @@ async def run_automation_now(
         # Webhook path: validate token, no session required
         automation = await Automation.get_by_id(automation_id)
         if not automation:
-            raise HTTPException(404, "automation not found")
+            recent_ids, active_count = await _get_recent_automations(user_id)
+            raise HTTPException(404, _automation_not_found_error(automation_id, recent_ids, active_count))
         meta = automation.meta or {}
         expected_hash = meta.get("webhook_token", "")
         if not expected_hash or _hash_token(token) != expected_hash:
@@ -340,7 +341,8 @@ async def run_automation_now(
         user_id = _get_user(request)
         automation = await Automation.get_by_id(automation_id)
         if not automation or automation.user_id != user_id:
-            raise HTTPException(404, "automation not found")
+            recent_ids, active_count = await _get_recent_automations(user_id)
+            raise HTTPException(404, _automation_not_found_error(automation_id, recent_ids, active_count))
         webhook_payload = None
 
     from cptr.utils.automations import execute_automation
@@ -377,7 +379,8 @@ async def get_automation_runs(
     user_id = _get_user(request)
     automation = await Automation.get_by_id(automation_id)
     if not automation or automation.user_id != user_id:
-        raise HTTPException(404, "automation not found")
+        recent_ids, active_count = await _get_recent_automations(user_id)
+        raise HTTPException(404, _automation_not_found_error(automation_id, recent_ids, active_count))
 
     runs = await AutomationRun.get_by_automation(automation_id, skip=skip, limit=limit)
     return [_run_dict(r) for r in runs]
@@ -396,7 +399,8 @@ async def generate_webhook(request: Request, automation_id: str):
     user_id = _get_user(request)
     automation = await Automation.get_by_id(automation_id)
     if not automation or automation.user_id != user_id:
-        raise HTTPException(404, "automation not found")
+        recent_ids, active_count = await _get_recent_automations(user_id)
+        raise HTTPException(404, _automation_not_found_error(automation_id, recent_ids, active_count))
 
     plaintext = f"wh_{secrets.token_hex(20)}"
     meta = dict(automation.meta or {})
@@ -416,7 +420,8 @@ async def revoke_webhook(request: Request, automation_id: str):
     user_id = _get_user(request)
     automation = await Automation.get_by_id(automation_id)
     if not automation or automation.user_id != user_id:
-        raise HTTPException(404, "automation not found")
+        recent_ids, active_count = await _get_recent_automations(user_id)
+        raise HTTPException(404, _automation_not_found_error(automation_id, recent_ids, active_count))
 
     meta = dict(automation.meta or {})
     meta.pop("webhook_token", None)
