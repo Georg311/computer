@@ -2037,7 +2037,25 @@ async def update_automation(
 
         automation = await AutomationModel.get_by_id(automation_id)
         if not automation:
-            return json.dumps({"error": "Automation not found"})
+            from cptr.models.automations import Automation as _AutoModel
+            items, total = await _AutoModel.get_by_workspace(
+                user_id=__context__["user_id"],
+                workspace=__context__.get("workspace") or None,
+                status="",
+                limit=5,
+            )
+            recent_ids = [i.id for i in items[:3]] if items else []
+            active_count = total if items else 0
+            return json.dumps({
+                "error": f'Automation "{automation_id}" not found.',
+                "detail": {
+                    "automation_id": automation_id,
+                    "exists": False,
+                    "active_count": active_count,
+                    "recent_ids": recent_ids,
+                },
+                "suggestion": "Nutze 'list_automations' um verfügbare Automationen zu sehen.",
+            })
 
         kwargs = {}
         if name:
@@ -2050,7 +2068,29 @@ async def update_automation(
             try:
                 validate_rrule(rrule)
             except ValueError as e:
-                return json.dumps({"error": f"Invalid schedule: {e}"})
+                error_msg = str(e).lower()
+                suggestion_text = (
+                    "Beispielhafte gültige Formate:\n"
+                    "- Täglich: 'DTSTART:20250101T090000\\nRRULE:FREQ=DAILY'\n"
+                    "- Wöchentlich: 'RRULE:FREQ=WEEKLY;BYDAY=MO'\n"
+                    "- Stündlich: 'RRULE:FREQ=HOURLY;INTERVAL=1'\n"
+                    "- Einmalig: 'DTSTART:20250415T140000\\nRRULE:FREQ=DAILY;COUNT=1'"
+                )
+                missing = []
+                if "freq" in error_msg:
+                    missing.append("FREQ ist erforderlich (z.B. DAILY, WEEKLY, HOURLY)")
+                if "interval" in error_msg and "INTERVAL=" not in rrule.upper():
+                    missing.append("INTERVAL-Wert fehlt")
+                return json.dumps({
+                    "error": "invalid_rrule",
+                    "message": f"Ungültige iCalendar RRULE: {rrule}",
+                    "detail": {
+                        "rule": rrule,
+                        "missing_required": missing if missing else [f"{e}"],
+                        "valid_examples": ["FREQ=DAILY", "FREQ=WEEKLY;BYDAY=MO", "FREQ=HOURLY;INTERVAL=1"],
+                    },
+                    "suggestion": suggestion_text,
+                })
             kwargs["rrule"] = rrule
             kwargs["next_run_at"] = next_run_ns(rrule)
 
@@ -2092,7 +2132,7 @@ async def toggle_automation(
             from cptr.models.automations import Automation as _AutoModel
             items, total = await _AutoModel.get_by_workspace(
                 user_id=__context__["user_id"],
-                workspace=workspace or None,
+                workspace=__context__.get("workspace") or None,
                 status="",
                 limit=5,
             )
@@ -2142,7 +2182,7 @@ async def delete_automation(
             from cptr.models.automations import Automation as _AutoModel
             items, total = await _AutoModel.get_by_workspace(
                 user_id=__context__["user_id"],
-                workspace=workspace or None,
+                workspace=__context__.get("workspace") or None,
                 status="",
                 limit=5,
             )
