@@ -724,7 +724,22 @@ async def list_directory(
         if request is None:
             return "Error: request context unavailable"
         result = await Runtime.list_tree(request, str(full), recursive)
-    except (ValueError, FileError, IdentityUnavailable) as e:
+    except ValueError as e:
+        msg = str(e)
+        import re as _re
+        ws_match = _re.search(r'Workspace root: ([^\n]+)', msg)
+        path_match = _re.search(r'(?:Path traversal rejected|outside allowed): [^\s\n]+', msg)
+        return json.dumps({
+            "error": "path_outside_workspace",
+            "message": str(e),
+            "detail": {
+                "given_path": path,
+                "workspace_root": ws_match.group(1).strip() if ws_match else "",
+                "allowed_pattern": "relative paths only (no absolute or parent traversal)",
+            },
+            "suggestion": "Nutze einen relativen Pfad oder lege die Datei innerhalb des Workspaces ab.",
+        })
+    except (FileError, IdentityUnavailable) as e:
         return f"Error: {e}"
     res = str(result.get("text") or "")
     return _truncate_output(res, max_chars=CHAT_TOOL_MAX_CHARS)
@@ -965,7 +980,23 @@ async def _search_rg(
         return "No matches found."
     if proc.returncode > 1:
         err = stderr.decode(errors="replace").strip()
-        raise FileNotFoundError(err) if "not found" in err.lower() else Exception(err)
+        # Check for regex errors – provide structured error with suggestion
+        import re as _re
+        rg_err_msg = f"rg: {err}" if err else "ripgrep failed"
+        if "invalid regex" in err.lower() or "error parsing" in err.lower():
+            # Extract the problematic pattern from ripgrep's stderr
+            pattern_match = _re.search(r'pattern error: (.+)', err, _re.IGNORECASE)
+            bad_pattern = pattern_match.group(1).strip() if pattern_match else query
+            return json.dumps({
+                "error": "invalid_regex",
+                "message": f"Ungültiger regulärer Ausdruck: {query}",
+                "detail": {
+                    "pattern": query,
+                    "regex_error": err[:200] if err else rg_err_msg,
+                },
+                "suggestion": "Entweder escape die Sonderzeichen (z.B. '\\(' statt '(') oder verwende is_regex=false für Literal-Suche.",
+            })
+        raise FileNotFoundError(err) if "not found" in err.lower() else Exception(rg_err_msg)
 
     lines = output.splitlines()
 
@@ -1673,7 +1704,18 @@ async def check_task(
             for session_id, session in command_sessions.items()
             if session.get("user_id") == user_id
         ]
-        return f"Error: no task with id '{task_id}'. Active tasks: {available or 'none'}"
+        last_state = "running" if any(command_sessions[s].get("done", False) is False for s in available) else "completed"
+        return json.dumps({
+            "error": "task_not_found",
+            "message": f"Task '{task_id}' existiert nicht oder wurde beendet.",
+            "detail": {
+                "task_id": task_id,
+                "exists": False,
+                "last_state": last_state,
+                "active_tasks": available[:5],
+            },
+            "suggestion": "Nutze 'check_task' um aktive Tasks zu prüfen. Aktive: " + (", ".join(available) if available else "keine"),
+        })
 
     # Optionally wait for the task to finish
     if wait is None and EXECUTE_TIMEOUT:
@@ -1724,7 +1766,18 @@ async def kill_task(task_id: str, force: bool = False, *, __context__: dict) -> 
             for session_id, session in command_sessions.items()
             if session.get("user_id") == user_id
         ]
-        return f"Error: no task with id '{task_id}'. Active tasks: {available or 'none'}"
+        last_state = "running" if any(command_sessions[s].get("done", False) is False for s in available) else "completed"
+        return json.dumps({
+            "error": "task_not_found",
+            "message": f"Task '{task_id}' existiert nicht oder wurde beendet.",
+            "detail": {
+                "task_id": task_id,
+                "exists": False,
+                "last_state": last_state,
+                "active_tasks": available[:5],
+            },
+            "suggestion": "Nutze 'list' um aktive Tasks zu sehen oder starte einen neuen mit 'run_command'. Aktive: " + (", ".join(available) if available else "keine"),
+        })
 
     if task.get("done", False):
         exit_code = task.get("exit_code")
@@ -1750,7 +1803,18 @@ async def send_input(task_id: str, input: str, *, __context__: dict) -> str:
             for session_id, session in command_sessions.items()
             if session.get("user_id") == user_id
         ]
-        return f"Error: no task '{task_id}'. Active: {available or 'none'}"
+        last_state = "running" if any(command_sessions[s].get("done", False) is False for s in available) else "completed"
+        return json.dumps({
+            "error": "task_not_found",
+            "message": f"Task '{task_id}' existiert nicht oder wurde beendet.",
+            "detail": {
+                "task_id": task_id,
+                "exists": False,
+                "last_state": last_state,
+                "active_tasks": available[:5],
+            },
+            "suggestion": "Nutze 'check_task' um aktive Tasks zu prüfen. Aktive: " + (", ".join(available) if available else "keine"),
+        })
 
     if task.get("done", False):
         return f"Error: task {task_id} already exited (code {task.get('exit_code')})"
@@ -1853,16 +1917,28 @@ async def create_automation(
             validate_rrule(rrule)
         except ValueError as e:
             error_msg = str(e).lower()
-            suggestion = (
+            detail_str = f"{e}" if "interval" in error_msg else str(e)
+            suggestion_text = (
                 "Beispielhafte gültige Formate:\n"
                 "- Täglich: 'DTSTART:20250101T090000\\nRRULE:FREQ=DAILY'\n"
                 "- Wöchentlich: 'RRULE:FREQ=WEEKLY;BYDAY=MO'\n"
                 "- Stündlich: 'RRULE:FREQ=HOURLY;INTERVAL=1'\n"
                 "- Einmalig: 'DTSTART:20250415T140000\\nRRULE:FREQ=DAILY;COUNT=1'"
             )
-            detail = f"{e}" if "interval" in error_msg else str(e)
+            missing = []
+            if "freq" in error_msg:
+                missing.append("FREQ ist erforderlich (z.B. DAILY, WEEKLY, HOURLY)")
+            if "interval" in error_msg and "INTERVAL=" not in rrule.upper():
+                missing.append("INTERVAL-Wert fehlt")
             return json.dumps({
-                "error": f"Invalid schedule: {detail}\n{suggestion}",
+                "error": "invalid_rrule",
+                "message": f"Ungültige iCalendar RRULE: {rrule}",
+                "detail": {
+                    "rule": rrule,
+                    "missing_required": missing if missing else [f"{e}"],
+                    "valid_examples": ["FREQ=DAILY", "FREQ=WEEKLY;BYDAY=MO", "FREQ=HOURLY;INTERVAL=1"],
+                },
+                "suggestion": suggestion_text,
             })
 
         if not model_id:
@@ -2119,12 +2195,17 @@ async def view_skill(
     if not skill:
         from cptr.utils.skills import discover_skills as _discover_skills
         available = sorted({s.name for s in _discover_skills(workspace)})
-        return (
-            f"Error: skill '{skill_name}' not found.\n"
-            f"Requested name: {skill_name}\n"
-            f"Available skills ({len(available)}): {', '.join(available[:10])}" +
-            ("..." if len(available) > 10 else "")
-        )
+        return json.dumps({
+            "error": "skill_not_found",
+            "message": f"Skill '{skill_name}' nicht verfügbar.",
+            "detail": {
+                "requested_name": skill_name,
+                "scope": "workspace",
+                "available_skills": available[:10] if len(available) > 10 else available,
+                "total_available": len(available),
+            },
+            "suggestion": f"Verfügbare Skills ({len(available)}): {', '.join(available[:5])}" + ("..." if len(available) > 5 else ""),
+        }, ensure_ascii=False)
 
     if file_path:
         skill_dir = Path(skill.location).parent
