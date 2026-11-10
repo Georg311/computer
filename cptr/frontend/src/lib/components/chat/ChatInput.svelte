@@ -1287,13 +1287,17 @@
 					handleSubmit(text);
 					console.log("[Voice] Provider STT — transcription result:", JSON.stringify(text));
 				} else {
-					console.warn("[Voice] Provider STT — empty transcription");
+					console.warn("[Voice] Provider STT — empty transcription, restart listening");
 					toast.error($t('chat.voiceNoResults'));
+					// Restart provider voice recognition so voice mode keeps listening
+					startProviderVoiceRecognition().catch(() => {});
 				}
 			} catch (err: any) {
 				console.error("[Voice] Provider STT — transcription error:", err);
 				const detail = err?.message ? ` ${err.message}` : '';
 				toast.error(`${$t('chat.voiceProviderSttFallback')}${detail}`);
+				// Restart listening after error too
+				startProviderVoiceRecognition().catch(() => {});
 			}
 		}
 
