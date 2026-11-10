@@ -36,6 +36,23 @@
 
 ---
 
+## [0.9.21.22] - 2026-11-02
+
+### Fixed
+- 🐛 **TokenEconomizer empty values fix.** `effective_tokens`, `total_tokens`, `cache_savings_pct` und `session_cost_usd` waren immer 0, weil (a) `record_tool_call()` keine DB-Werte schrieb — nur leere Rows erstellt; (b) der `/api/chats/te/status` Endpoint las nur aus der DB und ignorierte den In-Memory-Cache. Behoben durch: Synchronisieren der DB-te_status Row mit berechneten Werten bei jedem Tool-Call; Hinzufügen von `get_session_costs()` Fallback im Endpoint, damit gecachte Werte auffüllen, wenn DB noch 0 ist (behandelt Restart und Pre-Migration Chats). Auch `get_session_estimate()` Formula behoben — `effective_tokens` jetzt fresh input tokens (`input - cache_read`) statt weighted cost, `cache_savings_pct` zeigt korrekt % des input served from cache, `session_cost_usd` auf 2 Dezimalstellen gerundet.
+
+---
+
+## [0.9.21.10] - 2026-10-16
+
+### Added
+- 📁 **Directory Watcher.** Neues `watch_directory` Tool zur Überwachung von Verzeichnisänderungen. Unterstützt sowohl Notification Mode (Systemnachricht) als auch Trigger Mode (auto-trigger neuer Agent-Turn auf Pattern-Match). Zentrale inotify Event-Polling verhindert Race Conditions zwischen mehreren Watchern.
+
+### Fixed
+- 🔧 **inotify Support.** ctypes Fallback für `inotify_init`/`inotify_add_watch`/`inotify_rm_watch` hinzugefügt, wenn Python 3.13 `os.inotify_*` Bindings nicht verfügbar sind. Path Resolution verbessert (pathlib.Path.home statt os.path.expanduser). Chat ID, User ID und Workspace werden korrekt an `start_directory_watch` übergeben.
+
+---
+
 ## [0.9.21.36] - 2026-11-07
 
 ### Added
