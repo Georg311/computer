@@ -38,6 +38,34 @@ def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+async def _get_recent_automations(user_id: str, limit: int = 5) -> tuple[list[str], int]:
+    """Fetch recent automation IDs and total count for user (for error context)."""
+    from cptr.models.automations import Automation as AutoModel
+
+    items, total = await AutoModel.get_by_workspace(
+        user_id=user_id,
+        workspace=None,
+        status="",
+        limit=limit,
+    )
+    recent_ids = [i.id for i in items[:5]] if items else []
+    return recent_ids, total
+
+
+def _automation_not_found_error(automation_id: str, recent_ids: list[str], active_count: int) -> dict:
+    """Build structured error response for missing automation."""
+    return {
+        "error": f'Automation "{automation_id}" not found.',
+        "detail": {
+            "automation_id": automation_id,
+            "exists": False,
+            "active_count": active_count,
+            "recent_ids": recent_ids[:3],
+        },
+        "suggestion": "Nutze 'list_automations' um verfügbare Automationen zu sehen.",
+    }
+
+
 def _automation_dict(
     a: Automation,
     last_run: AutomationRun | None = None,
@@ -132,7 +160,29 @@ async def create_automation(request: Request, body: CreateAutomationRequest):
     try:
         validate_rrule(body.rrule)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        error_msg = str(e).lower()
+        suggestion_text = (
+            "Beispielhafte gültige Formate:\n"
+            "- Täglich: 'DTSTART:20250101T090000\\nRRULE:FREQ=DAILY'\n"
+            "- Wöchentlich: 'RRULE:FREQ=WEEKLY;BYDAY=MO'\n"
+            "- Stündlich: 'RRULE:FREQ=HOURLY;INTERVAL=1'\n"
+            "- Einmalig: 'DTSTART:20250415T140000\\nRRULE:FREQ=DAILY;COUNT=1'"
+        )
+        missing = []
+        if "freq" in error_msg or "missing 1 required positional argument: 'freq'" in error_msg:
+            missing.append("FREQ ist erforderlich (z.B. DAILY, WEEKLY, HOURLY)")
+        if "interval" in error_msg and "INTERVAL=" not in body.rrule.upper():
+            missing.append("INTERVAL-Wert fehlt")
+        raise HTTPException(422, {
+            "error": "invalid_rrule",
+            "message": f"Ungültige iCalendar RRULE: {body.rrule}",
+            "detail": {
+                "rule": body.rrule,
+                "missing_required": missing if missing else [str(e)],
+                "valid_examples": ["FREQ=DAILY", "FREQ=WEEKLY;BYDAY=MO", "FREQ=HOURLY;INTERVAL=1"],
+            },
+            "suggestion": suggestion_text,
+        })
 
     nxt = next_run_ns(body.rrule)
     now = now_ms()
@@ -160,7 +210,8 @@ async def get_automation(request: Request, automation_id: str):
     user_id = _get_user(request)
     automation = await Automation.get_by_id(automation_id)
     if not automation or automation.user_id != user_id:
-        raise HTTPException(404, "automation not found")
+        recent_ids, active_count = await _get_recent_automations(user_id)
+        raise HTTPException(404, _automation_not_found_error(automation_id, recent_ids, active_count))
 
     last_run = await AutomationRun.get_latest(automation_id)
     return _automation_dict(
@@ -187,12 +238,35 @@ async def update_automation(request: Request, automation_id: str, body: UpdateAu
     user_id = _get_user(request)
     automation = await Automation.get_by_id(automation_id)
     if not automation or automation.user_id != user_id:
-        raise HTTPException(404, "automation not found")
+        recent_ids, active_count = await _get_recent_automations(user_id)
+        raise HTTPException(404, _automation_not_found_error(automation_id, recent_ids, active_count))
 
     try:
         validate_rrule(body.rrule)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        error_msg = str(e).lower()
+        suggestion_text = (
+            "Beispielhafte gültige Formate:\n"
+            "- Täglich: 'DTSTART:20250101T090000\\nRRULE:FREQ=DAILY'\n"
+            "- Wöchentlich: 'RRULE:FREQ=WEEKLY;BYDAY=MO'\n"
+            "- Stündlich: 'RRULE:FREQ=HOURLY;INTERVAL=1'\n"
+            "- Einmalig: 'DTSTART:20250415T140000\\nRRULE:FREQ=DAILY;COUNT=1'"
+        )
+        missing = []
+        if "freq" in error_msg or "missing 1 required positional argument: 'freq'" in error_msg:
+            missing.append("FREQ ist erforderlich (z.B. DAILY, WEEKLY, HOURLY)")
+        if "interval" in error_msg and "INTERVAL=" not in body.rrule.upper():
+            missing.append("INTERVAL-Wert fehlt")
+        raise HTTPException(422, {
+            "error": "invalid_rrule",
+            "message": f"Ungültige iCalendar RRULE: {body.rrule}",
+            "detail": {
+                "rule": body.rrule,
+                "missing_required": missing if missing else [str(e)],
+                "valid_examples": ["FREQ=DAILY", "FREQ=WEEKLY;BYDAY=MO", "FREQ=HOURLY;INTERVAL=1"],
+            },
+            "suggestion": suggestion_text,
+        })
 
     nxt = next_run_ns(body.rrule)
     now = now_ms()
@@ -222,7 +296,8 @@ async def toggle_automation(request: Request, automation_id: str):
     user_id = _get_user(request)
     automation = await Automation.get_by_id(automation_id)
     if not automation or automation.user_id != user_id:
-        raise HTTPException(404, "automation not found")
+        recent_ids, active_count = await _get_recent_automations(user_id)
+        raise HTTPException(404, _automation_not_found_error(automation_id, recent_ids, active_count))
 
     nxt = next_run_ns(automation.rrule) if not automation.is_active else None
     toggled = await Automation.toggle(automation_id, nxt, now_ms())
@@ -282,7 +357,8 @@ async def delete_automation(request: Request, automation_id: str):
     user_id = _get_user(request)
     automation = await Automation.get_by_id(automation_id)
     if not automation or automation.user_id != user_id:
-        raise HTTPException(404, "automation not found")
+        recent_ids, active_count = await _get_recent_automations(user_id)
+        raise HTTPException(404, _automation_not_found_error(automation_id, recent_ids, active_count))
 
     await Automation.delete(automation_id)
     return {"ok": True}
