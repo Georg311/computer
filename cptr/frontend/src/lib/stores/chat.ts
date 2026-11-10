@@ -88,7 +88,7 @@ export function isChatUnread(status: ChatStatus | undefined): boolean {
 export const streamingChatTabs = writable<Set<string>>(new Set());
 
 /** Steering queue: maps chatId → array of {id, content} queued steering messages. */
-export const steeringQueues = writable<Map<string, { id: string; content: string }[]>>(
+export const steeringQueues = writable<Map<string, { id: string; serverId?: string; content: string }[]>>(
 	new Map()
 );
 
@@ -102,13 +102,23 @@ export function addSteeringQueueItem(chatId: string, id: string, content: string
 	});
 }
 
+/** Add a steering message to the queue for a chat with server ID. */
+export function addSteeringQueueItemWithServerId(chatId: string, tempId: string, serverId: string, content: string) {
+	steeringQueues.update((queues) => {
+		const next = new Map(queues);
+		const items = next.get(chatId) ?? [];
+		next.set(chatId, [...items, { id: tempId, serverId, content }]);
+		return next;
+	});
+}
+
 /** Remove a steering message from the queue. */
 export function removeSteeringQueueItem(chatId: string, messageId: string) {
 	steeringQueues.update((queues) => {
 		const items = queues.get(chatId);
 		if (!items || !items.length) return queues;
 		const next = new Map(queues);
-		next.set(chatId, items.filter((item) => item.id !== messageId));
+		next.set(chatId, items.filter((item) => item.id !== messageId && item.serverId !== messageId));
 		return next;
 	});
 }

@@ -1683,7 +1683,7 @@ const combinedQueue = $derived.by(() => {
 							type="button"
 							class="shrink-0 p-1 rounded-md text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors duration-100 active:scale-90 touch-manipulation"
 							title="Remove"
-							onclick={() => onsteerqueuedelete?.(item.id)}
+							onclick={() => onsteerqueuedelete?.(item.serverId || item.id)}
 						>
 							<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 								<path d="M18 6L6 18M6 6l12 12"/>

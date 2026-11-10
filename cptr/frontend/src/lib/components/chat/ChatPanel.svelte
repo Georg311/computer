@@ -1432,6 +1432,10 @@ async function handleSteerQueue() {
 		addSteeringQueueItem(chatId, id, inputText.trim());
 		try {
 			const res = await apiSteerQueueMessage(chatId, active.id, inputText);
+			if (res?.message_id) {
+				removeSteeringQueueItem(chatId, id);
+				addSteeringQueueItemWithServerId(chatId, id, res.message_id, inputText.trim());
+			}
 			inputText = '';
 			chatInputEl?.clearInput();
 			chatInputEl?.focus();
@@ -1446,10 +1450,10 @@ async function handleSteerQueue() {
 		}
 	}
 
-	async function handleSteerQueueDelete(messageId: string) {
+	async function handleSteerQueueDelete(serverId: string) {
 		try {
-			await apiSteerQueueDelete(chatId, messageId);
-			removeSteeringQueueItem(chatId, messageId);
+			await apiSteerQueueDelete(chatId, serverId);
+			removeSteeringQueueItem(chatId, serverId);
 		} catch (e) {
 			console.error('[chat] steer queue delete error', e);
 		}
