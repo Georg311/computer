@@ -169,6 +169,7 @@
 				>
 					<option value="default">{$t('general.default')}</option>
 					<option value="llama.cpp">llama.cpp</option>
+					<option value="llama-swap">llama-swap</option>
 				</select>
 			</div>
 		{/if}

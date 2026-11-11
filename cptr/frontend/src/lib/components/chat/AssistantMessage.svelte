@@ -68,6 +68,12 @@
 	let collapsedFiles = $state<Record<string, boolean>>({});
 	let textareaEl: HTMLTextAreaElement;
 
+	// Progress bar color based on percentage (gray -> orange -> green)
+	let progressColor = $derived(
+		$promptProgress.progress < 30 ? '#d1d5db' : 
+		$promptProgress.progress < 70 ? '#f59e0b' : '#10b981'
+	);
+
 	async function startEdit() {
 		edit = true;
 		if (output?.length) {
@@ -620,7 +626,7 @@
 			<div class="prompt-progress-container" style="height: 2px; margin-top: 4px;">
 				<div 
 					class="progress-fill" 
-					style="width: {$promptProgress.progress}%; height: 100%; background-color: #f59e0b; border-radius: 2px; transition: width 0.3s ease-out;"
+					style="width: {$promptProgress.progress}%; height: 100%; background-color: {progressColor}; border-radius: 2px; transition: width 0.3s ease-out, background-color 0.3s ease-in;"
 				></div>
 			</div>
 		{/if}
