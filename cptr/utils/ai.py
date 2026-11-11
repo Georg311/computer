@@ -54,12 +54,8 @@ def _openrouter_headers(url: str) -> dict[str, str]:
 
 
 def _is_llama_like_provider(provider_type: str) -> bool:
-    """Return True if provider_type starts with 'llama' (case-insensitive).
-    
-    Accepts any llama-based provider: llama.cpp, llama-swap, my-custom-llama, etc.
-    This makes it easy to add new providers without touching hardcoded checks.
-    """
-    return bool(provider_type and provider_type.lower().startswith("llama"))
+    """Return True if provider_type is llama-based (llama.cpp, llama-swap)."""
+    return provider_type == "llama.cpp" or provider_type == "llama-swap"
 
 
 _STREAM_RETRY_ATTEMPTS = 3
