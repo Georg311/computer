@@ -1,3 +1,8 @@
+## [0.9.21.46] - 2026-11-15
+
+### Fixed
+- 🎤 **Voice Mode — TTS-Ausgabe wird beim Senden neuer Nachrichten nicht mehr unterbrochen.** `stopTtsPlayback()` und `resetTtsBuffer()` werden nur noch aufgerufen, wenn Voice Mode inaktiv ist. Im Voice Mode läuft die Sprachausgabe weiter, während die STT-Erkennung eine neue Nachricht sendet.
+
 ## [0.9.21.45] - 2026-11-14
 
 ### Fixed
