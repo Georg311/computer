@@ -726,7 +726,7 @@ async def stream_openai_completions(
                         prompt_progress = chunk.get("prompt_progress") or (
                             choices and choices[0].get("prompt_progress") if len(choices) > 0 else None
                         )
-                        if prompt_progress is not None:
+                        if _is_llama_like_provider(provider_type) and prompt_progress is not None:
                             pp = dict(prompt_progress) if isinstance(prompt_progress, dict) else {}
                             total = pp.get("total", 0) or 0
                             cache = pp.get("cache", 0) or 0
