@@ -36,7 +36,8 @@
 		updateChatStatuses,
 		registerToolApprovalShortcutHandler,
 		steeringQueues,
-		addSteeringQueueItem, removeSteeringQueueItem, clearSteeringQueue, reorderSteeringQueueItem
+		addSteeringQueueItem, removeSteeringQueueItem, clearSteeringQueue, reorderSteeringQueueItem,
+		promptProgress, resetPromptProgress
 	} from '$lib/stores/chat';
 	import { socketStore } from '$lib/stores/socket.svelte';
 	import { onMount, onDestroy, tick } from 'svelte';
@@ -592,6 +593,9 @@
 		active?: boolean;
 		updated_at?: number;
 		last_read_at?: number;
+		prompt_progress?: any;
+		prompt_progress_reset?: any;
+		progress_pct?: number;
 	}) {
 		// On the landing page, update the chat list in place from socket events
 		if (isLanding) {
@@ -717,6 +721,19 @@
 			contextUsage = data.context_usage;
 		}
 
+		// ── Prompt Reading Progress ────────────────────────────────────
+		if (data.type === 'prompt_progress' && data.message_id) {
+			promptProgress.set({
+				chatId: data.chat_id,
+				messageId: data.message_id,
+				progress: Math.min(data.progress_pct ?? 0, 99), // Cap at 99% until done
+			});
+		}
+
+		if (data.type === 'prompt_progress_reset' && data.message_id) {
+			resetPromptProgress();
+		}
+
 		// Follow-up state changed server-side: reload to see new transcript/generation state.
 		if (data.pending_inputs_processed || data.async_subagent_pending) {
 			loadChat(data.chat_id);
@@ -778,6 +795,7 @@
 		}
 		if (data.error) {
 			toast.error(data.error, { duration: 8000 });
+			resetPromptProgress(); // Auch bei Error zurücksetzen
 		}
 
 		// ── Loop Guard Events ────────────────────────────────────

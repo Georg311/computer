@@ -1,3 +1,8 @@
+## [0.9.21.47] - 2026-11-15
+
+### Added
+- 📊 **Prompt Reading Progress — visuelle Progress-Bar während des Prefill (llama.cpp).** Ersetzt den "Working..."/Spinner durch eine animierten Fortschrittsbalken unter der Assistant-Antwort-Bubble. Transparentes Fallback für andere Provider (OpenAI etc.). Backend-parsing in `ai.py` war bereits implementiert; hinzugefügt: Event-Forwarding durch `chat_task.py`, Frontend-State in `stores/chat.ts`, Socket-Handling in `ChatPanel.svelte`, UI-Rendering in `AssistantMessage.svelte`.
+
 ## [0.9.21.46] - 2026-11-15
 
 ### Fixed

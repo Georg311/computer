@@ -84,8 +84,27 @@ export function isChatUnread(status: ChatStatus | undefined): boolean {
 	);
 }
 
+/** Current prompt reading progress for the active streaming chat. */
+export interface PromptProgressState {
+  chatId: string | null;
+  messageId: string | null;
+  progress: number;
+}
+
 /** Set of tab IDs whose chat is currently streaming (assistant message not done). */
 export const streamingChatTabs = writable<Set<string>>(new Set());
+
+/** Current prompt reading progress store (writable). */
+export const promptProgress = writable<PromptProgressState>({
+  chatId: null,
+  messageId: null,
+  progress: 0,
+});
+
+/** Reset prompt progress when first content token arrives or chat switches. */
+export function resetPromptProgress() {
+	promptProgress.set({ chatId: null, messageId: null, progress: 0 });
+}
 
 /** Steering queue: maps chatId → array of {id, content} queued steering messages. */
 export const steeringQueues = writable<Map<string, { id: string; serverId?: string; content: string }[]>>(

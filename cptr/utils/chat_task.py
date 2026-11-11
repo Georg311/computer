@@ -2892,7 +2892,29 @@ async def run_chat_task(
                 )
 
             async for event in stream:
+                if event["type"] == "prompt_progress":
+                    # Forward prompt_progress to frontend via socket + gateway queue
+                    progress = event.get("progress_pct", 0)
+                    await emit(
+                        prompt_progress={
+                            "chat_id": chat_id,
+                            "message_id": message_id,
+                            "progress": progress,
+                            "total_tokens": event.get("total_tokens", 0),
+                            "cache_tokens": event.get("cache_tokens", 0),
+                            "processed_tokens": event.get("processed_tokens", 0),
+                            "time_ms": event.get("time_ms", 0),
+                        }
+                    )
+
                 if event["type"] == "text_delta":
+                    # Reset prompt progress when first content token arrives
+                    await emit(
+                        prompt_progress_reset={
+                            "chat_id": chat_id,
+                            "message_id": message_id,
+                        }
+                    )
                     content += event["content"]
                     text_buffer += event["content"]
                     _stream_metrics.record_response(event["content"])

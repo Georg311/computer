@@ -10,6 +10,7 @@
 	import ReasoningCollapsible from './ReasoningCollapsible.svelte';
 	import ToolCallCollapsible from './ToolCallCollapsible.svelte';
 	import { currentWorkspace, openFileTab } from '$lib/stores';
+	import { promptProgress } from '$lib/stores/chat';
 	import { ttsConfigured, ttsEnabled } from '$lib/stores/audio';
 	import { tooltip } from '$lib/tooltip';
 	import { fileIconName } from '$lib/utils/fileIcon';
@@ -613,6 +614,16 @@
 				{/if}
 			{/if}
 		</div>
+
+		<!-- Prompt Reading Progress Bar -->
+		{#if !done && promptProgress.chatId === chatId && promptProgress.progress > 0}
+			<div class="prompt-progress-container" style="height: 2px; margin-top: 4px;">
+				<div 
+					class="progress-fill" 
+					style="width: {promptProgress.progress}%; height: 100%; background-color: #f59e0b; border-radius: 2px; transition: width 0.3s ease-out;"
+				></div>
+			</div>
+		{/if}
 
 		<!-- Live / final stream metrics (llama.cpp) -->
 		<LlamaMetricsPanel metrics={llamaMetrics} streaming={!done && !!llamaMetrics} />

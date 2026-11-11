@@ -651,6 +651,9 @@ async def stream_openai_completions(
         "stream": True,
         "stream_options": {"include_usage": True},
     }
+    # llama.cpp: enable return_progress so SSE stream contains prompt_progress events
+    if provider_type == "llama.cpp":
+        body["return_progress"] = True
     if tools:
         body["tools"] = tools
     if request_params:
@@ -713,6 +716,31 @@ async def stream_openai_completions(
                         chunk = json.loads(raw)
                         choices = chunk.get("choices", [])
                         delta = choices[0].get("delta", {}) if choices else {}
+
+                        # llama.cpp prompt_progress event (only when provider_type == "llama.cpp")
+                        prompt_progress = chunk.get("prompt_progress") or (
+                            choices and choices[0].get("prompt_progress") if len(choices) > 0 else None
+                        )
+                        if prompt_progress is not None:
+                            pp = dict(prompt_progress) if isinstance(prompt_progress, dict) else {}
+                            total = pp.get("total", 0) or 0
+                            cache = pp.get("cache", 0) or 0
+                            processed = pp.get("processed", 0) or 0
+                            time_ms = pp.get("time_ms", 0) or 0
+                            if total > cache:
+                                progress_pct = round((processed - cache) / (total - cache) * 100, 1)
+                            elif processed > 0 and total > 0:
+                                progress_pct = round(processed / total * 100, 1)
+                            else:
+                                progress_pct = 0
+                            yield {
+                                "type": "prompt_progress",
+                                "progress_pct": progress_pct,
+                                "total_tokens": total,
+                                "cache_tokens": cache,
+                                "processed_tokens": processed,
+                                "time_ms": time_ms,
+                            }
 
                         reasoning_delta = (
                             delta.get("reasoning_content")
