@@ -2895,25 +2895,27 @@ async def run_chat_task(
                 if event["type"] == "prompt_progress":
                     # Forward prompt_progress to frontend via socket + gateway queue
                     progress = event.get("progress_pct", 0)
+                    total_tokens = event.get("total_tokens", 0)
+                    cache_tokens = event.get("cache_tokens", 0)
+                    processed_tokens = event.get("processed_tokens", 0)
+                    time_ms = event.get("time_ms", 0)
                     await emit(
-                        prompt_progress={
-                            "chat_id": chat_id,
-                            "message_id": message_id,
-                            "progress": progress,
-                            "total_tokens": event.get("total_tokens", 0),
-                            "cache_tokens": event.get("cache_tokens", 0),
-                            "processed_tokens": event.get("processed_tokens", 0),
-                            "time_ms": event.get("time_ms", 0),
-                        }
+                        type="prompt_progress",
+                        message_id=message_id,
+                        chat_id=chat_id,
+                        progress_pct=progress,
+                        total_tokens=total_tokens,
+                        cache_tokens=cache_tokens,
+                        processed_tokens=processed_tokens,
+                        time_ms=time_ms,
                     )
 
                 if event["type"] == "text_delta":
                     # Reset prompt progress when first content token arrives
                     await emit(
-                        prompt_progress_reset={
-                            "chat_id": chat_id,
-                            "message_id": message_id,
-                        }
+                        type="prompt_progress_reset",
+                        chat_id=chat_id,
+                        message_id=message_id,
                     )
                     content += event["content"]
                     text_buffer += event["content"]
