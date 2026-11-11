@@ -1102,7 +1102,7 @@
 			inputText = '';
 			return;
 		}
-		if (!voiceModeEnabled) stopTtsPlayback();
+		stopTtsPlayback();  // Always interrupt TTS when sending a new message, regardless of voice mode
 		if (shouldStreamTts()) void unlockTtsAudioPlayback();
 		sending = true;
 		const files = chatInputEl?.getFiles() ?? [];
