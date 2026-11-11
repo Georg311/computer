@@ -740,8 +740,8 @@
 		}
 		if (data.output) {
 			if (data.output.type === 'function_call') {
-				if (data.output.status === 'pending') stopTtsPlayback();
-				else resetTtsBuffer();
+				if (data.output.status === 'pending' && !voiceModeEnabled) stopTtsPlayback();
+				else if (!voiceModeEnabled) resetTtsBuffer();
 			}
 			// Merge by call_id to avoid duplicates and update status of existing items
 			const existing = msg.output || [];
@@ -1102,7 +1102,7 @@
 			inputText = '';
 			return;
 		}
-		stopTtsPlayback();
+		if (!voiceModeEnabled) stopTtsPlayback();
 		if (shouldStreamTts()) void unlockTtsAudioPlayback();
 		sending = true;
 		const files = chatInputEl?.getFiles() ?? [];
