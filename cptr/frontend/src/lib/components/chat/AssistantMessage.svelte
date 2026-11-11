@@ -616,11 +616,11 @@
 		</div>
 
 		<!-- Prompt Reading Progress Bar -->
-		{#if !done && promptProgress.chatId === chatId && promptProgress.progress > 0}
+		{#if !done && $promptProgress.chatId === chatId && $promptProgress.progress > 0}
 			<div class="prompt-progress-container" style="height: 2px; margin-top: 4px;">
 				<div 
 					class="progress-fill" 
-					style="width: {promptProgress.progress}%; height: 100%; background-color: #f59e0b; border-radius: 2px; transition: width 0.3s ease-out;"
+					style="width: {$promptProgress.progress}%; height: 100%; background-color: #f59e0b; border-radius: 2px; transition: width 0.3s ease-out;"
 				></div>
 			</div>
 		{/if}
