@@ -1011,6 +1011,9 @@ async def stream_openai_responses(
         ),
         "stream": True,
     }
+    # llama.cpp: enable return_progress so SSE stream contains prompt_progress events
+    if provider_type == "llama.cpp":
+        body["return_progress"] = True
     if form_data.instructions:
         body["instructions"] = form_data.instructions
     if tools:
@@ -1070,6 +1073,37 @@ async def stream_openai_responses(
                             break
                         event = json.loads(raw)
                         etype = event.get("type")
+
+                        # llama.cpp prompt_progress event (only when provider_type == "llama.cpp")
+                        if provider_type == "llama.cpp":
+                            raw_pp = event.get("prompt_progress") or event.get("usage", {}).get("prompt_tokens_details", {})
+                            if raw_pp:
+                                pp = dict(raw_pp) if isinstance(raw_pp, dict) else {}
+                                total = pp.get("total", 0) or (pp.get("prompt_tokens", 0))
+                                cache = pp.get("cache", 0) or (pp.get("cached_details", {}) if isinstance(pp.get("cached_details"), dict) else 0)
+                                processed = pp.get("processed", 0) or total
+                                time_ms = pp.get("time_ms", 0) or 0
+                                # Try to extract from nested structure used by llama.cpp responses
+                                if not total:
+                                    usage = event.get("usage") or {}
+                                    total = (usage.get("prompt_tokens", 0)) or 0
+                                    cache = (usage.get("cache_input_token_count", 0) or 
+                                             (usage.get("cached_details", {}).get("prompt_tokens", 0) if isinstance(usage.get("cached_details"), dict) else 0))
+                                if total > cache:
+                                    progress_pct = round((processed - cache) / (total - cache) * 100, 1)
+                                elif processed > 0 and total > 0:
+                                    progress_pct = round(processed / total * 100, 1)
+                                else:
+                                    progress_pct = 0
+                                if progress_pct > 0 and progress_pct < 100:
+                                    yield {
+                                        "type": "prompt_progress",
+                                        "progress_pct": progress_pct,
+                                        "total_tokens": total,
+                                        "cache_tokens": cache,
+                                        "processed_tokens": processed,
+                                        "time_ms": time_ms,
+                                    }
 
                         if etype == "response.output_text.delta":
                             emitted = True
