@@ -46,6 +46,7 @@ from cptr.models import (
 from cptr.socket.main import emit_to_user
 from cptr.utils.ai import (
     ChatCompletionForm,
+    _is_llama_like_provider,
     generate_json,
     stream_anthropic,
     stream_openai_completions,
@@ -2390,9 +2391,10 @@ async def run_chat_task(
         except Exception:
             chat_models_config = {}
         builtin_tools = resolve_builtin_tools_config(chat_models_config, model, configured_model)
+        conn_provider_type = connection.get("provider_type", "")
         provider_type = (
-            "llama.cpp"
-            if provider == "openai" and connection.get("provider_type") == "llama.cpp"
+            conn_provider_type
+            if provider == "openai" and _is_llama_like_provider(conn_provider_type)
             else "default"
         )
         messages, loaded_summary = await _load_message_history(chat_id, message_id)
@@ -2879,7 +2881,7 @@ async def run_chat_task(
             streamed_reasoning_chars = 0
             estimated_prompt_tokens = 0
             last_emitted_context_tokens = 0
-            if provider_type == "llama.cpp":
+            if _is_llama_like_provider(provider_type):
                 estimated_prompt_tokens = estimate_tokens(system) + estimate_messages_tokens(
                     api_messages
                 )
@@ -2921,7 +2923,7 @@ async def run_chat_task(
                     text_buffer += event["content"]
                     _stream_metrics.record_response(event["content"])
                     await emit(delta=event["content"])
-                    if provider_type == "llama.cpp" and usage_context_tokens(last_usage) <= 0:
+                    if _is_llama_like_provider(provider_type) and usage_context_tokens(last_usage) <= 0:
                         estimated_context_tokens = estimated_prompt_tokens + estimate_tokens(
                             content
                         )
@@ -3010,7 +3012,7 @@ async def run_chat_task(
                                 message_id[:8],
                                 streamed_reasoning_chars,
                             )
-                        if provider_type == "llama.cpp" and usage_context_tokens(last_usage) <= 0:
+                        if _is_llama_like_provider(provider_type) and usage_context_tokens(last_usage) <= 0:
                             estimated_context_tokens = estimated_prompt_tokens + estimate_tokens(
                                 content
                             )

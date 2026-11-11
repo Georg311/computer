@@ -53,6 +53,11 @@ def _openrouter_headers(url: str) -> dict[str, str]:
     return {}
 
 
+def _is_llama_like_provider(provider_type: str) -> bool:
+    """Return True if provider_type is llama-based (llama.cpp, llama-swap)."""
+    return provider_type == "llama.cpp" or provider_type == "llama-swap"
+
+
 _STREAM_RETRY_ATTEMPTS = 3
 _STREAM_RETRY_MAX_DELAY_SECONDS = 30
 _STREAM_RETRY_STATUS_CODES = {408, 409, 429, 500, 502, 503, 504}
@@ -601,7 +606,7 @@ def _to_openai_messages(
                 ]
             new_m["content"] = formatted_content
             ri = m.get("reasoning_items")
-            if provider_type == "llama.cpp" and ri and new_m.get("role") == "assistant":
+            if _is_llama_like_provider(provider_type) and ri and new_m.get("role") == "assistant":
                 rc = _reasoning_items_to_content(ri)
                 if rc:
                     new_m["reasoning_content"] = rc
@@ -615,7 +620,7 @@ def _to_openai_messages(
                     {k: v for k, v in tc.items() if k != "fc_id"} for tc in out["tool_calls"]
                 ]
             ri = m.get("reasoning_items")
-            if provider_type == "llama.cpp" and ri and out.get("role") == "assistant":
+            if _is_llama_like_provider(provider_type) and ri and out.get("role") == "assistant":
                 rc = _reasoning_items_to_content(ri)
                 if rc:
                     out["reasoning_content"] = rc
@@ -651,8 +656,8 @@ async def stream_openai_completions(
         "stream": True,
         "stream_options": {"include_usage": True},
     }
-    # llama.cpp: enable return_progress so SSE stream contains prompt_progress events
-    if provider_type == "llama.cpp":
+    # llama-based providers (llama.cpp / llama-swap): enable return_progress so SSE stream contains prompt_progress events
+    if _is_llama_like_provider(provider_type):
         body["return_progress"] = True
     if tools:
         body["tools"] = tools
@@ -717,7 +722,7 @@ async def stream_openai_completions(
                         choices = chunk.get("choices", [])
                         delta = choices[0].get("delta", {}) if choices else {}
 
-                        # llama.cpp prompt_progress event (only when provider_type == "llama.cpp")
+                        # llama-based provider (llama.cpp / llama-swap): prompt_progress event
                         prompt_progress = chunk.get("prompt_progress") or (
                             choices and choices[0].get("prompt_progress") if len(choices) > 0 else None
                         )
@@ -876,7 +881,7 @@ def _replayable_reasoning_items(items: list[dict] | None, *, provider_type: str)
         if not text and not item.get("encrypted_content") and not item.get("reasoning_details"):
             continue
         out = copy.deepcopy(item)
-        if provider_type == "llama.cpp" and text:
+        if _is_llama_like_provider(provider_type) and text:
             out["content"] = [{"type": "text", "text": text}]
         replayable.append(out)
     return replayable
@@ -1012,7 +1017,7 @@ async def stream_openai_responses(
         "stream": True,
     }
     # llama.cpp: enable return_progress so SSE stream contains prompt_progress events
-    if provider_type == "llama.cpp":
+    if _is_llama_like_provider(provider_type):
         body["return_progress"] = True
     if form_data.instructions:
         body["instructions"] = form_data.instructions
@@ -1074,8 +1079,8 @@ async def stream_openai_responses(
                         event = json.loads(raw)
                         etype = event.get("type")
 
-                        # llama.cpp prompt_progress event (only when provider_type == "llama.cpp")
-                        if provider_type == "llama.cpp":
+                        # llama-based provider (llama.cpp / llama-swap): prompt_progress event
+                        if _is_llama_like_provider(provider_type):
                             raw_pp = event.get("prompt_progress") or event.get("usage", {}).get("prompt_tokens_details", {})
                             if raw_pp:
                                 pp = dict(raw_pp) if isinstance(raw_pp, dict) else {}

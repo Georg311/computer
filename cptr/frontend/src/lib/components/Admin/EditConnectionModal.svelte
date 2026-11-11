@@ -27,8 +27,10 @@
 	let formApiType = $state<'chat_completions' | 'responses'>(
 		connection.api_type === 'responses' ? 'responses' : 'chat_completions'
 	);
-	let formProviderType = $state<'default' | 'llama.cpp'>(
-		connection.provider_type === 'llama.cpp' ? 'llama.cpp' : 'default'
+	let formProviderType = $state<string>(
+		connection.provider_type && connection.provider_type.startsWith('llama')
+			? connection.provider_type
+			: 'default'
 	);
 	let formBaseUrl = $state(connection.base_url || '');
 	let formApiKey = $state('');
@@ -159,14 +161,16 @@
 			<label for="edit-provider-type" class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2">
 				{$t('connections.providerType')}
 			</label>
-			<select
-				id="edit-provider-type"
-				bind:value={formProviderType}
-				class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer"
-			>
-				<option value="default">{$t('general.default')}</option>
-				<option value="llama.cpp">llama.cpp</option>
-			</select>
+			<div class="flex gap-2 items-start">
+				<select
+					id="edit-provider-type"
+					bind:value={formProviderType}
+					class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer"
+				>
+					<option value="default">{$t('general.default')}</option>
+					<option value="llama.cpp">llama.cpp</option>
+				</select>
+			</div>
 		{/if}
 
 		<label class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2"

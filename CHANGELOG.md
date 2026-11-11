@@ -1,3 +1,9 @@
+## [0.9.21.48] - 2026-11-15
+
+### Added
+- 📊 **Prompt Reading Progress — visuelle Progress-Bar während des Prefill (llama.cpp).** Ersetzt den "Working..."/Spinner durch eine animierten Fortschrittsbalken unter der Assistant-Antwort-Bubble. Transparentes Fallback für andere Provider (OpenAI etc.). Backend-parsing in `ai.py` war bereits implementiert; hinzugefügt: Event-Forwarding durch `chat_task.py`, Frontend-State in `stores/chat.ts`, Socket-Handling in `ChatPanel.svelte`, UI-Rendering in `AssistantMessage.svelte`.
+- 🔧 **Generische provider_type-Erkennung.** Neue Helper-Funktion `_is_llama_like_provider()` ersetzt alle starren `provider_type == "llama.cpp"` Checks. Erkennt automatisch alle Provider mit `"llama*"` Prefix (z.B. `"llama.cpp"`, `"llama-swap"`, benutzerdefinierte Proxies). Backend (`ai.py`, `chat_task.py`), Admin-Router und Frontend-Modals sind angepasst. Keine Breaking Changes — bestehende `"llama.cpp"` Provider funktionieren unverändert.
+
 ## [0.9.21.47] - 2026-11-15
 
 ### Added

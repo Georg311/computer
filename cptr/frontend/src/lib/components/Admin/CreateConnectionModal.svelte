@@ -17,7 +17,7 @@
 	let formName = $state('');
 	let formProvider = $state<'openai' | 'anthropic'>('openai');
 	let formApiType = $state<'chat_completions' | 'responses'>('chat_completions');
-	let formProviderType = $state<'default' | 'llama.cpp'>('default');
+	let formProviderType = $state<string>('default');
 	let formBaseUrl = $state('');
 	let formApiKey = $state('');
 	let formPrefixId = $state('');
@@ -124,14 +124,16 @@
 			>
 				{$t('connections.providerType')}
 			</label>
-			<select
-				id="create-provider-type"
-				bind:value={formProviderType}
-				class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer"
-			>
-				<option value="default">{$t('general.default')}</option>
-				<option value="llama.cpp">llama.cpp</option>
-			</select>
+			<div class="flex gap-2 items-start">
+				<select
+					id="create-provider-type"
+					bind:value={formProviderType}
+					class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer"
+				>
+					<option value="default">{$t('general.default')}</option>
+					<option value="llama.cpp">llama.cpp</option>
+				</select>
+			</div>
 		{/if}
 
 		<label class="text-[0.625rem] text-gray-400 dark:text-gray-600 mt-2"
