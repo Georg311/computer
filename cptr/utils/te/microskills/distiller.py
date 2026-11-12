@@ -204,6 +204,8 @@ def build_generic_digest(repo, transcript_path, iid, resolved=None):
         calls = load_calls(transcript_path)
     except Exception:
         return None
+    if not calls:
+        return None
     cmds = bash_cmds(calls)
     start = next((c for c in call_cwds(transcript_path) if c), None)
     roots = sorted({r for r in (start, repository_top(start)) if r}, key=len, reverse=True)

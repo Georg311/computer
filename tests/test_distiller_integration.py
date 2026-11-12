@@ -126,8 +126,10 @@ class TestDistillerRender:
             "detector": {"scope": "pytest", "confirm": "passed"},
         }
         fact = Fact(spec)
-        # Manually set state to ACTIVE and injectable
-        fact._state = "ACTIVE"
+        # Set via life.state + firing gate so injectable() returns True
+        fact.life.state = "ACTIVE"
+        fact.life.fire_num = 5   # 5 successes
+        fact.life.fire_den = 8   # Over 8 exercises (62.5% >= FIRE_GATE=0.4)
         d.facts["fact-1"] = fact
 
         result = d.render()
@@ -212,7 +214,8 @@ class TestDetectorVerdict:
 
         det = Detector({"scope": "importerror", "confirm": "ImportError"})
         
-        dg = {"_cmd_blob": "import missing_module", "_out_blob": "ImportError: no module"}
+        # Add the boolean flag so PREDICATES['importerror'] fires
+        dg = {"_cmd_blob": "import missing_module", "_out_blob": "ImportError: no module", "importerror": True}
         
         verdict, fired, exercised = det.verdict(dg)
         assert verdict == "confirm"
@@ -227,7 +230,8 @@ class TestDetectorVerdict:
             "contradict": "ModuleNotFoundError"
         })
         
-        dg = {"_cmd_blob": "import missing_module", "_out_blob": "ModuleNotFoundError"}
+        # Add the boolean flag so PREDICATES['importerror'] fires, but contradict pattern matches
+        dg = {"_cmd_blob": "import missing_module", "_out_blob": "ModuleNotFoundError: no module", "importerror": True}
         
         verdict, fired, exercised = det.verdict(dg)
         assert verdict == "contradict"
@@ -331,17 +335,21 @@ class TestAbstainingGate:
 
         d = Distiller("test-repo")
         
-        # Simulate low coverage scenario (many unseen commands)
-        d.raw_window = [[] for _ in range(8)]  # Empty windows = 0% coverage
+        # Simulate low coverage scenario: unknown commands (not matched by any regex)
+        # _coverage([]) returns 1.0 (empty = fully covered), so we need actual unseen cmds
+        d.raw_window = [
+            [("foo bar", "ok"), ("baz qux", "done")] * 8
+        ]
         
         cov = [d._coverage(c) for c in d.raw_window]
+        assert all(c == 0.0 for c in cov), f"Coverage should be 0: {cov}"
         abstaining = cov and (sum(cov) / len(cov)) < ABSTAIN_GATE
         
         assert abstaining is True
 
     def test_not_abstaining_when_coverage_high(self):
         """Should not return excerpts when coverage >= ABSTAIN_GATE threshold."""
-        from cptr.utils.te.microskills.distiller import Distiller, CHECK_RE
+        from cptr.utils.te.microskills.distiller import Distiller, CHECK_RE, ABSTAIN_GATE
 
         d = Distiller("test-repo")
         
@@ -438,7 +446,7 @@ class TestFactInjection:
 
     def test_injectable_clears_firing_gate(self):
         """Fact should be injectable when firing rate >= FIRE_GATE."""
-        from cptr.utils.te.microskills.distiller import Distiller, Fact, Lifecycle
+        from cptr.utils.te.microskills.distiller import Distiller, Fact
 
         spec = {
             "id": "test-fact",
@@ -449,7 +457,8 @@ class TestFactInjection:
         }
         fact = Fact(spec)
 
-        # Simulate high firing rate (>= FIRE_GATE=0.40)
+        # Simulate high firing rate (>= FIRE_GATE=0.40) AND ACTIVE state for injectable()
+        fact.life.state = "ACTIVE"
         fact.life.fire_num = 5   # 5 successes
         fact.life.fire_den = 8   # Over 8 exercises (62.5% >= 40%)
         
@@ -468,15 +477,21 @@ class TestFactRetirement:
             "claim": "Critical fact",
             "injection": "Critical injection",
             "high_stakes": True,  # High-stakes flag
-            "detector": {"scope": "pytest", "confirm": "passed"},
+            "detector": {"scope": "pytest", "confirm": "passed", "contradict": "ModuleNotFoundError"},
         }
         fact = Fact(spec)
 
-        # Simulate contradiction for high-stakes fact
-        dg = {"_cmd_blob": "pytest test_foo.py", "_out_blob": "ModuleNotFoundError"}
+        # First promote to ACTIVE via 3 confirmations (K_PROMOTE=3)
+        for i in range(3):
+            dg_confirm = {"_cmd_blob": "pytest test_ok.py", "_out_blob": "passed"}
+            files = [f"src/file{i}.py"]
+            fact.observe(i, dg_confirm, files)
+
+        # Now simulate contradiction — high-stakes facts retire immediately on first contradict
+        dg_contra = {"_cmd_blob": "pytest test_foo.py", "_out_blob": "ModuleNotFoundError"}
         
         files = ["src/file0.py"]
-        verdict, fired, exercised = fact.observe(1, dg, files)
+        verdict, fired, exercised = fact.observe(10, dg_contra, files)
         
         assert fact.state == "RETIRED"
 
@@ -489,9 +504,15 @@ class TestFactRetirement:
             "claim": "Normal fact",
             "injection": "Normal injection",
             "high_stakes": False,  # Not high-stakes
-            "detector": {"scope": "pytest", "confirm": "passed"},
+            "detector": {"scope": "pytest", "confirm": "passed", "contradict": "ModuleNotFoundError"},
         }
         fact = Fact(spec)
+
+        # First promote to ACTIVE via 3 confirmations (K_PROMOTE=3)
+        for i in range(3):
+            dg_confirm = {"_cmd_blob": "pytest test_ok.py", "_out_blob": "passed"}
+            files = [f"src/file{i}.py"]
+            fact.observe(i, dg_confirm, files)
 
         # Add old confirmations (low recency score due to GAMMA decay)
         for i in range(3):
@@ -502,7 +523,7 @@ class TestFactRetirement:
         # Now add contradictions to bring score below SCORE_FLOOR=0.0
         for i in range(3):
             now = 10 + i  # Far future tasks
-            dg_contra = {"_cmd_blob": "contradiction", "_out_blob": "ModuleNotFoundError"}
+            dg_contra = {"_cmd_blob": "pytest test_foo.py", "_out_blob": "ModuleNotFoundError"}
             files = [f"src/contra{i}.py"]
             fact.observe(now, dg_contra, files)
 
@@ -596,32 +617,56 @@ class TestFactRevision:
 
     def test_valid_contradict_revision_accepted(self):
         """Adding contradict should be accepted."""
-        from cptr.utils.te.microskills.distiller import Distiller, Fact
+        from cptr.utils.te.microskills.distiller import Distiller, Fact, build_digest
 
         d = Distiller("test-repo")
+
+        # Create 2 digests so grounding with MIN_CITE=2 citations succeeds
+        import tempfile, os
         
-        # Create original fact spec
-        old_spec = {
-            "id": "rev-fact",
-            "claim": "Original claim",
-            "injection": "Original injection",
-            "high_stakes": False,
-            "detector": {"scope": "pytest", "confirm": "passed"},
-        }
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f1:
+            f1.write('{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t1", "name": "bash", "input": {"command": "pytest"}}]}}\n')
+            f1.write('{"type": "assistant", "message": {"content": [{"type": "tool_result", "tool_use_id": "t1", "content": "passed"}]}}\n')
+            tmp_path1 = f1.name
+        
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f2:
+            f2.write('{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t1", "name": "bash", "input": {"command": "pytest test_foo.py"}}]}}\n')
+            f2.write('{"type": "assistant", "message": {"content": [{"type": "tool_result", "tool_use_id": "t1", "content": "passed"}]}}\n')
+            tmp_path2 = f2.name
+        
+        try:
+            dg0 = build_digest("test-repo", tmp_path1, iid="task-0", resolved=True)
+            dg1 = build_digest("test-repo", tmp_path2, iid="task-1", resolved=True)
+            d.window.append(dg0)
+            d.window.append(dg1)
 
-        # First admit the fact
-        d.facts["rev-fact"] = MagicMock()
-        d.facts["rev-fact"].spec = old_spec.copy()
+            # Admit with 2 citations (MIN_CITE=2 requires >=2 confirm matches)
+            old_spec = {
+                "id": "rev-fact",
+                "claim": "Original claim",
+                "injection": "Original injection",
+                "high_stakes": False,
+                "detector": {"scope": "pytest", "confirm": "passed"},
+                "cite": ["task-0", "task-1"],
+            }
 
-        # Revise with new contradict (should succeed)
-        new_spec = {
-            "id": "rev-fact",
-            "claim": "Original claim",  # Unchanged
-            "detector": {"scope": "pytest", "confirm": "passed", "contradict": "ModuleNotFoundError"}
-        }
+            admitted, reason = d._admit(old_spec)
+            assert admitted is True, f"Initial admission failed: {reason}"
 
-        admitted, reason = d._admit(new_spec)
-        assert admitted is True
+            # Revise with new contradict (should succeed - only contradict changes)
+            new_spec = {
+                "id": "rev-fact",
+                "claim": "Original claim",  # Unchanged
+                "injection": "Original injection",
+                "high_stakes": False,
+                "detector": {"scope": "pytest", "confirm": "passed", "contradict": "ModuleNotFoundError"}
+            }
+
+            admitted, reason = d._admit(new_spec)
+            assert admitted is True, f"Expected revision to succeed but got: {reason}"
+        finally:
+            os.unlink(tmp_path1)
+            os.unlink(tmp_path2)
 
 
 class TestEditedFilesTracking:
