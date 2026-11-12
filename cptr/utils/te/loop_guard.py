@@ -457,3 +457,105 @@ class LoopGuard:
             "thresholds": {k: v for k, v in self.thresholds().items()},
             "tier0_gate_open": self.tier0_gate_open,
         }
+
+    # ---- state_digest – build digest for LLM judge ------------------------
+
+    def state_digest(self) -> str:
+        """Build a token-cheap digest of spiral + envelope state.
+
+        This is the compact representation passed to the LLM judge callback
+        when tier-0 gate is open. Includes turn counts, error signals,
+        stagnation score, and recent tool calls (last 5).
+
+        Returns:
+            Formatted string digest for LLM consumption (~200 tokens max).
+        """
+        snap = self._spiral.snapshot()
+        env = self.envelope_state
+
+        # Get recent calls from envelope (limit to last 5)
+        recent_calls = ""
+        if len(self._envelope.calls) >= 5:
+            start = len(self._envelope.calls) - 5
+            recent = self._envelope.calls[start:]
+            recent_calls = "\n".join(
+                f"- {c.tool_name}({json.dumps(c.args)[:80]})" for c in recent
+            )
+
+        tmpl = (
+            "Agent trace summary for chat {chat_id}:\n"
+            "\nSpiral state:"
+            "\n  - Total turns: {turns}"
+            "\n  - Error outputs: {error_outputs}"
+            "\n  - Repeated failure signals: {repeated_fail_sigs}"
+            "\n  - Stagnation score: {stagnation:.3f}"
+            "\n  - Spiral level: {spiral_level}"
+            "\n\nRecent tool calls (last 5):"
+            "\n{recent_calls}\n"
+        ).format(
+            chat_id=self.chat_id[:12],
+            turns=snap.get("turns", self._spiral.turns),
+            error_outputs=snap.get("error_outputs", 0),
+            repeated_fail_sigs=snap.get("repeated_fail_sigs", 0),
+            stagnation=snap.get("stagnation", self._spiral.stagnation),
+            spiral_level=env.get("level", "default"),
+            recent_calls=recent_calls or "(none)",
+        )
+
+        return tmpl
+
+    # ---- ensemble_judge – Tier-0 gate + optional Tier-1 LLM call ---------
+
+    def ensemble_judge(self) -> dict | None:
+        """Combined judge decision: cheap rule check → optional paid LLM.
+
+        Returns:
+            Dict with 'stuck' and 'confidence', or None if tier-0 is closed
+            (meaning no paid LLM call was warranted).
+
+        Workflow:
+          1. Check tier-0 gate (free, every turn) – returns True if trace
+             looks worth a deeper look.
+          2. If open → build state_digest and call llm_judge_callback.
+          3. If callback unavailable or fails → fallback to heuristic judge.
+        """
+        # Tier-0: cheap rule-based gate (free, every turn)
+        if not self.tier0_gate_open:
+            logger.debug("[te] ensemble_judge: tier-0 gate closed, skipping paid call")
+            return None
+
+        # Build digest for LLM judge (~200 tokens)
+        digest = self.state_digest()
+
+        # Try the configured LLM callback first
+        if self.llm_judge_callback is not None:
+            try:
+                result = self.llm_judge_callback(digest)
+                if isinstance(result, dict) and "stuck" in result:
+                    logger.debug(
+                        "[te] ensemble_judge: llm result stuck=%s confidence=%.2f",
+                        result["stuck"],
+                        result.get("confidence", 0.5),
+                    )
+                    return result
+            except Exception as e:
+                logger.warning("[te] ensemble_judge LLM callback failed, using heuristic")
+
+        # Fallback: simple heuristic judge (no paid call)
+        snap = self._spiral.snapshot()
+        turns = snap.get("turns", 0)
+        errors = snap.get("error_outputs", 0)
+
+        stuck = False
+        confidence = 0.5
+
+        if turns >= 20 and errors >= 8:
+            stuck = True
+            confidence = 0.7
+        elif turns >= 30 and errors >= 15:
+            stuck = True
+            confidence = 0.85
+
+        logger.debug("[te] ensemble_judge: heuristic result stuck=%s confidence=%.2f", stuck, confidence)
+
+        return {"stuck": stuck, "confidence": confidence}

@@ -15,7 +15,22 @@ interface (`domain.DomainAdapter`). `plugin` runs them inside real sessions thro
 hooks; the mechanisms never import it. Stdlib only.
 """
 from .config import EconomizerConfig, InjectionConfig, SpiralConfig, ToolingConfig
+from .distiller_integration import call_from_config, propose_facts, build_and_parse_proposal
+from .judge_adapter import (
+    make_judge_callback,
+    ensemble_judge,
+    build_state_digest,
+)
+from .loop_guard import LoopGuard
 from . import ledger, trace
 
-__all__ = ["EconomizerConfig", "InjectionConfig", "ToolingConfig", "SpiralConfig", "ledger",
-           "trace"]
+__all__ = [
+    "EconomizerConfig", "InjectionConfig", "ToolingConfig", "SpiralConfig",
+    "ledger", "trace",
+    # Distiller integration (P4)
+    "call_from_config", "propose_facts", "build_and_parse_proposal",
+    # Judge adapter (P5)
+    "make_judge_callback", "ensemble_judge", "build_state_digest",
+    # LoopGuard updates
+    "LoopGuard",
+]

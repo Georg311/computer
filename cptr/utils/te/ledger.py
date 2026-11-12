@@ -40,6 +40,64 @@ def effective_exec(row):
     return pricing.effective_tokens(row)
 
 
+# ── Overhead accounting für paid mechanism calls ─────────────────────
+
+"""
+Overhead tracking: distiller proposer, tool judge und andere LLM side-calls
+müssen `record_overhead()` aufrufen; die Kosten werden in te_status.pricing_overhead
+aggregiert. Der Overhead wird cache-aware über pricing.effective_tokens() berechnet.
+"""
+
+
+def record_overhead(chat_id: str, overhead_effective: int) -> None:
+    """Record LLM-side-call overhead for a chat session.
+
+    Appends an overhead token record to the in-memory cache so cost_tracker
+    can aggregate it during its next DB sync. This is how mechanism costs
+    (distiller proposer, tool judge calls etc.) flow into pricing_overhead.
+
+    Args:
+        chat_id: The chat to track overhead for.
+        overhead_effective: effective_tokens of the side call.
+    """
+    from .cost_tracker import _last_token_records
+    _last_token_records.setdefault(chat_id, []).append({
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": overhead_effective,
+        "tokens_total": overhead_effective,
+    })
+
+
+def get_session_overhead(chat_id: str) -> int:
+    """Sum of all recorded side-call overhead for a chat.
+
+    Reads from the same in-memory cache that cost_tracker uses.
+    """
+    from .cost_tracker import _last_token_records
+    records = _last_token_records.get(chat_id, [])
+    total = 0
+    for rec in records:
+        if isinstance(rec, dict):
+            total += rec.get("output_tokens", 0)
+    return total
+
+
+def get_session_cost_with_overhead(session_cost_usd: float, overhead_effective: int) -> float:
+    """Add pricing overhead to session cost.
+
+    Uses default Claude curve weights (input=1.0, output=5.0) for overhead estimation.
+    """
+    from .pricing import WEIGHTS_CLAUDE
+    if overhead_effective == 0:
+        return session_cost_usd
+
+    # Rough estimate: convert effective tokens to USD using average Claude price
+    overhead_usd = (overhead_effective / 1_000_000) * 0.003
+    return round(session_cost_usd + overhead_usd, 6)
+
+
 class CostLedger:
     """Accumulates the amortized cost over a stream. Thin wrapper over the two canonical
     functions above -- used by tests and any caller that wants a running total without

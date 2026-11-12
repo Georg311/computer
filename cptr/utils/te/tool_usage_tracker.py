@@ -148,6 +148,98 @@ class ToolUsageTracker:
                     "reason": f"Tool '{tool_name}' has {global_count} calls across other chats but not in this one.",
                 })
 
+        # Filter out protected tools — they never get pruned recommendations
+        from cptr.utils.te.toolprune.tools import PROTECTED_TOOLS
+        filtered = [r for r in recommendations if r["tool_name"] not in PROTECTED_TOOLS]
+
+        return filtered  # Return filtered list (PROTECTED_TOOLS removed)
+
+    async def analyze_tool_pruning_evidence(self, chat_id: str, evidence_threshold: int = 5) -> List[dict]:
+        """Evidence-gated tool pruning analysis.
+
+        Mirrors TE's toolprune/stage.py build_tools() logic adapted for cptr:
+          - Tracks tools loaded but unused across N consecutive sessions
+          - Returns recommendations with evidence strength, not just counts
+        
+        Config Pattern: Liest evidence_threshold aus config.toml via load_config()!
+        
+        Args:
+            chat_id: The current chat to analyze.
+            evidence_threshold: Minimum consecutive unused chats before recommending prune.
+
+        Returns list of dicts with:
+          - tool_name: name of the tool
+          - call_count: total calls in this chat
+          - sessions_unused: number of consecutive chats where tool was not used
+          - recommendation: "immediate" | "recommended" | "none"
+          - reason: explanation string
+          - evidence_strength: float 0.0–1.0 (higher = more confident)
+        """
+        from cptr.utils.te.toolprune.tools import PROTECTED_TOOLS
+        
+        # Config Pattern: Lese threshold aus config.toml!
+        try:
+            from cptr.utils.db import load_config
+            config = load_config()
+            section = config.get("te_toolpruning", {})
+            if not isinstance(section, dict):
+                section = {}
+            evidence_threshold = section.get("evidence_threshold", evidence_threshold)
+        except Exception:
+            pass  # Use default threshold if config unavailable
+
+        # Get all known tools from usage records for this chat
+        async with get_session_factory()() as session:
+            result = await session.execute(
+                select(TeToolUsage).where(TeToolUsage.chat_id == chat_id)
+            )
+            rows = result.scalars().all()
+
+        tool_records = {r.tool_name: (r.call_count or 0) for r in rows}
+
+        # Get all unique tools ever used across ALL chats to understand the catalog
+        all_result = await session.execute(select(TeToolUsage))
+        all_rows = all_result.scalars().all()
+        global_tools = {r.tool_name: (r.call_count or 0) for r in all_rows}
+
+        recommendations = []
+
+        # Check each tool used in this chat — if never called, recommend with evidence
+        for tool_name, call_count in tool_records.items():
+            if tool_name in PROTECTED_TOOLS:
+                continue  # Never prune protected tools
+            
+            if call_count == 0:
+                sessions_unused = await self._estimate_sessions_unused(chat_id, tool_name)
+                evidence_strength = min(1.0, sessions_unused / (evidence_threshold * 2))
+
+                recommendations.append({
+                    "tool_name": tool_name,
+                    "call_count": 0,
+                    "sessions_unused": sessions_unused,
+                    "recommendation": "recommended" if evidence_strength >= 0.5 else "none",
+                    "reason": f"Tool '{tool_name}' has {sessions_unused} consecutive unused sessions (threshold: {evidence_threshold}).",
+                    "evidence_strength": round(evidence_strength, 2),
+                })
+
+        # Check tools that have been used globally but not in this chat
+        for tool_name, global_count in global_tools.items():
+            if tool_name in PROTECTED_TOOLS:
+                continue  # Never prune protected tools
+            
+            if tool_name not in tool_records and global_count > 0:
+                sessions_unused = await self._estimate_sessions_unused(chat_id, tool_name)
+                evidence_strength = min(1.0, sessions_unused / (evidence_threshold * 2))
+
+                recommendations.append({
+                    "tool_name": tool_name,
+                    "call_count": 0,
+                    "sessions_unused": sessions_unused,
+                    "recommendation": "recommended" if evidence_strength >= 0.5 else "none",
+                    "reason": f"Tool '{tool_name}' has {global_count} calls across other chats but not in this one.",
+                    "evidence_strength": round(evidence_strength, 2),
+                })
+
         return recommendations
 
     async def _estimate_sessions_unused(self, chat_id: str, tool_name: str) -> int:
