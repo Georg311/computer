@@ -21,7 +21,26 @@
 		session_cost_usd: number;
 		tool_usage: TeToolUsageItem[];
 		pricing_warning?: string;
+		lifecycle_status?: Record<string, string>;
 	}>(null);
+
+	const LIFECYCLE_LABELS: Record<string, string> = {
+		CANDIDATE: $t('chat.teLifecycleCandidate'),
+		ACTIVE: $t('chat.teLifecycleActive'),
+		RETIRED: $t('chat.teLifecycleRetired'),
+	};
+
+	function lifecycleColor(state: string): string {
+		switch (state) {
+			case 'ACTIVE': return 'text-green-400';
+			case 'CANDIDATE': return 'text-yellow-400 opacity-75';
+			case 'RETIRED': return 'text-gray-500 line-through opacity-60';
+			default: return 'text-gray-400';
+		}
+	}
+
+	let showLifecycle = $derived(!!teData?.lifecycle_status && Object.keys(teData.lifecycle_status).length > 0);
+
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 
@@ -161,6 +180,22 @@
 					<span class="shrink-0 font-mono text-xs text-gray-400 dark:text-gray-600">{sessionCost}</span>
 				</div>
 			</section>
+
+			<!-- Lifecycle Status Section (P3) -->
+			{#if showLifecycle}
+				<section class="mt-1">
+					<div class="px-1.5 pb-0.5 pt-1.5 text-[0.625rem] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600">
+						{$t('chat.teLifecycleStatus', { count: Object.keys(teData.lifecycle_status || {}).length })}
+					</div>
+
+					{#each Object.entries(teData.lifecycle_status ?? {}) as [pattern, state]}
+						<div class="flex h-7 items-center gap-3 rounded-xl px-1.5 text-gray-600 dark:text-gray-400">
+							<span class={`shrink-0 font-mono text-[0.625rem] ${lifecycleColor(state)}`}>{state}</span>
+							<span class="min-w-0 flex-1 truncate font-mono text-[0.625rem]">{pattern}</span>
+						</div>
+					{/each}
+				</section>
+			{/if}
 
 			<!-- Tool Usage Section -->
 			{#if teData.tool_usage && teData.tool_usage.length > 0}

@@ -1293,5 +1293,9 @@
   "teConfig.conservative": "Konservativ",
   "teConfig.aggressive": "Aggressiv",
   "teConfig.default": "Standard",
-  "teConfig.noData": "Keine TokenEconomizer-Konfiguration verfügbar."
+  "teConfig.noData": "Keine TokenEconomizer-Konfiguration verfügbar.",
+  "chat.teLifecycleStatus": "Facts ({count})",
+  "chat.teLifecycleCandidate": "Kandidat",
+  "chat.teLifecycleActive": "Aktiv",
+  "chat.teLifecycleRetired": "Pensioniert"
 }

@@ -16,6 +16,7 @@ from cptr.utils.db import get_session_factory
 from cptr.utils.config import now_ms, load_config, save_config, invalidate_config_cache
 from cptr.utils.te.pricing_wrapper import get_session_estimate
 from cptr.utils.te.tool_usage_tracker import ToolUsageTracker, analyze_tool_pruning
+from cptr.utils.te.ledger import get_session_overhead, get_session_cost_with_overhead
 
 log = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ class TeStatusResponse(BaseModel):
     session_cost_usd: float
     tool_usage: List[TeToolUsageItem]
     pricing_warning: Optional[str] = None
+    lifecycle_status: Optional[dict[str, str]] = None  # {error_pattern: state} from repo_facts tracker
 
 
 @router.get("/te/status", response_model=TeStatusResponse)
@@ -199,16 +201,41 @@ async def get_te_status(request: Request, chat_id: str = Query(...)):
         else:
             savings_pct = 0
 
-        pricing_overhead = int(max(0, total_raw - total_fresh_input))
+        # ── L1: Ledger Overhead Integration ────────────────
+        ledger_overhead = 0
+        try:
+            from cptr.utils.te.ledger import get_session_overhead as _get_overhead
+            ledger_overhead = _get_overhead(chat_id) or 0
+            pricing_overhead = int(max(0, total_raw - total_fresh_input)) + ledger_overhead
+        except Exception as e:
+            log.warning("[te] Failed to get session overhead for %s: %s", chat_id, e)
+
+        try:
+            from cptr.utils.te.ledger import get_session_cost_with_overhead as _get_cost
+            session_cost_usd = _get_cost(float(estimate.get("session_cost_usd", 0.0)), ledger_overhead)
+        except Exception as e:
+            log.warning("[te] Failed to calculate cost with overhead for %s: %s", chat_id, e)
+            session_cost_usd = float(estimate.get("session_cost_usd", 0.0))
+
+        # ── Lifecycle Status (from in-memory tracker) ──────
+        lifecycle_status = None
+        try:
+            from cptr.utils.te.repo_facts import _error_tracker
+            lc = _error_tracker.get_lifecycle_status(chat_id)
+            if lc:
+                lifecycle_status = lc
+        except Exception as e:
+            log.debug("[te] Failed to get lifecycle status for %s: %s", chat_id, e)
 
         return TeStatusResponse(
             effective_tokens=total_fresh_input,
             total_tokens=total_raw,
             cache_savings_pct=int(savings_pct),
             pricing_overhead=pricing_overhead,
-            session_cost_usd=float(estimate.get("session_cost_usd", 0.0)),
+            session_cost_usd=session_cost_usd,
             tool_usage=tool_usage,
             pricing_warning=pricing_warning,
+            lifecycle_status=lifecycle_status,
         )
 
 

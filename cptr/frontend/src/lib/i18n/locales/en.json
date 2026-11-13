@@ -1006,7 +1006,7 @@
   "chat.edit.tool": "Tool",
   "chat.edit.item": "Item",
   "chat.dictate.unsupported": "Speech recognition not supported in this browser.",
-   "chat.voiceModeOff": "Voice mode off",
+  "chat.voiceModeOff": "Voice mode off",
   "chat.voiceModeOn": "Voice mode on",
   "chat.voiceListening": "Listening...",
   "chat.voiceWaiting": "Waiting for response...",
@@ -1364,5 +1364,9 @@
   "teConfig.conservative": "Conservative",
   "teConfig.aggressive": "Aggressive",
   "teConfig.default": "Default",
-  "teConfig.noData": "No TokenEconomizer configuration available."
+  "teConfig.noData": "No TokenEconomizer configuration available.",
+  "chat.teLifecycleStatus": "Facts ({count})",
+  "chat.teLifecycleCandidate": "Candidate",
+  "chat.teLifecycleActive": "Active",
+  "chat.teLifecycleRetired": "Retired"
 }

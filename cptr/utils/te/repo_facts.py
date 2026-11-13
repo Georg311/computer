@@ -36,6 +36,135 @@ DEFAULT_REPEAT_THRESHOLD = 3
 # Fact format template
 FACT_TEMPLATE = "Tool '{tool_name}' fehlgeschlagen wegen '{error_pattern}'"
 
+# ── Lifecycle constants ──────────────────────────────────────────────
+K_PROMOTE = 3        # confirmations to promote CANDIDATE → ACTIVE (different files required)
+GAMMA = 0.8          # recency decay per task-ago
+LAMBDA_VAL = 5.0     # contradiction weight (asymmetry: fail toward retirement)
+SCORE_FLOOR = 0.0    # retire ACTIVE when recency score < floor
+HARD_KILL = True     # high-stakes fact: single clean contradiction retires now
+FIRE_GATE = 0.40     # inject only if firing rate >= 40%
+FIRE_MIN_N = 4       # measured over at least this many exercised tasks
+
+
+# ── Fact lifecycle states ───────────────────────────────────────────
+
+class _FactState:
+    """Represents a single fact with full lifecycle scoring.
+
+    States: CANDIDATE → ACTIVE (after K_PROMOTE confirmations on different files)
+            → RETIRED (when score < SCORE_FLOOR or HARD_KILL contradiction)
+    """
+
+    def __init__(self, chat_id: str, error_pattern: str, tool_name: str, fact_text: str) -> None:
+        self.chat_id = chat_id
+        self.error_pattern = error_pattern
+        self.tool_name = tool_name
+        self.fact_text = fact_text
+        self.state = "CANDIDATE"  # CANDIDATE | ACTIVE | RETIRED
+
+        # Counters
+        self.confirmations: int = 0          # total confirmations
+        self.contradictions: int = 0         # total contradictions
+        self.fires: int = 0                  # times fact was successfully used
+        self.exercises: int = 0              # total tasks that could have fired this fact
+
+        # Track files where confirmations happened (drift-aware promotion)
+        self.confirmation_files: set[str] = set()
+
+        # First seen timestamp for recency scoring
+        self.first_seen_ms: int = _now_ms()
+
+    @property
+    def firing_rate(self) -> float:
+        """Return the fact's firing rate (fires / exercises)."""
+        if self.exercises == 0:
+            return 0.0
+        return self.fires / self.exercises
+
+    @property
+    def recency_score(self) -> float:
+        """Calculate recency score with exponential decay."""
+        elapsed = _now_ms() - self.first_seen_ms
+        # Convert ms to "task-ago" units (rough estimate: 1 task ≈ 500ms)
+        task_ago = max(0, elapsed / 500.0)
+        return GAMMA ** task_ago
+
+    def score(self, now: int = None) -> float:
+        """Calculate the current lifecycle score."""
+        if self.state == "RETIRED":
+            return 0.0
+        # Base score from confirmations minus contradiction penalty
+        base = min(self.confirmations, K_PROMOTE)
+        penalty = self.contradictions * LAMBDA_VAL
+        recency = self.recency_score
+        score = (base - penalty) * recency
+        return max(0.0, score)
+
+    def injectable(self) -> bool:
+        """Check if this fact should be injected into the prompt."""
+        if self.state not in ("CANDIDATE", "ACTIVE"):
+            return False
+        # FIRE_GATE check: only inject if firing rate >= threshold and enough data
+        if self.exercises < FIRE_MIN_N:
+            return self.firing_rate >= FIRE_GATE or self.confirmations > 0
+        return self.firing_rate >= FIRE_GATE
+
+    def update(
+        self,
+        chat_id: str,
+        tool_name: str,
+        error_pattern: str,
+        fact_text: str,
+        files: list[str] = None,
+    ) -> Optional[str]:
+        """Update fact state based on new evidence.
+
+        Returns the updated fact text if a lifecycle transition occurred, else None.
+        """
+        self.chat_id = chat_id
+        self.tool_name = tool_name
+        self.error_pattern = error_pattern
+        self.fact_text = fact_text
+
+    def confirm(self, file: str = None) -> bool:
+        """Record a confirmation (fact was useful)."""
+        self.confirmations += 1
+        if file:
+            self.confirmation_files.add(file)
+        # Check promotion CANDIDATE → ACTIVE
+        if (self.state == "CANDIDATE" and
+                self.confirmations >= K_PROMOTE and
+                len(self.confirmation_files) >= 2):
+            self.state = "ACTIVE"
+            return True
+        return False
+
+    def contradict(self) -> bool:
+        """Record a contradiction (fact was wrong)."""
+        self.contradictions += 1
+        # HARD_KILL: single clean contradiction retires immediately
+        if HARD_KILL and self.contradictions >= 1:
+            self.state = "RETIRED"
+            return True
+        # Graceful retirement: score drops below floor
+        if self.score() < SCORE_FLOOR:
+            self.state = "RETIRED"
+            return True
+        return False
+
+    def fire(self) -> None:
+        """Record that this fact was successfully used."""
+        self.fires += 1
+
+    def exercise(self) -> None:
+        """Record that a task occurred (potential to use this fact)."""
+        self.exercises += 1
+
+
+def _get_fact_key(chat_id: str, error_pattern: str) -> str:
+    """Generate unique key for a fact."""
+    return f"{chat_id}:{error_pattern}"
+
 
 # ── Error pattern registry ──────────────────────────────────────────
 
@@ -107,6 +236,56 @@ class _ErrorTracker:
         self._counts: dict[str, dict[str, dict[str, int]]] = {}
         # chat_id -> { error_pattern -> { tool_name -> first_seen_ms } }
         self._first_seen: dict[str, dict[str, dict[str, int]]] = {}
+        # chat_id -> { key -> _FactState }
+        self._fact_states: dict[str, dict[str, "_FactState"]] = {}
+
+    def _get_fact_state(self, chat_id: str, error_pattern: str, tool_name: str) -> "_FactState":
+        """Get or create a FactState for the given chat/error/tool combination."""
+        key = f"{error_pattern}:{tool_name}"
+        by_key = self._fact_states.setdefault(chat_id, {})
+        if key not in by_key:
+            fact_text = FACT_TEMPLATE.format(tool_name=tool_name, error_pattern=error_pattern)
+            by_key[key] = _FactState(chat_id, error_pattern, tool_name, fact_text)
+        return by_key[key]
+
+    def confirm_fact(self, chat_id: str, error_pattern: str, file: str = None) -> bool:
+        """Confirm a fact (it was useful). Returns True if promoted CANDIDATE→ACTIVE."""
+        any_promoted = False
+        for key, state in self._fact_states.get(chat_id, {}).items():
+            if state.error_pattern == error_pattern:
+                promoted = state.confirm(file=file or "unknown")
+                if promoted:
+                    logger.info("[te] Fact PROMOTED to ACTIVE: %s", state.fact_text)
+                    any_promoted = True
+        return any_promoted
+
+    def contradict_fact(self, chat_id: str, error_pattern: str) -> bool:
+        """Contradict a fact (it was wrong). Returns True if retired."""
+        # Gather all matching states for this error pattern across tools
+        any_retired = False
+        for key, state in self._fact_states.get(chat_id, {}).items():
+            if state.error_pattern == error_pattern:
+                retired = state.contradict()
+                if retired:
+                    logger.info("[te] Fact RETIRED: %s", state.fact_text)
+                    any_retired = True
+        return any_retired
+
+    def record_fire(self, chat_id: str, error_pattern: str) -> None:
+        """Record that a fact was successfully used."""
+        for key, state in self._fact_states.get(chat_id, {}).items():
+            if state.error_pattern == error_pattern:
+                state.fire()
+
+    def get_lifecycle_status(self, chat_id: str) -> dict[str, str]:
+        """Return lifecycle status of all facts for a chat (for API)."""
+        result = {}
+        if chat_id in self._fact_states:
+            for key, state in self._fact_states[chat_id].items():
+                parts = key.split(":")
+                ep = parts[-1] if len(parts) > 1 else key
+                result[ep] = state.state
+        return result
 
     def record_error(
         self,
@@ -129,6 +308,10 @@ class _ErrorTracker:
         error_pattern = _classify_error(error_text)
         if error_pattern is None:
             return None
+
+        # Update lifecycle state for this fact
+        fact_state = self._get_fact_state(chat_id, error_pattern, tool_name)
+        fact_state.update(chat_id=chat_id, tool_name=tool_name, error_pattern=error_pattern, fact_text="")
 
         # Ensure nested dicts exist
         chat_errors = self._counts.setdefault(chat_id, {})
@@ -344,6 +527,12 @@ def persist_facts_from_tracker(chat_id: str, repo_hash: str = None) -> None:
                 if fact_text in seen_facts:
                     continue
                 seen_facts.add(fact_text)
+
+                # ── Lifecycle confirm: track confirmation, check promotion ──
+                state = _error_tracker._get_fact_state(chat_id, error_pattern, tool_name)
+                promoted = state.confirm(file=repo_hash or "unknown")
+                if promoted:
+                    logger.info("[te] Fact PROMOTED to ACTIVE: %s", fact_text)
 
                 # Check and upsert in repo_facts (legacy table)
                 existing_rf = await session.execute(

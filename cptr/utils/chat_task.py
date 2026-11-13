@@ -2357,7 +2357,28 @@ async def run_chat_task(
                 persist_facts_from_tracker(chat_id)
         except Exception as e:
             logger.warning("[te] Failed to persist facts: %s", str(e))
-        
+
+        # ── TokenEconomizer: Distiller Proposal (L3) ──
+        try:
+            from cptr.utils.config import load_config
+            config = load_config()
+            microskills_cfg = config.get("te_microskills", {})
+            profile = microskills_cfg.get("profile") if isinstance(microskills_cfg, dict) else None
+
+            # Increment session counter for distiller proposal scheduling
+            if chat_id and isinstance(microskills_cfg, dict):
+                current_count = microskills_cfg.get("session_count", 0) + 1
+                microskills_cfg["session_count"] = current_count
+                config["te_microskills"] = microskills_cfg
+                save_config(config)
+
+            # Run distiller proposal on configured intervals (requires paid proposer LLM call)
+            propose_every = microskills_cfg.get("propose_every", 5) if isinstance(microskills_cfg, dict) else 5
+            if profile and ("distiller" in str(profile).split("+") or "distiller+envfacts" in str(profile)) and current_count % propose_every == 0:
+                logger.info("[te] Distiller proposal tick scheduled (session=%d)", current_count)
+        except Exception as e:
+            logger.warning("[te] Distiller proposal tick failed: %s", str(e))
+
         await _emit_done()
         preview = content[:300] if content else ""
         await publish_event(
@@ -2671,6 +2692,15 @@ async def run_chat_task(
                         _te_record_tool(chat_id, name, {**last_usage, "model": model})
                 except Exception as _exc:
                     logger.debug("[te] tool call tracking failed: %s", _exc)
+
+                # ── TE overhead tracking: record side-call costs ─────
+                if chat_id and last_usage:
+                    try:
+                        effective_tokens = (last_usage.get("output_tokens") or 0) + (last_usage.get("input_tokens") or 0)
+                        from cptr.utils.te.ledger import record_overhead as _te_record_overhead
+                        _te_record_overhead(chat_id, max(0, effective_tokens))
+                    except Exception as e:
+                        logger.debug("[te] overhead recording failed: %s", e)
 
             return "completed" if processed_any else "idle"
 
