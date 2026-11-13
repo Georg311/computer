@@ -198,13 +198,13 @@ async def auth_middleware(request: Request, call_next):
             if is_loopback:
                 from pathlib import Path
                 e2e_token_file = Path(__file__).parent / "e2e_token.txt"
-                print(f"[E2E] __file__={__file__}, token_path={e2e_token_file}")
-                print(f"[E2E] exists={e2e_token_file.exists()}")
+                _debug = Path("/tmp/e2e_debug.log")
+                _debug.write_text(f"E2E triggered\nclient_host={client_host}\n__file__={__file__}\ntoken_path={e2e_token_file}\nexists={e2e_token_file.exists()}\n", append=True)
                 if e2e_token_file.exists():
                     jwt_token = e2e_token_file.read_text().strip()
-                    print(f"[E2E] read {len(jwt_token)} chars")
+                    _debug.write_text(f"read {len(jwt_token)} chars\njwt_start={str(jwt_token)[:30]}\n", append=True)
         except Exception as e:
-            print(f"[E2E] error={e}")
+            Path("/tmp/e2e_debug.log").write_text(f"E2E error: {e}\n", append=True)
 
     # Read trusted header (configurable, defaults to Remote-User)
     header_name = load_config().get("auth", {}).get("header", "Remote-User")
