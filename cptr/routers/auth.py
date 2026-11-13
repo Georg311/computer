@@ -62,7 +62,8 @@ async def get_auth(request: Request):
             from pathlib import Path
             abs_file = Path(__file__).resolve()
             worktree_root = abs_file.parent.parent
-            state_dir = worktree_root.parent / "state"
+            # state/ dir is at cptr-dev/state/, NOT inside the instance dir
+            state_dir = worktree_root.parent.parent / "state"
             for f in sorted(state_dir.glob("*.jwt")):
                 try:
                     content = f.read_text()
