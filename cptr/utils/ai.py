@@ -55,8 +55,8 @@ def _openrouter_headers(url: str) -> dict[str, str]:
 
 
 def _is_llama_like_provider(provider_type: str) -> bool:
-    """Return True if provider_type is llama-based (llama.cpp, llama-swap)."""
-    return provider_type == "llama.cpp" or provider_type == "llama-swap"
+    """Return True if provider_type is llama-based (llama.cpp, llama-swap, etc.)."""
+    return bool(provider_type and provider_type.lower().startswith("llama"))
 
 
 _STREAM_RETRY_ATTEMPTS = 3
