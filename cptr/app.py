@@ -198,10 +198,13 @@ async def auth_middleware(request: Request, call_next):
             if is_loopback:
                 from pathlib import Path
                 e2e_token_file = Path(__file__).parent / "e2e_token.txt"
+                print(f"[E2E] __file__={__file__}, token_path={e2e_token_file}")
+                print(f"[E2E] exists={e2e_token_file.exists()}")
                 if e2e_token_file.exists():
                     jwt_token = e2e_token_file.read_text().strip()
-        except Exception:
-            pass  # Token file read error
+                    print(f"[E2E] read {len(jwt_token)} chars")
+        except Exception as e:
+            print(f"[E2E] error={e}")
 
     # Read trusted header (configurable, defaults to Remote-User)
     header_name = load_config().get("auth", {}).get("header", "Remote-User")
