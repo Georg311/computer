@@ -187,6 +187,20 @@ async def auth_middleware(request: Request, call_next):
     client_host = request.client.host if request.client else "127.0.0.1"
     jwt_token = request.cookies.get("cptr_session")
 
+    # E2E mode: auto-inject real JWT from state file for localhost requests
+    import os
+    if os.environ.get('CPTR_E2E') == '1' and not jwt_token:
+        try:
+            import ipaddress
+            addr = ipaddress.ip_address(client_host)
+            if addr.is_loopback:  # 127.0.0.1 or ::1
+                from pathlib import Path
+                e2e_token_file = Path(__file__).parent / "e2e_token.txt"
+                if e2e_token_file.exists():
+                    jwt_token = e2e_token_file.read_text().strip()
+        except (ValueError, Exception):
+            pass  # Not a valid IP or token file missing
+
     # Read trusted header (configurable, defaults to Remote-User)
     header_name = load_config().get("auth", {}).get("header", "Remote-User")
     remote_user = request.headers.get(header_name)
