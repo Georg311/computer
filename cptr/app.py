@@ -188,7 +188,7 @@ async def auth_middleware(request: Request, call_next):
     jwt_token = request.cookies.get("cptr_session")
 
     # E2E mode: auto-inject real JWT from state file for localhost requests
-    if not jwt_token and client_host in ("localhost", "127.0.0.1", "::1") or (client_host.startswith("127.") and len(client_host.split(".")) == 4):
+    if not jwt_token and (client_host in ("localhost", "127.0.0.1", "::1") or (client_host.startswith("127.") and len(client_host.split(".")) == 4)):
         try:
             from pathlib import Path
             e2e_token_file = Path(__file__).parent / "e2e_token.txt"
