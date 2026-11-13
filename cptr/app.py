@@ -170,11 +170,21 @@ app = FastAPI(lifespan=lifespan)
 async def auth_middleware(request: Request, call_next):
     path = request.url.path
 
+    # Skip auth for: health, static assets, HTML pages
+    if path == "/api/health" or path == "/api/config" or path == "/api/changelog":
+        return await call_next(request)
+    if path.startswith("/_app/") or path.startswith("/v1/") or not path.startswith("/api/"):
+        return await call_next(request)
+    # GET /api/files/{id} is public (UUID is unguessable, <img src> can't send cookies)
+    if request.method == "GET" and path.startswith("/api/files/"):
+        return await call_next(request)
+
     client_host = request.client.host if request.client else "127.0.0.1"
     jwt_token = request.cookies.get("cptr_session")
 
-    # E2E mode: auto-inject real JWT from state file for localhost requests (BEFORE check_access)
-    if not jwt_token and (client_host in ("localhost", "127.0.0.1", "::1") or (client_host.startswith("127.") and len(client_host.split(".")) == 4)):
+    # E2E mode: auto-inject real JWT from state file for localhost requests
+    is_e2e_localhost = client_host in ("localhost", "127.0.0.1", "::1") or (client_host.startswith("127.") and len(client_host.split(".")) == 4)
+    if not jwt_token and is_e2e_localhost:
         try:
             from pathlib import Path
             abs_file = Path(__file__).resolve()
@@ -192,27 +202,15 @@ async def auth_middleware(request: Request, call_next):
                         break
                 except Exception:
                     pass
+            # Fallback to worktree token file (for instances created with inject_e2e_endpoints)
             if not jwt_token:
                 e2e_file = abs_file.parent / "e2e_token.txt"
                 if e2e_file.exists():
                     jwt_token = e2e_file.read_text().strip()
-            # Inject into Starlette's internal _cookies dict so request.cookies picks it up
-            if jwt_token and hasattr(request, '_cookies'):
-                request._cookies["cptr_session"] = jwt_token
         except Exception:
             pass
 
-    # Skip auth for: health, static assets, HTML pages (E2E JWT already injected above)
-    if path == "/api/health" or path == "/api/config" or path == "/api/changelog":
-        return await call_next(request)
-    if path.startswith("/_app/") or path.startswith("/v1/") or not path.startswith("/api/"):
-        return await call_next(request)
-    # GET /api/files/{id} is public (UUID is unguessable, <img src> can't send cookies)
-    if request.method == "GET" and path.startswith("/api/files/"):
-        return await call_next(request)
-
-    client_host = request.client.host if request.client else "127.0.0.1"
-    jwt_token = request.cookies.get("cptr_session")
+    # Read trusted header (configurable, defaults to Remote-User)
     header_name = load_config().get("auth", {}).get("header", "Remote-User")
     remote_user = request.headers.get(header_name)
 
