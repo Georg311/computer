@@ -191,9 +191,28 @@ async def auth_middleware(request: Request, call_next):
     if not jwt_token and (client_host in ("localhost", "127.0.0.1", "::1") or (client_host.startswith("127.") and len(client_host.split(".")) == 4)):
         try:
             from pathlib import Path
-            e2e_token_file = Path(__file__).parent / "e2e_token.txt"
-            if e2e_token_file.exists():
-                jwt_token = e2e_token_file.read_text().strip()
+            # Try instance-specific .jwt file first, then fall back to worktree token file
+            jwt_token = None
+            # State dir is typically one level up from cptr package root
+            state_dir = Path(__file__).parent.parent / ".." / ".." / "state"
+            if not state_dir.is_absolute():
+                state_dir = Path.cwd().parent / "cptr-dev" / "state"
+            for f in sorted(state_dir.glob("*.jwt")):
+                try:
+                    content = f.read_text()
+                    for line in content.split("\n"):
+                        if line.startswith("JWT_TOKEN="):
+                            jwt_token = line.split("=", 1)[1]
+                            break
+                    if jwt_token:
+                        break
+                except Exception:
+                    pass
+            # Fallback to worktree token file (for instances created with inject_e2e_endpoints)
+            if not jwt_token:
+                e2e_file = Path(__file__).parent / "e2e_token.txt"
+                if e2e_file.exists():
+                    jwt_token = e2e_file.read_text().strip()
         except Exception:
             pass  # Token file read error
 
