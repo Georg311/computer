@@ -188,23 +188,14 @@ async def auth_middleware(request: Request, call_next):
     jwt_token = request.cookies.get("cptr_session")
 
     # E2E mode: auto-inject real JWT from state file for localhost requests
-    import os
-    if os.environ.get('CPTR_E2E') == '1' and not jwt_token:
+    if not jwt_token and client_host in ("localhost", "127.0.0.1", "::1") or (client_host.startswith("127.") and len(client_host.split(".")) == 4):
         try:
-            is_loopback = (
-                client_host in ("localhost", "127.0.0.1", "::1") or
-                (client_host.startswith("127.") and len(client_host.split(".")) == 4)
-            )
-            if is_loopback:
-                from pathlib import Path
-                e2e_token_file = Path(__file__).parent / "e2e_token.txt"
-                _debug = Path("/tmp/e2e_debug.log")
-                _debug.write_text(f"E2E triggered\nclient_host={client_host}\n__file__={__file__}\ntoken_path={e2e_token_file}\nexists={e2e_token_file.exists()}\n", append=True)
-                if e2e_token_file.exists():
-                    jwt_token = e2e_token_file.read_text().strip()
-                    _debug.write_text(f"read {len(jwt_token)} chars\njwt_start={str(jwt_token)[:30]}\n", append=True)
-        except Exception as e:
-            Path("/tmp/e2e_debug.log").write_text(f"E2E error: {e}\n", append=True)
+            from pathlib import Path
+            e2e_token_file = Path(__file__).parent / "e2e_token.txt"
+            if e2e_token_file.exists():
+                jwt_token = e2e_token_file.read_text().strip()
+        except Exception:
+            pass  # Token file read error
 
     # Read trusted header (configurable, defaults to Remote-User)
     header_name = load_config().get("auth", {}).get("header", "Remote-User")
