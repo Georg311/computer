@@ -191,15 +191,17 @@ async def auth_middleware(request: Request, call_next):
     import os
     if os.environ.get('CPTR_E2E') == '1' and not jwt_token:
         try:
-            import ipaddress
-            addr = ipaddress.ip_address(client_host)
-            if addr.is_loopback:  # 127.0.0.1 or ::1
+            is_loopback = (
+                client_host in ("localhost", "127.0.0.1", "::1") or
+                (client_host.startswith("127.") and len(client_host.split(".")) == 4)
+            )
+            if is_loopback:
                 from pathlib import Path
                 e2e_token_file = Path(__file__).parent / "e2e_token.txt"
                 if e2e_token_file.exists():
                     jwt_token = e2e_token_file.read_text().strip()
-        except (ValueError, Exception):
-            pass  # Not a valid IP or token file missing
+        except Exception:
+            pass  # Token file read error
 
     # Read trusted header (configurable, defaults to Remote-User)
     header_name = load_config().get("auth", {}).get("header", "Remote-User")
