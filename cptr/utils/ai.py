@@ -55,8 +55,14 @@ def _openrouter_headers(url: str) -> dict[str, str]:
 
 
 def _is_llama_like_provider(provider_type: str) -> bool:
-    """Return True if provider_type is llama-based (llama.cpp, llama-swap, etc.)."""
-    return bool(provider_type and provider_type.lower().startswith("llama"))
+    """Return True if provider_type is a known llama-based provider.
+
+    Explicit whitelist — only these values trigger llama-specific handling
+    (return_progress, prompt_progress parsing, fc_id stripping).
+    New providers must be added here and to the frontend dropdown.
+    """
+    _WHITELIST = {"llama.cpp", "llama-swap", "llama.cpp-experimental"}
+    return bool(provider_type and provider_type in _WHITELIST)
 
 
 _STREAM_RETRY_ATTEMPTS = 3
