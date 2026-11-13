@@ -55,6 +55,33 @@ async def get_auth(request: Request):
 
     client_host = request.client.host if request.client else "127.0.0.1"
     token = request.cookies.get(COOKIE_NAME)
+
+    # E2E mode: auto-inject real JWT from state file for localhost requests
+    if not token and (client_host in ("localhost", "127.0.0.1", "::1") or (client_host.startswith("127.") and len(client_host.split(".")) == 4)):
+        try:
+            from pathlib import Path
+            abs_file = Path(__file__).resolve()
+            worktree_root = abs_file.parent.parent
+            state_dir = worktree_root.parent / "state"
+            for f in sorted(state_dir.glob("*.jwt")):
+                try:
+                    content = f.read_text()
+                    for line in content.split("\n"):
+                        if line.startswith("JWT_TOKEN="):
+                            token = line.split("=", 1)[1]
+                            break
+                    if token:
+                        break
+                except Exception:
+                    pass
+            # Fallback to worktree token file (for instances created with inject_e2e_endpoints)
+            if not token:
+                e2e_file = abs_file.parent / "e2e_token.txt"
+                if e2e_file.exists():
+                    token = e2e_file.read_text().strip()
+        except Exception:
+            pass
+
     remote_user = None
     if get_auth_mode() == AuthMode.TRUSTED_HEADER:
         header_name = load_config().get("auth", {}).get("header", "Remote-User")

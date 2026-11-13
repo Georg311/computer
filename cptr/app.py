@@ -174,6 +174,7 @@ async def auth_middleware(request: Request, call_next):
     import sys as _sys
     client_host = request.client.host if request.client else "127.0.0.1"
     jwt_token = request.cookies.get("cptr_session")
+    injected_e2e_jwt = False
     if not jwt_token and (client_host in ("localhost", "127.0.0.1", "::1") or (client_host.startswith("127.") and len(client_host.split(".")) == 4)):
         try:
             from pathlib import Path
@@ -192,6 +193,7 @@ async def auth_middleware(request: Request, call_next):
                             break
                     if jwt_token:
                         _sys.stderr.write(f"[E2E] extracted token from {f.name}\n")
+                        injected_e2e_jwt = True
                         break
                 except Exception as _e:
                     _sys.stderr.write(f"[E2E] error reading {f}: {_e}\n")
@@ -200,9 +202,27 @@ async def auth_middleware(request: Request, call_next):
                 _sys.stderr.write(f"[E2E] fallback token file={e2e_file} exists={e2e_file.exists()}\n")
                 if e2e_file.exists():
                     jwt_token = e2e_file.read_text().strip()
+                    injected_e2e_jwt = True
             _sys.stderr.write(f"[E2E] final jwt_token={'SET' if jwt_token else 'None'}\n")
         except Exception as _e:
             _sys.stderr.write(f"[E2E] top-level error: {_e}\n")
+
+    # Inject JWT as cookie header into request (so downstream handlers can read it)
+    if injected_e2e_jwt and jwt_token:
+        original_headers = list(request.headers.raw)  # type: ignore
+        new_headers = []
+        found_cookie = False
+        for name, value in original_headers:
+            if name.lower() == "cookie":
+                if "cptr_session=" not in (value or ""):
+                    new_headers.append((name, f"{value}; cptr_session={jwt_token}"))
+                else:
+                    new_headers.append((name, value))
+                found_cookie = True
+        if not found_cookie:
+            new_headers.append(("cookie", f"cptr_session={jwt_token}"))
+        # Replace headers in place (ASGI mutable scope)
+        request.scope["headers"] = [(k.encode() if isinstance(k, str) else k, v.encode() if isinstance(v, str) else v) for k, v in new_headers]
 
     # Skip auth for: auth endpoints, health, static assets, HTML pages
     if (
@@ -221,38 +241,6 @@ async def auth_middleware(request: Request, call_next):
 
     client_host = request.client.host if request.client else "127.0.0.1"
     jwt_token = request.cookies.get("cptr_session")
-
-    # E2E mode: auto-inject real JWT from state file for localhost requests
-    import sys as _sys
-    if not jwt_token and (client_host in ("localhost", "127.0.0.1", "::1") or (client_host.startswith("127.") and len(client_host.split(".")) == 4)):
-        try:
-            from pathlib import Path
-            abs_file = Path(__file__).resolve()
-            worktree_root = abs_file.parent.parent
-            state_dir = worktree_root.parent / "state"
-            _sys.stderr.write(f"[E2E] __file__={abs_file} worktree_root={worktree_root} state_dir={state_dir}\n")
-            jwt_token = None
-            for f in sorted(state_dir.glob("*.jwt")):
-                try:
-                    content = f.read_text()
-                    _sys.stderr.write(f"[E2E] found {f.name}, parsing...\n")
-                    for line in content.split("\n"):
-                        if line.startswith("JWT_TOKEN="):
-                            jwt_token = line.split("=", 1)[1]
-                            break
-                    if jwt_token:
-                        _sys.stderr.write(f"[E2E] extracted token from {f.name}\n")
-                        break
-                except Exception as _e:
-                    _sys.stderr.write(f"[E2E] error reading {f}: {_e}\n")
-            if not jwt_token:
-                e2e_file = abs_file.parent / "e2e_token.txt"
-                _sys.stderr.write(f"[E2E] fallback token file={e2e_file} exists={e2e_file.exists()}\n")
-                if e2e_file.exists():
-                    jwt_token = e2e_file.read_text().strip()
-            _sys.stderr.write(f"[E2E] final jwt_token={'SET' if jwt_token else 'None'}\n")
-        except Exception as _e:
-            _sys.stderr.write(f"[E2E] top-level error: {_e}\n")
 
     # Read trusted header (configurable, defaults to Remote-User)
     header_name = load_config().get("auth", {}).get("header", "Remote-User")
@@ -281,7 +269,6 @@ if audit_level != AuditLevel.NONE:
         excluded_paths=AUDIT_EXCLUDED_PATHS,
         max_body_size=AUDIT_MAX_BODY_SIZE,
     )
-
 
 # CORS middleware: uses CPTR_CORS_ALLOWED_ORIGINS env var (default "*").
 from fastapi.middleware.cors import CORSMiddleware
