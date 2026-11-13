@@ -188,33 +188,36 @@ async def auth_middleware(request: Request, call_next):
     jwt_token = request.cookies.get("cptr_session")
 
     # E2E mode: auto-inject real JWT from state file for localhost requests
+    import sys as _sys
     if not jwt_token and (client_host in ("localhost", "127.0.0.1", "::1") or (client_host.startswith("127.") and len(client_host.split(".")) == 4)):
         try:
             from pathlib import Path
-            # Try instance-specific .jwt file first, then fall back to worktree token file
+            abs_file = Path(__file__).resolve()
+            worktree_root = abs_file.parent.parent
+            state_dir = worktree_root.parent / "state"
+            _sys.stderr.write(f"[E2E] __file__={abs_file} worktree_root={worktree_root} state_dir={state_dir}\n")
             jwt_token = None
-            # State dir is typically one level up from cptr package root
-            state_dir = Path(__file__).parent.parent / ".." / ".." / "state"
-            if not state_dir.is_absolute():
-                state_dir = Path.cwd().parent / "cptr-dev" / "state"
             for f in sorted(state_dir.glob("*.jwt")):
                 try:
                     content = f.read_text()
+                    _sys.stderr.write(f"[E2E] found {f.name}, parsing...\n")
                     for line in content.split("\n"):
                         if line.startswith("JWT_TOKEN="):
                             jwt_token = line.split("=", 1)[1]
                             break
                     if jwt_token:
+                        _sys.stderr.write(f"[E2E] extracted token from {f.name}\n")
                         break
-                except Exception:
-                    pass
-            # Fallback to worktree token file (for instances created with inject_e2e_endpoints)
+                except Exception as _e:
+                    _sys.stderr.write(f"[E2E] error reading {f}: {_e}\n")
             if not jwt_token:
-                e2e_file = Path(__file__).parent / "e2e_token.txt"
+                e2e_file = abs_file.parent / "e2e_token.txt"
+                _sys.stderr.write(f"[E2E] fallback token file={e2e_file} exists={e2e_file.exists()}\n")
                 if e2e_file.exists():
                     jwt_token = e2e_file.read_text().strip()
-        except Exception:
-            pass  # Token file read error
+            _sys.stderr.write(f"[E2E] final jwt_token={'SET' if jwt_token else 'None'}\n")
+        except Exception as _e:
+            _sys.stderr.write(f"[E2E] top-level error: {_e}\n")
 
     # Read trusted header (configurable, defaults to Remote-User)
     header_name = load_config().get("auth", {}).get("header", "Remote-User")
