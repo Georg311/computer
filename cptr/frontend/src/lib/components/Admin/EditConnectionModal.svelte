@@ -168,7 +168,7 @@
 					class="block w-full bg-transparent text-[0.8125rem] text-gray-700 dark:text-gray-300 outline-none py-0.5 cursor-pointer"
 				>
 					<option value="default">{$t('general.default')}</option>
-					<option value="llama.cpp">llama.cpp</option>
+					<option value="llama.cpp">llama.cpp (Experimental)</option>
 					<option value="llama-swap">llama-swap</option>
 				</select>
 			</div>
