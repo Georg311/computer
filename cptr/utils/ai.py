@@ -28,6 +28,7 @@ from cptr.env import (
     STREAM_READ_TIMEOUT_SECONDS,
     STREAM_WRITE_TIMEOUT_SECONDS,
 )
+from cptr.utils.json_parser import extract_json
 from cptr.utils.logger import log_upstream_request
 
 logger = logging.getLogger(__name__)
@@ -628,6 +629,36 @@ def _to_openai_messages(
     return result
 
 
+def _safe_parse_tool_arguments(arguments_json: str) -> dict:
+    """Parse streamed tool-call arguments with lenient fallback.
+
+    Guard against truncated streams (e.g. broken pipe mid-argument).  Tries strict
+    json.loads first, then the lenient extract_json helper which can close missing
+    brackets and repair unterminated strings.  On total failure returns empty dict
+    so the model gets a chance to retry instead of killing the whole chat task.
+    """
+    if not arguments_json:
+        return {}
+
+    # 1. Strict parse first (fast path for well-formed chunks)
+    try:
+        return json.loads(arguments_json)
+    except (json.JSONDecodeError, ValueError):
+        pass
+
+    # 2. Lenient fallback — extract_json tries fences, brace matching, fix, close
+    parsed = extract_json(arguments_json)
+    if isinstance(parsed, dict):
+        return parsed
+
+    # 3. Total failure — model produced garbage; return empty so task survives
+    logger.warning(
+        "[stream] could not parse tool-call arguments: %s",
+        arguments_json[:200],
+    )
+    return {}
+
+
 async def stream_openai_completions(
     form_data: ChatCompletionForm,
     url: str,
@@ -804,11 +835,12 @@ async def stream_openai_completions(
                                 yield {"type": "output", "item": item}
                             for tc in tool_calls.values():
                                 emitted = True
+                                args = _safe_parse_tool_arguments(tc["arguments_json"])
                                 yield {
                                     "type": "tool_call",
                                     "call_id": tc["id"],
                                     "name": tc["name"],
-                                    "arguments": json.loads(tc["arguments_json"]),
+                                    "arguments": args,
                                 }
 
                         if chunk.get("usage"):
