@@ -56,13 +56,14 @@ async def lifespan(app: FastAPI):
 
     # ── TE Lifecycle Migration (L4) ────────────────
     try:
+        from cptr.env import DB_FILE
+        _sync_conn = sqlite3.connect(str(DB_FILE))
         from cptr.utils.te.migration import migrate_up as _te_migrate_up
-        from cptr.utils.db import get_session_factory
-        with get_session_factory()() as _mig_session:
-            _te_migrate_up(_mig_session)
-            _mig_session.commit()
+        _te_migrate_up(_sync_conn)
+        _sync_conn.commit()
+        _sync_conn.close()
     except Exception as e:
-        logging.getLogger(__name__).warning("[te] Migration skipped on startup: %s", str(e))
+        _logging.getLogger(__name__).warning("[te] Migration skipped on startup: %s", str(e))
 
     app.state.MODELS = {}
     from cptr.env import STARTUP_TOKEN
