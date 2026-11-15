@@ -162,7 +162,7 @@ async def get_session_costs(chat_id: str) -> dict:
             tools = await session.execute(
                 sa_select(ToolUsage).where(ToolUsage.chat_id == chat_id)
             )
-            tool_rows = list(tools.scalars().all())
+            tool_rows = await tools.scalars().all()
 
         from cptr.utils.te.pricing_wrapper import calculate_cost, get_session_estimate
 

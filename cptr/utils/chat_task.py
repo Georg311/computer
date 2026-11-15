@@ -574,7 +574,7 @@ async def _check_steering_pending(chat_id: str) -> tuple[str | None, str | None]
     """
     collected = await collect_all_steering_pending(chat_id)
     if collected and len(collected) > 0:
-        return collected[0]
+        return collected[-1]  # Most recent steering message
     return (None, None)
 
 def get_steering_pending(chat_id: str) -> bool:
