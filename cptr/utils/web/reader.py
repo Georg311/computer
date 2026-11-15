@@ -5,10 +5,10 @@ No external dependencies beyond httpx (already in the project).
 
 from __future__ import annotations
 
-import os
 import re
 
 import httpx
+
 
 def _html_to_text(html: str) -> str:
     """Convert HTML to readable plain text. Zero external dependencies."""
@@ -63,19 +63,6 @@ async def read_url_handler(url: str) -> str:
     - Other text content returned as-is
     - Capped at 80KB
     """
-    # Handle file:// URLs — read local files
-    if url.startswith("file://"):
-        filepath = url[7:]  # strip "file://" prefix
-        try:
-            with open(filepath, "r", encoding="utf-8", errors="replace") as f:
-                text = f.read()
-            return f"File: {filepath}\n---\n{text}" if text.strip() else f"File: {filepath}\n(empty)"
-        except FileNotFoundError:
-            return f"Error: file not found: {filepath}"
-        except PermissionError:
-            return f"Error: permission denied reading: {filepath}"
-        except Exception as e:
-            return f"Error reading file: {e}"
     if not url.startswith(("http://", "https://")):
         return "Error: URL must start with http:// or https://"
 
