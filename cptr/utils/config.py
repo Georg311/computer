@@ -397,3 +397,31 @@ def check_access(
         return None
 
     return None
+
+
+def get_te_distiller_config() -> dict:
+    """Return TokenEconomizer Distiller settings from config.toml.
+    
+    Expected TOML structure::
+    
+        [te_distiller]
+        enabled = true
+        proposer_model = "gpt-4o"
+        propose_every = 5
+    
+    Returns a dict with keys: enabled (bool), proposer_model (str), propose_every (int).
+    """
+    config = load_config()
+    te_cfg = config.get("te_distiller", {})
+    if not isinstance(te_cfg, dict):
+        return {"enabled": False, "proposer_model": "gpt-4o", "propose_every": 5}
+    
+    enabled = te_cfg.get("enabled", True)
+    proposer_model = te_cfg.get("proposer_model", "gpt-4o")
+    propose_every = te_cfg.get("propose_every", 5)
+    
+    return {
+        "enabled": bool(enabled),
+        "proposer_model": str(proposer_model),
+        "propose_every": int(propose_every),
+    }

@@ -14,7 +14,7 @@ from typing import Any
 
 from sqlalchemy import select as sa_select
 
-from cptr.models.te import MicroskillsState
+from cptr.models.te import MicroskillsFact as _MicroSkillStateModel
 from cptr.utils.db import get_session_factory
 
 logger = logging.getLogger(__name__)
@@ -152,8 +152,8 @@ class MicroSkillsStage:
         """Load persisted state from the MicroskillsState table."""
         try:
             session = get_session_factory()
-            stmt = sa_select(MicroskillsState).where(
-                MicroskillsState.chat_id == self.chat_id
+            stmt = sa_select(_MicroSkillStateModel).where(
+                _MicroSkillStateModel.chat_id == self.chat_id
             )
             result = session.execute(stmt)
             env = result.scalar_one_or_none()
@@ -165,17 +165,17 @@ class MicroSkillsStage:
                           self.chat_id, e)
 
     def _persist_to_db(self) -> None:
-        """Persist current state to the MicroskillsState table."""
+        """Persist current state to the _MicroSkillStateModel table."""
         try:
             session = get_session_factory()
-            stmt = sa_select(MicroskillsState).where(
-                MicroskillsState.chat_id == self.chat_id
+            stmt = sa_select(_MicroSkillStateModel).where(
+                _MicroSkillStateModel.chat_id == self.chat_id
             )
             result = session.execute(stmt)
             env = result.scalar_one_or_none()
 
             if env is None:
-                env = MicroskillsState(chat_id=self.chat_id)
+                env = _MicroSkillStateModel(chat_id=self.chat_id)
                 session.add(env)
 
             env.state_json = self._state.to_json()

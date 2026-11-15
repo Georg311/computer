@@ -295,7 +295,7 @@ async def get_tool_pruning_analysis(request: Request, chat_id: str):
     _get_user(request)
 
     tracker = ToolUsageTracker()
-    recommendations = await tracker.analyze_tool_pruning(chat_id)
+    recommendations = await tracker.analyze_tool_pruning_evidence(chat_id, tracker.evidence_threshold)
 
     return {
         "chat_id": chat_id,

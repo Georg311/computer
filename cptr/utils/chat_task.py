@@ -1920,7 +1920,14 @@ async def run_chat_task(
     tool_names_used: set[str] = set()
     skill_create_requested = False
     skill_authoring_allowed = False
-
+    # ── TokenEconomizer: TranscriptWriter for JSONL recording ────────────
+    try:
+        from cptr.utils.te.transcript_writer import (
+            TranscriptWriter, build_cptr_digest, DigestWindow, build_proposer_runner
+        )
+        tw = TranscriptWriter(chat_id or "unknown", workspace or "")
+    except Exception:
+        tw = None  # Graceful degradation — TE recording optional
     logger.info(
         "[task %s] start: existing content=%d chars, output=%d items",
         message_id[:8],
@@ -2054,6 +2061,16 @@ async def run_chat_task(
         if chat_params.get("plan_mode", False):
             messages.append({"role": "user", "content": PLAN_MODE_PROMPT})
         # ── TokenEconomizer: inject repo facts into system prompt ──
+        # ── MicroSkillsStage: inject envfacts prefix into system prompt ──
+        try:
+            from cptr.utils.te.microskills_stage import MicroSkillsStage
+            _ms_stage = MicroSkillsStage(chat_id)
+            _ms_rendered = _ms_stage.render()
+            if _ms_rendered:
+                system += "\n\n" + _ms_rendered
+        except Exception as e:
+            logger.debug("[microskills] render failed for %s: %s", chat_id, e)
+
         active_facts = await get_active_facts(chat_id)
         if active_facts:
             fact_lines = [f"- {fact['text']}" for fact in active_facts]
@@ -2333,6 +2350,14 @@ async def run_chat_task(
                 )
                 task_completed_success = True
                 
+                # ── MicroSkillsStage: fold task into lifecycle after completion ──
+                try:
+                    from cptr.utils.te.microskills_stage import MicroSkillsStage
+                    _ms_after = MicroSkillsStage(chat_id)
+                    _ms_after.after_task({"id": message_id}, None)
+                except Exception as e:
+                    logger.debug("[microskills] after_task failed for %s: %s", chat_id, e)
+
                 # ── TokenEconomizer: persist learned facts to DB ──
                 try:
                     from cptr.utils.te.repo_facts import persist_facts_from_tracker
@@ -2357,25 +2382,126 @@ async def run_chat_task(
                 persist_facts_from_tracker(chat_id)
         except Exception as e:
             logger.warning("[te] Failed to persist facts: %s", str(e))
-
+        
+        # ── TokenEconomizer: finish transcript, build digest ───────
+        try:
+            if tw:
+                transcript_path = tw.finish(resolved=True)
+                if chat_id and workspace and transcript_path:
+                    digest = build_cptr_digest(workspace, transcript_path, chat_id)
+                    # Append to DigestWindow (global per-chat storage in config)
+                    try:
+                        from cptr.utils.config import load_config as _lc2, save_config as _sc2
+                        cfg2 = _lc2()
+                        te_cfg = cfg2.get("te_microskills", {})
+                        if not isinstance(te_cfg, dict):
+                            te_cfg = {}
+                        # Window manager is per-chat; store digests in config
+                        # Window manager is per-chat; store (digest, transcript_path) tuples so update() can populate both window and raw_window.
+                        window_key = f"digest_window_{chat_id}"
+                        existing_entries = te_cfg.get(window_key, [])
+                        if digest and len(existing_entries) < 8:
+                            existing_entries.append({"digest": digest, "transcript_path": transcript_path})
+                            te_cfg[window_key] = existing_entries
+                            _sc2(cfg2)
+                    except Exception as _w:
+                        logger.debug("[digest] window append failed: %s", _w)
+                # Reset for next task cycle
+                try:
+                    tw.reset()
+                except Exception as _r:
+                    logger.debug("[transcript] reset failed: %s", _r)
+        except Exception as e:
+            logger.warning("[te] finish/digest phase failed: %s", str(e))
         # ── TokenEconomizer: Distiller Proposal (L3) ──
         try:
-            from cptr.utils.config import load_config
-            config = load_config()
-            microskills_cfg = config.get("te_microskills", {})
-            profile = microskills_cfg.get("profile") if isinstance(microskills_cfg, dict) else None
+            from cptr.utils.config import get_te_distiller_config as _get_distiller_cfg
+            distiller_cfg = _get_distiller_cfg()
 
-            # Increment session counter for distiller proposal scheduling
-            if chat_id and isinstance(microskills_cfg, dict):
-                current_count = microskills_cfg.get("session_count", 0) + 1
-                microskills_cfg["session_count"] = current_count
-                config["te_microskills"] = microskills_cfg
-                save_config(config)
+            # Only run if enabled and on configured cadence
+            if chat_id and distiller_cfg.get("enabled"):
+                # Load microsettings config for session count tracking
+                try:
+                    from cptr.utils.config import load_config as _lc4, save_config as _sc4
+                    cfg4 = _lc4()
+                    microskills_cfg = cfg4.get("te_microskills", {})
+                    if not isinstance(microskills_cfg, dict):
+                        microskills_cfg = {}
+                except Exception:
+                    microskills_cfg = {}
+                current_count = microskills_cfg.get("session_count", 0) if isinstance(microskills_cfg, dict) else 0
+                propose_every = distiller_cfg.get("propose_every", 5)
+                if current_count % propose_every == 0:
+                    logger.info("[te] Distiller proposal tick scheduled (session=%d)", current_count)
 
-            # Run distiller proposal on configured intervals (requires paid proposer LLM call)
-            propose_every = microskills_cfg.get("propose_every", 5) if isinstance(microskills_cfg, dict) else 5
-            if profile and ("distiller" in str(profile).split("+") or "distiller+envfacts" in str(profile)) and current_count % propose_every == 0:
-                logger.info("[te] Distiller proposal tick scheduled (session=%d)", current_count)
+                # ── Lightweight fact extraction from recent chat data ──
+                try:
+                    from cptr.utils.te.distiller_integration import propose_facts, build_and_parse_proposal
+                    from cptr.utils.te.microskills.distiller import Distiller
+                    from cptr.utils.te.ledger import record_overhead as _te_record_overhead
+
+                    # Build a minimal distiller instance with workspace repo
+                    workspace_path = workspace if workspace else ""
+                    if workspace_path and chat_obj:
+                        model_id = (chat_obj.meta or {}).get("last_model", "agent") or "agent"
+                        
+                        # ── Real LLM proposer runner (OpenAI/Anthropic) ──────
+                        def _proposal_runner(prompt, mdl):
+                            """Paid LLM caller for fact proposals — uses real API."""
+                            try:
+                                from cptr.utils.te.pricing_wrapper import get_session_estimate
+                                estimate = get_session_estimate(model=mdl)
+                                # Use environment-based runner if available, else fall back to direct calls
+                                llm_runner = build_proposer_runner()
+                                if llm_runner:
+                                    return llm_runner(prompt, mdl or "gpt-4o")
+                            except Exception as e:
+                                logger.debug("[te] proposal runner failed: %s", str(e))
+                                return "", 0
+                        
+                        distiller = Distiller(
+                            repo=workspace_path,
+                            runner=_proposal_runner,
+                            model=model_id,
+                        )
+                        
+                        # ── Load existing window digests into distiller.window & raw_window via update() ──
+                        try:
+                            from cptr.utils.config import load_config as _lc3, save_config as _sc3
+                            cfg3 = _lc3()
+                            te_cfg3 = cfg3.get("te_microskills", {})
+                            if not isinstance(te_cfg3, dict):
+                                te_cfg3 = {}
+                            window_key = f"digest_window_{chat_id}"
+                            existing_entries = te_cfg3.get(window_key, [])
+                            # Feed each previous transcript through update() so both window and raw_window get populated.
+                            for entry in list(existing_entries[-Distiller.WINDOW:]):  # type: ignore[name-defined]
+                                if isinstance(entry, dict) and "transcript_path" in entry:
+                                    tp = entry["transcript_path"]
+                                    if tp:
+                                        distiller.update(tp, iid=entry.get("digest", {}).get("iid", ""), resolved=False)
+                                elif isinstance(entry, dict):  # legacy plain digest — skip raw_window load.
+                                    pass
+                            logger.debug("[te] loaded %d previous task digests into distiller window", len(existing_entries))
+                        except Exception as _w:  # type: ignore[operator]
+                            logger.debug("[te] load digest window failed: %s", _w)
+                        # ── Run propose_facts() to actually execute a proposer tick ──
+                        try:
+                            extractors, facts = propose_facts(distiller, _proposal_runner, model=model_id)
+                            new_facts = list(facts)
+                            logger.info("[te] Distiller proposal produced %d facts", len(new_facts))
+                        except Exception as _pf:
+                            logger.debug("[te] propose_facts failed: %s", _pf)
+                        # ── Record actual overhead from LLM response tokens ──
+                        try:
+                            # distiller.opt_tokens tracks cumulative overhead; use it directly.
+                            eff = int(distiller.opt_tokens) if isinstance(distiller.opt_tokens, (int, float)) else 500
+                            _te_record_overhead(chat_id, max(0, eff))
+                        except Exception:
+                            _te_record_overhead(chat_id, 500)  # fallback estimate
+                except Exception as e:
+                    logger.debug("[te] Distiller proposal execution failed: %s", str(e))
+
         except Exception as e:
             logger.warning("[te] Distiller proposal tick failed: %s", str(e))
 
@@ -2484,6 +2610,16 @@ async def run_chat_task(
                 system += "\n\n" + "\n\n".join(skill_blocks)
 
         # ── TokenEconomizer: inject repo facts into system prompt ──
+        # ── MicroSkillsStage: inject envfacts prefix into system prompt ──
+        try:
+            from cptr.utils.te.microskills_stage import MicroSkillsStage
+            _ms_stage2 = MicroSkillsStage(chat_id)
+            _ms_rendered2 = _ms_stage2.render()
+            if _ms_rendered2:
+                system += "\n\n" + _ms_rendered2
+        except Exception as e:
+            logger.debug("[microskills] render failed for %s: %s", chat_id, e)
+
         active_facts = await get_active_facts(chat_id)
         if active_facts:
             fact_lines = [f"- {fact['text']}" for fact in active_facts]
@@ -2655,11 +2791,25 @@ async def run_chat_task(
                         {**tool_ctx, "call_id": item["call_id"]},
                     )
 
+                # ── TE TranscriptWriter: record tool_use ───────────────
+                if tw and call_id:
+                    try:
+                        tw.record_tool_use(call_id, name, arguments or {})
+                    except Exception as _e:
+                        logger.debug("[transcript] record_tool_use failed: %s", _e)
+                
                 result_item = {
                     "type": "function_call_output",
                     "call_id": item["call_id"],
                     "output": result,
                 }
+
+                # ── TE TranscriptWriter: record tool_result ──────────────
+                if tw and call_id:
+                    try:
+                        tw.record_tool_result(call_id, result)
+                    except Exception as _e:
+                        logger.debug("[transcript] record_tool_result failed: %s", _e)
                 output_items.append(result_item)
                 item["status"] = "completed"
                 await emit(output=item)
@@ -2810,6 +2960,16 @@ async def run_chat_task(
                     if skill_blocks:
                         system += "\n\n" + "\n\n".join(skill_blocks)
                 # ── TokenEconomizer: inject repo facts into system prompt ──
+                # ── MicroSkillsStage: inject envfacts prefix into system prompt ──
+                try:
+                    from cptr.utils.te.microskills_stage import MicroSkillsStage
+                    _ms_stage3 = MicroSkillsStage(chat_id)
+                    _ms_rendered3 = _ms_stage3.render()
+                    if _ms_rendered3:
+                        system += "\n\n" + _ms_rendered3
+                except Exception as e:
+                    logger.debug("[microskills] render failed for %s: %s", chat_id, e)
+
                 active_facts = await get_active_facts(chat_id)
                 if active_facts:
                     fact_lines = [f"- {fact['text']}" for fact in active_facts]
