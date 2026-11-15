@@ -75,12 +75,20 @@ class TestGetSessionCosts:
 
     async def test_no_status_returns_zeros(self):
         """When no TeStatus exists, should return zeros with empty tool_usage."""
-        mock_session = MagicMock()
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = None
-        mock_session.execute = AsyncMock(return_value=mock_result)
+        # Proper async context manager mock for double-call pattern:
+        # get_session_factory()() as session  →  factory() creates ctx_mgr
+        status_result = MagicMock()
+        status_result.scalar_one_or_none.return_value = None
 
-        with patch("cptr.utils.db.get_session_factory", return_value=mock_session):
+        mock_session = AsyncMock()
+        mock_session.execute.side_effect = [status_result]
+
+        # The factory (result of get_session_factory()) when called returns ctx_mgr
+        ctx_mgr = AsyncMock()
+        ctx_mgr.__aenter__.return_value = mock_session
+        factory = MagicMock(return_value=ctx_mgr)
+
+        with patch("cptr.utils.db.get_session_factory", return_value=factory):
             result = await get_session_costs("nonexistent-chat")
 
         assert result["effective_tokens"] == 0
@@ -90,9 +98,7 @@ class TestGetSessionCosts:
 
     async def test_aggregates_token_records(self):
         """Should aggregate cached token records into session cost."""
-        mock_session = MagicMock()
-
-        # Mock TeStatus row
+        # Proper async context manager mock
         status_row = MagicMock()
         status_row.effective_tokens = None  # will use estimate
         status_row.total_tokens = None
@@ -102,12 +108,19 @@ class TestGetSessionCosts:
 
         mock_status_result = MagicMock()
         mock_status_result.scalar_one_or_none.return_value = status_row
-        mock_session.execute = AsyncMock(return_value=mock_status_result)
 
-        # Mock tool usage rows (none for this test)
+        tool_scalar = MagicMock()
+        tool_scalar.all = AsyncMock(return_value=[])
         mock_tool_result = MagicMock()
-        mock_tool_result.scalars().all.return_value = []
+        mock_tool_result.scalars.return_value = tool_scalar
+
+        # execute returns status_result first, then tool_result second
+        mock_session = AsyncMock()
         mock_session.execute.side_effect = [mock_status_result, mock_tool_result]
+
+        ctx_mgr = AsyncMock()
+        ctx_mgr.__aenter__.return_value = mock_session
+        factory = MagicMock(return_value=ctx_mgr)
 
         _last_token_records.clear()
         record_usage("chat-aggregate", {
@@ -115,7 +128,7 @@ class TestGetSessionCosts:
             "output_tokens": 200, "model": "gpt-5.6-sol",
         })
 
-        with patch("cptr.utils.db.get_session_factory", return_value=mock_session):
+        with patch("cptr.utils.db.get_session_factory", return_value=factory):
             result = await get_session_costs("chat-aggregate")
 
         assert result["effective_tokens"] > 0
@@ -125,8 +138,7 @@ class TestGetSessionCosts:
 
     async def test_tool_usage_breakdown(self):
         """Should include tool_usage breakdown in results."""
-        mock_session = MagicMock()
-
+        # Proper async context manager mock
         status_row = MagicMock()
         status_row.effective_tokens = None
         status_row.total_tokens = None
@@ -151,11 +163,19 @@ class TestGetSessionCosts:
         tool_row2.last_seen = 3000
 
         mock_tool_result = MagicMock()
-        mock_tool_result.scalars().all.return_value = [tool_row1, tool_row2]
+        tool_scalar = MagicMock()
+        tool_scalar.all = AsyncMock(return_value=[tool_row1, tool_row2])
+        mock_tool_result.scalars.return_value = tool_scalar
 
-        mock_session.execute = AsyncMock(side_effect=[mock_status_result, mock_tool_result])
+        # execute returns status_result first, then tool_result second
+        mock_session = AsyncMock()
+        mock_session.execute.side_effect = [mock_status_result, mock_tool_result]
 
-        with patch("cptr.utils.db.get_session_factory", return_value=mock_session):
+        ctx_mgr = AsyncMock()
+        ctx_mgr.__aenter__.return_value = mock_session
+        factory = MagicMock(return_value=ctx_mgr)
+
+        with patch("cptr.utils.db.get_session_factory", return_value=factory):
             result = await get_session_costs("chat-tools")
 
         assert len(result["tool_usage"]) == 2

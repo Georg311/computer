@@ -76,7 +76,7 @@ class TestSearchRgHelper:
             result = await _search_rg(
                 query="test",
                 full=Path("/home/cptr/test"),
-                regex=False,
+                is_regex=False,
                 case_insensitive=False,
                 include="",
                 filenames_only=False,
@@ -112,7 +112,7 @@ class TestSearchRgHelper:
             result = await _search_rg(
                 query="test",
                 full=Path("/home/cptr/test"),
-                regex=False,
+                is_regex=False,
                 case_insensitive=False,
                 include="",
                 filenames_only=False,
@@ -145,7 +145,7 @@ class TestSearchRgHelper:
             result = await _search_rg(
                 query="test",
                 full=Path("/home/cptr/test"),
-                regex=False,
+                is_regex=False,
                 case_insensitive=False,
                 include="",
                 filenames_only=False,
@@ -178,7 +178,7 @@ class TestSearchRgHelper:
             result = await _search_rg(
                 query="test",
                 full=Path("/home/cptr/test"),
-                regex=False,
+                is_regex=False,
                 case_insensitive=False,
                 include="",
                 filenames_only=False,
@@ -211,7 +211,7 @@ class TestSearchRgHelper:
             result = await _search_rg(
                 query="test",
                 full=Path("/home/cptr/test.py"),
-                regex=False,
+                is_regex=False,
                 case_insensitive=False,
                 include="",
                 filenames_only=False,
@@ -245,7 +245,7 @@ class TestSearchRgHelper:
             result = await _search_rg(
                 query="test",
                 full=Path("/home/cptr/repo"),
-                regex=False,
+                is_regex=False,
                 case_insensitive=False,
                 include="",
                 filenames_only=False,
@@ -286,7 +286,7 @@ class TestSearchRgOutputFormatting:
             result = await _search_rg(
                 query="test",
                 full=Path("/home/cptr/test.py"),
-                regex=False,
+                is_regex=False,
                 case_insensitive=False,
                 include="",
                 filenames_only=False,
@@ -319,7 +319,7 @@ class TestSearchRgOutputFormatting:
             result = await _search_rg(
                 query="nonexistent_xyz",
                 full=Path("/home/cptr/test.py"),
-                regex=False,
+                is_regex=False,
                 case_insensitive=False,
                 include="",
                 filenames_only=False,
@@ -352,7 +352,7 @@ class TestSearchRgOutputFormatting:
             result = await _search_rg(
                 query="test",
                 full=Path("/home/cptr/repo"),
-                regex=False,
+                is_regex=False,
                 case_insensitive=False,
                 include="",
                 filenames_only=False,
@@ -387,7 +387,7 @@ class TestSearchRgOutputFormatting:
             result = await _search_rg(
                 query="test",
                 full=Path("/home/cptr/repo"),
-                regex=False,
+                is_regex=False,
                 case_insensitive=False,
                 include="",
                 filenames_only=False,
@@ -423,7 +423,7 @@ class TestSearchRgOutputFormatting:
             result = await _search_rg(
                 query="test",
                 full=Path("/home/cptr/repo"),
-                regex=False,
+                is_regex=False,
                 case_insensitive=False,
                 include="",
                 filenames_only=False,
@@ -461,7 +461,7 @@ class TestSearchRgOutputFormatting:
             result = await _search_rg(
                 query="test",
                 full=Path("/home/cptr/repo"),
-                regex=False,
+                is_regex=False,
                 case_insensitive=False,
                 include="",
                 filenames_only=False,
@@ -498,7 +498,7 @@ class TestSearchRgOutputFormatting:
             result = await _search_rg(
                 query="nonexistent_pattern_xyz",
                 full=Path("/home/cptr/repo"),
-                regex=False,
+                is_regex=False,
                 case_insensitive=False,
                 include="",
                 filenames_only=False,
@@ -566,7 +566,7 @@ class TestNoMatches:
             result = await _search_rg(
                 query="nonexistent_xyz",
                 full=Path("/home/cptr/repo"),
-                regex=False,
+                is_regex=False,
                 case_insensitive=False,
                 include="",
                 filenames_only=False,

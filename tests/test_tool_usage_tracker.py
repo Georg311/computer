@@ -62,7 +62,7 @@ class TestAnalyzeToolPruning:
         tracker = ToolUsageTracker(evidence_threshold=2)
 
         zero_row = MagicMock()
-        zero_row.tool_name = "view"
+        zero_row.tool_name = "custom_tool_x"
         zero_row.call_count = 0
 
         mock_factory = make_mock_factory([zero_row])
@@ -73,10 +73,10 @@ class TestAnalyzeToolPruning:
         ):
             result = await tracker.analyze_tool_pruning("chat-zero")
 
-        view_rec = [r for r in result if r["tool_name"] == "view"]
+        view_rec = [r for r in result if r["tool_name"] == "custom_tool_x"]
         assert len(view_rec) > 0
         assert view_rec[0]["recommendation"] == "immediate"
-        assert view_rec[0]["reason"].startswith("Tool 'view' was never used")
+        assert view_rec[0]["reason"].startswith("Tool 'custom_tool_x' was never used")
 
     async def test_no_recommendations_for_active_tools(self):
         """Tools with calls should not get pruning recommendations."""

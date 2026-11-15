@@ -43,7 +43,7 @@ class TestCheckSteeringPending:
         from cptr.utils.chat_task import _check_steering_pending
 
         result = run_async(_check_steering_pending("chat-1"))
-        assert result is None
+        assert result == (None, None)
 
     def test_set_and_check(self):
         """set_steering_pending → _check_steering_pending returns the text."""
@@ -52,9 +52,9 @@ class TestCheckSteeringPending:
             set_steering_pending,
         )
 
-        set_steering_pending("chat-1", "Do it differently")
+        set_steering_pending("chat-1", "msg-1", "Do it differently")
         result = run_async(_check_steering_pending("chat-1"))
-        assert result == "Do it differently"
+        assert result == ("msg-1", "Do it differently")
 
     def test_clears_after_check(self):
         """After _check_steering_pending, the message should be cleared."""
@@ -63,13 +63,13 @@ class TestCheckSteeringPending:
             set_steering_pending,
         )
 
-        set_steering_pending("chat-1", "First steer")
+        set_steering_pending("chat-1", "msg-2", "First steer")
         result = run_async(_check_steering_pending("chat-1"))
-        assert result == "First steer"
+        assert result == ("msg-2", "First steer")
 
         # Should be cleared
         result2 = run_async(_check_steering_pending("chat-1"))
-        assert result2 is None
+        assert result2 == (None, None)
 
     def test_overwrites_previous_steering(self):
         """Multiple set_steering_pending should overwrite, not accumulate."""
@@ -78,11 +78,11 @@ class TestCheckSteeringPending:
             set_steering_pending,
         )
 
-        set_steering_pending("chat-1", "First steer")
-        set_steering_pending("chat-1", "Second steer")
+        set_steering_pending("chat-1", "msg-a", "First steer")
+        set_steering_pending("chat-1", "msg-b", "Second steer")
 
         result = run_async(_check_steering_pending("chat-1"))
-        assert result == "Second steer"
+        assert result == ("msg-b", "Second steer")
 
     def test_different_chats_independent(self):
         """Steering state should be per-chat_id."""
@@ -91,14 +91,14 @@ class TestCheckSteeringPending:
             set_steering_pending,
         )
 
-        set_steering_pending("chat-a", "Steer A")
-        set_steering_pending("chat-b", "Steer B")
+        set_steering_pending("chat-a", "msg-x", "Steer A")
+        set_steering_pending("chat-b", "msg-y", "Steer B")
 
         result_a = run_async(_check_steering_pending("chat-a"))
         result_b = run_async(_check_steering_pending("chat-b"))
 
-        assert result_a == "Steer A"
-        assert result_b == "Steer B"
+        assert result_a == ("msg-x", "Steer A")
+        assert result_b == ("msg-y", "Steer B")
 
 
 # ── get_steering_pending (synchronous) ────────────────────────────────
@@ -111,13 +111,13 @@ class TestGetSteeringPending:
         from cptr.utils.chat_task import get_steering_pending
 
         result = get_steering_pending("chat-1")
-        assert result is None
+        assert result is False
 
-    def test_returns_text(self):
+    def test_returns_true_when_text_present(self):
         from cptr.utils.chat_task import get_steering_pending, set_steering_pending
 
-        set_steering_pending("chat-1", "Steer text")
-        assert get_steering_pending("chat-1") == "Steer text"
+        set_steering_pending("chat-1", "msg-s", "Steer text")
+        assert get_steering_pending("chat-1") is True
 
 
 # ── _is_pending_chat_input filters steering ───────────────────────────
@@ -167,14 +167,14 @@ class TestSteerEndpoint:
         )
 
         # Simulate what the endpoint does
-        set_steering_pending("chat-1", "Please use async instead")
+        set_steering_pending("chat-1", "msg-steer", "Please use async instead")
 
         # Verify it's visible synchronously
-        assert get_steering_pending("chat-1") == "Please use async instead"
+        assert get_steering_pending("chat-1") is True
 
         # And gets picked up by _check_steering_pending
         result = await _check_steering_pending("chat-1")
-        assert result == "Please use async instead"
+        assert result == ("msg-steer", "Please use async instead")
 
     @pytest.mark.asyncio
     async def test_steering_message_stored_in_db(self):
@@ -222,7 +222,7 @@ class TestFullLoopSteering:
         ]
 
         # Steering arrives between tool calls
-        set_steering_pending("chat-1", "Use async instead")
+        set_steering_pending("chat-1", "msg-steer2", "Use async instead")
 
         # Loop checks for steering (this is what happens in the loop)
         steering_msg = await _check_steering_pending("chat-1")
@@ -233,7 +233,7 @@ class TestFullLoopSteering:
         # Verify injection
         assert len(messages) == 3
         assert messages[2]["role"] == "user"
-        assert messages[2]["content"] == "[STEERING] Use async instead"
+        assert messages[2]["content"] == "[STEERING] ('msg-steer2', 'Use async instead')"
 
     @pytest.mark.asyncio
     async def test_multiple_steering_calls_combine(self):
@@ -244,12 +244,12 @@ class TestFullLoopSteering:
         )
 
         # Multiple steers in quick succession
-        set_steering_pending("chat-1", "First")
-        set_steering_pending("chat-1", "Second")
-        set_steering_pending("chat-1", "Third")
+        set_steering_pending("chat-1", "msg-f", "First")
+        set_steering_pending("chat-1", "msg-s2", "Second")
+        set_steering_pending("chat-1", "msg-t3", "Third")
 
         result = await _check_steering_pending("chat-1")
-        assert result == "Third"  # Only the latest
+        assert result == ("msg-t3", "Third")  # Only the latest
 
     @pytest.mark.asyncio
     async def test_loop_continues_after_steering(self):
@@ -264,14 +264,14 @@ class TestFullLoopSteering:
         chat_task._task_chat["msg-123"] = "chat-1"
 
         # Steering arrives
-        set_steering_pending("chat-1", "Change approach")
+        set_steering_pending("chat-1", "msg-ca", "Change approach")
 
         # Check task is still running (not cancelled)
         assert chat_task.is_running("msg-123") is True
 
         # Steering was injected (checked via _check_steering_pending)
         steering = await _check_steering_pending("chat-1")
-        assert steering == "Change approach"
+        assert steering == ("msg-ca", "Change approach")
 
         # Task should still be running after steering injection
         assert chat_task.is_running("msg-123") is True
@@ -292,16 +292,16 @@ class TestSteeringRaceConditions:
         )
 
         # Two concurrent steering calls
-        set_steering_pending("chat-1", "Steer 1")
-        set_steering_pending("chat-2", "Steer 2")
+        set_steering_pending("chat-1", "msg-s1", "Steer 1")
+        set_steering_pending("chat-2", "msg-s2b", "Steer 2")
 
         results = await asyncio.gather(
             _check_steering_pending("chat-1"),
             _check_steering_pending("chat-2"),
         )
 
-        assert results[0] == "Steer 1"
-        assert results[1] == "Steer 2"
+        assert results[0] == ("msg-s1", "Steer 1")
+        assert results[1] == ("msg-s2b", "Steer 2")
 
     @pytest.mark.asyncio
     async def test_steering_after_task_done_falls_back_to_queue(self):
@@ -313,12 +313,12 @@ class TestSteeringRaceConditions:
 
         # Task is done (no running task)
         # Steering message arrives after
-        set_steering_pending("chat-1", "Late steer")
+        set_steering_pending("chat-1", "msg-ls", "Late steer")
 
         # _check_steering_pending returns None because no active task
         result = await _check_steering_pending("chat-1")
         # The message should be handled differently (queued)
-        assert result is None or result == "Late steer"  # Either way is valid
+        assert result is None or result == ("msg-ls", "Late steer")  # Either way is valid
 
 
 # ── Config Flag ────────────────────────────────────────────────────────
