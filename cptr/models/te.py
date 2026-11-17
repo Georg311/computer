@@ -39,7 +39,7 @@ class TeStatus(Base):
     cache_savings_pct = Column(Integer, default=0)  # percentage (0-100)
     pricing_overhead = Column(BigInteger, default=0)  # extra tokens from mechanisms
     session_cost_usd = Column(Float, default=0.0)  # total USD cost for the session
-
+    pricing_overhead_effective = Column(BigInteger, default=0)  # overhead effective tokens (from ledger.py)
     # ── Class methods ────────────────────────────────────────
 
     @classmethod
@@ -106,7 +106,9 @@ class RepoFacts(Base):
     fire_status = Column(Integer, default=0)  # 0=pending, >0=fire count
     confirmation_count = Column(Integer, default=0)
     active = Column(Boolean, default=True)
-
+    fire_rate = Column(Float, default=0.0)  # TE lifecycle firing gate score (>=0.40 = active)
+    lifecycle_state = Column(Text, default="CANDIDATE")  # CANDIDATE | ACTIVE | RETIRED
+    confirmed_at = Column(Text, nullable=True)
     @staticmethod
     async def get_active(chat_id: str) -> list["RepoFacts"]:
         from cptr.utils.db import get_session_factory
@@ -182,7 +184,7 @@ class MicroskillsFact(Base):
     fire_status = Column(Boolean, default=False)  # True when LLM successfully used this fact
     confirmation_count = Column(Integer, default=0)
     active = Column(Boolean, default=True)
-
+    fire_rate = Column(Float, default=0.0)  # TE lifecycle firing gate score (>=0.40 = active)
     @staticmethod
     async def get_active(chat_id: str) -> list["MicroskillsFact"]:
         from cptr.utils.db import get_session_factory

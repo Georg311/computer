@@ -2742,7 +2742,31 @@ async def run_chat_task(
         # ── Loop Guard: turn-level failure-loop intervention ──
         try:
             from cptr.utils.te.loop_guard import LoopGuard
-            loop_guard = LoopGuard(chat_id=chat_id)
+            # ── Build LLM judge callback for LoopGuard (with rate limiting) ──
+            _last_judge_turn: int = 0
+            try:
+                llm_runner = build_proposer_runner()
+                if llm_runner and configured_model:
+                    from cptr.utils.te.judge_adapter import make_judge_callback
+                    judge_cb = make_judge_callback(runner=llm_runner, model=configured_model)
+
+                    def _rate_limited_judge(digest: str) -> dict | None:
+                        """Judge callback with rate limit: max 1 call per 10 turns."""
+                        nonlocal _last_judge_turn
+                        # Check if enough turns have passed since last judge call
+                        if loop_guard and hasattr(loop_guard, "_spiral"):
+                            snap = loop_guard._spiral.snapshot()
+                            turns = snap.get("turns", 0)
+                            if (turns - _last_judge_turn) < 10:
+                                return None
+                            _last_judge_turn = turns
+                        return judge_cb(digest)
+
+                    loop_guard = LoopGuard(chat_id=chat_id, llm_judge_callback=_rate_limited_judge)
+                else:
+                    loop_guard = LoopGuard(chat_id=chat_id)
+            except Exception as e:
+                logger.warning("[loop_guard] Failed to init judge callback for %s: %s", chat_id, e)
         except Exception as e:
             logger.warning("[loop_guard] Failed to init for %s: %s", chat_id, e)
             loop_guard = None

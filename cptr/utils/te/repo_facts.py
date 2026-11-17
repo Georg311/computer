@@ -425,7 +425,9 @@ def get_injected_facts(chat_id: str) -> list[dict]:
             MicroskillsFact.active is True,
             MicroskillsFact.fire_rate >= FIRE_GATE,
         ).order_by(MicroskillsFact.confirmation_count.desc())
-        rows_mf = list(result_mf.scalars().all())
+
+        rows_rf = list((await session.execute(stmt_rf)).scalars().all())
+        rows_mf = list((await session.execute(stmt_mf)).scalars().all())
 
         # Deduplicate by fact_text (microskills_facts takes precedence)
         seen_texts = set()
