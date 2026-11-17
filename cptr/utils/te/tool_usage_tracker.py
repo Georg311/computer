@@ -243,18 +243,31 @@ class ToolUsageTracker:
         return recommendations
 
     async def _estimate_sessions_unused(self, chat_id: str, tool_name: str) -> int:
-        """Estimate how many sessions a tool has been unused."""
-        # Simple heuristic: count how many recent chats don't have this tool
+        """Estimate how many sessions a tool has been unused.
+
+        Counts **consecutive** sessions (most recent first) where this tool was NOT used.
+        Stops at the first session where it WAS used — that is not counted as "unused".
+        Mirrors TE's `tool_unused_streaks` logic from toolprune/stage.py.
+        """
+        # Get all chats for this tool, ordered by most recent last_seen
         async with get_session_factory()() as session:
             result = await session.execute(
                 select(TeToolUsage).where(
-                    TeToolUsage.tool_name == tool_name,
-                    TeToolUsage.chat_id != chat_id,
-                )
+                    TeToolUsage.tool_name == tool_name
+                ).order_by(TeToolUsage.last_seen.desc())
             )
             rows = result.scalars().all()
 
-        return max(len(rows) - 1, self.evidence_threshold)  # At least evidence_threshold
+        # Count consecutive unused sessions (most recent first)
+        streak = 0
+        for row in rows:
+            if row.chat_id == chat_id:
+                continue  # skip the current chat
+            if row.call_count and row.call_count > 0:
+                break  # hit a used session — stop counting
+            streak += 1
+
+        return streak
 
     def _now_ms(self) -> int:
         """Return current time in milliseconds."""
