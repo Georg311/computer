@@ -2944,6 +2944,7 @@ async def run_chat_task(
                         from cptr.utils.te.tool_usage_tracker import (
                             ToolUsageTracker as _te_Tracker,
                         )
+                        from sqlalchemy import insert as sa_insert
                         tracker = _te_Tracker()
                         recommendations = await tracker.analyze_tool_pruning_evidence(
                             chat_id, tracker.evidence_threshold
@@ -2954,6 +2955,33 @@ async def run_chat_task(
                                 len(recommendations),
                                 ", ".join(r["tool_name"] for r in recommendations[:5]),
                             )
+
+                            # Auto-apply "immediate" and "recommended" tools to deny-list
+                            from cptr.models.te import ToolPruneDecision as _TPD
+                            auto_apply = [r["tool_name"] for r in recommendations if r.get("recommendation") in ("immediate", "recommended")]
+                            if auto_apply:
+                                async with get_session_factory()() as _tp_app_session:
+                                    applied_count = 0
+                                    for tool_name in auto_apply:
+                                        try:
+                                            await _tp_app_session.execute(
+                                                sa_insert(_TPD).values(
+                                                    chat_id=chat_id,
+                                                    tool_name=tool_name,
+                                                    applied_at=_task_state.get("_te_tp_applied_ts", now_ms()),
+                                                )
+                                            )
+                                            applied_count += 1
+                                        except Exception:
+                                            pass  # Upsert conflict — ignore
+                                    await _tp_app_session.commit()
+
+                                if applied_count > 0:
+                                    logger.info(
+                                        "[te] auto-applied pruning to %d tool(s): %s",
+                                        applied_count,
+                                        ", ".join(auto_apply[:5]),
+                                    )
                     except Exception as _e:
                         logger.debug("[te] pruning analysis failed: %s", _e)
 
