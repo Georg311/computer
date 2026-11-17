@@ -300,6 +300,20 @@ async def get_loop_envelope(request: Request, chat_id: str):
 
 # ── Tool Pruning endpoints ──────────────────────────────────
 
+@router.get("/te/toolpruning/all")
+async def get_all_tool_pruning(request: Request):
+    """Get tool usage across all chats for global analysis."""
+    _get_user(request)
+
+    tracker = ToolUsageTracker()
+    all_usage = await tracker.get_all_tool_usage()
+
+    return {
+        "total_tools": len(all_usage),
+        "tools": all_usage,
+    }
+
+
 @router.get("/te/toolpruning/{chat_id}")
 async def get_tool_pruning_analysis(request: Request, chat_id: str):
     """Analyze tool usage and return pruning recommendations for a chat."""
@@ -365,20 +379,6 @@ async def apply_tool_pruning(request: Request, chat_id: str):
         "chat_id": chat_id,
         "message": f"Tool pruning applied for {len(tool_names)} tool(s)",
         "applied_tools": tool_names,
-    }
-
-
-@router.get("/te/toolpruning/all")
-async def get_all_tool_pruning(request: Request):
-    """Get tool usage across all chats for global analysis."""
-    _get_user(request)
-
-    tracker = ToolUsageTracker()
-    all_usage = await tracker.get_all_tool_usage()
-
-    return {
-        "total_tools": len(all_usage),
-        "tools": all_usage,
     }
 
 
