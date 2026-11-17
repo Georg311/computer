@@ -2538,6 +2538,57 @@ async def run_chat_task(
         except Exception:
             chat_models_config = {}
         builtin_tools = resolve_builtin_tools_config(chat_models_config, model, configured_model)
+
+        # ── TE Tool Pruning: Instruction-aware judge (optional LLM-side-call) ──
+        try:
+            from cptr.utils.config import get_te_toolpruning_config as _get_tp_cfg
+            tp_cfg = _get_tp_cfg()
+            if tp_cfg.get("enabled") and chat_id:
+                # Build a simple catalog for the judge (tool_name -> short desc)
+                try:
+                    from cptr.tools import list_tools  # or whatever provides tool registry
+                    from cptr.utils.te.toolprune.tools import PROTECTED_TOOLS, judge_tools_for_task
+                    from cptr.utils.te.pricing_wrapper import get_session_estimate as _est
+
+                    catalog = {}
+                    for t in (list_tools() if callable(list_tools) else []):
+                        if isinstance(t, dict):
+                            catalog[t.get("name", "")] = t.get("description", "")
+                        elif hasattr(t, "name"):
+                            catalog[t.name] = getattr(t, "description", "")
+
+                    if catalog and callable(tp_cfg.get("runner")):
+                        # Instruction-aware judge to DROP irrelevant tools for THIS task
+                        problem_text = (msg.content if msg else "")[:4000] if msg else ""
+                        if problem_text:
+                            try:
+                                drop_map, _tokens = judge_tools_for_task(
+                                    problem_statement=problem_text,
+                                    catalog=catalog,
+                                    runner=tp_cfg["runner"],
+                                    model=configured_model or "agent",
+                                )
+                                # Guard: never DROP protected tools
+                                for t in PROTECTED_TOOLS:
+                                    if t in drop_map:
+                                        drop_map[t] = True  # force keep
+                                
+                                # Apply drops to builtin_tools
+                                if drop_map:
+                                    keepers = {k: v for k, v in (builtin_tools or {}).items() 
+                                               if drop_map.get(k, False) == True}
+                                    if keepers and len(keepers) < len(builtin_tools or {}):
+                                        logger.info("[te] tool pruning judge dropped %d tools (%d/%d kept)",
+                                                   len(builtin_tools or {}) - len(keepers),
+                                                   len(keepers), len(builtin_tools or {}))
+                                        builtin_tools = keepers
+                            except Exception as _j:
+                                logger.debug("[te] tool judge failed: %s", _j)
+                except Exception as _tp:
+                    logger.debug("[te] tool pruning setup failed: %s", _tp)
+        except Exception as _tpe:
+            logger.debug("[te] tool pruning config unavailable: %s", _tpe)
+
         conn_provider_type = connection.get("provider_type", "")
         provider_type = (
             conn_provider_type

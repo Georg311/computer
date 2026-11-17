@@ -76,12 +76,23 @@ async def get_te_status(request: Request, chat_id: str = Query(...)):
                 for t in tools_rows
             ]
 
+            # ── L1: Ledger Overhead Integration (DB-primary Path) ─────
+            ledger_overhead = 0
+            try:
+                from cptr.utils.te.ledger import get_session_overhead as _get_overhead
+                from cptr.utils.te.ledger import get_session_cost_with_overhead as _get_cost
+                ledger_overhead = _get_overhead(chat_id) or 0
+                pricing_overhead = int(status.pricing_overhead or 0) + ledger_overhead
+                session_cost_usd = _get_cost(float(status.session_cost_usd or 0.0), ledger_overhead)
+            except Exception as e:
+                log.warning("[te] Failed to get session overhead for %s (DB-primary): %s", chat_id, e)
+
             return TeStatusResponse(
                 effective_tokens=int(status.effective_tokens or 0),
                 total_tokens=int(status.total_tokens or 0),
                 cache_savings_pct=int(status.cache_savings_pct or 0),
-                pricing_overhead=int(status.pricing_overhead or 0),
-                session_cost_usd=float(status.session_cost_usd or 0.0),
+                pricing_overhead=pricing_overhead,
+                session_cost_usd=session_cost_usd,
                 tool_usage=tool_usage,
             )
 

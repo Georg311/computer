@@ -39,12 +39,24 @@ INAPPLICABLE_TOOLS = (
 )
 # Tools that must always stay available regardless of usage (the real work surface).
 PROTECTED_TOOLS = frozenset({
+    # TE / Claude Code work-surface names:
     "bash", "view", "grep", "glob", "edit", "create", "str_replace",
     "read_bash", "stop_bash", "list_bash", "read_file",
-    # Codex's complete native work surface (fixed; neither schema is removable).
+    # Codex native work-surface:
     "shell", "apply_patch",
-    # Claude Code work-surface names:
+    # Claude Code PascalCase names:
     "Bash", "Edit", "Write", "Read", "Grep", "Glob", "MultiEdit",
+    # cptr built-in tool names (lowercase_snake_case):
+    "read_file", "list_directory", "search_files", "check_task",
+    "web_search", "read_url", "search_chats", "get_current_time",
+    "view_skill", "update_tasks", "create_file", "display_file",
+    "edit_file", "multi_edit_file", "write_file", "run_command",
+    "send_input", "kill_task",
+    "create_automation", "update_automation", "toggle_automation",
+    "delete_automation", "notify", "image_generate", "manage_skill",
+    "update_memory", "watch_directory", "browser_navigate",
+    "browser_snapshot", "browser_click", "browser_type",
+    "browser_screenshot", "browser_evaluate", "browser_set_mobile_mode",
 })
 
 

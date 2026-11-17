@@ -1,0 +1,5 @@
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "c0", "name": "bash", "input": {"command": "echo hello-0"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "c1", "name": "bash", "input": {"command": "echo hello-1"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "c2", "name": "bash", "input": {"command": "echo hello-2"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "c3", "name": "bash", "input": {"command": "echo hello-3"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "c4", "name": "bash", "input": {"command": "echo hello-4"}}]}}

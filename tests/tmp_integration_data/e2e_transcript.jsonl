@@ -1,0 +1,6 @@
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t0", "name": "bash", "input": {"command": "pytest test_0.py"}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t0", "content": "passed: 3 tests"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t1", "name": "bash", "input": {"command": "pytest test_1.py"}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t1", "content": "passed: 3 tests"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t2", "name": "bash", "input": {"command": "pytest test_2.py"}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t2", "content": "passed: 3 tests"}]}}

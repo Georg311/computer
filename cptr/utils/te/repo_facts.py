@@ -412,19 +412,19 @@ def get_injected_facts(chat_id: str) -> list[dict]:
         session = __import__("cptr.utils.db", fromlist=["get_session_factory"]).get_session_factory()()
         sa_select = __import__("sqlalchemy", fromlist=["select"]).select
 
-        # Read from both tables
+        # Read from both tables — filter active + firing gate + not retired
         stmt_rf = sa_select(RepoFacts).where(
             RepoFacts.chat_id == chat_id,
             RepoFacts.active is True,
+            RepoFacts.fire_rate >= FIRE_GATE,
+            RepoFacts.lifecycle_state != "RETIRED",
         ).order_by(RepoFacts.confirmation_count.desc())
-        result_rf = await session.execute(stmt_rf)
-        rows_rf = list(result_rf.scalars().all())
 
         stmt_mf = sa_select(MicroskillsFact).where(
             MicroskillsFact.chat_id == chat_id,
             MicroskillsFact.active is True,
+            MicroskillsFact.fire_rate >= FIRE_GATE,
         ).order_by(MicroskillsFact.confirmation_count.desc())
-        result_mf = await session.execute(stmt_mf)
         rows_mf = list(result_mf.scalars().all())
 
         # Deduplicate by fact_text (microskills_facts takes precedence)
