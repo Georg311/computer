@@ -178,6 +178,9 @@ class ToolUsageTracker:
         from cptr.utils.te.toolprune.tools import PROTECTED_TOOLS
         
         # Config Pattern: Lese threshold aus config.toml!
+        # [te_toolpruning]
+        #   evidence_threshold = 5    # consecutive unused sessions before pruning (default: 5)
+        #   check_interval = 20       # run analysis every N turns in chat loop (default: 20)
         try:
             from cptr.utils.db import load_config
             config = load_config()

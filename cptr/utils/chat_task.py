@@ -2923,7 +2923,9 @@ async def run_chat_task(
                     logger.debug("[te] tool call tracking failed: %s", _exc)
 
                 # ── TE Tool Pruning: periodic evidence-gated analysis ───
-                # Run pruning check every 20 turns (configurable via te_toolpruning.check_interval)
+                # Run pruning check every N turns (configurable via config.toml)
+                # [te_toolpruning]
+                #   check_interval = 20       # run analysis every N turns (default: 20)
                 try:
                     from cptr.utils.config import load_config as _te_load_config
                     tp_cfg = _te_load_config() or {}
