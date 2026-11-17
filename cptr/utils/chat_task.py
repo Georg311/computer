@@ -2689,6 +2689,34 @@ async def run_chat_task(
             logger.info(
                 "[task %s] plan mode active, %d tools available", message_id[:8], len(tools)
             )
+
+        # ── TE Tool Pruning: apply stored deny-list (ToolPruneDecision) ───
+        if chat_id and not plan_mode:
+            try:
+                from sqlalchemy import select as sa_select, text as sa_text
+                from cptr.models.te import ToolPruneDecision as _TPD
+
+                async with get_session_factory()() as _tp_session:
+                    result = await _tp_session.execute(
+                        sa_select(_TPD.tool_name).where(
+                            _TPD.chat_id == chat_id
+                        )
+                    )
+                    denied_tools = {row.tool_name for row in result.scalars().all()}
+
+                if denied_tools:
+                    original_count = len(tools)
+                    tools = [t for t in tools if t["name"] not in denied_tools]
+                    removed = original_count - len(tools)
+                    if removed > 0:
+                        logger.info(
+                            "[te] pruning deny-list: %d tool(s) removed (%s)",
+                            removed,
+                            ", ".join(sorted(denied_tools)),
+                        )
+            except Exception as _e:
+                logger.debug("[te] pruning deny-list apply failed: %s", _e)
+
         review_messages = messages
         review_model_connection = connection
         review_model_name = model
