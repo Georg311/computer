@@ -1,3 +1,9 @@
+## [0.9.21.50] - 2026-11-15
+
+### Added
+- 🧠 **TE Tool Pruning — evidenzbasierte Auto-Denylist.** Periodische Analyse (alle 20 Turns) erkennt ungenutzte Tools und generiert Empfehlungen ("immediate" / "recommended"). Recommendations werden automatisch in `tool_prune_decision` geschrieben; der Chat-Loop filtert die gedopten Tools aus der Tool-Liste. Konfigurierbar via `config.toml`: `[te_toolpruning] evidence_threshold = 5`, `check_interval = 20`.
+- 🔧 **FastAPI Route-Auflösung für `/te/toolpruning/all` vor `{chat_id}`.** Verhindert falsches Routing von Tool-Namen als Chat-ID.
+
 ## [0.9.21.48] - 2026-11-15
 
 ### Added
