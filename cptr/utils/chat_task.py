@@ -2894,6 +2894,41 @@ async def run_chat_task(
                 except Exception as _exc:
                     logger.debug("[te] tool call tracking failed: %s", _exc)
 
+                # ── TE Tool Pruning: periodic evidence-gated analysis ───
+                # Run pruning check every 20 turns (configurable via te_toolpruning.check_interval)
+                try:
+                    from cptr.utils.config import load_config as _te_load_config
+                    tp_cfg = _te_load_config() or {}
+                    section = tp_cfg.get("te_toolpruning", {})
+                    if not isinstance(section, dict):
+                        section = {}
+                    check_interval = max(1, int(section.get("check_interval", 20)))
+                except Exception:
+                    check_interval = 20
+
+                _tp_count_key = f"_te_tp_count_{chat_id}"
+                _task_state.setdefault(_tp_count_key, 0)
+                _task_state[_tp_count_key] += 1
+
+                if (_task_state[_tp_count_key] % check_interval == 0
+                        and chat_id):
+                    try:
+                        from cptr.utils.te.tool_usage_tracker import (
+                            ToolUsageTracker as _te_Tracker,
+                        )
+                        tracker = _te_Tracker()
+                        recommendations = await tracker.analyze_tool_pruning_evidence(
+                            chat_id, tracker.evidence_threshold
+                        )
+                        if recommendations:
+                            logger.info(
+                                "[te] pruning analysis (%d recs): %s",
+                                len(recommendations),
+                                ", ".join(r["tool_name"] for r in recommendations[:5]),
+                            )
+                    except Exception as _e:
+                        logger.debug("[te] pruning analysis failed: %s", _e)
+
                 # ── TE overhead tracking: record side-call costs ─────
                 if chat_id and last_usage:
                     try:
