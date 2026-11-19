@@ -58,6 +58,46 @@ async def _seed_config_from_toml():
 
     Called on every startup. The file always wins — this ensures config
     survives DB loss and allows hand-editing the TOML file.
+
+    SKIPS 'bots' key: bot configs are managed via API/DB, not TOML.
+    instance-test sanitizes bots to [] in TOML but copies app.db with real bots.
+    Seeding from empty TOML would wipe those DB bots on every restart.
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        from cptr.utils.config import load_app_config_from_toml
+
+        app_config = load_app_config_from_toml()
+        if not app_config:
+            return
+
+        # Skip 'bots' — bot configs are DB-managed; TOML sanitization would wipe them
+        filtered = {k: v for k, v in app_config.items() if k != "bots"}
+        if not filtered:
+            return
+
+        # Direct DB upsert (not via Config.upsert to avoid re-syncing back to file)
+        from cptr.models.config import Config as ConfigModel
+
+        async with get_session_factory()() as db:
+            for key, value in filtered.items():
+                existing = await db.get(ConfigModel, key)
+                if existing:
+                    existing.value = value
+                else:
+                    db.add(ConfigModel(key=key, value=value))
+            await db.commit()
+
+        logger.info("Loaded %d config key(s) from config.toml (skipped 'bots')", len(filtered))</parameter>
+<parameter=replace_from>
+mtgef
+    """Load [app_config] from config.toml and upsert into the DB config table.
+
+    Called on every startup. The file always wins — this ensures config
+    survives DB loss and allows hand-editing the TOML file.
     """
     import logging
 
