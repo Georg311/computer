@@ -765,8 +765,12 @@ class BotManager:
         from cptr.utils.identity import internal_request_for_user
         from cptr.utils.runtime import Runtime
 
-        request = await internal_request_for_user(self.app, bot["user_id"])
-        await Runtime.write_file(request, str(marker), "{}")
+        try:
+            request = await internal_request_for_user(self.app, bot["user_id"])
+            await Runtime.write_file(request, str(marker), "{}")
+        except Exception as _exc:
+            logger.warning("[bridge] internal_request_for_user failed in create_chat for %s: %s", bot.get("user_id"), _exc)
+            request = None
 
         return chat.id
 
