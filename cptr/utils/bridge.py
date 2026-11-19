@@ -952,8 +952,12 @@ class BotManager:
         from cptr.utils.chat_export import export_chat_to_file
         from cptr.utils.identity import internal_request_for_user
 
-        request = await internal_request_for_user(self.app, bot["user_id"])
-        await export_chat_to_file(request, chat_id)
+        try:
+            request = await internal_request_for_user(self.app, bot["user_id"])
+            await export_chat_to_file(request, chat_id)
+        except Exception as _exc:
+            logger.warning("[bridge] internal_request_for_user failed for %s: %s", bot.get("user_id"), _exc)
+            request = None
 
         # Send initial "thinking" message for non-draft platforms (Discord)
         # Telegram uses sendMessageDraft which handles this natively
