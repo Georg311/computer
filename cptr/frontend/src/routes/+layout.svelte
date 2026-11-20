@@ -316,9 +316,16 @@ async function cleanBrowserServiceWorker() {
 		const registrations = await navigator.serviceWorker.getRegistrations();
 		const cptrRegistrations = registrations.filter(isCptrWorker);
 
-		sessionStorage.removeItem(BROWSER_SW_CLEANUP_RELOAD);  // Always clear on entry
+		// Nothing to clean — clear flag and stop.
+		if (cptrRegistrations.length === 0) {
+			sessionStorage.removeItem(BROWSER_SW_CLEANUP_RELOAD);
+			return;
+		}
 
-		if (cptrRegistrations.length === 0) return;  // Nothing to clean
+		// Already cleaned once? Stop here.
+		if (sessionStorage.getItem(BROWSER_SW_CLEANUP_RELOAD)) {
+			return;
+		}
 
 		// Unregister all and reload so the new SW can register fresh.
 		await Promise.all(cptrRegistrations.map((registration) => registration.unregister()));
@@ -327,6 +334,7 @@ async function cleanBrowserServiceWorker() {
 		sessionStorage.setItem(BROWSER_SW_CLEANUP_RELOAD, '1');  // Mark that we've cleaned
 		location.reload();
 	}
+
 
 
 	async function registerServiceWorker() {
