@@ -404,30 +404,32 @@
 							</svg>
 							<span class="text-xs">{$t('teConfig.recommendationsLoading')}</span>
 						</div>
-				{:else}
-					<div class="space-y-1">
-						{#each pruningRecommendations as rec}
-							<div class="flex h-9 items-center gap-2 rounded-xl px-2 text-gray-600 dark:text-gray-400">
-								<span class="min-w-0 flex-1 truncate font-mono text-xs" title={rec.tool_name}>
-									{rec.tool_name}
-								</span>
-								<span class="text-[0.625rem] text-gray-400 dark:text-gray-500 shrink-0">
-									{$t('teConfig.sessionsUnused', { count: rec.sessions_unused })}
-								</span>
-								<span class="text-[0.625rem] text-blue-400 dark:text-blue-300 shrink-0">
-									ev: {rec.evidence_strength}
-								</span>
-								<button
-									onclick={() => handleApplyPruning([rec.tool_name])}
-									class="shrink-0 text-[0.625rem] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 dark:text-blue-400 hover:bg-blue-500/20 transition-colors"
-								>
-									{$t('teConfig.applyPruning')}
-								</button>
-							</div>
-						{/each}
-					</div>
-				{/if}
-			</section>
+					{:else}
+						<div class="space-y-1">
+							{#each pruningRecommendations as rec}
+								<div class="flex h-9 items-center gap-2 rounded-xl px-2 text-gray-600 dark:text-gray-400">
+									<span class="min-w-0 flex-1 truncate font-mono text-xs" title={rec.tool_name}>
+										{rec.tool_name}
+									</span>
+									<span class="text-[0.625rem] text-gray-400 dark:text-gray-500 shrink-0">
+										{$t('teConfig.sessionsUnused', { count: rec.sessions_unused })}
+									</span>
+									<span class="text-[0.625rem] text-blue-400 dark:text-blue-300 shrink-0">
+										ev: {rec.evidence_strength}
+									</span>
+									<button
+										onclick={() => handleApplyPruning([rec.tool_name])}
+										class="shrink-0 text-[0.625rem] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 dark:text-blue-400 hover:bg-blue-500/20 transition-colors"
+									>
+										{$t('teConfig.applyPruning')}
+									</button>
+								</div>
+							{/each}
+						</div>
+					{/if}
+				</section>
+
+			{/if}
 
 			<!-- Empty State -->
 			{#if !loading && !error && !configData}
