@@ -1624,7 +1624,7 @@ async def run_command(
                 env=env,
                 **kwargs,
             )
-    except Exception as e:
+    except (Exception, BaseExceptionGroup) as e:
         return f"Error: {e}"
 
     command_session_id = uuid.uuid4().hex[:8]
@@ -1968,7 +1968,7 @@ async def create_automation(
                 "next_runs": next_n_runs_ns(rrule),
             }
         )
-    except Exception as e:
+    except (Exception, BaseExceptionGroup) as e:
         return json.dumps({"error": str(e)})
 
 
@@ -2010,7 +2010,7 @@ async def list_automations(
                 }
             )
         return json.dumps({"automations": automations, "total": total})
-    except Exception as e:
+    except (Exception, BaseExceptionGroup) as e:
         return json.dumps({"error": str(e)})
 
 
@@ -2111,7 +2111,7 @@ async def update_automation(
                 "next_runs": next_n_runs_ns(final_rrule),
             }
         )
-    except Exception as e:
+    except (Exception, BaseExceptionGroup) as e:
         return json.dumps({"error": str(e)})
 
 
@@ -2162,7 +2162,7 @@ async def toggle_automation(
                 "is_active": toggled.is_active,
             }
         )
-    except Exception as e:
+    except (Exception, BaseExceptionGroup) as e:
         return json.dumps({"error": str(e)})
 
 
@@ -2205,7 +2205,7 @@ async def delete_automation(
             return json.dumps({"error": "Failed to delete automation"})
 
         return json.dumps({"status": "success", "message": f'Automation "{name}" deleted'})
-    except Exception as e:
+    except (Exception, BaseExceptionGroup) as e:
         return json.dumps({"error": str(e)})
 
 
@@ -2339,7 +2339,7 @@ async def manage_skill(
             result = delete_managed_skill(workspace, name)
         else:
             result = {"success": False, "error": f"unsupported action '{action}'"}
-    except Exception as e:
+    except (Exception, BaseExceptionGroup) as e:
         result = {"success": False, "error": str(e)}
     return json.dumps(result, ensure_ascii=False)
 
@@ -3503,16 +3503,24 @@ async def _load_tool_servers() -> dict:
                 headers = _build_server_headers(server)
                 await client.connect(server.get("url", ""), headers)
 
-                for spec in await client.list_tool_specs():
-                    prefixed = f"{server_id}_{spec['name']}"
-                    tools[prefixed] = {
-                        "server": server,
-                        "spec": {**spec, "name": prefixed},
-                        "original_name": spec["name"],
-                        "type": "mcp",
-                    }
-
-                await client.disconnect()
+                try:
+                    for spec in await client.list_tool_specs():
+                        prefixed = f"{server_id}_{spec['name']}"
+                        tools[prefixed] = {
+                            "server": server,
+                            "spec": {**spec, "name": prefixed},
+                            "original_name": spec["name"],
+                            "type": "mcp",
+                        }
+                except (Exception, BaseExceptionGroup):
+                    # McpError / anyio TaskGroup BaseExceptionGroup — catch and ignore.
+                    # Do NOT let cleanup propagate CancelledError to run_chat_task().
+                    pass
+                finally:
+                    try:
+                        await client.disconnect()
+                    except (Exception, BaseExceptionGroup):
+                        pass
 
             elif server_type == "mcp_stdio":
                 from cptr.utils.mcp.stdio_manager import stdio_manager
@@ -3526,25 +3534,35 @@ async def _load_tool_servers() -> dict:
                     continue
 
                 client = await stdio_manager.get_client(server_id, command, args, env, cwd)
-                for spec in await client.list_tool_specs():
-                    prefixed = f"{server_id}_{spec['name']}"
-                    tools[prefixed] = {
-                        "server": server,
-                        "spec": {**spec, "name": prefixed},
-                        "original_name": spec["name"],
-                        "type": "mcp_stdio",
-                    }
+                try:
+                    for spec in await client.list_tool_specs():
+                        prefixed = f"{server_id}_{spec['name']}"
+                        tools[prefixed] = {
+                            "server": server,
+                            "spec": {**spec, "name": prefixed},
+                            "original_name": spec["name"],
+                            "type": "mcp_stdio",
+                        }
+                except (Exception, BaseExceptionGroup):
+                    # McpError from stdio server — catch and ignore.
+                    # Do NOT let cleanup propagate CancelledError to run_chat_task().
+                    pass
                 # Don't disconnect — keep process alive
 
-        except Exception:
+
+        except (Exception, BaseExceptionGroup):
             import logging
 
             logging.getLogger(__name__).warning(
                 "Failed to load tool server '%s'", server_id, exc_info=True
             )
+            # Explicitly continue to next server — prevent anyio/asyncio cleanup from
+            # triggering CancelledError that would propagate up to run_chat_task()
+            pass
 
     _tool_server_cache = {"servers": servers, "tools": tools}
     return _tool_server_cache
+
 
 
 def invalidate_tool_server_cache() -> None:
@@ -3565,7 +3583,7 @@ def invalidate_tool_server_cache() -> None:
             asyncio.ensure_future(stdio_manager.disconnect_all())
         else:
             loop.run_until_complete(stdio_manager.disconnect_all())
-    except Exception:
+    except (Exception, BaseExceptionGroup):
         pass
 
 
@@ -3644,7 +3662,7 @@ async def _execute_external_tool(name: str, args: dict) -> str:
         else:
             return f"Error: unknown tool server type: {tool_type}"
 
-    except Exception as e:
+    except (Exception, BaseExceptionGroup) as e:
         return f"Error executing external tool '{name}': {e}"
 
 
@@ -3808,7 +3826,7 @@ async def get_tool_list(builtin_tools: dict | None = None, workspace: str = "") 
         cache = await _load_tool_servers()
         for tool_info in cache["tools"].values():
             schemas.append(tool_info["spec"])
-    except Exception:
+    except (Exception, BaseExceptionGroup):
         pass
 
     return schemas

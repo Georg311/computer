@@ -1,3 +1,10 @@
+## [0.9.21.51] - 2026-11-20
+
+### Fixed
+- 🐛 **MCP Tool Server — BaseExceptionGroup Fehlerbehandlung.** McpError von MCP Clients (HTTP/stdio) löste intern `BaseExceptionGroup` aus anyio TaskGroups, der nicht von `except Exception:` gefangen wurde. Führt zu task cancellation ("Thinking..." ohne Antwort). Alle MCP-bezogenen exception handlers fangen jetzt `(Exception, BaseExceptionGroup)` — Fehler werden graceful ignoriert statt Tasks zu canceln. Betroffen: `_load_tool_servers()`, `invalidate_tool_server_cache()`, `_execute_external_tool()`, `get_tool_list()`.
+
+---
+
 ## [0.9.21.50] - 2026-11-15
 
 ### Added
