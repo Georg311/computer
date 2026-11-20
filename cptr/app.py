@@ -1,5 +1,4 @@
 import asyncio
-import os
 import time
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
@@ -169,10 +168,6 @@ app = FastAPI(lifespan=lifespan)
 # Auth middleware
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
-
-    # ── Global E2E bypass (set by instance-test / instance-update) ──
-    if os.environ.get("CPTR_E2E") == "1":
-        return await call_next(request)
     path = request.url.path
 
     # Skip auth for: health, static assets, HTML pages
