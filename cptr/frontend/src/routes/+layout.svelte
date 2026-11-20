@@ -323,7 +323,12 @@
 		const hadController = !!navigator.serviceWorker.controller;
 		await Promise.all(cptrRegistrations.map((registration) => registration.unregister()));
 		await clearCptrCaches();
-		if (hadController && !sessionStorage.getItem(BROWSER_SW_CLEANUP_RELOAD)) {
+		// Check flag BEFORE unregistering to prevent reload loops.
+		if (sessionStorage.getItem(BROWSER_SW_CLEANUP_RELOAD)) {
+			sessionStorage.removeItem(BROWSER_SW_CLEANUP_RELOAD);
+			return;
+		}
+		if (hadController) {
 			sessionStorage.setItem(BROWSER_SW_CLEANUP_RELOAD, '1');
 			location.reload();
 		}
