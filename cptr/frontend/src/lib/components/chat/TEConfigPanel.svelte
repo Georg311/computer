@@ -3,7 +3,7 @@
 	import DropdownMenu from '../DropdownMenu.svelte';
 	import Icon from '../Icon.svelte';
 	import ToggleSwitch from '../common/ToggleSwitch.svelte';
-	import { getTEConfig, updateTEConfig, type TEConfigData } from '$lib/apis/chat';
+	import { getTEConfig, updateTEConfig, type TEConfigData, getTeToolPruning, applyTeToolPruning, type TeToolPruningRecommendation } from '$lib/apis/chat';
 	import { t } from '$lib/i18n';
 
 	interface Props {
@@ -19,6 +19,10 @@
 	let error = $state<string | null>(null);
 	let successMsg = $state<string | null>(null);
 	let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	// Tool Pruning Recommendations
+	let pruningRecommendations = $state<TeToolPruningRecommendation[]>([]);
+	let pruningLoading = $state(true);
 
 	const defaults = {
 		microskills_on: true,
@@ -50,6 +54,7 @@
 
 	onMount(() => {
 		if (!chatId) return;
+		// Load TE config
 		getTEConfig(chatId).then((data) => {
 			configData = data;
 			if (data) {
@@ -69,11 +74,46 @@
 			error = err?.message || 'Failed to load TE config';
 			loading = false;
 		});
+
+		// Load tool pruning recommendations (only if toolpruning is enabled)
+		if (toolpruning_on) {
+			getTeToolPruning(chatId).then((data) => {
+				if (data && data.recommendations?.length > 0) {
+					// Only show "recommended" items, filter out "none"
+					const filtered = data.recommendations.filter(r => r.recommendation === 'recommended');
+					pruningRecommendations = filtered;
+				}
+			}).catch(() => {
+				// Silently fail - not critical for UI
+			}).finally(() => {
+				pruningLoading = false;
+			});
+		} else {
+			pruningLoading = false;
+		}
 	});
 
 	function showSuccess(msg: string) {
 		successMsg = msg;
-		setTimeout(() => { successMsg = null; }, 2000);
+		setTimeout(() => { successMsg = null; }, 3000);
+	}
+
+	async function handleApplyPruning(tools: string[]) {
+		if (!chatId) return;
+		try {
+			await applyTeToolPruning(chatId, tools);
+			showSuccess($t('teConfig.pruningApplied'));
+			// Refresh recommendations (filter out "none" items)
+			const data = await getTeToolPruning(chatId);
+			if (data && data.recommendations?.length > 0) {
+				pruningRecommendations = data.recommendations.filter(r => r.recommendation === 'recommended');
+			} else {
+				pruningRecommendations = [];
+			}
+		} catch (err) {
+			error = err?.message || 'Failed to apply pruning';
+			setTimeout(() => { error = null; }, 3000);
+		}
 	}
 
 	async function debouncedSave(section: string, values: Record<string, unknown>) {
@@ -346,6 +386,45 @@
 								<span>{$successMsg}</span>
 							</div>
 						{/if}
+					</div>
+				{/if}
+			</section>
+
+			<!-- Tool Pruning Recommendations -->
+			{#if toolpruning_on && pruningRecommendations.length > 0}
+				<section class="mt-2 border-t pt-2">
+					<div class="px-2 pb-1 pt-1.5 text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-600">
+						{$t('teConfig.toolPruningRecommendations')}
+					</div>
+
+					{#if pruningLoading}
+						<div class="flex items-center gap-2 px-2 py-1 text-gray-400 dark:text-gray-600">
+							<svg class="size-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M12 2a10 10 0 0 1 10 10"/>
+							</svg>
+							<span class="text-xs">{$t('teConfig.recommendationsLoading')}</span>
+						</div>
+				{:else}
+					<div class="space-y-1">
+						{#each pruningRecommendations as rec}
+							<div class="flex h-9 items-center gap-2 rounded-xl px-2 text-gray-600 dark:text-gray-400">
+								<span class="min-w-0 flex-1 truncate font-mono text-xs" title={rec.tool_name}>
+									{rec.tool_name}
+								</span>
+								<span class="text-[0.625rem] text-gray-400 dark:text-gray-500 shrink-0">
+									{$t('teConfig.sessionsUnused', { count: rec.sessions_unused })}
+								</span>
+								<span class="text-[0.625rem] text-blue-400 dark:text-blue-300 shrink-0">
+									ev: {rec.evidence_strength}
+								</span>
+								<button
+									onclick={() => handleApplyPruning([rec.tool_name])}
+									class="shrink-0 text-[0.625rem] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 dark:text-blue-400 hover:bg-blue-500/20 transition-colors"
+								>
+									{$t('teConfig.applyPruning')}
+								</button>
+							</div>
+						{/each}
 					</div>
 				{/if}
 			</section>

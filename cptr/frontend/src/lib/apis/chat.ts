@@ -323,8 +323,9 @@ export interface TeToolPruningRecommendation {
 	tool_name: string;
 	call_count: number;
 	sessions_unused: number;
-	recommendation: 'immediate' | 'recommended';
+	recommendation: 'immediate' | 'recommended' | 'none';
 	reason: string;
+	evidence_strength?: number;  // 0.0–1.0, optional (not in older responses)
 }
 
 export interface TeToolPruningResponse {
