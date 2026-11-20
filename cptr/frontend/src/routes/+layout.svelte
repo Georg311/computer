@@ -210,11 +210,9 @@
 				authState = cfg.needs_setup ? 'needs_setup' : 'needs_login';
 			}
 		} catch {
+			// Session check failed → show login screen (don't assume authenticated!)
 			await refreshGitSettingsAvailability();
-			authState = 'authenticated';
-			initState();
-			refreshChatState();
-			await refreshAudioState();
+			authState = 'needs_login';
 		}
 	}
 
