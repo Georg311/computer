@@ -178,6 +178,10 @@ async def auth_middleware(request: Request, call_next):
     # GET /api/files/{id} is public (UUID is unguessable, <img src> can't send cookies)
     if request.method == "GET" and path.startswith("/api/files/"):
         return await call_next(request)
+    # Skip auth for session endpoint (GET /api/auth ohne Cookie → {authenticated:false})
+    if path == "/api/auth" or path.startswith("/api/auth/"):
+        return await call_next(request)
+
 
     client_host = request.client.host if request.client else "127.0.0.1"
     jwt_token = request.cookies.get("cptr_session")
