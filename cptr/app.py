@@ -1,3 +1,4 @@
+import sqlite3
 import asyncio
 import time
 from contextlib import asynccontextmanager, suppress
