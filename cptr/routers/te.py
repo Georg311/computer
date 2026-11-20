@@ -300,6 +300,7 @@ async def get_loop_envelope(request: Request, chat_id: str):
 
 # ── Tool Pruning endpoints ──────────────────────────────────
 
+
 @router.get("/te/toolpruning/all")
 async def get_all_tool_pruning(request: Request):
     """Get tool usage across all chats for global analysis."""
