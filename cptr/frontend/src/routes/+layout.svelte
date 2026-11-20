@@ -311,28 +311,23 @@
 		return script.endsWith('/service-worker.js');
 	}
 
-	async function cleanBrowserServiceWorker() {
+async function cleanBrowserServiceWorker() {
 		if (!('serviceWorker' in navigator)) return;
 		const registrations = await navigator.serviceWorker.getRegistrations();
 		const cptrRegistrations = registrations.filter(isCptrWorker);
-		if (!cptrRegistrations.length) {
-			sessionStorage.removeItem(BROWSER_SW_CLEANUP_RELOAD);
-			return;
-		}
 
-		const hadController = !!navigator.serviceWorker.controller;
+		sessionStorage.removeItem(BROWSER_SW_CLEANUP_RELOAD);  // Always clear on entry
+
+		if (cptrRegistrations.length === 0) return;  // Nothing to clean
+
+		// Unregister all and reload so the new SW can register fresh.
 		await Promise.all(cptrRegistrations.map((registration) => registration.unregister()));
 		await clearCptrCaches();
-		// Check flag BEFORE unregistering to prevent reload loops.
-		if (sessionStorage.getItem(BROWSER_SW_CLEANUP_RELOAD)) {
-			sessionStorage.removeItem(BROWSER_SW_CLEANUP_RELOAD);
-			return;
-		}
-		if (hadController) {
-			sessionStorage.setItem(BROWSER_SW_CLEANUP_RELOAD, '1');
-			location.reload();
-		}
+
+		sessionStorage.setItem(BROWSER_SW_CLEANUP_RELOAD, '1');  // Mark that we've cleaned
+		location.reload();
 	}
+
 
 	async function registerServiceWorker() {
 		if (!('serviceWorker' in navigator)) return;
