@@ -162,6 +162,10 @@ class SignalAdapter(BaseAdapter):
                 },
             )
             data = resp.json()
+            if isinstance(data, list):
+                # signal-cli returns error list (e.g. unregistered number)
+                logger.warning("[signal] Send returned error for %s — unregistered?", chat_id)
+                return None
             if timestamp is None:
                 # signal-cli returns timestamp as message identifier
                 timestamp = str(data.get("timestamp", ""))
