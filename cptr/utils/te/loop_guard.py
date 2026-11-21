@@ -431,8 +431,12 @@ class LoopGuard:
                     result = await sess.execute(stmt)
                     return result.scalar_one_or_none()
             
+            try:
+                import nest_asyncio
+                nest_asyncio.apply()
+            except RuntimeError:
+                pass
             env = asyncio.run(_db_op())
-
             if env:
                 # envelope_size column stores turn count
                 self._spiral.turns = env.envelope_size
@@ -500,6 +504,11 @@ class LoopGuard:
                         env.resolved_turns = resolved_turns
                     
                     await sess.commit()
+            try:
+                import nest_asyncio
+                nest_asyncio.apply()
+            except RuntimeError:
+                pass
 
             asyncio.run(_db_op())
         except Exception as e:

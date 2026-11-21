@@ -169,10 +169,13 @@ class MicroSkillsStage:
                     result = await sess.execute(stmt)
                     return result.scalar_one_or_none()
             
+            try:
+                import nest_asyncio
+                nest_asyncio.apply()
+            except (RuntimeError, ImportError):
+                pass
             env = asyncio.run(_load())
-
-            if env and env.state_json:
-                self._state = _MicroSkillState.from_json(env.state_json)
+            self._state = _MicroSkillState.from_json(env.state_json)
         except Exception as e:
             logger.warning("[microskills] Failed to load state for %s: %s", 
                           self.chat_id, e)
@@ -207,6 +210,11 @@ class MicroSkillsStage:
                     
                     await sess.commit()
 
+            try:
+                import nest_asyncio
+                nest_asyncio.apply()
+            except (RuntimeError, ImportError):
+                pass
             asyncio.run(_db_op())
         except Exception as e:
             logger.warning("[microskills] Failed to persist state for %s: %s", 
