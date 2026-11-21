@@ -151,12 +151,25 @@ class MicroSkillsStage:
     def _load_from_db(self) -> None:
         """Load persisted state from the MicroskillsState table."""
         try:
-            session = get_session_factory()
-            stmt = sa_select(_MicroSkillStateModel).where(
-                _MicroSkillStateModel.chat_id == self.chat_id
-            )
-            result = session.execute(stmt)
-            env = result.scalar_one_or_none()
+            import asyncio
+            
+            existing_loop = None
+            try:
+                existing_loop = asyncio.get_running_loop()
+            except RuntimeError:
+                pass
+            
+            async def _load():
+                from cptr.utils.db import get_session_factory
+                
+                async with get_session_factory()() as sess:
+                    stmt = sa_select(_MicroSkillStateModel).where(
+                        _MicroSkillStateModel.chat_id == self.chat_id
+                    )
+                    result = await sess.execute(stmt)
+                    return result.scalar_one_or_none()
+            
+            env = asyncio.run(_load())
 
             if env and env.state_json:
                 self._state = _MicroSkillState.from_json(env.state_json)
@@ -167,21 +180,34 @@ class MicroSkillsStage:
     def _persist_to_db(self) -> None:
         """Persist current state to the _MicroSkillStateModel table."""
         try:
-            session = get_session_factory()
-            stmt = sa_select(_MicroSkillStateModel).where(
-                _MicroSkillStateModel.chat_id == self.chat_id
-            )
-            result = session.execute(stmt)
-            env = result.scalar_one_or_none()
+            import asyncio
+            
+            existing_loop = None
+            try:
+                existing_loop = asyncio.get_running_loop()
+            except RuntimeError:
+                pass
+            
+            async def _db_op():
+                from cptr.utils.db import get_session_factory
+                
+                async with get_session_factory()() as sess:
+                    stmt = sa_select(_MicroSkillStateModel).where(
+                        _MicroSkillStateModel.chat_id == self.chat_id
+                    )
+                    result = await sess.execute(stmt)
+                    env = result.scalar_one_or_none()
 
-            if env is None:
-                env = _MicroSkillStateModel(chat_id=self.chat_id)
-                session.add(env)
+                    if env is None:
+                        env = _MicroSkillStateModel(chat_id=self.chat_id)
+                        sess.add(env)
 
-            env.state_json = self._state.to_json()
-            env.task_count = self._state.task_count
-            session.add(env)
-            session.commit()
+                    env.state_json = self._state.to_json()
+                    env.task_count = self._state.task_count
+                    
+                    await sess.commit()
+
+            asyncio.run(_db_op())
         except Exception as e:
             logger.warning("[microskills] Failed to persist state for %s: %s", 
-                          self.chat_id, e)
+                         self.chat_id, e)

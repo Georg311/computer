@@ -114,14 +114,13 @@ class RepoFacts(Base):
         from cptr.utils.db import get_session_factory
         from sqlalchemy import select as sa_select
 
-        session = get_session_factory()
-        stmt = sa_select(RepoFacts).where(
-            RepoFacts.chat_id == chat_id,
-            RepoFacts.active is True,
-        )
-        result = await session.execute(stmt)
-        return list(result.scalars().all())
-
+        async with get_session_factory()() as session:
+            stmt = sa_select(RepoFacts).where(
+                RepoFacts.chat_id == chat_id,
+                RepoFacts.active is True,
+            )
+            result = await session.execute(stmt)
+            return list(result.scalars().all())
 
 class LoopEnvelope(Base):
     """Loop guard state: envelope size, nudges, abort tracking."""
@@ -190,10 +189,10 @@ class MicroskillsFact(Base):
         from cptr.utils.db import get_session_factory
         from sqlalchemy import select as sa_select
 
-        session = get_session_factory()
-        stmt = sa_select(MicroskillsFact).where(
-            MicroskillsFact.chat_id == chat_id,
-            MicroskillsFact.active is True,
-        )
-        result = await session.execute(stmt)
-        return list(result.scalars().all())
+        async with get_session_factory()() as session:
+            stmt = sa_select(MicroskillsFact).where(
+                MicroskillsFact.chat_id == chat_id,
+                MicroskillsFact.active is True,
+            )
+            result = await session.execute(stmt)
+            return list(result.scalars().all())

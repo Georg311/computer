@@ -344,7 +344,11 @@ async def _send_bot(target: dict, title: str, message: str, context: dict) -> No
 
     user_id = str(context.get("user_id") or "")
     if user_id:
-        await _ensure_user_bot(user_id, str((target.get("config") or {}).get("bot_id") or ""))
+        cfg = target.get("config") or {}
+        if isinstance(cfg, list):
+            logger.warning("[notifications] config is list in %s", target.get("id"))
+        else:
+            await _ensure_user_bot(user_id, str(cfg.get("bot_id") or ""))
 
     manager = get_current_bot_manager()
     if not manager:
@@ -353,8 +357,10 @@ async def _send_bot(target: dict, title: str, message: str, context: dict) -> No
     header = f"[{title}] {workspace}".strip() if title else workspace
     text = f"{header}\n\n{message}".strip() if header else message
     config = target.get("config") or {}
+    if isinstance(config, list):
+        logger.warning("[notifications] config is list in %s — skipping send", target.get("id"))
+        return
     await manager.send_notification(config["bot_id"], config["destination_chat_id"], text)
-
 
 async def _deliver(target: dict, event: str, title: str, message: str, context: dict) -> None:
     if target.get("type") == "webhook":

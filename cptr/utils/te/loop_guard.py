@@ -321,11 +321,30 @@ class LoopGuard:
 
         # Record the decision in DB
         if db_env:
+            # Persist abort decision via async DB helper (fire-and-forget)
             db_env.aborted = bool(db_env.aborted or abort)
-            session = get_session_factory()
-            session.add(db_env)
-            session.commit()
+            try:
+                import asyncio
+                from cptr.utils.db import get_session_factory
 
+                async def _save():
+                    async with get_session_factory()() as sess:
+                        sess.add(db_env)
+                        await sess.commit()
+
+                existing_loop = None
+                try:
+                    existing_loop = asyncio.get_running_loop()
+                except RuntimeError:
+                    pass
+                if existing_loop:
+                    asyncio.ensure_future(_save())
+                else:
+                    import nest_asyncio
+                    nest_asyncio.apply()
+                    asyncio.run(_save())
+            except Exception as e:
+                logger.warning("Failed to persist abort decision for %s: %s", self.chat_id, e)
         return abort, reason
 
     # ---- nudge_text – generate redirect message at first stuck sign -------
@@ -359,32 +378,60 @@ class LoopGuard:
 
     def _increment_nudge(self) -> None:
         """Increment nudge counter and persist."""
-        self._nudge_count += 1
         try:
-            session = get_session_factory()
-            stmt = sa_select(LoopEnvelope).where(
-                LoopEnvelope.chat_id == self.chat_id
-            )
-            result = session.execute(stmt)
-            env = result.scalar_one_or_none()
-            if env:
-                env.nudges_done = self._nudge_count
-                session.add(env)
-                session.commit()
+            import asyncio
+            from cptr.utils.db import get_session_factory
+
+            async def _save():
+                self._nudge_count += 1
+                async with get_session_factory()() as sess:
+                    stmt = sa_select(LoopEnvelope).where(
+                        LoopEnvelope.chat_id == self.chat_id
+                    )
+                    result = await sess.execute(stmt)
+                    env = result.scalar_one_or_none()
+                    if env:
+                        env.nudges_done = self._nudge_count
+                        sess.add(env)
+                        await sess.commit()
+
+            existing_loop = None
+            try:
+                existing_loop = asyncio.get_running_loop()
+            except RuntimeError:
+                pass
+            if existing_loop:
+                asyncio.ensure_future(_save())
+            else:
+                import nest_asyncio
+                nest_asyncio.apply()
+                asyncio.run(_save())
         except Exception as e:
             logger.warning("Failed to persist nudge count for %s: %s", self.chat_id, e)
-
     # ---- DB persistence --------------------------------------------------
 
     def _load_from_db(self) -> LoopEnvelope | None:
         """Load persisted state from the LoopEnvelope table."""
         try:
-            session = get_session_factory()
-            stmt = sa_select(LoopEnvelope).where(
-                LoopEnvelope.chat_id == self.chat_id
-            )
-            result = session.execute(stmt)
-            env = result.scalar_one_or_none()
+            import asyncio
+            
+            existing_loop = None
+            try:
+                existing_loop = asyncio.get_running_loop()
+            except RuntimeError:
+                pass
+            
+            async def _db_op():
+                from cptr.utils.db import get_session_factory
+                
+                async with get_session_factory()() as sess:
+                    stmt = sa_select(LoopEnvelope).where(
+                        LoopEnvelope.chat_id == self.chat_id
+                    )
+                    result = await sess.execute(stmt)
+                    return result.scalar_one_or_none()
+            
+            env = asyncio.run(_db_op())
 
             if env:
                 # envelope_size column stores turn count
@@ -407,29 +454,56 @@ class LoopGuard:
     def _persist_to_db(self) -> None:
         """Persist current state to the LoopEnvelope table."""
         try:
-            session = get_session_factory()
-            stmt = sa_select(LoopEnvelope).where(
-                LoopEnvelope.chat_id == self.chat_id
-            )
-            result = session.execute(stmt)
-            env = result.scalar_one_or_none()
+            import asyncio
+            
+            existing_loop = None
+            try:
+                existing_loop = asyncio.get_running_loop()
+            except RuntimeError:
+                pass
+            
+            async def _db_op():
+                from cptr.utils.db import get_session_factory
+                
+                async with get_session_factory()() as sess:
+                    stmt = sa_select(LoopEnvelope).where(
+                        LoopEnvelope.chat_id == self.chat_id
+                    )
+                    result = await sess.execute(stmt)
+                    env = result.scalar_one_or_none()
 
-            if env is None:
-                env = LoopEnvelope(chat_id=self.chat_id)
-                session.add(env)
+                    if env is None:
+                        env = LoopEnvelope(chat_id=self.chat_id)
+                        resolved_turns = list(self._tracker.resolved_turns[-500:])
+                        if isinstance(resolved_turns, list):
+                            resolved_turns = [int(t) for t in resolved_turns]
+                        else:
+                            resolved_turns = []
+                        
+                        env.envelope_size = self._spiral.turns
+                        env.nudges_done = self._nudge_count
+                        env.resolved_turns = resolved_turns
+                        sess.add(env)
+                    else:
+                        # Update existing envelope
+                        if not (self._spiral.stagnation > 0.15 and self._spiral.repeated_fail_sigs >= 1):
+                            env.envelope_size += 1
+                        env.nudges_done = self._nudge_count
+                        
+                        resolved_turns = list(self._tracker.resolved_turns[-500:])
+                        if isinstance(resolved_turns, list):
+                            resolved_turns = [int(t) for t in resolved_turns]
+                        else:
+                            resolved_turns = []
+                        
+                        env.envelope_size = self._spiral.turns
+                        env.resolved_turns = resolved_turns
+                    
+                    await sess.commit()
 
-            # Save state to the envelope columns
-            env.envelope_size = self._spiral.turns
-            env.nudges_done = self._nudge_count
-
-            # Store resolved_turns as JSON array (learned turn counts)
-            env.resolved_turns = list(self._tracker.resolved_turns[-500:])
-
-            session.add(env)
-            session.commit()
+            asyncio.run(_db_op())
         except Exception as e:
             logger.warning("Failed to persist LoopEnvelope for %s: %s", self.chat_id, e)
-
     # ---- Public state queries --------------------------------------------
 
     @property

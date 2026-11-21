@@ -343,6 +343,9 @@ class SignalAdapter(BaseAdapter):
                 },
             )
             result = resp.json()
+            if isinstance(result, list):
+                logger.warning("[signal] Send returned error list for %s — unregistered?", chat_id)
+                return None
             return str(result.get("timestamp", ""))
         except Exception:
             logger.exception("[signal] Failed to send attachment")
