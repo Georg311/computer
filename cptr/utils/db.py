@@ -1,5 +1,13 @@
+"""Async database engine and session management."""
+
+from pathlib import Path
+
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.orm import sessionmaker
+
+from cptr.env import DATA_DIR, DB_FILE
+
+_engine = None
+_async_session = None
 
 
 def get_engine():
