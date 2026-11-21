@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Signal adapter — uses signal-cli REST API bridge.
 
 Requires a running signal-cli-rest-api container:
@@ -216,6 +217,11 @@ class SignalAdapter(BaseAdapter):
             except asyncio.CancelledError:
                 return
             except (httpx.ConnectError, httpx.ReadError, httpx.WriteError, OSError, Exception) as e:
+                # Reset client to clear dead connections before retrying
+                if self._http:
+                    await self._http.aclose()
+                self._http = httpx.AsyncClient(timeout=30)  # fresh client
+                
                 # httpcore.ReadError (from underlying stream) is not caught by httpx.ReadError,
                 # so we catch Exception and only log network-related errors as warnings.
                 if isinstance(e, (httpx.ConnectError, httpx.ReadError, httpx.WriteError, OSError)):
@@ -225,11 +231,17 @@ class SignalAdapter(BaseAdapter):
                 await asyncio.sleep(delay)
                 delay = min(delay * 2, RECONNECT_MAX_DELAY)
 
+
     async def _process_message(self, msg: dict) -> None:
         envelope = msg.get("envelope", {})
         data_message = envelope.get("dataMessage")
         if not data_message:
+            # System Event (Read Receipt, Reaction, etc.) — loggen statt stumm skippen
+            source = envelope.get("source", "unknown")
+            event_type = envelope.get("type", "unknown")
+            logger.debug("[signal] Skipping non-message event from %s (type=%s)", source, event_type)
             return
+
 
         text = (data_message.get("message") or "").strip()
 

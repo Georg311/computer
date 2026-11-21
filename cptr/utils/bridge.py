@@ -12,6 +12,7 @@ Thread mappings (external chat → cptr chat) are stored in chat.meta.
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
 import mimetypes
@@ -207,6 +208,25 @@ def get_current_bot_manager() -> "BotManager | None":
 # ── Thread mapping via chat.meta ─────────────────────────────
 
 
+def normalize_group_thread_id(thread_id: str) -> list[str]:
+    """Return all possible thread ID formats for matching."""
+    if not thread_id.startswith("group."):
+        return [thread_id]  # DMs oder raw base64
+
+    encoded = thread_id[6:]  # strip "group." prefix
+    candidates: list[str] = [thread_id, encoded]
+
+    # Versuche decoding und re-encoding für double-encoded IDs
+    try:
+        decoded = base64.b64decode(encoded).decode("utf8", errors="replace")
+        if decoded != encoded:  # double-encoded -> raw ist auch Kandidat
+            candidates.append(decoded)
+    except Exception:
+        pass
+
+    return list(dict.fromkeys(candidates))  # unique, preserve order
+
+
 async def find_chat_for_thread(bot_id: str, external_thread_id: str) -> str | None:
     """Find the most recent cptr chat_id for a platform thread.
 
@@ -224,9 +244,11 @@ async def find_chat_for_thread(bot_id: str, external_thread_id: str) -> str | No
         result = await db.execute(select(Chat).where(Chat.user_id.isnot(None)))
         for chat in result.scalars():
             meta = chat.meta or {}
+            # Thread-ID normalisieren und mit allen moeglichen Formaten matchen
+            possible_ids = normalize_group_thread_id(external_thread_id)
             if (
                 meta.get("bridge_bot_id") == bot_id
-                and meta.get("bridge_external_thread_id") == external_thread_id
+                and meta.get("bridge_external_thread_id", "") in possible_ids  # <-- IN statt ==
             ):
                 ts = getattr(chat, "created_at", 0) or 0
                 if ts > best_ts:
