@@ -1,3 +1,10 @@
+## [0.9.21.52] - 2026-11-23
+
+### Fixed
+- 🐛 **Signal — Send/Edit Fehlerbehandlung.** `send()`, `edit()` und `_send_with_attachment()` haben keinen HTTP status_code Check vor `resp.json()` gehabt. Bei HTTP 5xx/4xx von signal-cli REST API crashte der Call mit JSONDecodeError statt graceful zu loggen. Jetzt: try/except um alle POST-Calls, status_code Check auf (200, 201) bevor JSON geparsed wird, Warning-Logs bei Fehlern.
+
+---
+
 ## [0.9.21.51] - 2026-11-20
 
 ### Fixed

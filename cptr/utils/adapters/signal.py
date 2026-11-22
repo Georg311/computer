@@ -152,39 +152,50 @@ class SignalAdapter(BaseAdapter):
         chunks = chunk_message(markdown_to_signal(text), MAX_MESSAGE_LEN)
         timestamp = None
         for chunk in chunks:
-            resp = await self._http.post(
-                f"{self._base_url}/v2/send",
-                json={
-                    "message": chunk,
-                    "number": self._phone,
-                    "recipients": [chat_id],
-                    "text_mode": "styled",
-                },
-            )
-            data = resp.json()
-            if isinstance(data, list):
-                # signal-cli returns error list (e.g. unregistered number)
-                logger.warning("[signal] Send returned error for %s — unregistered?", chat_id)
+            try:
+                resp = await self._http.post(
+                    f"{self._base_url}/v2/send",
+                    json={
+                        "message": chunk,
+                        "number": self._phone,
+                        "recipients": [chat_id],
+                        "text_mode": "styled",
+                    },
+                )
+                if resp.status_code not in (200, 201):
+                    logger.warning("[signal] Send failed for %s — HTTP %d: %s", chat_id, resp.status_code, resp.text[:200])
+                    return None
+                data = resp.json()
+                if isinstance(data, list):
+                    # signal-cli returns error list (e.g. unregistered number)
+                    logger.warning("[signal] Send returned error for %s — unregistered?", chat_id)
+                    return None
+                if timestamp is None:
+                    # signal-cli returns timestamp as message identifier
+                    timestamp = str(data.get("timestamp", ""))
+            except Exception:
+                logger.exception("[signal] Failed to send message to %s", chat_id)
                 return None
-            if timestamp is None:
-                # signal-cli returns timestamp as message identifier
-                timestamp = str(data.get("timestamp", ""))
         return timestamp
 
     async def edit(self, chat_id: str, message_id: str, text: str) -> None:
         if not self._http:
             return
-        resp = await self._http.post(
-            f"{self._base_url}/v2/send",
-            json={
-                "message": markdown_to_signal(text)[:MAX_MESSAGE_LEN],
-                "number": self._phone,
-                "recipients": [chat_id],
-                "edit_timestamp": int(message_id),
-                "text_mode": "styled",
-            },
-        )
-        resp.raise_for_status()
+        try:
+            resp = await self._http.post(
+                f"{self._base_url}/v2/send",
+                json={
+                    "message": markdown_to_signal(text)[:MAX_MESSAGE_LEN],
+                    "number": self._phone,
+                    "recipients": [chat_id],
+                    "edit_timestamp": int(message_id),
+                    "text_mode": "styled",
+                },
+            )
+            if resp.status_code not in (200, 201):
+                logger.warning("[signal] Edit failed for %s — HTTP %d: %s", chat_id, resp.status_code, resp.text[:200])
+        except Exception:
+            logger.exception("[signal] Failed to edit message to %s", chat_id)
 
     async def send_typing(self, chat_id: str) -> None:
         """Send typing indicator via signal-cli."""
@@ -347,6 +358,9 @@ class SignalAdapter(BaseAdapter):
                     ],
                 },
             )
+            if resp.status_code not in (200, 201):
+                logger.warning("[signal] Send attachment failed for %s — HTTP %d: %s", chat_id, resp.status_code, resp.text[:200])
+                return None
             result = resp.json()
             if isinstance(result, list):
                 logger.warning("[signal] Send returned error list for %s — unregistered?", chat_id)
