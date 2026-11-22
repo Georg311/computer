@@ -908,7 +908,6 @@ class BotManager:
         adapter: BaseAdapter | None,
     ) -> None:
         from cptr.models import Chat, ChatMessage
-        from cptr.utils.chat_task import start_task, _task_chat
         from cptr.utils.config import now_ms
 
         # ── Process attachments ──
@@ -928,94 +927,43 @@ class BotManager:
         chat = await Chat.get_by_id(chat_id)
         parent_id = chat.current_message_id if chat else None
 
-        # Don't dispatch if a task is already running for this chat
-        active_chat_ids = set(_task_chat.values())
-        if chat_id in active_chat_ids:
-            await ChatMessage.create(
-                chat_id=chat_id,
-                role="user",
-                content=event.text,
-                parent_id=parent_id,
-                meta={"queued": True, **(user_meta or {})},
-                created_at=now_ms(),
-            )
-            logger.info("[bridge] Queued message for busy chat %s", chat_id[:8])
-            return
-
-        # Create user message — parent_id chains to previous assistant reply
-        user_msg = await ChatMessage.create(
+        # Always queue: create message with meta={"queued": True} and let
+        # process_pending_chat_inputs() start the task (and any subsequent ones).
+        from cptr.utils.chat_task import process_pending_chat_inputs
+        queued_msg = await ChatMessage.create(
             chat_id=chat_id,
             role="user",
             content=event.text,
             parent_id=parent_id,
-            meta=user_meta,
+            meta={"queued": True, **(user_meta or {})},
             created_at=now_ms(),
         )
-
-        # Resolve model target
-        try:
-            from cptr.utils.model_targets import resolve_model_target
-
-            target = await resolve_model_target(bot["model_id"])
-        except Exception:
-            logger.exception("[bridge] Failed to resolve model %s", bot["model_id"])
-            if adapter:
-                await adapter.send(event.chat_id, "⚠️ Model connection error. Check settings.")
-            return
-
-        # Create assistant placeholder
-        assistant_msg = await ChatMessage.create(
-            chat_id=chat_id,
-            role="assistant",
-            content="",
-            parent_id=user_msg.id,
-            model=bot["model_id"],
-            done=False,
-            created_at=now_ms(),
-        )
-        await Chat.update_current_message(chat_id, assistant_msg.id, now_ms())
-
-        from cptr.utils.chat_export import export_chat_to_file
+        logger.info("[bridge] Queued message for chat %s (id=%s)", chat_id[:8], queued_msg.id)
+        # Kick the queue processor so this message gets started right away.
         from cptr.utils.identity import internal_request_for_user
-
+        request = await internal_request_for_user(self.app, bot["user_id"])
+        workspace = bot.get("workspace", "")
+        assistant_msg_id: str | None = None
         try:
-            request = await internal_request_for_user(self.app, bot["user_id"])
-            await export_chat_to_file(request, chat_id)
-        except Exception as _exc:
-            logger.warning("[bridge] internal_request_for_user failed for %s: %s", bot.get("user_id"), _exc)
-            request = None
-
-        # Send initial "thinking" message for non-draft platforms (Discord)
-        # Telegram uses sendMessageDraft which handles this natively
-        platform_msg_id = None
-        if adapter and bot["platform"] != "telegram":
-            try:
-                platform_msg_id = await adapter.send(event.chat_id, "⏳ Thinking...")
-            except Exception:
-                logger.debug("[bridge] Failed to send initial message", exc_info=True)
-
-        # Start the streaming edit loop
-        stream_key = f"{bot['id']}:{event.chat_id}"
-        self._stream_tasks[stream_key] = asyncio.create_task(
-            self._stream_loop(
-                adapter,
-                event.chat_id,
-                platform_msg_id,
-                assistant_msg.id,
-                bot,
+            assistant_msg_id = await process_pending_chat_inputs(
+                request, chat_id, bot["user_id"], workspace
             )
-        )
+        except Exception:
+            logger.exception("[bridge] Failed to process pending inputs for %s", chat_id[:8])
 
-        # Start the agentic loop
-        start_task(
-            request,
-            message_id=assistant_msg.id,
-            chat_id=chat_id,
-            user_id=bot["user_id"],
-            workspace=bot["workspace"],
-            target=target,
-        )
-        logger.info("[bridge] Started task for bot %s, chat %s", bot["id"][:8], chat_id[:8])
+        # Start the streaming edit loop if a task was started.
+        if assistant_msg_id and adapter:
+            stream_key = f"{bot['id']}:{event.chat_id}"
+            self._stream_tasks[stream_key] = asyncio.create_task(
+                self._stream_loop(
+                    adapter,
+                    event.chat_id,
+                    None,  # platform_msg_id - _stream_loop will send its own fallback if needed
+                    assistant_msg_id,
+                    bot,
+                )
+            )
+
 
     async def _stream_loop(
         self,

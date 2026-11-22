@@ -905,6 +905,8 @@ async def process_pending_chat_inputs(request, chat_id: str, user_id: str, works
                 len(input_batch),
                 chat_id[:8],
             )
+            # Return the assistant message ID so callers can start streaming.
+            return assistant_msg.id
 
 
 async def reconcile_chat_state():
