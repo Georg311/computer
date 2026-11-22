@@ -274,7 +274,9 @@ class SignalAdapter(BaseAdapter):
         Reconnects on connection loss with exponential backoff.
         Messages arrive as JSON arrays — same format as HTTP GET /v1/receive.
         """
-        ws_url = f"ws://{self._base_url}/v1/receive/{quote(self._phone, safe='')}"
+        # Strip http(s):// prefix from base_url for WebSocket URL
+        host = self._base_url.replace("http://", "").replace("https://", "")
+        ws_url = f"ws://{host}/v1/receive/{quote(self._phone, safe='')}"
         delay = 2.0  # RECONNECT_BASE_DELAY
         max_delay = 60.0  # RECONNECT_MAX_DELAY
 
