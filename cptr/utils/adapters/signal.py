@@ -295,6 +295,9 @@ class SignalAdapter(BaseAdapter):
                             if isinstance(messages, list):
                                 for msg in messages:
                                     await self._process_message(msg)
+                            elif isinstance(messages, dict):
+                                # Single message from WebSocket (JSON-RPC mode) — process directly
+                                await self._process_message(messages)
                             else:
                                 logger.warning(
                                     "[signal] Unexpected WebSocket message format: %s",
