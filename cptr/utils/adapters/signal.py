@@ -52,7 +52,7 @@ def markdown_to_signal(text: str) -> str:
     # Links: [text](url) -> text (url)
     text = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", r"\1 (\2)", text)
     return text
-POLL_INTERVAL = 2.0  # seconds between receive polls
+POLL_INTERVAL = 5.0  # seconds between receive polls (long-poll with timeout=30)
 RECONNECT_BASE_DELAY = 2.0
 RECONNECT_MAX_DELAY = 60.0
 
@@ -206,7 +206,8 @@ class SignalAdapter(BaseAdapter):
             try:
                 resp = await self._http.get(
                     f"{self._base_url}/v1/receive/{quote(self._phone, safe='')}",
-                    timeout=30,
+                    params={"timeout": "30"},  # long-poll: block up to 30s for new messages
+                    timeout=60,
                 )
                 if resp.status_code == 200:
                     messages = resp.json()
