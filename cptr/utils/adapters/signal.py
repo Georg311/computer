@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 """Signal adapter — uses signal-cli REST API bridge.
 
-Requires a running signal-cli-rest-api container:
-    docker run -p 8080:8080 bbernhard/signal-cli-rest-api
+Requires a running signal-cli-rest-api container in JSON-RPC mode:
+    docker run -p 8080:8080 bbernhard/signal-cli-rest-api:latest \\
+        --env MODE=json-rpc
 
 Token format: ``base_url|phone_number`` (pipe-separated).
 Example: ``http://localhost:8080|+1234567890``
 
-Uses polling on GET /v1/receive/{number} for inbound messages
-and POST /v2/send for outbound messages.
+Inbound messages arrive via WebSocket to /v1/receive/{number}.
+Outbound messages use POST /v2/send (same as before).
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from typing import Any, Optional
 from urllib.parse import quote
 
 import httpx
+import websockets
 
 from cptr.utils.bridge import Attachment, BaseAdapter, MessageEvent, chunk_message
 
@@ -55,11 +57,6 @@ def markdown_to_signal(text: str) -> str:
     return text
 
 
-POLL_INTERVAL = 5.0  # seconds between receive polls (long-poll with timeout=30)
-RECONNECT_BASE_DELAY = 2.0
-RECONNECT_MAX_DELAY = 60.0
-
-
 def _ext_for_mime(mime: str) -> str:
     """Map common MIME types to file extensions."""
     mapping = {
@@ -90,7 +87,10 @@ def _signal_cli_version(data: dict[str, Any]) -> str:
 
 
 class SignalAdapter(BaseAdapter):
-    """Signal bot via signal-cli REST API bridge."""
+    """Signal bot via signal-cli REST API bridge.
+
+    Uses WebSocket for inbound messages (JSON-RPC mode) and HTTP POST for sending.
+    """
 
     platform = "signal"
 
@@ -99,18 +99,16 @@ class SignalAdapter(BaseAdapter):
         self._base_url, self._phone = _parse_token(token)
         self._http: Optional[httpx.AsyncClient] = None
         self._running = False
-        self._poll_task: Optional[asyncio.Task] = None
+        self._ws_task: Optional[asyncio.Task] = None
 
     # ── Lifecycle ──────────────────────────────────────────
 
     async def connect(self) -> bool:
-        self._http = httpx.AsyncClient(timeout=60)  # Increased timeout for slow signal-cli
+        self._http = httpx.AsyncClient(timeout=60)
 
-        # Verify by fetching account info
         try:
             resp = await self._http.get(f"{self._base_url}/v1/about")
             data = resp.json()
-            # Also verify the number is registered
             resp2 = await self._http.get(
                 f"{self._base_url}/v1/identities/{quote(self._phone, safe='')}"
             )
@@ -132,15 +130,16 @@ class SignalAdapter(BaseAdapter):
             return False
 
         self._running = True
-        self._poll_task = asyncio.create_task(self._poll_loop())
+        # Start WebSocket receive loop (JSON-RPC mode)
+        self._ws_task = asyncio.create_task(self._receive_ws_loop())
         return True
 
     async def disconnect(self) -> None:
         self._running = False
-        if self._poll_task and not self._poll_task.done():
-            self._poll_task.cancel()
+        if self._ws_task and not self._ws_task.done():
+            self._ws_task.cancel()
             try:
-                await self._poll_task
+                await self._ws_task
             except (asyncio.CancelledError, Exception):
                 pass
         if self._http:
@@ -267,44 +266,57 @@ class SignalAdapter(BaseAdapter):
         except Exception:
             pass
 
-    # ── Polling ────────────────────────────────────────────
+    # ── WebSocket Receive Loop (JSON-RPC mode) ─────────────
 
-    async def _poll_loop(self) -> None:
-        delay = RECONNECT_BASE_DELAY
+    async def _receive_ws_loop(self) -> None:
+        """Receive messages via WebSocket in JSON-RPC mode.
+
+        Reconnects on connection loss with exponential backoff.
+        Messages arrive as JSON arrays — same format as HTTP GET /v1/receive.
+        """
+        ws_url = f"ws://{self._base_url}/v1/receive/{quote(self._phone, safe='')}"
+        delay = 2.0  # RECONNECT_BASE_DELAY
+        max_delay = 60.0  # RECONNECT_MAX_DELAY
+
         while self._running:
             try:
-                resp = await self._http.get(
-                    f"{self._base_url}/v1/receive/{quote(self._phone, safe='')}",
-                    params={"timeout": "30"},  # long-poll: block up to 30s for new messages
-                    timeout=60,
-                )
-                if resp.status_code == 200:
-                    messages = resp.json()
-                    for msg in messages:
+                async with websockets.connect(ws_url) as ws:
+                    logger.info("[signal] WebSocket connected for receive")
+                    # Keep alive loop — read messages until connection closes
+                    async for raw_message in ws:
+                        if not self._running:
+                            break
+
                         try:
-                            await self._process_message(msg)
+                            # The message is a JSON array of envelopes (same as HTTP)
+                            messages = json.loads(raw_message)
+                            if isinstance(messages, list):
+                                for msg in messages:
+                                    await self._process_message(msg)
+                            else:
+                                logger.warning(
+                                    "[signal] Unexpected WebSocket message format: %s",
+                                    raw_message[:200],
+                                )
+                        except json.JSONDecodeError:
+                            logger.error("[signal] Invalid JSON from WebSocket: %s", raw_message[:200])
                         except Exception:
                             logger.exception("Error processing Signal message")
-                delay = RECONNECT_BASE_DELAY
-                await asyncio.sleep(POLL_INTERVAL)
 
-            except asyncio.CancelledError:
-                return
-            except (httpx.ConnectError, httpx.ReadError, httpx.WriteError, OSError, Exception) as e:
-                # Reset client to clear dead connections before retrying
-                if self._http:
-                    await self._http.aclose()
-                self._http = httpx.AsyncClient(timeout=60)  # fresh client with higher timeout
+                    # Connection closed — will reconnect
+                    if self._running:
+                        logger.warning("[signal] WebSocket connection lost, reconnecting in %.0fs", delay)
 
-                # httpcore.ReadError (from underlying stream) is not caught by httpx.ReadError,
-                # so we catch Exception and only log network-related errors as warnings.
-                if isinstance(e, (httpx.ConnectError, httpx.ReadError, httpx.WriteError, OSError)):
-                    logger.warning("Signal poll network error (%s), retrying in %.0fs", type(e).__name__, delay)
-                else:
-                    logger.warning("Signal poll error (%s), retrying in %.0fs", type(e).__name__, delay)
+            except (websockets.exceptions.ConnectionClosed, websockets.exceptions.InvalidStatusCode, OSError) as e:
+                logger.warning("[signal] WebSocket error (%s), retrying in %.0fs", type(e).__name__, delay)
+            except Exception as e:
+                logger.warning("[signal] WebSocket loop error (%s), retrying in %.0fs", type(e).__name__, delay)
+
+            if self._running:
                 await asyncio.sleep(delay)
-                delay = min(delay * 2, RECONNECT_MAX_DELAY)
+                delay = min(delay * 2, max_delay)
 
+    # ── Message Processing ─────────────────────────────────
 
     async def _process_message(self, msg: dict) -> None:
         envelope = msg.get("envelope", {})
@@ -315,7 +327,6 @@ class SignalAdapter(BaseAdapter):
             event_type = envelope.get("type", "unknown")
             logger.debug("[signal] Skipping non-message event from %s (type=%s)", source, event_type)
             return
-
 
         text = (data_message.get("message") or "").strip()
 
