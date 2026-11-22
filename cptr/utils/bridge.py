@@ -935,6 +935,7 @@ class BotManager:
             role="user",
             content=event.text,
             parent_id=parent_id,
+            model=bot["model_id"],
             meta={"queued": True, **(user_meta or {})},
             created_at=now_ms(),
         )
