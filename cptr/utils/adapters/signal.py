@@ -167,12 +167,15 @@ class SignalAdapter(BaseAdapter):
                     return None
                 data = resp.json()
                 if isinstance(data, list):
-                    # signal-cli returns error list (e.g. unregistered number)
-                    logger.warning("[signal] Send returned error for %s — unregistered?", chat_id)
-                    return None
-                if timestamp is None:
-                    # signal-cli returns timestamp as message identifier
-                    timestamp = str(data.get("timestamp", ""))
+                    # v2/send success response: [{"timestamp": "..."}]
+                    if data and "timestamp" in data[0]:
+                        if timestamp is None:
+                            timestamp = str(data[0].get("timestamp", ""))
+                    else:
+                        logger.warning("[signal] Send returned unexpected list for %s — %s", chat_id, json.dumps(data)[:200])
+                elif isinstance(data, dict) and "error" in data:
+                    # v2/send error response: {"error": "..."}
+                    logger.warning("[signal] Send failed for %s — %s", chat_id, str(data["error"])[:200])
             except Exception:
                 logger.exception("[signal] Failed to send message to %s", chat_id)
                 return None
@@ -363,9 +366,14 @@ class SignalAdapter(BaseAdapter):
                 return None
             result = resp.json()
             if isinstance(result, list):
-                logger.warning("[signal] Send returned error list for %s — unregistered?", chat_id)
-                return None
-            return str(result.get("timestamp", ""))
+                # v2/send success: [{"timestamp": "..."}]
+                if result and "timestamp" in result[0]:
+                    return str(result[0].get("timestamp", ""))
+                else:
+                    logger.warning("[signal] Send attachment returned unexpected list for %s — %s", chat_id, json.dumps(result)[:200])
+            elif isinstance(result, dict) and "error" in result:
+                # v2/send error response: {"error": "..."}
+                logger.warning("[signal] Send attachment failed for %s — %s", chat_id, str(result["error"])[:200])
         except Exception:
             logger.exception("[signal] Failed to send attachment")
         return None
