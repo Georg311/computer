@@ -944,6 +944,13 @@ class BotManager:
         from cptr.utils.identity import internal_request_for_user
         request = await internal_request_for_user(self.app, bot["user_id"])
         workspace = bot.get("workspace", "")
+        # Non-Telegram: send "Thinking..." placeholder so _stream_loop has a msg_id.
+        platform_msg_id: str | None = None
+        if bot["platform"] != "telegram":
+            try:
+                platform_msg_id = await adapter.send(event.chat_id, "\u23f3 Thinking...")
+            except Exception:
+                logger.debug("[bridge] Failed to send thinking message", exc_info=True)
         assistant_msg_id: str | None = None
         try:
             assistant_msg_id = await process_pending_chat_inputs(
@@ -959,7 +966,7 @@ class BotManager:
                 self._stream_loop(
                     adapter,
                     event.chat_id,
-                    None,  # platform_msg_id - _stream_loop will send its own fallback if needed
+                    platform_msg_id,  # Sent above for non-Telegram; None for Telegram (uses drafts)
                     assistant_msg_id,
                     bot,
                 )
