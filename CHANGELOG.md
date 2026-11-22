@@ -1,3 +1,7 @@
+## [0.9.21.53] - 2026-11-23
+### Fixed
+- 🐛 **Signal — Edit Timeout & Antwort-Parsing.** `edit()` hat Response body (success/error JSON) nicht geparst; API-Fehler blieben unsichtbar. `int(message_id)` crasht bei leerer/ungültiger ID ohne Guard. HTTP timeout von 30→60s erhöht, da signal-cli-rest-api edits bis zu 45s braucht (variabel). Jetzt: response body parsing (List/Dict), message_id validation mit early return + warning, spezifischer `httpx.ReadTimeout` handler für Timeout-Fälle.
+
 ## [0.9.21.52] - 2026-11-23
 
 ### Fixed

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import json
 import logging
 import mimetypes
 import re
@@ -52,6 +53,8 @@ def markdown_to_signal(text: str) -> str:
     # Links: [text](url) -> text (url)
     text = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", r"\1 (\2)", text)
     return text
+
+
 POLL_INTERVAL = 5.0  # seconds between receive polls (long-poll with timeout=30)
 RECONNECT_BASE_DELAY = 2.0
 RECONNECT_MAX_DELAY = 60.0
@@ -101,7 +104,7 @@ class SignalAdapter(BaseAdapter):
     # ── Lifecycle ──────────────────────────────────────────
 
     async def connect(self) -> bool:
-        self._http = httpx.AsyncClient(timeout=30)
+        self._http = httpx.AsyncClient(timeout=60)  # Increased timeout for slow signal-cli
 
         # Verify by fetching account info
         try:
@@ -163,7 +166,10 @@ class SignalAdapter(BaseAdapter):
                     },
                 )
                 if resp.status_code not in (200, 201):
-                    logger.warning("[signal] Send failed for %s — HTTP %d: %s", chat_id, resp.status_code, resp.text[:200])
+                    logger.warning(
+                        "[signal] Send failed for %s — HTTP %d: %s",
+                        chat_id, resp.status_code, resp.text[:200],
+                    )
                     return None
                 data = resp.json()
                 if isinstance(data, list):
@@ -172,18 +178,43 @@ class SignalAdapter(BaseAdapter):
                         if timestamp is None:
                             timestamp = str(data[0].get("timestamp", ""))
                     else:
-                        logger.warning("[signal] Send returned unexpected list for %s — %s", chat_id, json.dumps(data)[:200])
+                        logger.warning(
+                            "[signal] Send returned unexpected list for %s — %s",
+                            chat_id, json.dumps(data)[:200],
+                        )
                 elif isinstance(data, dict) and "error" in data:
                     # v2/send error response: {"error": "..."}
-                    logger.warning("[signal] Send failed for %s — %s", chat_id, str(data["error"])[:200])
+                    logger.warning(
+                        "[signal] Send failed for %s — %s",
+                        chat_id, str(data["error"])[:200],
+                    )
             except Exception:
                 logger.exception("[signal] Failed to send message to %s", chat_id)
                 return None
         return timestamp
 
     async def edit(self, chat_id: str, message_id: str, text: str) -> None:
+        """Edit a previously sent Signal message.
+
+        signal-cli-rest-api expects edit_timestamp as an INTEGER (not string).
+        The response format matches send(): [{"timestamp": "..."}] on success,
+        or {"error": "..."} on failure.
+
+        Timeout can be 10-45s depending on signal-cli load — use timeout=60.
+        """
         if not self._http:
             return
+
+        # Guard against empty/non-numeric message_id
+        try:
+            edit_ts = int(message_id)
+        except (ValueError, TypeError):
+            logger.warning(
+                "[signal] Cannot parse message_id for editing %s — id='%s', skipping edit",
+                chat_id, message_id,
+            )
+            return
+
         try:
             resp = await self._http.post(
                 f"{self._base_url}/v2/send",
@@ -191,12 +222,36 @@ class SignalAdapter(BaseAdapter):
                     "message": markdown_to_signal(text)[:MAX_MESSAGE_LEN],
                     "number": self._phone,
                     "recipients": [chat_id],
-                    "edit_timestamp": int(message_id),
+                    "edit_timestamp": edit_ts,  # MUST be integer, not string!
                     "text_mode": "styled",
                 },
             )
             if resp.status_code not in (200, 201):
-                logger.warning("[signal] Edit failed for %s — HTTP %d: %s", chat_id, resp.status_code, resp.text[:200])
+                logger.warning(
+                    "[signal] Edit failed for %s — HTTP %d: %s",
+                    chat_id, resp.status_code, resp.text[:200],
+                )
+                return
+
+            # Parse response body (same as send())
+            data = resp.json()
+            if isinstance(data, list):
+                logger.debug(
+                    "[signal] Edit successful for %s — new_timestamp=%s",
+                    chat_id, data[0].get("timestamp"),
+                )
+            elif isinstance(data, dict) and "error" in data:
+                logger.warning(
+                    "[signal] Edit returned error for %s — %s",
+                    chat_id, str(data["error"])[:200],
+                )
+
+        except httpx.ReadTimeout as e:
+            # signal-cli can take 10-45s per operation; log specifically
+            logger.warning(
+                "[signal] Edit timed out for %s after ~60s — signal-cli slow or overloaded",
+                chat_id,
+            )
         except Exception:
             logger.exception("[signal] Failed to edit message to %s", chat_id)
 
@@ -239,8 +294,8 @@ class SignalAdapter(BaseAdapter):
                 # Reset client to clear dead connections before retrying
                 if self._http:
                     await self._http.aclose()
-                self._http = httpx.AsyncClient(timeout=30)  # fresh client
-                
+                self._http = httpx.AsyncClient(timeout=60)  # fresh client with higher timeout
+
                 # httpcore.ReadError (from underlying stream) is not caught by httpx.ReadError,
                 # so we catch Exception and only log network-related errors as warnings.
                 if isinstance(e, (httpx.ConnectError, httpx.ReadError, httpx.WriteError, OSError)):
@@ -362,7 +417,10 @@ class SignalAdapter(BaseAdapter):
                 },
             )
             if resp.status_code not in (200, 201):
-                logger.warning("[signal] Send attachment failed for %s — HTTP %d: %s", chat_id, resp.status_code, resp.text[:200])
+                logger.warning(
+                    "[signal] Send attachment failed for %s — HTTP %d: %s",
+                    chat_id, resp.status_code, resp.text[:200],
+                )
                 return None
             result = resp.json()
             if isinstance(result, list):
@@ -370,10 +428,16 @@ class SignalAdapter(BaseAdapter):
                 if result and "timestamp" in result[0]:
                     return str(result[0].get("timestamp", ""))
                 else:
-                    logger.warning("[signal] Send attachment returned unexpected list for %s — %s", chat_id, json.dumps(result)[:200])
+                    logger.warning(
+                        "[signal] Send attachment returned unexpected list for %s — %s",
+                        chat_id, json.dumps(result)[:200],
+                    )
             elif isinstance(result, dict) and "error" in result:
                 # v2/send error response: {"error": "..."}
-                logger.warning("[signal] Send attachment failed for %s — %s", chat_id, str(result["error"])[:200])
+                logger.warning(
+                    "[signal] Send attachment failed for %s — %s",
+                    chat_id, str(result["error"])[:200],
+                )
         except Exception:
             logger.exception("[signal] Failed to send attachment")
         return None
