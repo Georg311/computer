@@ -294,6 +294,42 @@ async def skip_task(request: Request, body: TaskCompleteRequest):
     }
 
 
+@router.get("/all")
+async def get_all_goals(request: Request):
+    """GET /api/goal/all — Get all goals with full task lists, sorted by status/date."""
+    _get_user(request)
+
+    state = GoalStateManager()
+    state.load_all_active_goals()
+
+    # Sort: active first, then paused, blocked, complete; within same status newest first
+    priority = {GoalStatus.ACTIVE: 0, GoalStatus.PAUSED: 1, GoalStatus.BLOCKED: 2, GoalStatus.COMPLETE: 3}
+    sorted_goals = sorted(state.goals_by_id.values(), key=lambda g: (priority.get(g.status, 99), g.created_at or "",))
+
+    return {
+        "goals": [
+            {
+                "id": g.id,
+                "objective": g.objective,
+                "status": g.status.value,
+                "created_at": g.created_at,
+                "updated_at": g.updated_at,
+                "current_task_id": g.current_task_id,
+                "task_list": [
+                    {
+                        "id": t.id,
+                        "title": t.title,
+                        "status": t.status.value,
+                        "evidence": t.evidence or "",
+                    }
+                    for t in g.task_list
+                ],
+            }
+            for g in sorted_goals
+        ],
+    }
+
+
 @router.get("/list")
 async def list_goals(request: Request):
     """GET /api/goal/list — List all active goals (not just focused)."""
@@ -301,7 +337,7 @@ async def list_goals(request: Request):
 
     state = GoalStateManager()
     state.load_all_active_goals()
-    
+
     return {
         "goals": [
             {

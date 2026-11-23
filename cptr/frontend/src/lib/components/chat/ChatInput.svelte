@@ -1369,7 +1369,7 @@
 		if (hasChatContent && onskillslist && '/skills:list'.startsWith(slashCommandQuery))
 			ids.push('skills:list');
 		if (hasChatContent && '/skills:create'.startsWith(slashCommandQuery)) ids.push('skills:create');
-		if (!get(focusedGoal) && '/goal'.startsWith(slashCommandQuery)) ids.push('goal');
+		if ('/goal'.startsWith(slashCommandQuery)) ids.push('goal');
 		if ('/goal-resume'.startsWith(slashCommandQuery)) ids.push('goal-resume');
 		if ('/te-status'.startsWith(slashCommandQuery)) ids.push('te-status');
 	if (onteTools && '/te-tools'.startsWith(slashCommandQuery)) ids.push('te-tools');

@@ -14,11 +14,16 @@ export interface GoalState {
 	status: 'active' | 'paused' | 'blocked' | 'complete';
 	current_task_id?: string;
 	task_list: GoalTask[];
+	created_at?: string;
+	updated_at?: string;
 }
 
 const goal = writable<GoalState | null>(null);
-
 export const focusedGoal = goal;
+
+// All goals store — separate from the single focused goal
+const allGoalsStore = writable<GoalState[]>([]);
+export const allGoals = allGoalsStore;
 
 export function setGoal(g: GoalState) {
 	goal.set(g);
@@ -132,6 +137,21 @@ export async function completeTask(taskId: string, evidence?: string): Promise<v
 		}
 	} catch (e) {
 		console.warn('[goal] Complete task error:', e);
+	}
+}
+
+/** Fetch all goals and update the allGoals store. */
+export async function fetchAllGoals(): Promise<void> {
+	try {
+		const res = await fetch('/api/goal/all');
+		if (res.ok) {
+			const data = await res.json();
+			allGoalsStore.set(data.goals || []);
+		} else if (res.status !== 404) {
+			console.warn('[goal] Failed to load all goals:', res.status, res.statusText);
+		}
+	} catch (e) {
+		console.warn('[goal] Fetch error:', e);
 	}
 }
 
