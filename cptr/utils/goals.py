@@ -7,12 +7,14 @@ Provides task decomposition, status tracking, and an optional completion auditor
 from __future__ import annotations
 
 import asyncio
+import fcntl
 import json
 import logging
 import os
 import re
 import shutil
 import uuid
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -49,6 +51,7 @@ class Task:
     completed_at: Optional[str] = None
     skip_reason: Optional[str] = None
     evidence: Optional[str] = None  # Verification evidence for this task
+    description: Optional[str] = None  # Free-text description of the task
     subtasks: list["Task"] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -61,6 +64,8 @@ class Task:
             d["skip_reason"] = self.skip_reason
         if self.evidence:
             d["evidence"] = self.evidence
+        if self.description:
+            d["description"] = self.description
         if self.subtasks:
             d["subtasks"] = [s.to_dict() for s in self.subtasks]
         return d
@@ -75,6 +80,7 @@ class Task:
             completed_at=data.get("completed_at"),
             skip_reason=data.get("skip_reason"),
             evidence=data.get("evidence"),
+            description=data.get("description"),
         )
         task.subtasks = [cls.from_dict(st) for st in subtasks_data] if isinstance(subtasks_data, list) else []
         return task
@@ -213,6 +219,143 @@ class GoalPersistence:
         if filepath.exists():
             filepath.unlink()
 
+    # ── Pool Snapshot ──────────────────────────────────────────
+
+    def save_pool_snapshot(self) -> None:
+        """Save in-memory goal pool to a snapshot file for cold starts.
+        
+        Like pi-goal-x's `.pi/goals/.goals-pool-snapshot.json` — avoids full directory scan.
+        Two filesystem operations on load (read snapshot + read individual goals).
+        """
+        from cptr.env import DATA_DIR
+        
+        filepath = DATA_DIR / "goals-pool-snapshot.json"
+        # Atomic write via tmp+rename
+        tmp_path = str(filepath) + ".tmp"
+        os.makedirs(os.path.dirname(str(filepath)), exist_ok=True)
+        with open(tmp_path, "w") as f:
+            json.dump({"saved": True, "ts": datetime.now().isoformat()}, f, indent=2)
+        os.replace(tmp_path, filepath)
+
+    def load_pool_snapshot(self) -> bool:
+        """Load in-memory goal pool from snapshot file. Returns True if successful."""
+        from cptr.env import DATA_DIR
+        
+        filepath = DATA_DIR / "goals-pool-snapshot.json"
+        if not filepath.exists():
+            return False
+        try:
+            with open(filepath) as f:
+                data = json.load(f)
+            # Snapshot is valid if it has expected structure
+            return "saved" in data or "version" in data
+        except (json.JSONDecodeError, KeyError, TypeError):
+            # Corrupt snapshot — fall back to full scan
+            return False
+
+    def save_pool_snapshot_data(self, pool: dict[str, GoalRecord], focused_id: Optional[str]) -> None:
+        """Save the actual pool data (called after load/save operations)."""
+        from cptr.env import DATA_DIR
+        
+        filepath = DATA_DIR / "goals-pool-snapshot.json"
+        snapshot = {
+            "version": 1,
+            "updated_at": datetime.now().isoformat(),
+            "goals_by_id": {
+                goal_id: goal.to_dict()
+                for goal_id, goal in pool.items()
+            },
+            "focused_goal_id": focused_id,
+        }
+        tmp_path = str(filepath) + ".tmp"
+        os.makedirs(os.path.dirname(str(filepath)), exist_ok=True)
+        with open(tmp_path, "w") as f:
+            json.dump(snapshot, f, indent=2)
+        os.replace(tmp_path, filepath)
+
+    def load_pool_snapshot_data(self) -> tuple[dict[str, GoalRecord], Optional[str]]:
+        """Load the actual pool data from snapshot. Returns (pool_dict, focused_id) or empty."""
+        from cptr.env import DATA_DIR
+        
+        filepath = DATA_DIR / "goals-pool-snapshot.json"
+        if not filepath.exists():
+            return {}, None
+        try:
+            with open(filepath) as f:
+                data = json.load(f)
+            
+            pool: dict[str, GoalRecord] = {}
+            for goal_id, goal_data in data.get("goals_by_id", {}).items():
+                record_dict = {k: v for k, v in goal_data.items() if k != "version"}
+                try:
+                    pool[goal_id] = GoalRecord.from_dict(record_dict)
+                except Exception:
+                    pass  # Skip corrupt entries
+            
+            focused_id = data.get("focused_goal_id")
+            return pool, focused_id
+        except (json.JSONDecodeError, KeyError, TypeError):
+            return {}, None
+
+
+# ── File Locking ───────────────────────────────────────────────
+
+
+class GoalLockManager:
+    """POSIX file locking for concurrent goal operations.
+    
+    Prevents race conditions when multiple processes access the same goal files.
+    Uses advisory locks (fcntl.flock) which are released automatically on process exit.
+    """
+
+    def __init__(self, goal_dir: Path):
+        self.goal_dir = goal_dir
+
+    @contextmanager
+    def lock_file(self, filepath: str):
+        """Acquire an exclusive lock on a file for the duration of the context."""
+        fd = os.open(filepath, os.O_RDONLY)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            yield
+        except BlockingIOError:
+            raise Exception(f"Goal file is locked by another process: {filepath}")
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+            os.close(fd)
+
+    @contextmanager
+    def lock_all_goals(self):
+        """Lock all goal files before batch operations.
+        
+        Acquires locks in sorted order to prevent deadlocks.
+        """
+        if not self.goal_dir.is_dir():
+            yield
+            return
+        
+        # Collect and sort by filename for consistent ordering (prevents deadlock)
+        lock_files = []
+        try:
+            for f in sorted(self.goal_dir.iterdir()):
+                if f.name.startswith("goal_") and f.name.endswith(".json"):
+                    fd = os.open(str(f), os.O_RDONLY)
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    lock_files.append((f, fd))
+        except BlockingIOError as e:
+            # Release already-acquired locks
+            for _, lfd in reversed(lock_files):
+                fcntl.flock(lfd, fcntl.LOCK_UN)
+                os.close(lfd)
+            raise Exception(f"Goal file is locked by another process: {getattr(e, 'filename', 'unknown')}")
+        
+        try:
+            yield
+        finally:
+            for _, fd in lock_files:
+                fcntl.flock(fd, fcntl.LOCK_UN)
+                os.close(fd)
+
 
 # ── State Manager ──────────────────────────────────────────────
 
@@ -225,16 +368,45 @@ class GoalStateManager:
 
     def __init__(self):
         self.persistence = GoalPersistence()
-        # In-memory cache for active goals during a session
+        self.lock_manager = GoalLockManager(self.persistence.goal_dir)
+        # Instance-level copy — merged into module globals on save
         self.goals_by_id: dict[str, GoalRecord] = {}
         self.focused_goal_id: Optional[str] = None
 
     def load_all_active_goals(self) -> None:
-        """Load all non-archived goals from disk into memory."""
+        """Load all non-archived goals from disk into memory.
+
+        Resolution order (fastest → slowest):
+          1. Module-level pool cache (if alive and consistent)
+          2. Snapshot file (two IO ops)
+          3. Full directory scan
+        """
+        global _pool_cache, _snapshot_focused
+
+        if not self._verify_pool(_pool_cache):
+            snap_pool, snap_focus = self.persistence.load_pool_snapshot_data()
+            if snap_pool:
+                _pool_cache.update(snap_pool)
+                if snap_focus:
+                    _snapshot_focused = snap_focus
+                else:
+                    _snapshot_focused = None
+
+        # Fallback to file scan for any goals not in cache/snapshot
+        with self.lock_manager.lock_all_goals():
+            for goal in self.persistence.list_goals():
+                if goal.status != GoalStatus.COMPLETE:
+                    _pool_cache[goal.id] = goal
+
+        # Sync module state into instance
         self.goals_by_id.clear()
-        for goal in self.persistence.list_goals():
-            if goal.status != GoalStatus.COMPLETE:
-                self.goals_by_id[goal.id] = goal
+        for gid, g in _pool_cache.items():
+            if g.status != GoalStatus.COMPLETE:
+                self.goals_by_id[gid] = g
+
+        if not self.focused_goal_id and _snapshot_focused and _snapshot_focused in self.goals_by_id:
+            self.focused_goal_id = _snapshot_focused
+
         # Auto-select first active regular (non-Sisyphus) goal as focused
         if not self.focused_goal_id and self.goals_by_id:
             self.focused_goal_id = next(
@@ -243,9 +415,26 @@ class GoalStateManager:
             )
 
     def save_all_goals(self) -> None:
-        """Persist all goals from memory back to disk."""
-        for goal in self.goals_by_id.values():
-            self.persistence.save_goal(goal)
+        """Persist all goals from memory back to disk AND update snapshot."""
+        global _pool_cache, _snapshot_focused
+
+        with self.lock_manager.lock_all_goals():
+            for goal in self.goals_by_id.values():
+                self.persistence.save_goal(goal)
+                _pool_cache[goal.id] = goal
+
+        active_pool = {gid: g for gid, g in _pool_cache.items() if g.status != GoalStatus.COMPLETE}
+        self.persistence.save_pool_snapshot_data(active_pool, _snapshot_focused)
+
+    @staticmethod
+    def _verify_pool(cache: dict) -> bool:
+        """Quick sanity check on pool cache."""
+        if not isinstance(cache, dict):
+            return False
+        for v in list(cache.values())[:1]:
+            if not isinstance(v, GoalRecord):
+                return False
+        return True
 
     def get_focused_goal(self) -> Optional[GoalRecord]:
         if not self.focused_goal_id:

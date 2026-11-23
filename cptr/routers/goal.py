@@ -191,7 +191,7 @@ async def complete_task(request: Request, body: GoalCreateRequest):
     goal.current_task_id = GoalStateManager.find_next_pending_task(goal.task_list, task_id)
     goal.updated_at = datetime.now().isoformat()
 
-    state.persistence.save_goal(goal)
+    state.save_all_goals()
     return {
         "ok": True,
         "task": task.title,
@@ -229,7 +229,7 @@ async def complete_task_with_evidence(request: Request, body: TaskCompleteReques
     goal.current_task_id = GoalStateManager.find_next_pending_task(goal.task_list, body.task_id)
     goal.updated_at = datetime.now().isoformat()
 
-    state.persistence.save_goal(goal)
+    state.save_all_goals()
     return {
         "ok": True,
         "task": task.title,
@@ -257,7 +257,7 @@ async def complete_goal(request: Request):
 
     goal.status = GoalStatus.COMPLETE
     goal.updated_at = datetime.now().isoformat()
-    state.persistence.save_goal(goal)
+    state.save_all_goals()
     
     return {"ok": True, "status": "complete"}
 
@@ -285,7 +285,7 @@ async def skip_task(request: Request, body: TaskCompleteRequest):
     goal.current_task_id = GoalStateManager.find_next_pending_task(goal.task_list, body.task_id)
     goal.updated_at = datetime.now().isoformat()
 
-    state.persistence.save_goal(goal)
+    state.save_all_goals()
     return {
         "ok": True,
         "task": task.title,
@@ -435,7 +435,7 @@ async def create_task(request: Request, body: TaskCreateRequest):
         goal.current_task_id = task_id
     
     goal.updated_at = datetime.now().isoformat()
-    state.persistence.save_goal(goal)
+    state.save_all_goals()
 
     return {
         "task_id": task_id,
