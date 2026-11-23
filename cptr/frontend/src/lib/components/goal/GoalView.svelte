@@ -8,13 +8,12 @@
 	let isCreating = $state(false);
 	let error = $state<string | null>(null);
 
-	$: if (state) {
+	let progress = $derived(() => {
+		if (!state) return 0;
 		const completed = state.task_list?.filter(t => t.status === 'complete').length ?? 0;
 		const total = state.task_list?.length || 1;
-		progress = Math.round(((completed / total) * 100));
-	}
-
-	let progress = $state(0);
+		return Math.round(((completed / total) * 100));
+	});
 
 	async function handleCreateGoal() {
 		if (!objective.trim()) return;
