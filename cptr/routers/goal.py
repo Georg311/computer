@@ -14,6 +14,7 @@ from cptr.utils.goals import (
     GoalRecord,
     GoalStatus,
     GoalStateManager,
+    Task,
     TaskStatus,
 )
 
@@ -391,16 +392,11 @@ async def create_task(request: Request, body: TaskCreateRequest):
 
     # Create new task
     task_id = str(uuid.uuid4())
-    from datetime import datetime as _dt
-    task = type('Task', (), {
-        'id': task_id,
-        'title': body.title.strip(),
-        'description': body.description or "",
-        'status': TaskStatus.PENDING,
-        'evidence': None,
-        'completed_at': None,
-        'skip_reason': None,
-    })()
+    task = Task(
+        id=task_id,
+        title=body.title.strip(),
+        status=TaskStatus.PENDING,
+    )
 
     goal.task_list.append(task)
     
@@ -408,7 +404,7 @@ async def create_task(request: Request, body: TaskCreateRequest):
     if not goal.current_task_id:
         goal.current_task_id = task_id
     
-    goal.updated_at = _dt.now().isoformat()
+    goal.updated_at = datetime.now().isoformat()
     state.persistence.save_goal(goal)
 
     return {
