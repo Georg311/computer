@@ -28,7 +28,7 @@ def _get_auth(request: Request) -> AuthResult:
     client_host = request.client.host if request.client else "127.0.0.1"
     auth = check_access(client_host=client_host, jwt_token=token)
     if not auth or not auth.user_id:
-        raise HTTPException(401, "authentication required")
+        raise HTTPException(status_code=401, detail="authentication required")
     return auth
 
 
@@ -48,7 +48,7 @@ async def create_goal(request: Request, body: GoalCreateRequest):
     state = GoalStateManager()
     state.load_all_active_goals()
     if state.get_focused_goal():
-        raise HTTPException(409, "A goal is already in progress")
+        raise HTTPException(status_code=409, detail="A goal is already in progress")
 
     # Create draft GoalRecord (autoContinue=false during drafting)
     goal_id = str(uuid.uuid4())
@@ -73,7 +73,7 @@ async def confirm_goal(request: Request):
     state.load_all_active_goals()
     goal = state.get_focused_goal()
     if not goal:
-        raise HTTPException(404, "No active goal")
+        raise HTTPException(status_code=404, detail="No active goal")
 
     # Mark auto_continue as confirmed (LLM will generate tasks via separate call)
     goal.auto_continue = True  # LLM-driven continuation in cptr context
@@ -176,12 +176,12 @@ async def complete_task(request: Request, body: GoalCreateRequest):
     task_id = getattr(body, 'task_id', None) or getattr(body, 'description', '')
     
     if not task_id:
-        raise HTTPException(400, "task_id is required")
+        raise HTTPException(status_code=400, detail="task_id is required")
 
     goal = state.goals_by_id[state.focused_goal_id]
     task = next((t for t in goal.task_list if t.id == task_id), None)
     if not task:
-        raise HTTPException(404, f"Task {task_id} not found")
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
 
     task.status = TaskStatus.COMPLETE
     task.completed_at = datetime.now().isoformat()
@@ -218,7 +218,7 @@ async def complete_task_with_evidence(request: Request, body: TaskCompleteReques
     goal = state.goals_by_id[state.focused_goal_id]
     task = next((t for t in goal.task_list if t.id == body.task_id), None)
     if not task:
-        raise HTTPException(404, f"Task {body.task_id} not found")
+        raise HTTPException(status_code=404, detail=f"Task {body.task_id} not found")
 
     task.status = TaskStatus.COMPLETE
     task.completed_at = datetime.now().isoformat()
@@ -252,7 +252,7 @@ async def complete_goal(request: Request):
     # Verify all tasks are complete before allowing goal completion
     pending_tasks = [t for t in goal.task_list if t.status != TaskStatus.COMPLETE and t.status != TaskStatus.SKIPPED]
     if pending_tasks:
-        raise HTTPException(409, f"Cannot complete goal: {len(pending_tasks)} tasks still pending")
+        raise HTTPException(status_code=409, detail=f"Cannot complete goal: {len(pending_tasks)} tasks still pending")
 
     goal.status = GoalStatus.COMPLETE
     goal.updated_at = datetime.now().isoformat()
@@ -274,7 +274,7 @@ async def skip_task(request: Request, body: TaskCompleteRequest):
     goal = state.goals_by_id[state.focused_goal_id]
     task = next((t for t in goal.task_list if t.id == body.task_id), None)
     if not task:
-        raise HTTPException(404, f"Task {body.task_id} not found")
+        raise HTTPException(status_code=404, detail=f"Task {body.task_id} not found")
 
     task.status = TaskStatus.SKIPPED
     task.skip_reason = body.evidence  # Use evidence field for skip reason
@@ -387,7 +387,7 @@ async def create_task(request: Request, body: TaskCreateRequest):
     elif state.focused_goal_id and state.focused_goal_id in state.goals_by_id:
         goal = state.goals_by_id[state.focused_goal_id]
     else:
-        raise HTTPException(status_code=404, "No active goal found")
+        raise HTTPException(status_code=404, detail="No active goal found")
 
     # Create new task
     task_id = str(uuid.uuid4())
