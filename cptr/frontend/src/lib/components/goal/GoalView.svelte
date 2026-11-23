@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { get } from 'svelte/store';
-	import { goal$, pauseGoal, resumeGoal, completeTask as apiCompleteTask, skipTask, createGoal, type GoalState } from './stores/goal';
+	import { goal$, pauseGoal, resumeGoal, completeTask as apiCompleteTask, skipTask, createGoal, type GoalState } from '../../stores/goal';
 
 	let state = $state(get(goal$));
 	let objective = $state('');
