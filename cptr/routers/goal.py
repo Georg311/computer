@@ -322,6 +322,93 @@ class TaskCreateRequest(BaseModel):
     description: str = ""
 
 
+@router.get("/audit/{goal_id}")
+async def get_audit_log(request: Request, goal_id: str):
+    """GET /api/goal/audit/{goal_id} — Get audit log for a specific goal."""
+    _get_user(request)
+
+    state = GoalStateManager()
+    state.load_all_active_goals()
+
+    if goal_id not in state.goals_by_id:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    goal = state.goals_by_id[goal_id]
+    
+    # Build audit log from task history and status changes
+    audit_entries = []
+    
+    # Goal creation
+    audit_entries.append({
+        "timestamp": goal.created_at,
+        "event": "goal_created",
+        "details": {"objective": goal.objective},
+    })
+    
+    # Status transitions
+    for task in goal.task_list:
+        if task.completed_at:
+            audit_entries.append({
+                "timestamp": task.completed_at,
+                "event": f"task_{task.status.value}",
+                "details": {"task_id": task.id, "title": task.title},
+            })
+
+    # Goal completion status
+    audit_entries.append({
+        "timestamp": goal.updated_at,
+        "event": "goal_status_updated",
+        "details": {"status": goal.status.value},
+    })
+
+    return {
+        "goal_id": goal.id,
+        "objective": goal.objective,
+        "audit_log": sorted(audit_entries, key=lambda x: x["timestamp"]),
+    }
+
+
+@router.post("/task/create")
+async def create_task(request: Request, body: TaskCreateRequest):
+    """POST /api/goal/task/create — Create a new task for a goal."""
+    _get_user(request)
+
+    state = GoalStateManager()
+    state.load_all_active_goals()
+
+    # Determine which goal to use
+    if body.goal_id and body.goal_id in state.goals_by_id:
+        goal = state.goals_by_id[body.goal_id]
+    elif state.focused_goal_id and state.focused_goal_id in state.goals_by_id:
+        goal = state.goals_by_id[state.focused_goal_id]
+    else:
+        raise HTTPException(status_code=404, detail="No active goal found")
+
+    # Create new task
+    task_id = str(uuid.uuid4())
+    task = Task(
+        id=task_id,
+        title=body.title.strip(),
+        status=TaskStatus.PENDING,
+    )
+
+    goal.task_list.append(task)
+    
+    # Set as current task if first pending
+    if not goal.current_task_id:
+        goal.current_task_id = task_id
+    
+    goal.updated_at = datetime.now().isoformat()
+    state.persistence.save_goal(goal)
+
+    return {
+        "task_id": task_id,
+        "goal_id": goal.id,
+        "title": body.title.strip(),
+        "status": "pending",
+    }
+
+
 @router.get("/{goal_id}")
 async def get_goal(request: Request, goal_id: str):
     """GET /api/goal/{goal_id} — Get a specific goal by ID."""
@@ -372,90 +459,3 @@ async def delete_goal(request: Request, goal_id: str):
     state.persistence.delete_goal(goal_id)
     
     return {"ok": True, "deleted": goal_id}
-
-
-@router.post("/task/create")
-async def create_task(request: Request, body: TaskCreateRequest):
-    """POST /api/goal/task/create — Create a new task for a goal."""
-    _get_user(request)
-
-    state = GoalStateManager()
-    state.load_all_active_goals()
-
-    # Determine which goal to use
-    if body.goal_id and body.goal_id in state.goals_by_id:
-        goal = state.goals_by_id[body.goal_id]
-    elif state.focused_goal_id and state.focused_goal_id in state.goals_by_id:
-        goal = state.goals_by_id[state.focused_goal_id]
-    else:
-        raise HTTPException(status_code=404, detail="No active goal found")
-
-    # Create new task
-    task_id = str(uuid.uuid4())
-    task = Task(
-        id=task_id,
-        title=body.title.strip(),
-        status=TaskStatus.PENDING,
-    )
-
-    goal.task_list.append(task)
-    
-    # Set as current task if first pending
-    if not goal.current_task_id:
-        goal.current_task_id = task_id
-    
-    goal.updated_at = datetime.now().isoformat()
-    state.persistence.save_goal(goal)
-
-    return {
-        "task_id": task_id,
-        "goal_id": goal.id,
-        "title": body.title.strip(),
-        "status": "pending",
-    }
-
-
-@router.get("/audit/{goal_id}")
-async def get_audit_log(request: Request, goal_id: str):
-    """GET /api/goal/audit/{goal_id} — Get audit log for a specific goal."""
-    _get_user(request)
-
-    state = GoalStateManager()
-    state.load_all_active_goals()
-
-    if goal_id not in state.goals_by_id:
-        raise HTTPException(status_code=404, detail="Goal not found")
-
-    goal = state.goals_by_id[goal_id]
-    
-    # Build audit log from task history and status changes
-    audit_entries = []
-    
-    # Goal creation
-    audit_entries.append({
-        "timestamp": goal.created_at,
-        "event": "goal_created",
-        "details": {"objective": goal.objective},
-    })
-    
-    # Status transitions
-    for task in goal.task_list:
-        if task.completed_at:
-            audit_entries.append({
-                "timestamp": task.completed_at,
-                "event": f"task_{task.status.value}",
-                "details": {"task_id": task.id, "title": task.title},
-            })
-
-    # Goal completion status
-    audit_entries.append({
-        "timestamp": goal.updated_at,
-        "event": "goal_status_updated",
-        "details": {"status": goal.status.value},
-    })
-
-    return {
-        "goal_id": goal.id,
-        "objective": goal.objective,
-        "audit_log": sorted(audit_entries, key=lambda x: x["timestamp"]),
-    }
