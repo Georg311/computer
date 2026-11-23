@@ -4,7 +4,6 @@
 	import SidebarFooter from './SidebarFooter.svelte';
 	import SidebarHeader from './SidebarHeader.svelte';
 	import SidebarNav from './SidebarNav.svelte';
-	import GoalView from './goal/GoalView.svelte';
 	import SidebarWorkspaceList from './SidebarWorkspaceList.svelte';
 	import SettingsModal from './SettingsModal.svelte';
 	import SystemInfoModal from './SystemInfoModal.svelte';
@@ -83,7 +82,6 @@
 		></div>
 		<SidebarHeader />
 		<SidebarNav />
-		<GoalView />
 		<SidebarWorkspaceList onaddworkspace={() => (showPicker = true)} />
 		<SidebarFooter onsettings={openSettings} onsysteminfo={openSystemInfo} />
 	</aside>

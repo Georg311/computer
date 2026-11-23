@@ -35,6 +35,7 @@ from cptr.utils.skills import (
     load_skill,
 )
 from cptr.utils.summarize import summarize_messages
+from cptr.utils.context import _find_tail_start, _tail_keep_tokens
 from cptr.models import (
     Chat,
     ChatMessage,
@@ -78,6 +79,26 @@ from cptr.utils.agents.attachments import prepare_agent_attachments
 from cptr.utils.model_targets import AgentModelTarget, ApiModelTarget, ModelTarget
 from cptr.utils.identity import identity_for_context
 from cptr.utils.te.repo_facts import get_injected_facts as get_active_facts
+
+
+def _get_compact_mode_from_config() -> str:
+    """Read compact mode from config, fall back to env var."""
+    try:
+        from cptr.utils.config import load_config
+
+        config = load_config()
+        val = config.get("app_config", {}).get("chat.compact_mode")
+        if val and val in ("classic", "rolling"):
+            return val
+        val = config.get("chat", {}).get("compact_mode")
+        if val and val in ("classic", "rolling"):
+            return val
+    except Exception:
+        pass
+    from cptr.env import CHAT_COMPACT_MODE
+
+    return CHAT_COMPACT_MODE
+
 
 logger = logging.getLogger(__name__)
 
@@ -3090,10 +3111,20 @@ async def run_chat_task(
                 new_messages_since,
                 threshold=compact_token_threshold,
             ):
-                target_keep = max(2, len(messages) * 2 // 5)
-                split_idx = _find_safe_split(messages, target_keep)
-                drop_zone = messages[:split_idx]
-                keep_zone = messages[split_idx:]
+                # ── Rolling mode: tail-based split (keep recent N tokens verbatim) ──
+                compact_mode = _get_compact_mode_from_config()
+
+                if compact_mode == "rolling":
+                    target_tokens = _tail_keep_tokens()
+                    drop_idx = _find_tail_start(messages, target_tokens)
+                    drop_zone = messages[:drop_idx]  # WILL BE SUMMARIZED
+                    keep_zone = list(messages[drop_idx:])  # STAYS VERBATIM
+                else:
+                    # Classic mode: fixed ratio split (existing behaviour)
+                    target_keep = max(2, len(messages) * 2 // 5)
+                    split_idx = _find_safe_split(messages, target_keep)
+                    drop_zone = messages[:split_idx]
+                    keep_zone = list(messages[split_idx:])
 
                 summary = await summarize_messages(
                     drop_zone,

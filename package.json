@@ -7,5 +7,8 @@
 		"format:check:frontend": "npm --prefix cptr/frontend run format:check:frontend",
 		"format:backend": "uv run ruff format cptr",
 		"format:check:backend": "uv run ruff format --check cptr"
+	},
+	"devDependencies": {
+		"@playwright/test": "^1.65.1"
 	}
 }

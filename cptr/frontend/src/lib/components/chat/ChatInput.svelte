@@ -29,6 +29,7 @@
 	import QueuedMessageItem from './QueuedMessageItem.svelte';
 	import Tasks from './Tasks.svelte';
 	import AskUserCard from './AskUserCard.svelte';
+	import GoalPanel from '../goal/GoalPanel.svelte';
 	import Icon from '../Icon.svelte';
 	import type { ToolApprovalMode } from '$lib/apis/chat';
 	import {
@@ -1549,6 +1550,17 @@
 			onteConfig();
 			return;
 		}
+		if (commandId === 'goal') {
+			removeSlashCommandToken();
+			inputText = '/goal ';
+			void tick().then(onsend);
+			return;
+		}
+		if (commandId === 'goal-resume' && onplan) {
+			removeSlashCommandToken();
+			onplan?.(); // reuse planMode for goal resume trigger
+			return;
+		}
 		onsend();
 	}
 
@@ -1651,6 +1663,9 @@ const combinedQueue = $derived.by(() => {
 			<Tasks {tasks} />
 		</div>
 	{/if}
+
+	<!-- Goal Panel -->
+	<GoalPanel />
 
 	<!-- Combined queue: regular messages + steering (color-coded) -->
 	{#if combinedQueue.length > 0}

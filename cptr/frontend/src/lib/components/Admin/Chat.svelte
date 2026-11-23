@@ -14,6 +14,9 @@
 	let contextCompactionModel = $state<string | null>(null);
 	let compactTokenThreshold = $state(80000);
 	let showReasoningTraces = $state(true);
+	let compactMode = $state<'classic' | 'rolling'>('classic');
+	let compactPercentThreshold = $state(50);
+	let tailKeepTokens = $state(20_000);
 
 	onMount(async () => {
 		try {
@@ -33,6 +36,9 @@
 				config['chat.reasoning_traces.enabled'] !== false &&
 				config['chat.reasoning_traces.enabled'] !== 'false';
 			compactTokenThreshold = Number(config['chat.compact_token_threshold']) || 80000;
+			compactMode = (config['chat.compact_mode'] as any) === 'rolling' ? 'rolling' : 'classic';
+			compactPercentThreshold = Number(config['chat.compact_percent_threshold']) || 50;
+			tailKeepTokens = Number(config['chat.compact_keep_recent_tokens']) || 20_000;
 		} catch {
 			toast.error($t('admin.failedToLoadConfig'));
 		} finally {
@@ -48,7 +54,10 @@
 				'chat.title_generation.model': titleGenerationModel,
 				'chat.context_compaction.model': contextCompactionModel,
 				'chat.compact_token_threshold': Math.max(10000, Number(compactTokenThreshold) || 80000),
-				'chat.reasoning_traces.enabled': showReasoningTraces
+				'chat.reasoning_traces.enabled': showReasoningTraces,
+					'chat.compact_mode': compactMode,
+					'chat.compact_percent_threshold': Math.min(95, Math.max(10, Number(compactPercentThreshold) || 50)),
+					'chat.compact_keep_recent_tokens': tailKeepTokens
 			});
 			toast.success($t('settings.saved'));
 		} catch {
@@ -131,46 +140,74 @@
 				{$t('admin.contextCompaction')}
 			</h3>
 			<div class="flex flex-col gap-2.5">
+				<!-- Compaction Mode -->
 				<div>
-					<div class="flex items-center justify-between gap-3">
-						<span class="min-w-0 text-xs text-gray-600 dark:text-gray-400">
-							{$t('admin.contextSummaryModel')}
-						</span>
-						<div class="shrink-0">
-							<ModelSelector
-								bind:selectedModel={contextCompactionModel}
-								nullable
-								nullLabel={$t('modelSelector.currentModel')}
-								preferAbove={false}
-							/>
-						</div>
-					</div>
-					<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 -mt-1">
-						{$t('admin.contextSummaryModelHint')}
-					</p>
-				</div>
-				<div>
-					<label class="text-xs text-gray-600 dark:text-gray-400" for="compact-threshold">
-						{$t('admin.compactTokenThreshold')}
+					<label class="text-xs text-gray-600 dark:text-gray-400" for="compact-mode">
+						{$t('admin.compactMode')}
 					</label>
-					<div class="flex items-center gap-1.5 mt-1">
-						<input
-							id="compact-threshold"
-							type="number"
-							bind:value={compactTokenThreshold}
-							min="10000"
-							max="1000000"
-							step="10000"
-							class="w-24 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors"
-						/>
-						<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600">
-							{$t('admin.compactTokenThresholdUnit')}
-						</span>
-					</div>
+					<select id="compact-mode" bind:value={compactMode}
+						class="w-full mt-1 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors">
+						<option value="classic">Classic (absoluter Threshold)</option>
+						<option value="rolling">Rolling / pi-style (prozentual + Tail Keep)</option>
+					</select>
 					<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-0.5">
-						{$t('admin.compactTokenThresholdHint')}
+						{$t('admin.compactModeHint')}
 					</p>
 				</div>
+
+				<!-- Classic Mode: absoluter Threshold -->
+				{#if compactMode === 'classic'}
+					<div>
+						<label class="text-xs text-gray-600 dark:text-gray-400" for="compact-threshold">
+							{$t('admin.compactTokenThreshold')}
+						</label>
+						<div class="flex items-center gap-1.5 mt-1">
+							<input id="compact-threshold" type="number" bind:value={compactTokenThreshold}
+								min="10000" max="1000000" step="10000"
+								class="w-24 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors" />
+							<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600">
+								{$t('admin.compactTokenThresholdUnit')}
+							</span>
+						</div>
+						<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-0.5">
+							{$t('admin.compactTokenThresholdHint')}
+						</p>
+					</div>
+				{/if}
+
+				<!-- Rolling Mode: prozentualer Threshold + Tail Keep -->
+				{#if compactMode === 'rolling'}
+					<div>
+						<label class="text-xs text-gray-600 dark:text-gray-400" for="compact-percent">
+							{$t('admin.compactPercentThreshold')}
+						</label>
+						<div class="flex items-center gap-1.5 mt-1">
+							<input id="compact-percent" type="number" bind:value={compactPercentThreshold}
+								min="10" max="95" step="5"
+								class="w-24 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors" />
+							<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600">%</span>
+						</div>
+						<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-0.5">
+							{$t('admin.compactPercentHint')}
+						</p>
+					</div>
+					<div>
+						<label class="text-xs text-gray-600 dark:text-gray-400" for="compact-tail">
+							{$t('admin.compactTailKeep')}
+						</label>
+						<div class="flex items-center gap-1.5 mt-1">
+							<input id="compact-tail" type="number" bind:value={tailKeepTokens}
+								min="0" max="100000" step="1000"
+								class="w-24 h-7 px-2 rounded-lg text-xs bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/8 outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-colors" />
+							<span class="text-[0.6875rem] text-gray-400 dark:text-gray-600">
+								{$t('admin.compactTailKeepUnit')}
+							</span>
+						</div>
+						<p class="text-[0.6875rem] text-gray-400 dark:text-gray-600 mt-0.5">
+							{$t('admin.compactTailKeepHint')}
+						</p>
+					</div>
+				{/if}
 			</div>
 		</div>
 
