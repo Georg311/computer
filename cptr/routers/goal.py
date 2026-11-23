@@ -601,51 +601,6 @@ def _run_audit(goal_id: str, state: GoalStateManager) -> dict:
 
 # ── Legacy/Deprecated Endpoints (keep for compat) ──────────────
 
-@router.get("/audit/{goal_id}")
-async def get_audit_log(request: Request, goal_id: str):
-    """GET /api/goal/audit/{goal_id} — Get audit log for a specific goal.
-
-    DEPRECATED: Use GET /api/goal/ledger/{goal_id} instead.
-    """
-    _get_user(request)
-
-    state = GoalStateManager()
-    state.load_all_active_goals()
-
-    if goal_id not in state.goals_by_id:
-        raise HTTPException(status_code=404, detail="Goal not found")
-
-    goal = state.goals_by_id[goal_id]
-
-    audit_entries = []
-
-    audit_entries.append({
-        "timestamp": goal.created_at,
-        "event": "goal_created",
-        "details": {"objective": goal.objective},
-    })
-
-    for task in goal.task_list:
-        if task.completed_at:
-            audit_entries.append({
-                "timestamp": task.completed_at,
-                "event": f"task_{task.status.value}",
-                "details": {"task_id": task.id, "title": task.title},
-            })
-
-    audit_entries.append({
-        "timestamp": goal.updated_at,
-        "event": "goal_status_updated",
-        "details": {"status": goal.status.value},
-    })
-
-    return {
-        "goal_id": goal.id,
-        "objective": goal.objective,
-        "audit_log": sorted(audit_entries, key=lambda x: x["timestamp"]),
-    }
-
-
 @router.post("/complete-task")
 async def complete_task(request: Request, body: GoalCreateRequest):
     """POST /api/goal/complete-task — Mark a task as complete.
