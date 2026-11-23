@@ -207,6 +207,12 @@ class GoalPersistence:
         dst = archive_dir / f"goal_{goal_id}.json"
         shutil.move(str(src), str(dst))
 
+    def delete_goal(self, goal_id: str) -> None:
+        """Delete a goal's JSON file (sync)."""
+        filepath = self.goal_dir / f"goal_{goal_id}.json"
+        if filepath.exists():
+            filepath.unlink()
+
 
 # ── State Manager ──────────────────────────────────────────────
 
