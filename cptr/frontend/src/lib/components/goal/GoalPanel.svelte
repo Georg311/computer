@@ -230,11 +230,11 @@
 		return Math.round((completed / state.task_list.length) * 100);
 	});
 
-	$: activeGoalObj = get(goal$);
+	const activeGoalObj = $derived(get(goal$));
 
-	$: displayedGoalsList = (get(allGoals) as GoalState[]).filter(
+	const displayedGoalsList = $derived((get(allGoals) as GoalState[]).filter(
 		g => g.id !== activeGoalObj?.id
-	);
+	));
 </script>
 
 <!-- Active / focused goal — always show it prominently -->
