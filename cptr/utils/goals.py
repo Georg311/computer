@@ -357,6 +357,13 @@ class GoalLockManager:
                 os.close(fd)
 
 
+# ── Module-Level Pool Cache (shared across instances during a request lifecycle) ───────────────────────
+
+
+_pool_cache: dict[str, GoalRecord] = {}
+_snapshot_focused: Optional[str] = None
+
+
 # ── State Manager ──────────────────────────────────────────────
 
 
@@ -364,6 +371,8 @@ class GoalStateManager:
     """Manages goal state in the assistant: load from files, mutate, persist back.
 
     All operations are synchronous to match cptr's I/O pattern.
+    Uses a module-level pool cache so that consecutive calls within
+    the same process reuse loaded data instead of rescanning disk.
     """
 
     def __init__(self):
