@@ -1,3 +1,15 @@
+## [0.9.21.54] - 2026-11-23
+
+### Added
+- 🎯 **Goal System — Full Frontend UI.** GoalPanel.svelte mit Ledger-Tabs, Budget-Ansicht, Recovery und Audit-Funktionen. Neue `stores/goal.ts` für State Management. Slash Command verfügbar in jedem Chat. All-goals View im Dashboard.
+
+### Fixed
+- 🐛 **Goal Router — FastAPI Route Ordering.** Alle SPEC-Routes vor CATCH-Wildcard verschoben (`{goal_id}`), um Router-Konflikte zu verhindern.
+- 🐛 **Goal Router — Deprecated GET /audit/{goal_id} entfernt.** Verursachte Router-Conflict, jetzt durch spezifischere Endpoints ersetzt.
+- 🐛 **Goal State Manager — Initialisierung.** `_prev_status` im `__init__` initialisiert, um undefined reference zu verhindern.
+
+---
+
 ## [0.9.21.53] - 2026-11-23
 ### Fixed
 - 🐛 **Signal — Edit Timeout & Antwort-Parsing.** `edit()` hat Response body (success/error JSON) nicht geparst; API-Fehler blieben unsichtbar. `int(message_id)` crasht bei leerer/ungültiger ID ohne Guard. HTTP timeout von 30→60s erhöht, da signal-cli-rest-api edits bis zu 45s braucht (variabel). Jetzt: response body parsing (List/Dict), message_id validation mit early return + warning, spezifischer `httpx.ReadTimeout` handler für Timeout-Fälle.
