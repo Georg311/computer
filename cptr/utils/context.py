@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from cptr.env import CHAT_COMPACT_TOKEN_THRESHOLD
+from cptr.env import (
+    CHAT_COMPACT_TOKEN_THRESHOLD,
+    CHAT_COMPACT_MODE,
+    CHAT_COMPACT_PERCENT_THRESHOLD,
+    CHAT_COMPACT_KEEP_RECENT_TOKENS,
+)
 
 
 def estimate_tokens(text: str) -> int:
@@ -39,25 +44,138 @@ def should_compact(
 ) -> bool:
     """True when estimated tokens exceed the compact token threshold.
 
-    If last_usage is provided (real data from the previous API call),
-    uses actual input_tokens + output_tokens as the base and only
-    estimates the new messages appended since that call.
-    Falls back to full estimation when no usage data exists.
+    Supports two modes:
+      - "classic"  : absolute token threshold (existing behaviour)
+      - "rolling"  : percentage of model context window + verbatim tail keep
     """
     resolved_threshold = threshold or _get_threshold()
+    compact_mode = _get_compact_mode()
 
+    if compact_mode == "rolling":
+        return should_compact_rolling(
+            messages, system_prompt, last_usage, new_messages_since, resolved_threshold
+        )
+
+    # Classic mode (existing behaviour)
     last_usage = normalize_usage(last_usage)
     if last_usage and last_usage.get("input_tokens"):
-        # Real base from last API call + estimate only new additions
         base = last_usage["input_tokens"] + last_usage.get("output_tokens", 0)
         if new_messages_since > 0:
             new_msgs = messages[-new_messages_since:]
             base += estimate_messages_tokens(new_msgs)
         return base > resolved_threshold
 
-    # Full estimation fallback
     total = estimate_tokens(system_prompt) + estimate_messages_tokens(messages)
     return total > resolved_threshold
+
+
+def should_compact_rolling(
+    messages: list[dict],
+    system_prompt: str,
+    last_usage: dict | None = None,
+    new_messages_since: int = 0,
+    threshold: int | None = None,
+) -> bool:
+    """Rolling compaction: compact when usage exceeds percentage of context window."""
+    percent_threshold = _get_percent_threshold() if threshold is None else min(95, max(10, threshold))
+    context_window = _get_context_window()
+
+    last_usage = normalize_usage(last_usage)
+    if last_usage and last_usage.get("input_tokens"):
+        base = last_usage["input_tokens"] + last_usage.get("output_tokens", 0)
+        if new_messages_since > 0:
+            new_msgs = messages[-new_messages_since:]
+            base += estimate_messages_tokens(new_msgs)
+        return (base * 100.0 / context_window) >= percent_threshold
+
+    total = estimate_tokens(system_prompt) + estimate_messages_tokens(messages)
+    return (total * 100.0 / context_window) >= percent_threshold
+
+
+def _get_compact_mode() -> str:
+    """Read compact mode from config, fall back to env var."""
+    try:
+        from cptr.utils.config import load_config
+
+        config = load_config()
+        val = config.get("app_config", {}).get("chat.compact_mode")
+        if val and val in ("classic", "rolling"):
+            return val
+        val = config.get("chat", {}).get("compact_mode")
+        if val and val in ("classic", "rolling"):
+            return val
+    except Exception:
+        pass
+    return CHAT_COMPACT_MODE
+
+
+def _get_context_window() -> int:
+    """Return the default context window size (200_000 tokens)."""
+    try:
+        from cptr.models import Config
+
+        chat_models_config = Config.get_sync("chat.models") or {}
+    except Exception:
+        return 200_000
+
+    for key, val in chat_models_config.items():
+        if isinstance(val, dict) and "params" in val:
+            cw = _parse_positive_int(val["params"].get("context_window"))
+            if cw and cw > 0:
+                return cw
+    return 200_000
+
+
+def _get_percent_threshold() -> int:
+    """Read percent threshold from config, fall back to env var."""
+    try:
+        from cptr.utils.config import load_config
+
+        config = load_config()
+        val = config.get("app_config", {}).get("chat.compact_percent_threshold")
+        if val is not None:
+            return min(95, max(10, int(val)))
+        val = config.get("chat", {}).get("compact_percent_threshold")
+        if val is not None:
+            return min(95, max(10, int(val)))
+    except Exception:
+        pass
+    return CHAT_COMPACT_PERCENT_THRESHOLD
+
+
+def _tail_keep_tokens() -> int:
+    """Read verbatim tail keep from config, fall back to env var."""
+    try:
+        from cptr.utils.config import load_config
+
+        config = load_config()
+        val = config.get("app_config", {}).get("chat.compact_keep_recent_tokens")
+        if val is not None:
+            return int(val)
+        val = config.get("chat", {}).get("compact_keep_recent_tokens")
+        if val is not None:
+            return int(val)
+    except Exception:
+        pass
+    return CHAT_COMPACT_KEEP_RECENT_TOKENS
+
+
+def _find_tail_start(messages: list[dict], target_tokens: int) -> int:
+    """Find index where the last N tokens start (from end).
+
+    Returns an index such that messages[idx:] has approximately *target_tokens*.
+    If tail is larger than target, returns len(messages) — nothing to keep.
+    """
+    if not messages or target_tokens <= 0:
+        return 0
+
+    estimated = 0
+    for i in range(len(messages) - 1, -1, -1):
+        msg_tokens = estimate_messages_tokens([messages[i]])
+        estimated += msg_tokens
+        if estimated >= target_tokens:
+            return max(i + 1, 2)  # keep at least 2 messages
+    return len(messages)
 
 
 def build_context_usage(tokens: int, *, threshold: int | None = None) -> dict:

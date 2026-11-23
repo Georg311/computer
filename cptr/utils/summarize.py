@@ -38,7 +38,7 @@ async def summarize_messages(
     connection: dict,
     model: str,
 ) -> str:
-    """Summarize messages into a compact rolling summary.
+    """Summarize older messages into a compact rolling summary.
 
     If existing_summary is provided, it's included so the new summary
     incorporates everything before it.
