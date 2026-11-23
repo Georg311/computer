@@ -365,7 +365,7 @@ async def delete_goal(request: Request, goal_id: str):
     # Cannot delete active/focused goals — must pause or complete first
     goal = state.goals_by_id[goal_id]
     if goal.status == GoalStatus.ACTIVE and state.focused_goal_id == goal_id:
-        raise HTTPException(status_code=409, "Cannot delete active focused goal")
+        raise HTTPException(status_code=409, detail="Cannot delete active focused goal")
 
     # Soft-delete by removing from persistence
     state.persistence.delete_goal(goal_id)
