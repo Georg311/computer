@@ -523,6 +523,7 @@ class GoalStateManager:
         # Instance-level copy — merged into module globals on save
         self.goals_by_id: dict[str, GoalRecord] = {}
         self.focused_goal_id: Optional[str] = None
+        self._prev_status: dict[str, str] = {}  # Track status transitions for ledger
 
     def load_all_active_goals(self) -> None:
         """Load all non-archived goals from disk into memory.
