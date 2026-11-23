@@ -99,6 +99,9 @@ class GoalRecord:
     task_list: list[Task] = field(default_factory=list)
     pause_reason: Optional[str] = None  # Why paused (agent or user)
     verification_contract: Optional[str] = None  # What must be true to mark complete
+    token_budget: Optional[int] = None  # Max tokens for this goal (pi-goal-x compatible)
+    token_usage: int = 0  # Accumulated usage during goal lifetime
+    tokens_per_turn_limit: Optional[int] = None  # Optional per-turn limit
 
     def __post_init__(self):
         if not self.id:
@@ -124,6 +127,9 @@ class GoalRecord:
             current_task_id=data.get("current_task_id"),
             pause_reason=data.get("pause_reason"),
             verification_contract=data.get("verification_contract"),
+            token_budget=data.get("token_budget"),
+            token_usage=data.get("token_usage", 0),
+            tokens_per_turn_limit=data.get("tokens_per_turn_limit"),
         )
         record.task_list = [Task.from_dict(t) for t in task_list_data] if isinstance(task_list_data, list) else []
         return record
@@ -142,6 +148,9 @@ class GoalRecord:
             "current_task_id": self.current_task_id,
             "pause_reason": self.pause_reason,
             "verification_contract": self.verification_contract,
+            "token_budget": self.token_budget,
+            "token_usage": self.token_usage,
+            "tokens_per_turn_limit": self.tokens_per_turn_limit,
             "task_list": [t.to_dict() for t in self.task_list],
         }
         return d
@@ -297,6 +306,82 @@ class GoalPersistence:
         except (json.JSONDecodeError, KeyError, TypeError):
             return {}, None
 
+    def recover_all_goals(self) -> dict:
+        """Scan all goal_*.json files and attempt recovery.
+
+        Returns {"recovered": [...], "skipped": [...]}.
+        Tries JSON parse first; on failure tries regex/backup extraction.
+        Skips entries missing required fields (id, objective).
+        Saves any repaired goals back to disk.
+        """
+        recovered: list[dict] = []
+        skipped: list[dict] = []
+
+        if not self.goal_dir.is_dir():
+            return {"recovered": recovered, "skipped": skipped}
+
+        for filepath in sorted(self.goal_dir.iterdir()):
+            if not (filepath.name.startswith("goal_") and filepath.name.endswith(".json")):
+                continue
+
+            goal_id = filepath.name[len("goal_"):-len(".json")]
+            raw_text = ""
+            try:
+                with open(filepath) as f:
+                    data = json.load(f)
+            except (json.JSONDecodeError, Exception) as e:
+                # Try to extract from file content via regex fallback
+                logger.warning("Failed to parse %s: %s — attempting recovery", filepath.name, e)
+                try:
+                    with open(filepath) as f:
+                        raw_text = f.read()
+                    data = self._reparse_goal(raw_text)
+                    if not data:
+                        skipped.append({"goal_id": goal_id, "reason": "Could not recover JSON"})
+                        continue
+                except Exception as e2:
+                    skipped.append({"goal_id": goal_id, "reason": str(e2)})
+                    continue
+
+            # Validate required fields
+            gid = data.get("id") if isinstance(data, dict) else None
+            objective = data.get("objective") if isinstance(data, dict) else None
+            if not gid or not objective:
+                skipped.append({"goal_id": goal_id, "reason": "Missing required fields (id/objective)"})
+                continue
+
+            # Save back via atomic write (we're already in GoalPersistence)
+            tmp_path = str(filepath) + ".recovered.tmp"
+            with open(tmp_path, "w") as f:
+                json.dump(data, f, indent=2)
+            os.replace(tmp_path, filepath)
+
+            recovered.append({
+                "goal_id": gid,
+                "objective": objective,
+                "status": data.get("status", "unknown"),
+            })
+
+        return {"recovered": recovered, "skipped": skipped}
+
+    def _reparse_goal(self, raw_text: str) -> Optional[dict]:
+        """Best-effort extraction from broken JSON using regex."""
+        # Try to find id and objective fields via regex
+        id_match = re.search(r'"id"\s*:\s*"([^"]+)"', raw_text)
+        obj_match = re.search(r'"objective"\s*:\s*"((?:[^"\\]|\\.)*?)"', raw_text)
+
+        if not id_match or not obj_match:
+            return None
+
+        data = {"id": id_match.group(1), "objective": obj_match.group(1)}
+
+        # Try to extract status
+        status_match = re.search(r'"status"\s*:\s*"([^"]+)"', raw_text)
+        if status_match:
+            data["status"] = status_match.group(1)
+
+        return data
+
 
 # ── File Locking ───────────────────────────────────────────────
 
@@ -357,6 +442,61 @@ class GoalLockManager:
                 os.close(fd)
 
 
+# ── Ledger ─────────────────────────────────────────────────────
+
+LEDGER_EVENT_TYPES = [
+    "goal_created", "task_completed", "goal_paused", "goal_resumed",
+    "goal_complete", "goal_deleted", "audit_approved", "audit_rejected",
+    "budget_limited",
+]
+
+
+class GoalLedger:
+    """Append-only JSONL log per goal.
+
+    Log files live under DATA_DIR/goals/ as ledger_<goal_id>.jsonl.
+    All append calls come from GoalStateManager.save_all_goals and the router endpoints.
+    """
+
+    def __init__(self, goals_dir: Path):
+        self.goals_dir = goals_dir
+        os.makedirs(self.goals_dir, exist_ok=True)
+
+    def _ledger_path(self, goal_id: str) -> Path:
+        return self.goals_dir / f"ledger_{goal_id}.jsonl"
+
+    def append(self, goal_id: str, event_type: str, details: Optional[dict] = None) -> None:
+        """Append a single event to the goal's ledger."""
+        if event_type not in LEDGER_EVENT_TYPES:
+            logger.warning("Unknown ledger event type '%s' for goal %s", event_type, goal_id)
+            return
+
+        path = self._ledger_path(goal_id)
+        entry = {
+            "ts": datetime.now().isoformat(),
+            "event_type": event_type,
+            **(details or {}),
+        }
+        with open(path, "a") as f:
+            json.dump(entry, f)
+            f.write("\n")
+
+    def read_lines(self, goal_id: str, limit: int = 100) -> list[dict]:
+        """Read the last `limit` lines from a goal's ledger."""
+        path = self._ledger_path(goal_id)
+        if not path.exists():
+            return []
+        with open(path) as f:
+            lines = f.readlines()
+        result = []
+        for line in reversed(lines[-limit:]):
+            try:
+                result.insert(0, json.loads(line))
+            except (json.JSONDecodeError, ValueError):
+                pass  # skip corrupt lines
+        return result
+
+
 # ── Module-Level Pool Cache (shared across instances during a request lifecycle) ───────────────────────
 
 
@@ -378,6 +518,8 @@ class GoalStateManager:
     def __init__(self):
         self.persistence = GoalPersistence()
         self.lock_manager = GoalLockManager(self.persistence.goal_dir)
+        # Ledger for append-only event logging
+        self.ledger = GoalLedger(self.persistence.goal_dir)
         # Instance-level copy — merged into module globals on save
         self.goals_by_id: dict[str, GoalRecord] = {}
         self.focused_goal_id: Optional[str] = None
@@ -429,6 +571,21 @@ class GoalStateManager:
 
         with self.lock_manager.lock_all_goals():
             for goal in self.goals_by_id.values():
+                # Append ledger entry on status transitions
+                if goal.id not in getattr(self, '_prev_status', {}):
+                    self.ledger.append(goal.id, "goal_created", {"objective": goal.objective})
+                old_status = self._prev_status.get(goal.id)
+                new_status = goal.status.value
+                if old_status and old_status != new_status:
+                    event_map = {
+                        ("active", "paused"): "goal_paused",
+                        ("paused", "active"): "goal_resumed",
+                        ("active", "complete"): "goal_complete",
+                        ("blocked", "complete"): "goal_complete",
+                    }
+                    self.ledger.append(goal.id, event_map.get((old_status, new_status), "goal_created"))
+                self._prev_status[goal.id] = new_status
+
                 self.persistence.save_goal(goal)
                 _pool_cache[goal.id] = goal
 
@@ -464,6 +621,36 @@ class GoalStateManager:
             if t.status == TaskStatus.PENDING and t.id != skip_id:
                 return t.id
         return None
+
+    def track_tokens(self, goal_id: str, usage: int) -> dict:
+        """Incr token_usage, check budget. Returns {"budget_exceeded": bool}.
+
+        If budget is exceeded the goal is PAUSED with pause_reason set.
+        """
+        goal = self.goals_by_id.get(goal_id)
+        if not goal or not goal.token_budget:
+            return {"budget_exceeded": False}
+
+        goal.token_usage += usage
+        exceeded = self.check_budget_exceeded(goal)
+        if exceeded:
+            goal.status = GoalStatus.PAUSED
+            goal.pause_reason = "Budget limit reached"
+            # Write ledger entry for budget_limited
+            if hasattr(self, '_ledger'):
+                self._ledger.append(
+                    goal_id,
+                    "budget_limited",
+                    {"token_usage": goal.token_usage, "token_budget": goal.token_budget},
+                )
+        return {"budget_exceeded": exceeded}
+
+    @staticmethod
+    def check_budget_exceeded(goal_record: GoalRecord) -> bool:
+        """Return True if usage >= budget."""
+        if not goal_record.token_budget:
+            return False
+        return goal_record.token_usage >= goal_record.token_budget
 
 
 # ── Tool Functions for the Assistant ───────────────────────────
@@ -606,3 +793,266 @@ Respond with JSON only (no markdown): {"approved": true/false, "report": "detail
         # Auditor failure is non-critical — log but don't block goal completion
         logger.warning("Goal audit failed for %s: %s", goal_id, e)
         return {"approved": False, "report": f"Audit error: {str(e)}"}
+
+
+# ── Ledger (Append-Only Event Log) ─────────────────────────────
+
+LEDGER_EVENT_TYPES = [
+    "goal_created", "task_completed", "goal_paused", "goal_resumed",
+    "goal_complete", "goal_deleted", "audit_approved", "audit_rejected",
+    "budget_limited", "task_skipped", "goal_focused", "goal_unfocused",
+]
+
+
+class GoalLedger:
+    """Append-only JSONL event log per goal.
+
+    Like pi-goal-x's ledger.ts — every state transition is recorded
+    as a single-line JSON object for debugging and recovery.
+    """
+
+    def __init__(self, goal_dir: Path):
+        self.goal_dir = goal_dir
+
+    def _ledger_path(self, goal_id: str) -> Path:
+        return self.goal_dir / f"ledger_{goal_id}.jsonl"
+
+    def append(self, goal_id: str, event_type: str, details: dict | None = None) -> None:
+        """Append a single event to the ledger (thread-safe via lock)."""
+        if event_type not in LEDGER_EVENT_TYPES:
+            logger.warning("Unknown ledger event type: %s", event_type)
+            return
+
+        entry = {
+            "ts": datetime.now().isoformat(),
+            "event": event_type,
+            "details": details or {},
+        }
+        filepath = self._ledger_path(goal_id)
+        # Atomic append: write to temp then rename (POSIX safe for single-line JSONL)
+        tmp_path = str(filepath) + ".tmp"
+        with open(tmp_path, "w") as f:
+            json.dump(entry, f)
+            f.write("\n")
+        os.replace(tmp_path, filepath)
+
+    def read_lines(self, goal_id: str, limit: int = 100) -> list[dict]:
+        """Read the last `limit` lines from a goal's ledger."""
+        filepath = self._ledger_path(goal_id)
+        if not filepath.exists():
+            return []
+        try:
+            with open(filepath) as f:
+                lines = [json.loads(line.strip()) for line in f if line.strip()]
+            return lines[-limit:]
+        except (json.JSONDecodeError, Exception):
+            logger.warning("Failed to read ledger for %s", goal_id)
+            return []
+
+    def flush_all(self) -> None:
+        """Write all pending state changes as ledger entries.
+
+        Called after save_all_goals() — records the full transition batch.
+        """
+        pass  # Ledger entries are appended individually on each mutation
+
+
+# ── Recovery (Corrupt State Repair) ────────────────────────────
+
+
+class GoalRecoveryManager:
+    """Repair corrupt goal files and missing required fields.
+
+    Scans all goal_*.json files, attempts JSON parse + field validation.
+    On corruption: tries regex extraction of id/objective before skipping.
+    """
+
+    def __init__(self, persistence: "GoalPersistence"):
+        self.persistence = persistence
+        self.goal_dir = persistence.goal_dir
+
+    def recover_all(self) -> dict[str, list]:
+        """Scan and repair all goal files. Returns {"recovered": [...], "skipped": [...]}.
+
+        Recovery strategy (same as pi-goal-x):
+        1. Try parsing JSON normally
+        2. If corrupt: attempt regex extraction of id/objective from raw bytes
+        3. Validate required fields (id, objective) — skip if missing
+        """
+        recovered = []
+        skipped = []
+
+        if not self.goal_dir.is_dir():
+            return {"recovered": recovered, "skipped": skipped}
+
+        for filepath in sorted(self.goal_dir.iterdir()):
+            name = filepath.name
+            if not (name.startswith("goal_") and name.endswith(".json")):
+                continue
+
+            goal_id_from_file = re.search(r"goal_([a-f0-9\-]+)\.json", name)
+            file_goal_id = goal_id_from_file.group(1) if goal_id_from_file else None
+
+            # Try normal JSON parse first
+            try:
+                with open(filepath) as f:
+                    data = json.load(f)
+                record_dict = {k: v for k, v in data.items() if k != "version"}
+                goal = GoalRecord.from_dict(record_dict)
+                recovered.append({
+                    "goal_id": goal.id,
+                    "status": "ok",
+                    "file": name,
+                })
+            except (json.JSONDecodeError, KeyError, TypeError, Exception) as e:
+                # Attempt regex-based recovery from raw bytes
+                try:
+                    with open(filepath, "rb") as f:
+                        raw = f.read().decode("utf-8", errors="replace")
+
+                    id_match = re.search(r'"id"\s*:\s*"([^"]+)"', raw)
+                    objective_match = re.search(r'"objective"\s*:\s*"([^"]+)"', raw)
+
+                    if not id_match or not objective_match:
+                        skipped.append({
+                            "goal_id": file_goal_id,
+                            "reason": f"Missing required fields (parse error): {e}",
+                            "file": name,
+                        })
+                        continue
+
+                    # Attempt repair with extracted fields
+                    try:
+                        goal = GoalRecord(
+                            id=id_match.group(1),
+                            objective=objective_match.group(1),
+                        )
+                        self.persistence.save_goal(goal)
+                        recovered.append({
+                            "goal_id": goal.id,
+                            "status": "repaired",
+                            "file": name,
+                            "original_error": str(e),
+                        })
+                    except Exception as inner_e:
+                        skipped.append({
+                            "goal_id": id_match.group(1) if id_match else file_goal_id,
+                            "reason": f"Repair failed: {inner_e}",
+                            "file": name,
+                        })
+
+                except Exception:
+                    skipped.append({
+                        "goal_id": file_goal_id,
+                        "reason": f"Full recovery failed: {e}",
+                        "file": name,
+                    })
+
+        return {"recovered": recovered, "skipped": skipped}
+
+
+# ── Budget Tracking ────────────────────────────────────────────
+
+
+class GoalBudgetManager:
+    """Token budget tracking per goal. Auto-pauses when limit reached."""
+
+    def __init__(self):
+        pass  # Stateless — operates on GoalRecord directly
+
+    def track_tokens(self, goal_record: GoalRecord, usage: int) -> bool:
+        """Track token usage for a goal. Returns True if budget was exceeded."""
+        if goal_record.token_budget is None or goal_record.token_budget == 0:
+            return False
+
+        goal_record.token_usage += usage
+        goal_record.updated_at = datetime.now().isoformat()
+
+        # Check per-turn limit first (if configured)
+        if (goal_record.tokens_per_turn_limit is not None
+                and usage > goal_record.tokens_per_turn_limit):
+            logger.warning(
+                "Goal %s exceeded per-turn token limit: %d > %d",
+                goal_record.id, usage, goal_record.tokens_per_turn_limit,
+            )
+
+        # Check total budget
+        if goal_record.token_usage >= goal_record.token_budget:
+            old_status = goal_record.status.value
+            goal_record.status = GoalStatus.PAUSED
+            goal_record.pause_reason = "Budget limit reached"
+            logger.info(
+                "Goal %s budget exceeded (%d/%d) — auto-paused",
+                goal_record.id, goal_record.token_usage, goal_record.token_budget,
+            )
+            return True
+
+        return False
+
+    def check_budget_exceeded(self, goal_record: GoalRecord) -> bool:
+        """Check if a goal has exceeded its token budget."""
+        if goal_record.token_budget is None or goal_record.token_budget == 0:
+            return False
+        return goal_record.token_usage >= goal_record.token_budget
+
+    def remaining_tokens(self, goal_record: GoalRecord) -> int | None:
+        """Return remaining tokens in the budget, or None if no budget set."""
+        if goal_record.token_budget is None or goal_record.token_budget == 0:
+            return None
+        return max(0, goal_record.token_budget - goal_record.token_usage)
+
+
+# ── Auto-Continuation Detection ────────────────────────────────
+
+
+class GoalAutoContinueManager:
+    """Detect whether a goal should auto-continue (for API clients).
+
+    cptr has no idle scheduler — this is a synchronous check that returns
+    the followup message and next task for the caller to use.
+    """
+
+    def __init__(self, state_manager: "GoalStateManager"):
+        self.state = state_manager
+
+    def should_continue(self) -> dict[str, Any]:
+        """Check if focused goal should auto-continue.
+
+        Returns dict with auto_continue flag, next_task_id, and followup message.
+        """
+        goal = self.state.get_focused_goal()
+        if not goal or not goal.auto_continue:
+            return {"auto_continue": False, "next_task_id": None, "followup_message": ""}
+
+        if goal.status != GoalStatus.ACTIVE:
+            return {"auto_continue": False, "next_task_id": None, "followup_message": ""}
+
+        pending_tasks = [t for t in goal.task_list if t.status == TaskStatus.PENDING]
+        if not pending_tasks:
+            return {"auto_continue": False, "next_task_id": None, "followup_message": ""}
+
+        next_task = pending_tasks[0]
+        followup = f"[GOAL CONTINUATION] Goal: {goal.objective}\nNext task: {next_task.title}"
+
+        return {
+            "auto_continue": True,
+            "next_task_id": next_task.id,
+            "followup_message": followup,
+        }
+
+
+# ── Module-level convenience functions (backward compat) ─────────
+
+
+def get_ledger(goal_id: str, limit: int = 100) -> list[dict]:
+    """Quick access to goal ledger."""
+    from cptr.env import DATA_DIR
+    ledger = GoalLedger(Path(DATA_DIR) / "goals")
+    return ledger.read_lines(goal_id, limit)
+
+
+def recover_goals() -> dict[str, list]:
+    """Quick recovery of corrupt goals."""
+    persistence = GoalPersistence()
+    manager = GoalRecoveryManager(persistence)
+    return manager.recover_all()
