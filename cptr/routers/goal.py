@@ -357,126 +357,7 @@ async def list_goals(request: Request):
     }
 
 
-@router.get("/{goal_id}")
-async def get_goal(request: Request, goal_id: str):
-    """GET /api/goal/{goal_id} — Get a specific goal by ID."""
-    _get_user(request)
-
-    state = GoalStateManager()
-    state.load_all_active_goals()
-
-    if goal_id not in state.goals_by_id:
-        raise HTTPException(status_code=404, detail="Goal not found")
-
-    goal = state.goals_by_id[goal_id]
-    return {
-        "id": goal.id,
-        "objective": goal.objective,
-        "status": goal.status.value,
-        "current_task_id": goal.current_task_id,
-        "task_list": [
-            {
-                "id": t.id,
-                "title": t.title,
-                "description": t.description or "",
-                "status": t.status.value,
-                "evidence": t.evidence or "",
-            }
-            for t in goal.task_list
-        ],
-    }
-
-
-@router.delete("/{goal_id}")
-async def delete_goal(request: Request, goal_id: str):
-    """DELETE /api/goal/{goal_id} — Delete a specific goal."""
-    _get_user(request)
-
-    state = GoalStateManager()
-    state.load_all_active_goals()
-
-    if goal_id not in state.goals_by_id:
-        raise HTTPException(status_code=404, detail="Goal not found")
-
-    goal = state.goals_by_id[goal_id]
-    if goal.status == GoalStatus.ACTIVE and state.focused_goal_id == goal_id:
-        raise HTTPException(status_code=409, detail="Cannot delete active focused goal")
-
-    state.persistence.delete_goal(goal_id)
-
-    return {"ok": True, "deleted": goal_id}
-
-
-# ── pi-goal-x New Features ─────────────────────────────────────
-
-@router.get("/ledger/{goal_id}")
-async def get_ledger(request: Request, goal_id: str, limit: int = Query(100)):
-    """GET /api/goal/ledger/{goal_id} — Read the last N ledger entries."""
-    _get_user(request)
-
-    state = GoalStateManager()
-    state.load_all_active_goals()
-
-    if goal_id not in state.goals_by_id:
-        raise HTTPException(status_code=404, detail="Goal not found")
-
-    ledger = GoalLedger(state.persistence.goal_dir)
-    entries = ledger.read_lines(goal_id, limit)
-
-    return {
-        "goal_id": goal_id,
-        "entries": entries,
-        "count": len(entries),
-    }
-
-
-@router.post("/ledger/{goal_id}")
-async def append_ledger_entry(request: Request, goal_id: str):
-    """POST /api/goal/ledger/{goal_id} — Append an event to the goal ledger."""
-    _get_user(request)
-
-    try:
-        body = await request.json()
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON body")
-
-    event_type = body.get("event", "goal_created")
-    details = body.get("details", {})
-
-    state = GoalStateManager()
-    state.load_all_active_goals()
-
-    if goal_id not in state.goals_by_id:
-        raise HTTPException(status_code=404, detail="Goal not found")
-
-    ledger = GoalLedger(state.persistence.goal_dir)
-    ledger.append(goal_id, event_type, details)
-
-    return {"ok": True, "goal_id": goal_id, "event": event_type}
-
-
-@router.get("/budget/{goal_id}")
-async def get_goal_budget(request: Request, goal_id: str):
-    """GET /api/goal/budget/{goal_id} — Check token budget status."""
-    _get_user(request)
-
-    state = GoalStateManager()
-    state.load_all_active_goals()
-
-    if goal_id not in state.goals_by_id:
-        raise HTTPException(status_code=404, detail="Goal not found")
-
-    goal = state.goals_by_id[goal_id]
-    budget_mgr = GoalBudgetManager()
-
-    return {
-        "goal_id": goal.id,
-        "token_budget": goal.token_budget,
-        "token_usage": goal.token_usage,
-        "remaining": budget_mgr.remaining_tokens(goal),
-        "budget_exceeded": budget_mgr.check_budget_exceeded(goal),
-    }
-
+# ── pi-goal-x New Features (specific routes only) ──────────────
 
 @router.post("/task/track-tokens")
 async def track_tokens(request: Request):
@@ -547,55 +428,6 @@ async def recover_goals(request: Request):
         "ok": True,
         "recovered": result.get("recovered", []),
         "skipped": result.get("skipped", []),
-    }
-
-
-@router.post("/audit/{goal_id}")
-async def run_goal_audit(request: Request, goal_id: str):
-    """POST /api/goal/audit/{goal_id} — Run the completion auditor for a goal."""
-    _get_user(request)
-
-    state = GoalStateManager()
-    state.load_all_active_goals()
-
-    if goal_id not in state.goals_by_id:
-        raise HTTPException(status_code=404, detail="Goal not found")
-
-    # Audit runs synchronously — checks task completion and goal status consistency
-    audit_result = _run_audit(goal_id, state)
-
-    return {
-        "ok": True,
-        **audit_result,
-    }
-
-
-def _run_audit(goal_id: str, state: GoalStateManager) -> dict:
-    """Run the completion auditor for a goal."""
-    if goal_id not in state.goals_by_id:
-        raise HTTPException(status_code=404, detail="Goal not found")
-
-    goal = state.goals_by_id[goal_id]
-    tasks = goal.task_list
-
-    # Check all tasks are completed
-    pending = [t for t in tasks if t.status == TaskStatus.PENDING]
-    incomplete = len(pending)
-
-    is_complete = False
-    message = ""
-
-    if not pending:
-        is_complete = True
-        message = "All tasks complete — goal can be marked as complete"
-    else:
-        message = f"{incomplete} task(s) still pending"
-
-    return {
-        "goal_id": goal.id,
-        "is_complete": is_complete,
-        "pending_tasks": incomplete,
-        "message": message,
     }
 
 
@@ -687,3 +519,171 @@ async def complete_task_with_tokens(request: Request, body: TaskCompleteRequest)
         "token_usage": goal.token_usage,
         "budget_exceeded": exceeded,
     }
+
+
+# ── Catch-All Routes (must be LAST — specific routes above) ─────
+
+@router.get("/ledger/{goal_id}")
+async def get_ledger(request: Request, goal_id: str, limit: int = Query(100)):
+    """GET /api/goal/ledger/{goal_id} — Read the last N ledger entries."""
+    _get_user(request)
+
+    state = GoalStateManager()
+    state.load_all_active_goals()
+
+    if goal_id not in state.goals_by_id:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    ledger = GoalLedger(state.persistence.goal_dir)
+    entries = ledger.read_lines(goal_id, limit)
+
+    return {
+        "goal_id": goal_id,
+        "entries": entries,
+        "count": len(entries),
+    }
+
+
+@router.post("/ledger/{goal_id}")
+async def append_ledger_entry(request: Request, goal_id: str):
+    """POST /api/goal/ledger/{goal_id} — Append an event to the goal ledger."""
+    _get_user(request)
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    event_type = body.get("event", "goal_created")
+    details = body.get("details", {})
+
+    state = GoalStateManager()
+    state.load_all_active_goals()
+
+    if goal_id not in state.goals_by_id:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    ledger = GoalLedger(state.persistence.goal_dir)
+    ledger.append(goal_id, event_type, details)
+
+    return {"ok": True, "goal_id": goal_id, "event": event_type}
+
+
+@router.get("/budget/{goal_id}")
+async def get_goal_budget(request: Request, goal_id: str):
+    """GET /api/goal/budget/{goal_id} — Check token budget status."""
+    _get_user(request)
+
+    state = GoalStateManager()
+    state.load_all_active_goals()
+
+    if goal_id not in state.goals_by_id:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    goal = state.goals_by_id[goal_id]
+    budget_mgr = GoalBudgetManager()
+
+    return {
+        "goal_id": goal.id,
+        "token_budget": goal.token_budget,
+        "token_usage": goal.token_usage,
+        "remaining": budget_mgr.remaining_tokens(goal),
+        "budget_exceeded": budget_mgr.check_budget_exceeded(goal),
+    }
+
+
+@router.post("/audit/{goal_id}")
+async def run_goal_audit(request: Request, goal_id: str):
+    """POST /api/goal/audit/{goal_id} — Run the completion auditor for a goal."""
+    _get_user(request)
+
+    state = GoalStateManager()
+    state.load_all_active_goals()
+
+    if goal_id not in state.goals_by_id:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    audit_result = _run_audit(goal_id, state)
+
+    return {
+        "ok": True,
+        **audit_result,
+    }
+
+
+def _run_audit(goal_id: str, state: GoalStateManager) -> dict:
+    """Run the completion auditor for a goal."""
+    if goal_id not in state.goals_by_id:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    goal = state.goals_by_id[goal_id]
+    tasks = goal.task_list
+
+    pending = [t for t in tasks if t.status == TaskStatus.PENDING]
+    incomplete = len(pending)
+
+    is_complete = False
+    message = ""
+
+    if not pending:
+        is_complete = True
+        message = "All tasks complete — goal can be marked as complete"
+    else:
+        message = f"{incomplete} task(s) still pending"
+
+    return {
+        "goal_id": goal.id,
+        "is_complete": is_complete,
+        "pending_tasks": incomplete,
+        "message": message,
+    }
+
+
+@router.get("/{goal_id}")
+async def get_goal(request: Request, goal_id: str):
+    """GET /api/goal/{goal_id} — Get a specific goal by ID."""
+    _get_user(request)
+
+    state = GoalStateManager()
+    state.load_all_active_goals()
+
+    if goal_id not in state.goals_by_id:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    goal = state.goals_by_id[goal_id]
+    return {
+        "id": goal.id,
+        "objective": goal.objective,
+        "status": goal.status.value,
+        "current_task_id": goal.current_task_id,
+        "task_list": [
+            {
+                "id": t.id,
+                "title": t.title,
+                "description": t.description or "",
+                "status": t.status.value,
+                "evidence": t.evidence or "",
+            }
+            for t in goal.task_list
+        ],
+    }
+
+
+@router.delete("/{goal_id}")
+async def delete_goal(request: Request, goal_id: str):
+    """DELETE /api/goal/{goal_id} — Delete a specific goal."""
+    _get_user(request)
+
+    state = GoalStateManager()
+    state.load_all_active_goals()
+
+    if goal_id not in state.goals_by_id:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    goal = state.goals_by_id[goal_id]
+    if goal.status == GoalStatus.ACTIVE and state.focused_goal_id == goal_id:
+        raise HTTPException(status_code=409, detail="Cannot delete active focused goal")
+
+    state.persistence.delete_goal(goal_id)
+
+    return {"ok": True, "deleted": goal_id}
