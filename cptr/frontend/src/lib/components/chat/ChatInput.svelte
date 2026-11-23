@@ -42,6 +42,8 @@
 	import { t } from '$lib/i18n';
 	import { TAB_DRAG_MIME } from '$lib/constants';
 	import { tooltip } from '$lib/tooltip';
+	import { get } from 'svelte/store';
+	import { focusedGoal } from '$lib/stores/goal';
 
 	// Keep screen awake during voice mode conversations
 	let voiceWakeLock: WakeLockSentinel | null = null;
@@ -1366,6 +1368,8 @@
 		if (hasChatContent && onskillslist && '/skills:list'.startsWith(slashCommandQuery))
 			ids.push('skills:list');
 		if (hasChatContent && '/skills:create'.startsWith(slashCommandQuery)) ids.push('skills:create');
+		if (!get(focusedGoal) && '/goal'.startsWith(slashCommandQuery)) ids.push('goal');
+		if ('/goal-resume'.startsWith(slashCommandQuery)) ids.push('goal-resume');
 		if ('/te-status'.startsWith(slashCommandQuery)) ids.push('te-status');
 	if (onteTools && '/te-tools'.startsWith(slashCommandQuery)) ids.push('te-tools');
 	if ('/te-skills'.startsWith(slashCommandQuery)) ids.push('te-skills');

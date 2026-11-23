@@ -30,6 +30,7 @@ from cptr.routers import (
     state_router,
     terminal_router,
     workspace_router,
+    goal_router,
 )
 from cptr.utils.config import check_access, load_config
 from cptr.utils.db import init_db
@@ -320,6 +321,7 @@ app.include_router(webhook_router)
 app.include_router(chat_router)
 app.include_router(events_router)
 app.include_router(files_router)
+app.include_router(goal_router)
 app.include_router(gateway_router)
 app.include_router(git_router)
 app.include_router(images_router)

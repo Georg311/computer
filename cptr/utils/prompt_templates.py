@@ -31,6 +31,7 @@ DEFAULT_SYSTEM_PROMPT = (
     "attempt, adapt as needed, and keep going unless a real constraint prevents progress."
     "\n\n{{CPTR_CONTEXT}}"
     "\n\n{{MEMORY}}"
+    "\n\n{{GOAL_CONTEXT}}"
     "\n\n{{INSTRUCTIONS}}"
     "\n\n{{SKILLS}}"
     "\n\nWorkspace: {{WORKSPACE_NAME}}"
@@ -250,6 +251,47 @@ def _render_system_template(template: str, variables: dict[str, str]) -> str:
     return re.sub(r"\n{3,}", "\n\n", rendered).strip()
 
 
+def _build_goal_context() -> str:
+    """Build compact goal context string for system prompt (~500 chars max)."""
+    try:
+        from cptr.utils.goals import GoalStateManager, TaskStatus
+
+        state = GoalStateManager()
+        state.load_all_active_goals()
+        goal = state.get_focused_goal()
+
+        if not goal or not goal.task_list:
+            return ""
+
+        # Build compact context (under ~500 chars for token efficiency)
+        current_task_title = "None"
+        if goal.current_task_id:
+            task = next(
+                (t for t in goal.task_list if t.id == goal.current_task_id), None
+            )
+            if task:
+                current_task_title = task.title
+
+        # Build pending tasks summary (truncated)
+        pending = [f"- [{t.status.value}] {t.title}" for t in goal.task_list[:5]]  # Max 5 tasks
+        pending_str = "\n".join(pending) if pending else "None"
+
+        context = f"""# ACTIVE GOAL
+Objective: {goal.objective}
+Status: {goal.status.value}
+
+Current Task: {current_task_title}
+
+Pending Tasks ({len(goal.task_list)} total):
+{pending_str[:300]}  # Truncate to keep under budget"""
+
+        return context if len(context) < 500 else f"{context[:497]}..."
+
+    except Exception:
+        # Fail silently — goal system is optional, not critical for chat
+        return ""
+
+
 def _build_template_variables(
     workspace: str,
     model: str = "",
@@ -277,10 +319,22 @@ def _build_template_variables(
 
     skills_block = build_catalog_xml(discover_skills(workspace)) if skills_enabled else ""
 
+    # Build goal context (optional, fails silently)
+    try:
+        from cptr.utils.goals import GoalStateManager
+
+        state = GoalStateManager()
+        state.load_all_active_goals()
+        goal = state.get_focused_goal()
+        goal_context = _build_goal_context() if goal else ""
+    except Exception:
+        goal_context = ""
+
     return {
         "WORKSPACE_NAME": _workspace_name(ws_path),
         "WORKSPACE_PATH": str(ws_path) if ws_path else "",
         "FILE_TREE": _get_file_tree(workspace) if workspace else "",
+        "GOAL_CONTEXT": goal_context,
         "INSTRUCTIONS": instructions_block,
         "MEMORY": memory,
         "SKILLS": skills_block,

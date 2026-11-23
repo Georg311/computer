@@ -62,6 +62,7 @@
 	} from '$lib/stores/audio';
 
 	import { showReasoningTraces } from '$lib/stores/reasoning';
+	import GoalDashboard from '../goal/GoalDashboard.svelte';
 
 	import ChatInput from './ChatInput.svelte';
 	import UserMessage from './UserMessage.svelte';
@@ -192,6 +193,7 @@
 	const TTS_MAX_PREFETCH = 2;
 	let unbindSocketListeners: (() => void) | null = null;
 	let commandSessionsTimer: ReturnType<typeof setInterval> | null = null;
+	let goalState: any = null;
 
 	onMount(() => {
 		if (initialChatId || typeof sessionStorage === 'undefined') return;
@@ -201,6 +203,11 @@
 			inputText = draft;
 			sessionStorage.removeItem(key);
 		}
+
+		// Load active goal on mount
+		fetch('/api/goal/active').then(res => res.ok ? res.json()).then(data => {
+			goalState = data;
+		}).catch(() => {});
 	});
 
 	// ── Windowed rendering ──────────────────────────────────────
@@ -2171,6 +2178,9 @@ async function handleSteerQueue() {
 					</h1>
 				</div>
 
+				<!-- Goal Dashboard -->
+				<GoalDashboard />
+
 				<ChatInput
 					bind:this={chatInputEl}
 					bind:inputText
@@ -2234,6 +2244,9 @@ async function handleSteerQueue() {
 						? 'max-w-full'
 						: 'max-w-2xl'} mx-auto w-full px-4 pt-16 pb-16 flex flex-col gap-4"
 				>
+					<!-- Goal Dashboard -->
+					<GoalDashboard />
+
 					{#if hasHiddenMessages}
 						<div bind:this={loadSentinelEl} class="h-1 w-full" aria-hidden="true"></div>
 					{/if}

@@ -11,6 +11,7 @@ from cptr.routers.chat import router as chat_router
 from cptr.routers.gateway import router as gateway_router
 from cptr.routers.events import router as events_router
 from cptr.routers.files import router as files_router
+from cptr.routers.goal import router as goal_router
 from cptr.routers.git import router as git_router
 from cptr.routers.images import router as images_router
 from cptr.routers.memory import router as memory_router
@@ -34,6 +35,7 @@ __all__ = [
     "chat_router",
     "events_router",
     "files_router",
+    "goal_router",
     "gateway_router",
     "git_router",
     "images_router",

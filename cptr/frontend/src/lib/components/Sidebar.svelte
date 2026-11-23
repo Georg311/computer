@@ -4,6 +4,7 @@
 	import SidebarFooter from './SidebarFooter.svelte';
 	import SidebarHeader from './SidebarHeader.svelte';
 	import SidebarNav from './SidebarNav.svelte';
+	import GoalView from './goal/GoalView.svelte';
 	import SidebarWorkspaceList from './SidebarWorkspaceList.svelte';
 	import SettingsModal from './SettingsModal.svelte';
 	import SystemInfoModal from './SystemInfoModal.svelte';
@@ -24,7 +25,6 @@
 	let isResizing = $state(false);
 
 	function startResize(e: PointerEvent) {
-		// Only allow resize on md+ screens
 		if (typeof window !== 'undefined' && window.innerWidth < 768) return;
 		e.preventDefault();
 		isResizing = true;
@@ -73,7 +73,6 @@
 	></button>
 
 	<aside class="sidebar" style="--sw: {$sidebarWidth}px;">
-		<!-- Resize handle (md+ only) -->
 		<div
 			class="resize-handle"
 			class:active={isResizing}
@@ -84,6 +83,7 @@
 		></div>
 		<SidebarHeader />
 		<SidebarNav />
+		<GoalView />
 		<SidebarWorkspaceList onaddworkspace={() => (showPicker = true)} />
 		<SidebarFooter onsettings={openSettings} onsysteminfo={openSystemInfo} />
 	</aside>
