@@ -1,3 +1,10 @@
+## [0.9.21.56] - 2026-11-24
+
+### Added
+- 🧠 **Rolling Compaction — pi.dev style.** Prozentualer Trigger (configurable `% des contextWindow`, default 50%), verbatim Tail Keep (default 20k Tokens bleiben nach Compaction unverändert), Loop Guard verhindert Endlosschleifen von Summaries, Safety Timer resettet Guards bei fehlgeschlagener Summarization. Config: `CHAT_COMPACT_MODE=rolling`, `CHAT_COMPACT_PERCENT_THRESHOLD=50`, `CHAT_COMPACT_KEEP_RECENT_TOKENS=20000`. Admin UI: Mode-Toggle (classic ↔ rolling) im Chat Settings Panel.
+
+---
+
 ## [0.9.21.55] - 2026-11-24
 
 ### Fixed
