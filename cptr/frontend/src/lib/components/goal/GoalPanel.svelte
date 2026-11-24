@@ -476,14 +476,6 @@
 				{:else}
 					<p class="empty">No budget data available.</p>
 				{/if}
-
-				<!-- Recovery -->
-				<div class="recovery-section">
-					<button type="button" class="action-btn recover" onclick={handleRecovery} disabled={isRecovering}>
-						{isRecovering ? '⏳ Recovering...' : '🔧 Repair Goal Files'}
-					</button>
-					{#if recoveryMsg}<span class="recovery-msg">{recoveryMsg}</span>{/if}
-				</div>
 			</div>
 		{/if}
 	{/if}
@@ -548,56 +540,10 @@
 					<button type="button" class="action-btn delete" onclick={(e) => { e.stopPropagation(); handleDeleteGoal(goal.id); }}>🗑 Delete</button>
 				{/if}
 
-				<!-- Quick actions for other goals -->
-				<div class="quick-actions">
-					<button type="button" class="action-btn recover" onclick={() => fetch('/api/goal/recover', { method: 'POST' }).then(() => fetchAllGoals())}>🔧 Repair</button>
-				</div>
 			</div>
 		{/if}
 	{/each}
 
-	<!-- Create form (only shown when no active goal or always available) -->
-	<div class="create-section">
-		<form class="create-form" onsubmit={(e) => { e.preventDefault(); handleCreateGoal(); }}>
-			<input
-				bind:value={objectiveInput}
-				class="goal-objective-input"
-				placeholder="/goal — einen neuen Goal starten..."
-				onfocus={(e) => e.target.select()}
-			/>
-			<button type="submit" disabled={isCreating || !objectiveInput.trim()}>
-				{isCreating ? 'Creating...' : '+'}
-			</button>
-		</form>
-		{#if error}<span class="error">{error}</span>{/if}
-	</div>
-</div>
-{/if}
-
-<!-- No goals at all — show create form -->
-{:else}
-<div class="goal-panel no-goal">
-	<form class="create-form" onsubmit={(e) => { e.preventDefault(); handleCreateGoal(); }}>
-		<input
-			bind:value={objectiveInput}
-			class="goal-objective-input"
-			placeholder="/goal — einen neuen Goal starten..."
-			onfocus={(e) => e.target.select()}
-		/>
-		<button type="submit" disabled={isCreating || !objectiveInput.trim()}>
-			{isCreating ? 'Creating...' : '+ Start Goal'}
-		</button>
-	</form>
-
-	<!-- Quick Recovery button for no-goal state -->
-	<div class="recovery-section">
-		<button type="button" class="action-btn recover" onclick={handleRecovery} disabled={isRecovering}>
-			{isRecovering ? '⏳ Recovering...' : '🔧 Repair Goal Files'}
-		</button>
-		{#if recoveryMsg}<span class="recovery-msg">{recoveryMsg}</span>{/if}
-	</div>
-
-	{#if error}<span class="error">{error}</span>{/if}
 </div>
 {/if}
 
