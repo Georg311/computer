@@ -375,4 +375,32 @@ export async function recoverGoals(): Promise<RecoveryResult | null> {
 	return null;
 }
 
+/** Switch focus to a different goal. */
+export async function focusGoal(goalId: string): Promise<void> {
+	try {
+		const res = await fetch(`/api/goal/focus/${goalId}`, { method: 'POST' });
+		if (res.ok) {
+			await Promise.all([fetchActiveGoal(), fetchAllGoals()]);
+		} else if (res.status !== 404) {
+			console.warn('[goal] Focus error:', res.status, res.statusText);
+		}
+	} catch (e) {
+		console.warn('[goal] Focus error:', e);
+	}
+}
+
+/** Unfocus the current focused goal. */
+export async function unfocusGoal(): Promise<void> {
+	try {
+		const res = await fetch('/api/goal/unfocus', { method: 'POST' });
+		if (res.ok) {
+			await fetchAllGoals();
+		} else if (res.status !== 404) {
+			console.warn('[goal] Unfocus error:', res.status, res.statusText);
+		}
+	} catch (e) {
+		console.warn('[goal] Unfocus error:', e);
+	}
+}
+
 export const goal$ = goal;

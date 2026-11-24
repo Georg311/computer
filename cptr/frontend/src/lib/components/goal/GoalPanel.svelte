@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { get } from 'svelte/store';
 	import Icon from '../Icon.svelte';
+	import Subtasks from './Subtasks.svelte';
 
 	import {
 		goal$,
@@ -20,6 +21,7 @@
 		runAudit,
 		recoverGoals,
 		checkAutoContinue,
+		focusGoal,
 		type GoalLedgerEntry,
 		type BudgetStatus,
 		type AuditResult
@@ -196,6 +198,17 @@
 			}
 		} catch (e) {
 			console.warn('[GoalPanel] Delete goal error:', e);
+		}
+	}
+
+	async function handleFocusGoal(goalId: string) {
+		try {
+			await focusGoal(goalId);
+			if (!expandedGoals.has(goalId)) {
+				toggleExpand(goalId);
+			}
+		} catch (e) {
+			console.warn('[GoalPanel] Focus goal error:', e);
 		}
 	}
 
@@ -398,23 +411,9 @@
 				{/if}
 
 				<!-- Task List -->
-				{#if state.task_list.length > 1}
+				{#if state.task_list.length > 0}
 					<div class="task-section">
-						<ul class="task-list">
-							{#each state.task_list as task (task.id)}
-								<li class="{task.status}" data-task-id={task.id}>
-									<span class="title">{task.title}</span>
-									{#if task.evidence}<small title={task.evidence} class="evidence">📎</small>{/if}
-									{#if task.status === 'skipped'}<em>(skipped)</em>{/if}
-									{#if task.status !== 'complete' && state.status !== 'paused' && state.status !== 'complete'}
-										<div class="actions">
-											<button onclick={() => handleCompleteTask(task.id)} title="Mark complete">✓</button>
-											<button onclick={() => handleSkipTask(task.id)} title="Skip task">~</button>
-										</div>
-									{/if}
-								</li>
-							{/each}
-						</ul>
+						<Subtasks tasks={state.task_list} status={state.status} onComplete={handleCompleteTask} onSkip={handleSkipTask} />
 					</div>
 				{/if}
 
@@ -517,24 +516,15 @@
 					</div>
 				{/if}
 
-				<!-- Task List -->
+				<!-- Task List (recursive with subtasks) -->
 				{#if goal.task_list.length > 0}
-					<ul class="task-list">
-						{#each goal.task_list as task (task.id)}
-							<li class="{task.status}" data-task-id={task.id}>
-								<span class="title">{task.title}</span>
-								{#if task.evidence}<small title={task.evidence} class="evidence">📎</small>{/if}
-								{#if task.status === 'skipped'}<em>(skipped)</em>{/if}
-								{#if goal.status !== 'paused' && goal.status !== 'complete' && task.status !== 'complete'}
-									<div class="actions">
-										<button onclick={(e) => { e.stopPropagation(); handleGoalCompleteTask(goal.id, task.id); }} title="Mark complete">✓</button>
-										<button onclick={(e) => { e.stopPropagation(); handleGoalSkipTask(goal.id, task.id); }} title="Skip task">~</button>
-									</div>
-								{/if}
-							</li>
-						{/each}
-					</ul>
+					<div class="task-section">
+						<Subtasks tasks={goal.task_list} status={goal.status} onComplete={(taskId: string) => handleGoalCompleteTask(goal.id, taskId)} onSkip={(taskId: string) => handleGoalSkipTask(goal.id, taskId)} />
+					</div>
 				{/if}
+
+				<!-- Switch to this goal -->
+				<button type="button" class="action-btn focus" onclick={(e) => { e.stopPropagation(); handleFocusGoal(goal.id); }}>🎯 Focus Goal</button>
 
 				<!-- Delete goal (not for active/focused goals) -->
 				{#if goal.status !== 'active'}
@@ -725,6 +715,7 @@
 	.action-btn.resume { color: #4ade80; border-color: rgba(74, 222, 128, 0.3); }
 	.action-btn.recover { color: #60a5fa; border-color: rgba(96, 165, 250, 0.3); }
 	.action-btn.complete-goal { background: rgba(74, 222, 128, 0.1); color: #4ade80; margin-left: auto; }
+	.action-btn.focus { background: rgba(59, 130, 246, 0.1); color: #3b82f6; border-color: rgba(59, 130, 246, 0.3); }
 
 	/* ── Task List ────────────────────────────────── */
 	.task-section {

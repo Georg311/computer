@@ -20,6 +20,7 @@ from cptr.utils.goals import (
     GoalBudgetManager,
     GoalRecoveryManager,
     GoalAutoContinueManager,
+    audit_goal,
 )
 
 logger = logging.getLogger(__name__)
@@ -603,7 +604,7 @@ async def run_goal_audit(request: Request, goal_id: str):
     if goal_id not in state.goals_by_id:
         raise HTTPException(status_code=404, detail="Goal not found")
 
-    audit_result = _run_audit(goal_id, state)
+    audit_result = await audit_goal(goal_id)
 
     return {
         "ok": True,
@@ -611,32 +612,59 @@ async def run_goal_audit(request: Request, goal_id: str):
     }
 
 
-def _run_audit(goal_id: str, state: GoalStateManager) -> dict:
-    """Run the completion auditor for a goal."""
+@router.post("/focus/{goal_id}")
+async def focus_goal(request: Request, goal_id: str):
+    """POST /api/goal/focus/{goal_id} — Switch the focused goal to another active goal."""
+    _get_user(request)
+
+    state = GoalStateManager()
+    state.load_all_active_goals()
+
     if goal_id not in state.goals_by_id:
-        raise HTTPException(status_code=404, detail="Goal not found")
+        raise HTTPException(status_code=404, detail="Goal not found or archived")
 
+    old_focused = state.focused_goal_id
+    state.focused_goal_id = goal_id
     goal = state.goals_by_id[goal_id]
-    tasks = goal.task_list
+    goal.updated_at = datetime.now().isoformat()
+    state.save_all_goals()
 
-    pending = [t for t in tasks if t.status == TaskStatus.PENDING]
-    incomplete = len(pending)
-
-    is_complete = False
-    message = ""
-
-    if not pending:
-        is_complete = True
-        message = "All tasks complete — goal can be marked as complete"
-    else:
-        message = f"{incomplete} task(s) still pending"
+    if old_focused and old_focused != goal_id:
+        try:
+            ledger = GoalLedger(state.persistence.goal_dir)
+            ledger.append(old_focused, "goal_unfocused", {"new_focus": goal_id})
+            ledger.append(goal_id, "goal_focused", {"from_goal": old_focused})
+        except Exception as e:
+            logger.warning("Failed to log focus switch in ledger: %s", e)
 
     return {
-        "goal_id": goal.id,
-        "is_complete": is_complete,
-        "pending_tasks": incomplete,
-        "message": message,
+        "ok": True,
+        "focused_goal_id": goal.id,
+        "objective": goal.objective,
     }
+
+
+@router.post("/unfocus/{goal_id}")
+async def unfocus_goal(request: Request, goal_id: str):
+    """POST /api/goal/unfocus — Unfocus the current focused goal (keeps goal active)."""
+    _get_user(request)
+
+    state = GoalStateManager()
+    state.load_all_active_goals()
+
+    if not state.focused_goal_id or state.focused_goal_id != goal_id:
+        raise HTTPException(status_code=404, detail="No focused goal to unfocus")
+
+    old_focused = state.focused_goal_id
+    state.focused_goal_id = None
+
+    try:
+        ledger = GoalLedger(state.persistence.goal_dir)
+        ledger.append(old_focused, "goal_unfocused", {})
+    except Exception as e:
+        logger.warning("Failed to log unfocus in ledger: %s", e)
+
+    return {"ok": True}
 
 
 @router.get("/{goal_id}")
