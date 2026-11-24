@@ -102,6 +102,59 @@ def _get_compact_mode_from_config() -> str:
 
 logger = logging.getLogger(__name__)
 
+# ── Compaction Loop Guard + Safety Timer (pi.dev style) ──
+# Tracks last trigger token count per chat to prevent endless compaction loops.
+_compaction_state: dict[str, int] = {}  # chat_id → last_trigger_tokens
+_compaction_timers: dict[str, asyncio.Task] = {}  # chat_id → timer task
+
+
+async def _compaction_safety_timer(chat_id: str) -> None:
+    """Reset compaction guards if summarization fails silently (3 min timeout)."""
+    try:
+        await asyncio.sleep(180)  # 3 minutes
+    except asyncio.CancelledError:
+        return
+
+    # Timer fired — was the compaction successful? If guard still exists, reset it.
+    if chat_id in _compaction_state:
+        logger.warning(
+            "[task %s] compaction safety timer fired — resetting loop guard",
+            chat_id[:8],
+        )
+        del _compaction_state[chat_id]
+
+
+def _reset_compaction_guard(chat_id: str) -> None:
+    """Called after successful DB update — cancels timer and clears state."""
+    if chat_id in _compaction_timers:
+        _compaction_timers[chat_id].cancel()
+        del _compaction_timers[chat_id]
+    # State is cleared by the loop guard check below, no need to delete here
+
+
+def _should_compact_with_guard(
+    chat_id: str, messages: list[dict], system_prompt: str, **kwargs: Any
+) -> bool:
+    """Wrapper around should_compact with pi.dev-style loop guard."""
+    if not should_compact(messages, system_prompt, **kwargs):
+        return False
+
+    # Loop Guard: don't compact again if context hasn't grown since last trigger
+    current_tokens = estimate_tokens(system_prompt) + estimate_messages_tokens(messages)
+    last_trigger = _compaction_state.get(chat_id)
+
+    if last_trigger is not None and current_tokens <= last_trigger:
+        logger.debug(
+            "[task %s] compaction blocked by loop guard (%d tokens ≤ %d)",
+            chat_id[:8],
+            current_tokens,
+            last_trigger,
+        )
+        return False
+
+    return True
+
+
 _NO_PROGRESS_WARNING = (
     "\n\n[No-progress safeguard] This completed operation has returned the same "
     "result three times. Choose a different diagnostic step or explain what "
@@ -3104,11 +3157,12 @@ async def run_chat_task(
 
         for _iteration in range(CHAT_MAX_ITERATIONS):
             # ── Context compaction: summarize older messages if too large ──
-            if should_compact(
+            if _should_compact_with_guard(
+                chat_id,
                 messages,
                 system,
-                last_usage,
-                new_messages_since,
+                last_usage=last_usage,
+                new_messages_since=new_messages_since,
                 threshold=compact_token_threshold,
             ):
                 # ── Rolling mode: tail-based split (keep recent N tokens verbatim) ──
@@ -3136,59 +3190,84 @@ async def run_chat_task(
                 checkpoint_message_id = _summary_checkpoint_message_id(
                     keep_zone, summary_message_id
                 )
-                await ChatMessage.update(checkpoint_message_id, chat_summary=summary)
-                loaded_summary = summary
-
-                # Append summary to system prompt (works for all providers)
-                memory_message, memory_files = _memory_recall_inputs(keep_zone, regeneration_prompt)
-                system = await _load_system_prompt(
-                    request,
-                    workspace,
-                    model,
-                    user_id=user_id,
-                    current_message=memory_message,
-                    recent_messages=keep_zone,
-                    mentioned_files=memory_files,
-                )
-                system += f"\n\n[CONVERSATION SUMMARY]\n{summary}"
-                # Re-inject attached skills after compaction (protect from pruning)
-                if attached_skill_ids:
-                    skill_blocks = []
-                    for sid in attached_skill_ids:
-                        skill = load_skill(workspace, sid)
-                        if skill:
-                            skill_blocks.append(format_skill_content(skill))
-                    if skill_blocks:
-                        system += "\n\n" + "\n\n".join(skill_blocks)
-                # ── TokenEconomizer: inject repo facts into system prompt ──
-                # ── MicroSkillsStage: inject envfacts prefix into system prompt ──
+                compaction_success = False
                 try:
-                    from cptr.utils.te.microskills_stage import MicroSkillsStage
-                    _ms_stage3 = MicroSkillsStage(chat_id)
-                    _ms_rendered3 = _ms_stage3.render()
-                    if _ms_rendered3:
-                        system += "\n\n" + _ms_rendered3
-                except Exception as e:
-                    logger.debug("[microskills] render failed for %s: %s", chat_id, e)
+                    await ChatMessage.update(checkpoint_message_id, chat_summary=summary)
+                    loaded_summary = summary
 
-                active_facts = await get_active_facts(chat_id)
-                if active_facts:
-                    fact_lines = [f"- {fact['text']}" for fact in active_facts]
-                    system += "\n\n# Repository Facts (learned from prior sessions)\n" + "\n".join(fact_lines)
+                    # Compaction succeeded — cancel safety timer and set loop guard state
+                    if chat_id in _compaction_timers:
+                        _compaction_timers[chat_id].cancel()
+                        del _compaction_timers[chat_id]
+                    _compaction_state[chat_id] = estimate_tokens(system) + estimate_messages_tokens(messages)
+                    compaction_success = True
 
-                system = await _apply_voice_mode_system_prompt(system, chat_params)
-                messages = keep_zone
-                last_usage = None  # reset after compaction
-                new_messages_since = 0
+                except Exception:
+                    # Compaction DB update failed — set loop guard to prevent re-triggering,
+                    # start safety timer so the guard is cleared after 3 min.
+                    logger.error(
+                        "[task %s] compaction DB write failed — safety timer started",
+                        message_id[:8],
+                        exc_info=True,
+                    )
+                    _compaction_state[chat_id] = estimate_tokens(system) + estimate_messages_tokens(messages)
+                    if chat_id not in _compaction_timers:
+                        _compaction_timers[chat_id] = asyncio.create_task(
+                            _compaction_safety_timer(chat_id)
+                        )
 
-                logger.info(
-                    "[task %s] compacted: checkpoint=%s dropped %d msgs, kept %d, summary=%d chars",
-                    message_id[:8],
-                    checkpoint_message_id[:8],
-                    len(drop_zone),
-                    len(keep_zone),
-                    len(summary),
-                )
+                # Only proceed with state changes if DB write succeeded
+                if compaction_success:
+                    # Append summary to system prompt (works for all providers)
+                    memory_message, memory_files = _memory_recall_inputs(keep_zone, regeneration_prompt)
+                    system = await _load_system_prompt(
+                        request,
+                        workspace,
+                        model,
+                        user_id=user_id,
+                        current_message=memory_message,
+                        recent_messages=keep_zone,
+                        mentioned_files=memory_files,
+                    )
+                    system += f"\n\n[CONVERSATION SUMMARY]\n{summary}"
+                    # Re-inject attached skills after compaction (protect from pruning)
+                    if attached_skill_ids:
+                        skill_blocks = []
+                        for sid in attached_skill_ids:
+                            skill = load_skill(workspace, sid)
+                            if skill:
+                                skill_blocks.append(format_skill_content(skill))
+                        if skill_blocks:
+                            system += "\n\n" + "\n\n".join(skill_blocks)
+                    # ── TokenEconomizer: inject repo facts into system prompt ──
+                    # ── MicroSkillsStage: inject envfacts prefix into system prompt ──
+                    try:
+                        from cptr.utils.te.microskills_stage import MicroSkillsStage
+                        _ms_stage3 = MicroSkillsStage(chat_id)
+                        _ms_rendered3 = _ms_stage3.render()
+                        if _ms_rendered3:
+                            system += "\n\n" + _ms_rendered3
+                    except Exception as e:
+                        logger.debug("[microskills] render failed for %s: %s", chat_id, e)
+
+                    active_facts = await get_active_facts(chat_id)
+                    if active_facts:
+                        fact_lines = [f"- {fact['text']}" for fact in active_facts]
+                        system += "\n\n# Repository Facts (learned from prior sessions)\n" + "\n".join(fact_lines)
+
+                    system = await _apply_voice_mode_system_prompt(system, chat_params)
+                    messages = keep_zone
+                    last_usage = None  # reset after compaction
+                    new_messages_since = 0
+
+                    logger.info(
+                        "[task %s] compacted: checkpoint=%s dropped %d msgs, kept %d, summary=%d chars",
+                        message_id[:8],
+                        checkpoint_message_id[:8],
+                        len(drop_zone),
+                        len(keep_zone),
+                        len(summary),
+                    )
 
             # Anthropic supports images natively in tool_result content blocks.
             # Chat Completions and Responses API don't support multimodal tool messages,
