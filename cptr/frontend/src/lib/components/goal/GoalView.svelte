@@ -119,25 +119,11 @@
 					<button on:click={handleResume}>▶ Resume Goal</button>
 				{/if}
 			</div>
-
-			<!-- New Goal Button -->
-			<button class="btn-new" on:click={() => { objective = ''; }}>+ New Goal</button>
 		</div>
 	{:else}
 		<div class="no-goal">
 			<p>No active goal.</p>
 		</div>
-	{/if}
-
-	<!-- Create Goal Form -->
-	{#if isCreating || !state}
-		<form class="create-form" on:submit|preventDefault={handleCreateGoal}>
-			<input bind:value={objective} placeholder="What should be achieved?" />
-			<button type="submit" disabled={isCreating || !objective.trim()}>
-				{isCreating ? 'Creating...' : 'Start Goal'}
-			</button>
-			{#if error}<span class="error">{error}</span>{/if}
-		</form>
 	{/if}
 </div>
 
@@ -250,58 +236,10 @@
 		margin-left: auto;
 	}
 
-	.btn-new {
-		background: transparent;
-		border: none;
-		color: #3b82f6;
-		cursor: pointer;
-		font-size: 0.85em;
-		padding: 4px 0;
-		margin-top: 8px;
-	}
-
 	.no-goal {
 		text-align: center;
 		padding: 16px 0;
 		color: #9ca3af;
 		font-size: 0.85em;
-	}
-
-	.create-form {
-		display: flex;
-		gap: 8px;
-		margin-top: 12px;
-	}
-
-	.create-form input {
-		flex: 1;
-		background: var(--bg-secondary, #2d3748);
-		border: 1px solid var(--border-color, #333);
-		color: inherit;
-		padding: 6px 8px;
-		border-radius: 4px;
-		font-size: 0.85em;
-	}
-
-	.create-form button {
-		background: #3b82f6;
-		border: none;
-		color: white;
-		padding: 6px 12px;
-		border-radius: 4px;
-		cursor: pointer;
-		font-size: 0.85em;
-	}
-
-	.create-form button:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.error {
-		color: #f87171;
-		font-size: 0.8em;
-		margin-top: 4px;
-		display: block;
 	}
 </style>
