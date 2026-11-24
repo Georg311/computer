@@ -152,6 +152,9 @@ def _should_compact_with_guard(
         )
         return False
 
+    # Set guard state on first allow — prevents re-triggering until context grows
+    _compaction_state[chat_id] = current_tokens
+
     return True
 
 
