@@ -1,3 +1,10 @@
+## [0.9.21.55] - 2026-11-24
+
+### Fixed
+- 🧹 **GoalPanel — Create Form und Repair Buttons entfernt.** Panel dient jetzt nur noch zur Anzeige (wie im pi plugin). Kein Input-Feld mehr zum Erstellen von Goals, keine "🔧 Repair Goal Files" Buttons. Neue Goals über `/goal` Slash Command erstellen.
+
+---
+
 ## [0.9.21.54] - 2026-11-23
 
 ### Added
