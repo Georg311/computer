@@ -480,6 +480,7 @@
 		{/if}
 	{/if}
 </div>
+{/if}
 
 <!-- Other goals (not active/focused) -->
 {#if displayedGoalsList.length > 0}
