@@ -109,6 +109,9 @@
 		onqueuestreaming?: () => void;
 		onsteer?: () => void;
 		onsteerqueue?: () => void;
+		onGoalResume?: () => void;
+		onGoalPause?: () => void;
+		onGoalList?: () => void;
 		onsteerqueuedelete?: (id: string) => void;
 		onSteerQueueMoveUp?: (index: number) => void;
 		onSteerQueueMoveDown?: (index: number) => void;
@@ -1371,6 +1374,8 @@
 		if (hasChatContent && '/skills:create'.startsWith(slashCommandQuery)) ids.push('skills:create');
 		if ('/goal'.startsWith(slashCommandQuery)) ids.push('goal');
 		if ('/goal-resume'.startsWith(slashCommandQuery)) ids.push('goal-resume');
+		if ('/goal-pause'.startsWith(slashCommandQuery) && onGoalPause) ids.push('goal-pause');
+		if ('/goal-list'.startsWith(slashCommandQuery) && onGoalList) ids.push('goal-list');
 		if ('/te-status'.startsWith(slashCommandQuery)) ids.push('te-status');
 	if (onteTools && '/te-tools'.startsWith(slashCommandQuery)) ids.push('te-tools');
 	if ('/te-skills'.startsWith(slashCommandQuery)) ids.push('te-skills');
@@ -1553,12 +1558,23 @@
 		if (commandId === 'goal') {
 			removeSlashCommandToken();
 			inputText = '/goal ';
-			void tick().then(onsend);
+			// Don't auto-send — let user type their goal description first
+			void tick().then(() => focus());
 			return;
 		}
-		if (commandId === 'goal-resume' && onplan) {
+		if (commandId === 'goal-resume' && onGoalResume) {
 			removeSlashCommandToken();
-			onplan?.(); // reuse planMode for goal resume trigger
+			onGoalResume();
+			return;
+		}
+		if (commandId === 'goal-pause' && onGoalPause) {
+			removeSlashCommandToken();
+			onGoalPause();
+			return;
+		}
+		if (commandId === 'goal-list' && onGoalList) {
+			removeSlashCommandToken();
+			onGoalList();
 			return;
 		}
 		onsend();

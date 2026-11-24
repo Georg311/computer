@@ -62,6 +62,7 @@
 	} from '$lib/stores/audio';
 
 	import { showReasoningTraces } from '$lib/stores/reasoning';
+	import { goal$ } from '$lib/stores/goal';
 	import ChatInput from './ChatInput.svelte';
 	import UserMessage from './UserMessage.svelte';
 	import AssistantMessage from './AssistantMessage.svelte';
@@ -1357,6 +1358,41 @@ autoScroll = true;
 		showTEConfigModal = true;
 	}
 
+	async function handleGoalResume() {
+		try {
+			const res = await fetch('/api/goal/resume', { method: 'POST' });
+			if (res.ok) {
+				goal$.set(await res.json());
+			} else if (res.status === 404 || res.status === 409) {
+				toast.error('No active goal to resume');
+			} else {
+				toast.error(`Resume failed (${res.status})`);
+			}
+		} catch (e: any) {
+			toast.error(e?.message || 'Resume failed');
+		}
+	}
+
+	async function handleGoalPause() {
+		try {
+			const res = await fetch('/api/goal/pause', { method: 'POST' });
+			if (res.ok) {
+				goal$.set(null); // pause clears the active goal display
+			} else if (res.status === 404) {
+				toast.error('No active goal to pause');
+			} else {
+				toast.error(\`Pause failed (\${res.status})\`);
+			}
+		} catch (e: any) {
+			toast.error(e?.message || 'Pause failed');
+		}
+	}
+
+	function handleGoalList() {
+		const el = document.querySelector('.goal-panel');
+		el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+	}
+
 	async function refreshCommandSessions() {
 		const currentChatId = chatId;
 		if (!currentChatId || !workspace) {
@@ -2193,6 +2229,9 @@ async function handleSteerQueue() {
 					onqueuesendnow={handleQueueSendNow}
 					onqueueedit={handleQueueEdit}
 					onqueuedelete={handleQueueDelete}
+					onGoalResume={handleGoalResume}
+					onGoalPause={handleGoalPause}
+					onGoalList={handleGoalList}
 					steeringQueue={steeringQueueItems}
 					onsteerqueuedelete={handleSteerQueueDelete}
 					onsteer={handleSteer}
@@ -2363,6 +2402,9 @@ async function handleSteerQueue() {
 					onqueuesendnow={handleQueueSendNow}
 					onqueueedit={handleQueueEdit}
 					onqueuedelete={handleQueueDelete}
+					onGoalResume={handleGoalResume}
+					onGoalPause={handleGoalPause}
+					onGoalList={handleGoalList}
 					onqueue={handleQueue}
 					onsteer={handleSteer}
 					onqueuestreaming={handleQueueDuringStreaming}
