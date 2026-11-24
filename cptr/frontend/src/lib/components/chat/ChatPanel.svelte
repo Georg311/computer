@@ -1381,7 +1381,7 @@ autoScroll = true;
 			} else if (res.status === 404) {
 				toast.error('No active goal to pause');
 			} else {
-				toast.error(\`Pause failed (\${res.status})\`);
+				toast.error(`Pause failed (${res.status})`);
 			}
 		} catch (e: any) {
 			toast.error(e?.message || 'Pause failed');
