@@ -2225,6 +2225,12 @@ async function handleSteerQueue() {
 					onplan={handlePlanCommand}
 					onsettingschange={persistChatSettings}
 					ontoolapprovalchange={handleToolApprovalModeChange}
+					onstatus={handleStatusCommand}
+					onskillslist={handleSkillsListCommand}
+					onteStatus={handleTeStatusCommand}
+					onteTools={handleTeToolsCommand}
+					onteSkills={handleTeSkillsCommand}
+					onteConfig={handleTEConfigCommand}
 					{queuedMessages}
 					onqueuesendnow={handleQueueSendNow}
 					onqueueedit={handleQueueEdit}
