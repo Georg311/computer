@@ -1,0 +1,8 @@
+## [0.9.21.57] - 2026-11-25
+- 🐛 **Signal — Double Base64 Encoding Bug in Group Chat Messages.** `chat_id` für Gruppen-Chats wurde doppelt base64-kodiert: Der Signal REST API gibt `groupId` bereits als base64-codierten String zurück, aber der Adapter hat ihn nochmal mit `base64.b64encode()` encodiert → falsche chat_id (`group.ZDNFM2FIa3laek5x...`) statt korrekter Gruppen-ID (`group.d3E3aHkyZzNqODVH...`). Bot-Antworten in Signal-Gruppen kamen dadurch nicht an. Fix: `groupId` wird jetzt direkt als `f"group.{group_id}"` verwendet — kein doppeltes Encoding mehr.
+
+---
+## [0.9.21.57] - 2026-11-25
+
+### Fixed
+- 🔒 **Security — Dependency CVE Fixes.** Upgraded cryptography 47.0.0 → 50.0.2 (fixes OpenSSL vulnerability, Bleichenbacher timing oracle attack, DoS via X.509 certificate chain validation), PyJWT 2.13.0 → 2.15.1 (fixes RecursionError DoS in PyJWKClient and JWKS amplification vulnerability), certifi 2026.5.20 → 2026.11.20 via uv override (fixes compromised emSign root CA with leaked intermediate keys). CVEs: GHSA-39hc-v87j-747x, GHSA-3ww4-gg4f-jr7f, GHSA-537c-gmf6-5ccf, GHSA-2gx3-rcp4-g85q, GHSA-42vr-xj54-vc7v, GHSA-6q48-6c7w-9gw2.

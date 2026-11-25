@@ -367,11 +367,8 @@ class SignalAdapter(BaseAdapter):
         chat_id = source
         if group_info:
             group_id = group_info.get("groupId", "")
-            chat_id = group_info.get("id") or (
-                "group." + base64.b64encode(group_id.encode("utf-8")).decode("ascii")
-                if group_id
-                else source
-            )
+            # groupId is base64 from signal-cli — encode again to form the correct recipient format.
+            chat_id = "group." + base64.b64encode(group_id.encode("utf-8")).decode("ascii") if group_id else source
 
         event = MessageEvent(
             platform="signal",

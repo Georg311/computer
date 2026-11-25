@@ -1,3 +1,9 @@
+## [0.9.21.58] - 2026-11-25
+
+### Fixed
+- 🐛 **Signal — Group Chat Messages wiederhergestellt.** Die Sendefunktion für Signal-Gruppen wurde repariert: Nach einem fehlerhaften Attempt zur "Optimierung" der Base64-Kodierung (der Gruppen-IDen im falschen Format `group.<single-base64>` erzeugt hat, was die API mit HTTP 400 "Invalid identifier" abgelehnt hat) wurde der korrekte Code mit doppelter Base64-Kodierung wiederhergestellt. Die Signal REST API erwartet `groupId` als `group.` + base64(base64(groupId)) — nur dieses Format wird akzeptiert.
+
+---
 ## [0.9.21.57] - 2026-11-25
 
 ### Fixed
