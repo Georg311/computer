@@ -3,6 +3,10 @@
 ### Added
 - 🧠 **Rolling Compaction — pi.dev style.** Prozentualer Trigger (configurable `% des contextWindow`, default 50%), verbatim Tail Keep (default 20k Tokens bleiben nach Compaction unverändert), Loop Guard verhindert Endlosschleifen von Summaries, Safety Timer resettet Guards bei fehlgeschlagener Summarization. Config: `CHAT_COMPACT_MODE=rolling`, `CHAT_COMPACT_PERCENT_THRESHOLD=50`, `CHAT_COMPACT_KEEP_RECENT_TOKENS=20000`. Admin UI: Mode-Toggle (classic ↔ rolling) im Chat Settings Panel.
 
+### Fixed
+- 🐛 **Compaction — Präzisere Token-Schätzung.** `estimate_tokens()` nutzt jetzt tiktoken für Texte >5 000 Zeichen (wo `len//4` bis zu 30% danebenliegt), und fällt auf `len//4` zurück wenn tiktoken nicht verfügbar ist. Performance: kurze Texte bleiben blitzschnell (~10% Fehler).
+- 🐛 **Compaction — Schwellenwert gesenkt.** `CHAT_COMPACT_TOKEN_THRESHOLD` von 80k → 60k Tokens, damit früher getriggert wird und weniger Puffer zur Overflow-Grenze (125.440) bleibt. Verhindert "context size exceeded"-Errors bei langen Chats mit vielen Tool-Outputs.
+
 ---
 
 ## [0.9.21.55] - 2026-11-24

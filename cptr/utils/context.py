@@ -10,8 +10,33 @@ from cptr.env import (
 )
 
 
+def _get_tiktoken_encoder():
+    """Lazy-load tiktoken encoder (cached on first call)."""
+    if not hasattr(_get_tiktoken_encoder, "_cache"):
+        try:
+            import tiktoken
+
+            enc = tiktoken.encoding_for_model("gpt-4o")
+            _get_tiktoken_encoder._cache = enc
+        except Exception:
+            # Fallback to len//4 if tiktoken is unavailable
+            _get_tiktoken_encoder._cache = None
+    return _get_tiktoken_encoder._cache
+
+
 def estimate_tokens(text: str) -> int:
-    """Rough token estimate: len/4 for Latin text."""
+    """Token count with adaptive precision.
+
+    Uses tiktoken for texts >5 000 characters (where len//4 can be off by 30-50%).
+    Falls back to len//4 for short texts (fast, ~10% error only).
+    """
+    if len(text) <= 5_000:
+        return max(1, len(text) // 4)
+
+    enc = _get_tiktoken_encoder()
+    if enc is not None:
+        return len(enc.encode(text))
+    # Fallback to len//4 if tiktoken failed to load
     return max(1, len(text) // 4)
 
 
