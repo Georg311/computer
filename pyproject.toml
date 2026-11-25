@@ -14,8 +14,8 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0",
     "aiosqlite>=0.20",
     "alembic>=1.13",
-    "PyJWT>=2.8",
-    "cryptography>=42.0,<49.0.0",
+    "PyJWT>=2.15.0",
+    "cryptography>=49.0.1",
     "loguru>=0.7.3",
     "python-socketio[asgi]>=5.11",
     "python-dateutil>=2.8",
@@ -58,6 +58,9 @@ exclude = ["cptr/frontend"]
 [tool.hatch.build.targets.wheel.force-include]
 "CHANGELOG.md" = "cptr/CHANGELOG.md"
 "cptr/frontend/build" = "cptr/frontend/build"
+
+[tool.uv]
+override-dependencies = ["certifi>=2026.10.18"]
 
 [tool.ruff]
 line-length = 100
