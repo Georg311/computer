@@ -981,35 +981,38 @@ class BotManager:
         #    starts and the bridge never sends the response back to Signal.
         if assistant_msg_id is None and adapter:
             async def _wait_and_stream():
-                from cptr.utils.chat_task import _tasks as task_registry
+                from cptr.utils.chat_task import _tasks as task_registry, _task_chat
 
-                # Poll every 200ms until a running task appears for this chat,
-                # then start the stream loop with the stored platform_msg_id.
                 while True:
                     await asyncio.sleep(0.2)
-                    for mid, task in list(task_registry.items()):
-                        if not task.done() and task in task_registry.values():
-                            cid = _task_chat.get(mid)
-                            if cid == chat_id:
-                                # Found the running assistant task — start streaming!
-                                stream_key = f"{bot['id']}:{event.chat_id}"
-                                self._stream_tasks[stream_key] = asyncio.create_task(
-                                    self._stream_loop(
-                                        adapter,
-                                        event.chat_id,
-                                        platform_msg_id,
-                                        mid,
-                                        bot,
-                                    )
-                                )
-                                logger.info(
-                                    "[bridge] Deferred stream loop started for chat %s "
-                                    "(task=%s)",
-                                    chat_id[:8], mid[:8],
-                                )
-                                return
 
-            asyncio.create_task(_wait_and_stream())
+                    stream_key = f"{bot['id']}:{event.chat_id}"
+
+                    # Check if there's already a stream loop for this chat
+                    existing_loop = self._stream_tasks.get(stream_key)
+                    if existing_loop and not existing_loop.done():
+                        continue  # Stream loop is running, wait
+
+                    # No existing stream loop — look for running tasks that need streaming
+                    for mid, task in list(task_registry.items()):
+                        if not task.done() and _task_chat.get(mid) == chat_id:
+                            self._stream_tasks[stream_key] = asyncio.create_task(
+                                self._stream_loop(
+                                    adapter,
+                                    event.chat_id,
+                                    platform_msg_id,
+                                    mid,
+                                    bot,
+                                )
+                            )
+                            logger.info(
+                                "[bridge] Deferred stream loop started for chat %s "
+                                "(task=%s)",
+                                chat_id[:8], mid[:8],
+                            )
+                            return
+
+                    # No running tasks — wait for the next one (created by finally block)
 
     async def _stream_loop(
         self,
