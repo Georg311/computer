@@ -972,6 +972,44 @@ class BotManager:
                 )
             )
 
+        # ── Async fallback: if process_pending_chat_inputs returned None
+        #    because the parent task was still running, poll for when it
+        #    completes and start the stream loop then. This fixes the bug
+        #    where a second queued message (e.g. "?") arrives while Task 1
+        #    is still executing — process_pending_chat_inputs returns None
+        #    because _pending_input_ready() blocks, so no stream_loop ever
+        #    starts and the bridge never sends the response back to Signal.
+        if assistant_msg_id is None and adapter:
+            async def _wait_and_stream():
+                from cptr.utils.chat_task import _tasks as task_registry
+
+                # Poll every 200ms until a running task appears for this chat,
+                # then start the stream loop with the stored platform_msg_id.
+                while True:
+                    await asyncio.sleep(0.2)
+                    for mid, task in list(task_registry.items()):
+                        if not task.done() and task in task_registry.values():
+                            cid = _task_chat.get(mid)
+                            if cid == chat_id:
+                                # Found the running assistant task — start streaming!
+                                stream_key = f"{bot['id']}:{event.chat_id}"
+                                self._stream_tasks[stream_key] = asyncio.create_task(
+                                    self._stream_loop(
+                                        adapter,
+                                        event.chat_id,
+                                        platform_msg_id,
+                                        mid,
+                                        bot,
+                                    )
+                                )
+                                logger.info(
+                                    "[bridge] Deferred stream loop started for chat %s "
+                                    "(task=%s)",
+                                    chat_id[:8], mid[:8],
+                                )
+                                return
+
+            asyncio.create_task(_wait_and_stream())
 
     async def _stream_loop(
         self,
