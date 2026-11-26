@@ -1,3 +1,8 @@
+## [0.9.21.59] - 2026-11-26
+
+### Fixed
+- 🐛 **Signal — Queued Messages Antwort bei laufendem Task.** Wenn eine zweite Nachricht (z.B. "?") während eines laufenden Tasks ankommt, kehrte `process_pending_chat_inputs()` None zurück weil der parent assistant message noch nicht done war — kein `_stream_loop` startete und die Bridge schickte nie die Antwort zurück zu Signal. Fix: Async-Fallback-Poller (`_wait_and_stream`) der alle 200ms nach laufenden Tasks pollt, den Stream-Loop mit der gespeicherten `platform_msg_id` startet, und Duplikate verhindert (checkt ob Loop schon existiert).
+
 ## [0.9.21.58] - 2026-11-25
 
 ### Fixed
