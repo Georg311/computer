@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { get } from 'svelte/store';
-	import { goal$, pauseGoal, resumeGoal, completeTask as apiCompleteTask, skipTask, createGoal, type GoalState } from '../../stores/goal';
+	import { goal$, pauseGoal, resumeGoal, completeGoal, completeTask as apiCompleteTask, skipTask, createGoal, type GoalState } from '../../stores/goal';
 
 	let state = $state(get(goal$));
 	let objective = $state('');
@@ -36,6 +36,11 @@
 
 	async function handleResume() {
 		await resumeGoal();
+		state = get(goal$);
+	}
+
+	async function handleComplete() {
+		await completeGoal();
 		state = get(goal$);
 	}
 
@@ -115,6 +120,7 @@
 			<div class="actions">
 				{#if state.status === 'active'}
 					<button on:click={handlePause}>⏸ Pause Goal</button>
+					<button on:click={handleComplete}>✅ Complete Goal</button>
 				{:else if state.status === 'paused'}
 					<button on:click={handleResume}>▶ Resume Goal</button>
 				{/if}

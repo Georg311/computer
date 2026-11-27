@@ -183,6 +183,21 @@ export async function resumeGoal(): Promise<void> {
 	}
 }
 
+/** Complete the active goal (mark as done). */
+export async function completeGoal(): Promise<void> {
+	try {
+		const res = await fetch('/api/goal/complete', { method: 'POST' });
+		if (res.ok) {
+			await fetchActiveGoal();
+			await fetchAllGoals();
+		} else if (res.status !== 404 && res.status !== 409) {
+			console.warn('[goal] Complete error:', res.status);
+		}
+	} catch (e) {
+		console.warn('[goal] Complete error:', e);
+	}
+}
+
 /** Mark a task as complete. */
 export async function completeTask(taskId: string, evidence?: string): Promise<void> {
 	try {

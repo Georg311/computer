@@ -111,6 +111,7 @@
 		onsteerqueue?: () => void;
 		onGoalResume?: () => void;
 		onGoalPause?: () => void;
+		onGoalComplete?: () => void;
 		onGoalList?: () => void;
 		onsteerqueuedelete?: (id: string) => void;
 		onSteerQueueMoveUp?: (index: number) => void;
@@ -158,6 +159,7 @@
 		onsteerqueue,
 		onGoalResume,
 		onGoalPause,
+		onGoalComplete,
 		onGoalList,
 		onsteerqueuedelete,
 		onSteerQueueMoveUp,
@@ -1378,6 +1380,7 @@
 		if ('/goal'.startsWith(slashCommandQuery)) ids.push('goal');
 		if ('/goal-resume'.startsWith(slashCommandQuery)) ids.push('goal-resume');
 		if ('/goal-pause'.startsWith(slashCommandQuery) && onGoalPause) ids.push('goal-pause');
+		if ('/goal-complete'.startsWith(slashCommandQuery) && onGoalComplete) ids.push('goal-complete');
 		if ('/goal-list'.startsWith(slashCommandQuery) && onGoalList) ids.push('goal-list');
 		if ('/te-status'.startsWith(slashCommandQuery)) ids.push('te-status');
 	if (onteTools && '/te-tools'.startsWith(slashCommandQuery)) ids.push('te-tools');
@@ -1573,6 +1576,11 @@
 		if (commandId === 'goal-pause' && onGoalPause) {
 			removeSlashCommandToken();
 			onGoalPause();
+			return;
+		}
+		if (commandId === 'goal-complete' && onGoalComplete) {
+			removeSlashCommandToken();
+			onGoalComplete();
 			return;
 		}
 		if (commandId === 'goal-list' && onGoalList) {

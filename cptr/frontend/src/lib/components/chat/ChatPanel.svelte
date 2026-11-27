@@ -1421,6 +1421,21 @@ autoScroll = true;
 		}
 	}
 
+	async function handleGoalComplete() {
+		try {
+			const res = await fetch('/api/goal/complete', { method: 'POST' });
+			if (res.ok) {
+				goal$.set(null); // complete clears the active goal display
+			} else if (res.status === 404 || res.status === 409) {
+				toast.error('No active goal to complete');
+			} else {
+				toast.error(`Complete failed (${res.status})`);
+			}
+		} catch (e: any) {
+			toast.error(e?.message || 'Complete failed');
+		}
+	}
+
 	function handleGoalList() {
 		const el = document.querySelector('.goal-panel');
 		el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -2270,6 +2285,7 @@ async function handleSteerQueue() {
 					onqueuedelete={handleQueueDelete}
 					onGoalResume={handleGoalResume}
 					onGoalPause={handleGoalPause}
+					onGoalComplete={handleGoalComplete}
 					onGoalList={handleGoalList}
 					steeringQueue={steeringQueueItems}
 					onsteerqueuedelete={handleSteerQueueDelete}
@@ -2443,6 +2459,7 @@ async function handleSteerQueue() {
 					onqueuedelete={handleQueueDelete}
 					onGoalResume={handleGoalResume}
 					onGoalPause={handleGoalPause}
+					onGoalComplete={handleGoalComplete}
 					onGoalList={handleGoalList}
 					onqueue={handleQueue}
 					onsteer={handleSteer}
