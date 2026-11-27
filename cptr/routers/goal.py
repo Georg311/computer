@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import datetime
-
+from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 
@@ -21,6 +21,7 @@ from cptr.utils.goals import (
     GoalBudgetManager,
     GoalRecoveryManager,
     GoalAutoContinueManager,
+    GoalScheduler,
     audit_goal,
 )
 
@@ -421,7 +422,11 @@ async def track_tokens(request: Request):
 
 @router.get("/auto-continue")
 async def get_auto_continue(request: Request):
-    """GET /api/goal/auto-continue — Check if focused goal should auto-continue."""
+    """GET /api/goal/auto-continue — Check if focused goal should auto-continue.
+
+    Returns scheduler state (next_dispatch, current_backoff) alongside the
+    continuation decision. GoalScheduler manages idle backoff and dispatch timing.
+    """
     _get_user(request)
 
     state = GoalStateManager()
@@ -429,6 +434,38 @@ async def get_auto_continue(request: Request):
 
     ac_mgr = GoalAutoContinueManager(state)
     result = ac_mgr.should_continue()
+
+    # Integrate scheduler info for the active goal
+    from cptr.env import DATA_DIR
+    scheduler = GoalScheduler(Path(DATA_DIR) / "goals")
+    
+    if result.get("auto_continue") and result.get("next_task_id"):
+        goal = state.get_focused_goal()
+        if goal:
+            # Check if scheduler says dispatch is ready
+            can_dispatch = scheduler.should_dispatch(goal.id)
+            scheduler_info = scheduler.get_goal_scheduler_info(goal.id)
+            
+            # If dispatcher should run, record the run and generate followup
+            if can_dispatch:
+                scheduler.record_run(goal.id)
+                result["scheduler_dispatch"] = True
+                result["next_dispatch_backoff"] = scheduler_info.get("current_backoff", 30)
+                
+                # Update followup message with backoff info
+                followup_msg = scheduler.get_followup_message(goal)
+                if followup_msg:
+                    result["followup_message"] = followup_msg
+            
+            result["scheduler_state"] = {
+                "dispatch_count": scheduler_info.get("dispatch_count", 0),
+                "current_backoff": scheduler_info.get("current_backoff"),
+                "last_dispatch": scheduler_info.get("last_dispatch"),
+            }
+        else:
+            result["scheduler_state"] = {}
+    else:
+        result["scheduler_state"] = {}
 
     return result
 

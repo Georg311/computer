@@ -605,6 +605,186 @@ class GoalLedger:
         return result
 
 
+# ── Goal Scheduler (T1) ────────────────────────────────────────
+
+
+class GoalScheduler:
+    """Manages auto-continue dispatch intervals and idle backoff for active goals.
+
+    Persists state via JSON file so that scheduler decisions survive process restarts.
+    Backoff starts at `idleContinuationBackoff` (default 30s) and doubles up to
+    `maxIdleBackoff` (5 minutes). Run count is tracked per goal.
+    """
+
+    # Configuration defaults (pi-goal-x compatible)
+    DEFAULT_IDLE_BACKOFF: int = 30  # seconds
+    MAX_IDLE_BACKOFF: int = 300  # 5 minutes
+    DEFAULT_MAX_AUTONOMOUS_RUNS: Optional[int] = None  # unlimited by default
+
+    def __init__(self, goals_dir: Path):
+        self.goals_dir = goals_dir
+        os.makedirs(self.goals_dir, exist_ok=True)
+        self._state_path = self.goals_dir / "goals-scheduler-state.json"
+        self._load_state()
+
+    # ── State Persistence ──────────────────────────────────────
+
+    def _load_state(self) -> None:
+        """Load persisted scheduler state from disk."""
+        if not self._state_path.exists():
+            self.state = {
+                "goals": {},
+                "updated_at": datetime.now().isoformat(),
+            }
+            return
+        try:
+            with open(self._state_path) as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                self.state = data
+            else:
+                self.state = {"goals": {}, "updated_at": datetime.now().isoformat()}
+        except (json.JSONDecodeError, KeyError, TypeError):
+            self.state = {
+                "goals": {},
+                "updated_at": datetime.now().isoformat(),
+            }
+
+    def _save_state(self) -> None:
+        """Persist scheduler state to disk."""
+        tmp_path = str(self._state_path) + ".tmp"
+        try:
+            self.state["updated_at"] = datetime.now().isoformat()
+            with open(tmp_path, "w") as f:
+                json.dump(self.state, f, indent=2)
+            os.replace(tmp_path, self._state_path)
+        except Exception as e:
+            logger.warning("Failed to persist scheduler state: %s", e)
+
+    # ── Core Methods ───────────────────────────────────────────
+
+    def should_dispatch(self, goal_id: str) -> bool:
+        """Check if a goal is ready for auto-dispatch.
+
+        Returns True if enough time has passed since the last dispatch,
+        False otherwise (and updates next_dispatch_time internally).
+        """
+        goal_state = self.state["goals"].get(goal_id, {})
+        now = datetime.now().timestamp()
+
+        # First run — always allow
+        if not goal_state:
+            self.state["goals"][goal_id] = {
+                "last_dispatch": 0,
+                "dispatch_count": 0,
+                "current_backoff": self.DEFAULT_IDLE_BACKOFF,
+                "updated_at": datetime.now().isoformat(),
+            }
+            return True
+
+        last_dispatch = goal_state.get("last_dispatch", 0)
+        if last_dispatch == 0:
+            # First dispatch ever
+            self.state["goals"][goal_id]["last_dispatch"] = int(now)
+            self._save_state()
+            return True
+
+        # Check backoff timing
+        current_backoff = goal_state.get("current_backoff", self.DEFAULT_IDLE_BACKOFF)
+        next_dispatch = last_dispatch + current_backoff
+
+        if now >= next_dispatch:
+            return True
+
+        return False
+
+    def record_run(self, goal_id: str) -> None:
+        """Record that a dispatch ran. Updates backoff and run count."""
+        goal_state = self.state["goals"].get(goal_id, {})
+        now = datetime.now().timestamp()
+
+        if not goal_state:
+            self.state["goals"][goal_id] = {
+                "last_dispatch": int(now),
+                "dispatch_count": 1,
+                "current_backoff": self.DEFAULT_IDLE_BACKOFF,
+                "updated_at": datetime.now().isoformat(),
+            }
+            self._save_state()
+            return
+
+        # Update dispatch count and backoff
+        goal_state["last_dispatch"] = int(now)
+        goal_state["dispatch_count"] = goal_state.get("dispatch_count", 0) + 1
+
+        # Exponential backoff: double the interval (capped at MAX_IDLE_BACKOFF)
+        current_backoff = goal_state.get("current_backoff", self.DEFAULT_IDLE_BACKOFF)
+        new_backoff = min(current_backoff * 2, self.MAX_IDLE_BACKOFF)
+        goal_state["current_backoff"] = new_backoff
+
+        self.state["goals"][goal_id] = {
+            **goal_state,
+            "updated_at": datetime.now().isoformat(),
+        }
+        self._save_state()
+
+    def get_followup_message(self, goal: GoalRecord) -> Optional[str]:
+        """Generate a continuation message for the AI to use.
+
+        Returns None if no follow-up is needed (no pending tasks or not auto_continue).
+        """
+        if not goal.auto_continue:
+            return None
+        if goal.status != GoalStatus.ACTIVE:
+            return None
+
+        pending_tasks = [t for t in goal.task_list if t.status == TaskStatus.PENDING]
+        if not pending_tasks:
+            return None
+
+        next_task = pending_tasks[0]
+        # Get current backoff info from scheduler state
+        goal_state = self.state.get("goals", {}).get(goal.id, {})
+        current_backoff = goal_state.get("current_backoff", self.DEFAULT_IDLE_BACKOFF)
+        dispatch_count = goal_state.get("dispatch_count", 0)
+
+        msg = (
+            f"[GOAL CONTINUATION] Goal: {goal.objective}\n"
+            f"Next task: {next_task.title}\n"
+            f"Dispatch #{dispatch_count} (backoff: {current_backoff}s)\n"
+            f"Please continue working on this goal."
+        )
+        return msg
+
+    def reset_for_goal(self, goal_id: str) -> None:
+        """Reset scheduler state when a goal status changes (e.g., paused/resumed)."""
+        if goal_id in self.state.get("goals", {}):
+            del self.state["goals"][goal_id]
+            self._save_state()
+
+    def get_scheduler_info(self) -> dict:
+        """Return full scheduler state for debugging/admin UI."""
+        return {
+            **self.state,
+            "config": {
+                "default_idle_backoff": self.DEFAULT_IDLE_BACKOFF,
+                "max_idle_backoff": self.MAX_IDLE_BACKOFF,
+                "max_autonomous_runs": self.DEFAULT_MAX_AUTONOMOUS_RUNS,
+            },
+        }
+
+    def get_goal_scheduler_info(self, goal_id: str) -> dict:
+        """Return scheduler info for a specific goal."""
+        goal_state = self.state.get("goals", {}).get(goal_id, {})
+        return {
+            **goal_state,
+            "config": {
+                "default_idle_backoff": self.DEFAULT_IDLE_BACKOFF,
+                "max_idle_backoff": self.MAX_IDLE_BACKOFF,
+            },
+        }
+
+
 # ── Module-Level Pool Cache (shared across instances during a request lifecycle) ───────────────────────
 
 
