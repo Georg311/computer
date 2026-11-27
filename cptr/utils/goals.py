@@ -221,7 +221,8 @@ class GoalPersistence:
             expected_revision = 0
         
         # If file exists but revision doesn't match expected → conflict
-        if current_goal is not None and current_revision != expected_revision:
+        # Only check when an explicit expected_revision is provided (optimistic lock mode)
+        if current_goal is not None and expected_revision is not None and current_revision != expected_revision:
             logger.warning(
                 "Revision conflict for goal %s: expected=%d, actual=%d",
                 goal.id, expected_revision, current_revision,
