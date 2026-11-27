@@ -208,12 +208,16 @@ class GoalPersistence:
         revision = data.get("revision", 0)
         return goal, revision
 
-    def save_goal_locked(self, goal: GoalRecord, expected_revision: Optional[int] = None) -> bool:
+    def save_goal_locked(self, goal: GoalRecord, expected_revision: Optional[int] = None, ledger: Optional[GoalLedger] = None) -> bool:
         """Save a goal with per-file flock + optimistic revision lock.
         
         Returns True on success, False on conflict (another process modified the file).
         On success the goal's revision is incremented.
         Raises ConflictError if another process holds an exclusive lock.
+        
+        T2 (T1): If ledger is provided, appends events for every mutation:
+            - "goal_revision_bumped" on successful write
+            - "goal_conflict_detected" on revision conflict
         """
         filepath = self.goal_dir / f"goal_{goal.id}.json"
         
@@ -229,6 +233,12 @@ class GoalPersistence:
                 "Revision conflict for goal %s: expected=%d, actual=%d",
                 goal.id, expected_revision, current_revision,
             )
+            # T2: Log conflict event
+            if ledger:
+                self._append_with_retry(ledger, goal.id, "goal_conflict_detected", {
+                    "expected_revision": expected_revision,
+                    "actual_revision": current_revision,
+                })
             raise ConflictError(
                 f"Goal was modified by another process (expected rev {expected_revision}, got {current_revision})"
             )
@@ -240,6 +250,13 @@ class GoalPersistence:
             with open(tmp_path, "w") as f:
                 json.dump(goal.to_dict(), f, indent=2)
             os.replace(tmp_path, filepath)
+            
+            # T2: Log revision bump for new goal (only if called directly via save_goal_locked)
+            if ledger and not self._saving_from_batch:
+                self._append_with_retry(ledger, goal.id, "goal_revision_bumped", {
+                    "revision": 1,
+                    "reason": "new_goal_created",
+                })
             return True
 
         # If called from save_all_goals() which already holds the global lock,
@@ -251,6 +268,15 @@ class GoalPersistence:
             with open(tmp_path, "w") as f:
                 json.dump(data, f, indent=2)
             os.replace(tmp_path, filepath)
+            
+            # T2: Log revision bump (only if ledger provided and not from save_all_goals)
+            # Note: save_all_goals() handles status transitions separately; we only log revision bumps here
+            if ledger and self._saving_from_batch is False:
+                self._append_with_retry(ledger, goal.id, "goal_revision_bumped", {
+                    "revision": goal.revision,
+                    "previous_revision": current_revision,
+                })
+            
             return True
 
         # Acquire per-file exclusive lock via flock for existing files
@@ -281,9 +307,24 @@ class GoalPersistence:
             with open(tmp_path, "w") as f:
                 json.dump(data, f, indent=2)
             os.replace(tmp_path, filepath)
+            
+            # T2: Log revision bump for direct save_goal_locked calls
+            if ledger and not self._saving_from_batch:
+                self._append_with_retry(ledger, goal.id, "goal_revision_bumped", {
+                    "revision": goal.revision,
+                    "previous_revision": disk_revision,
+                })
         finally:
             fcntl.flock(fd, fcntl.LOCK_UN)
             os.close(fd)
+
+    @staticmethod
+    def _append_with_retry(ledger: GoalLedger, goal_id: str, event_type: str, details: Optional[dict] = None) -> None:
+        """Append to ledger with error handling — never crash the caller."""
+        try:
+            ledger.append(goal_id, event_type, details)
+        except Exception as e:
+            logger.warning("Failed to append ledger entry %s for goal %s: %s", event_type, goal_id, e)
 
     def load_goal(self, goal_id: str) -> Optional[GoalRecord]:
         """Load a goal from its JSON file (sync)."""

@@ -154,7 +154,7 @@ async def pause_goal(request: Request):
     goal.pause_reason = "User paused"
     goal.updated_at = datetime.now().isoformat()
     try:
-        state.persistence.save_goal_locked(goal)
+        state.persistence.save_goal_locked(goal, ledger=state.ledger)
     except ConflictError as e:
         raise HTTPException(status_code=409, detail=e.message)
     return {"ok": True, "status": "paused"}
@@ -175,7 +175,7 @@ async def resume_goal(request: Request):
     goal.pause_reason = None
     goal.updated_at = datetime.now().isoformat()
     try:
-        state.persistence.save_goal_locked(goal)
+        state.persistence.save_goal_locked(goal, ledger=state.ledger)
     except ConflictError as e:
         raise HTTPException(status_code=409, detail=e.message)
 
@@ -451,6 +451,15 @@ async def get_auto_continue(request: Request):
                 scheduler.record_run(goal.id)
                 result["scheduler_dispatch"] = True
                 result["next_dispatch_backoff"] = scheduler_info.get("current_backoff", 30)
+                
+                # T2: Log scheduler dispatch event
+                try:
+                    state.ledger.append(goal.id, "scheduler_dispatched", {
+                        "dispatch_count": scheduler_info.get("dispatch_count", 1),
+                        "backoff_seconds": result["next_dispatch_backoff"],
+                    })
+                except Exception as e:
+                    logger.warning("Failed to log scheduler_dispatched for goal %s: %s", goal.id, e)
                 
                 # Update followup message with backoff info
                 followup_msg = scheduler.get_followup_message(goal)
