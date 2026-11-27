@@ -139,20 +139,24 @@ def _get_compact_mode() -> str:
 
 
 def _get_context_window() -> int:
-    """Return the default context window size (200_000 tokens)."""
+    """Return the effective context window / compact threshold.
+
+    Falls back to *compact_token_threshold* when no explicit
+    ``context_window`` is configured (which is the usual case).
+    """
     try:
         from cptr.models import Config
 
         chat_models_config = Config.get_sync("chat.models") or {}
     except Exception:
-        return 200_000
+        return _get_threshold()
 
     for key, val in chat_models_config.items():
         if isinstance(val, dict) and "params" in val:
             cw = _parse_positive_int(val["params"].get("context_window"))
             if cw and cw > 0:
                 return cw
-    return 200_000
+    return _get_threshold()
 
 
 def _get_percent_threshold() -> int:
@@ -161,9 +165,13 @@ def _get_percent_threshold() -> int:
         from cptr.utils.config import load_config
 
         config = load_config()
-        val = config.get("app_config", {}).get("chat.compact_percent_threshold")
+        # TOML-Parser nested dict: config["app_config"]["chat"]["compact_percent_threshold"]
+        val = (config.get("app_config", {})
+                     .get("chat", {})
+                     .get("compact_percent_threshold"))
         if val is not None:
             return min(95, max(10, int(val)))
+        # Fallback: flat section [chat] compact_percent_threshold
         val = config.get("chat", {}).get("compact_percent_threshold")
         if val is not None:
             return min(95, max(10, int(val)))
