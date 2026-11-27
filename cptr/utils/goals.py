@@ -86,6 +86,14 @@ class Task:
         return task
 
 
+class ConflictError(Exception):
+    """Optimistic lock conflict — another process modified the resource."""
+
+    def __init__(self, message: str = "Goal was modified by another process"):
+        self.message = message
+        super().__init__(message)
+
+
 @dataclass
 class GoalRecord:
     id: str  # UUID v4
@@ -102,6 +110,7 @@ class GoalRecord:
     token_budget: Optional[int] = None  # Max tokens for this goal (pi-goal-x compatible)
     token_usage: int = 0  # Accumulated usage during goal lifetime
     tokens_per_turn_limit: Optional[int] = None  # Optional per-turn limit
+    revision: int = 0  # Optimistic lock version, auto-incremented on mutation
 
     def __post_init__(self):
         if not self.id:
@@ -130,6 +139,7 @@ class GoalRecord:
             token_budget=data.get("token_budget"),
             token_usage=data.get("token_usage", 0),
             tokens_per_turn_limit=data.get("tokens_per_turn_limit"),
+            revision=data.get("revision", 0),
         )
         record.task_list = [Task.from_dict(t) for t in task_list_data] if isinstance(task_list_data, list) else []
         return record
@@ -151,6 +161,7 @@ class GoalRecord:
             "token_budget": self.token_budget,
             "token_usage": self.token_usage,
             "tokens_per_turn_limit": self.tokens_per_turn_limit,
+            "revision": self.revision,
             "task_list": [t.to_dict() for t in self.task_list],
         }
         return d
@@ -183,6 +194,82 @@ class GoalPersistence:
         with open(tmp_path, "w") as f:
             json.dump(data, f, indent=2)
         os.replace(tmp_path, filepath)
+
+    def load_goal_with_revision(self, goal_id: str) -> Optional[GoalRecord]:
+        """Load a goal from its JSON file (sync), returning (goal, current_revision)."""
+        filepath = self.goal_dir / f"goal_{goal_id}.json"
+        if not filepath.exists():
+            return None, -1
+        with open(filepath) as f:
+            data = json.load(f)
+        goal = GoalRecord.from_dict(data)
+        revision = data.get("revision", 0)
+        return goal, revision
+
+    def save_goal_locked(self, goal: GoalRecord, expected_revision: Optional[int] = None) -> bool:
+        """Save a goal with per-file flock + optimistic revision lock.
+        
+        Returns True on success, False on conflict (another process modified the file).
+        On success the goal's revision is incremented.
+        Raises ConflictError if another process holds an exclusive lock.
+        """
+        filepath = self.goal_dir / f"goal_{goal.id}.json"
+        
+        # Read current state for optimistic check
+        current_goal, current_revision = self.load_goal_with_revision(goal.id)
+        if current_goal is None:
+            expected_revision = 0
+        
+        # If file exists but revision doesn't match expected → conflict
+        if current_goal is not None and current_revision != expected_revision:
+            logger.warning(
+                "Revision conflict for goal %s: expected=%d, actual=%d",
+                goal.id, expected_revision, current_revision,
+            )
+            raise ConflictError(
+                f"Goal was modified by another process (expected rev {expected_revision}, got {current_revision})"
+            )
+
+        # If file doesn't exist yet (new goal), just write directly
+        if current_goal is None:
+            goal.revision = 1
+            tmp_path = str(filepath) + ".tmp"
+            with open(tmp_path, "w") as f:
+                json.dump(goal.to_dict(), f, indent=2)
+            os.replace(tmp_path, filepath)
+            return True
+
+        # Acquire per-file exclusive lock via flock for existing files
+        fd = os.open(str(filepath), os.O_RDONLY)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            os.close(fd)
+            raise ConflictError(f"Goal file is locked by another process: {filepath}")
+
+        try:
+            # Re-read inside lock to avoid TOCTOU race
+            with open(filepath) as f:
+                data = json.load(f)
+            disk_revision = data.get("revision", 0)
+            
+            if expected_revision is not None and disk_revision != expected_revision:
+                raise ConflictError(
+                    f"Goal was modified by another process (expected rev {expected_revision}, got {disk_revision})"
+                )
+
+            # Bump revision
+            goal.revision = disk_revision + 1
+            data = goal.to_dict()
+
+            # Atomic write via tmp+rename
+            tmp_path = str(filepath) + ".tmp"
+            with open(tmp_path, "w") as f:
+                json.dump(data, f, indent=2)
+            os.replace(tmp_path, filepath)
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+            os.close(fd)
 
     def load_goal(self, goal_id: str) -> Optional[GoalRecord]:
         """Load a goal from its JSON file (sync)."""
@@ -445,9 +532,16 @@ class GoalLockManager:
 # ── Ledger ─────────────────────────────────────────────────────
 
 LEDGER_EVENT_TYPES = [
+    # Goal lifecycle
     "goal_created", "task_completed", "goal_paused", "goal_resumed",
     "goal_complete", "goal_deleted", "audit_approved", "audit_rejected",
     "budget_limited",
+    # Revision / optimistic locking (T0)
+    "goal_revision_bumped", "goal_conflict_detected", "goal_reconciled_from_disk",
+    # Task granularity (T2)
+    "task_created", "task_deleted", "task_moved",
+    # Scheduler (T1)
+    "scheduler_dispatched", "scheduler_backoff_applied",
 ]
 
 
@@ -567,11 +661,15 @@ class GoalStateManager:
             )
 
     def save_all_goals(self) -> None:
-        """Persist all goals from memory back to disk AND update snapshot."""
+        """Persist all goals from memory back to disk AND update snapshot.
+        
+        Uses per-goal optimistic locking (T0). Each goal's revision is bumped
+        on write; conflicts are logged and the stale goal is reloaded from disk.
+        """
         global _pool_cache, _snapshot_focused
 
         with self.lock_manager.lock_all_goals():
-            for goal in self.goals_by_id.values():
+            for goal in list(self.goals_by_id.values()):
                 # Append ledger entry on status transitions
                 if goal.id not in getattr(self, '_prev_status', {}):
                     self.ledger.append(goal.id, "goal_created", {"objective": goal.objective})
@@ -587,8 +685,24 @@ class GoalStateManager:
                     self.ledger.append(goal.id, event_map.get((old_status, new_status), "goal_created"))
                 self._prev_status[goal.id] = new_status
 
-                self.persistence.save_goal(goal)
-                _pool_cache[goal.id] = goal
+                # Optimistic save with per-goal locking (T0)
+                try:
+                    success = self.persistence.save_goal_locked(goal)
+                    _pool_cache[goal.id] = goal
+                except ConflictError as e:
+                    logger.warning("Revision conflict during save_all_goals for %s: %s", goal.id, e.message)
+                    # Reconcile from disk — reload and re-apply mutations in memory
+                    reconciled, rev = self.persistence.load_goal_with_revision(goal.id)
+                    if reconciled:
+                        # Merge in-memory changes onto disk version
+                        reconciled.status = goal.status
+                        reconciled.pause_reason = goal.pause_reason
+                        reconciled.updated_at = goal.updated_at
+                        reconciled.current_task_id = goal.current_task_id
+                        reconciled.task_list = goal.task_list
+                        self.goals_by_id[goal.id] = reconciled
+                        _pool_cache[goal.id] = reconciled
+                        self.ledger.append(goal.id, "goal_reconciled_from_disk", {"revision": rev})
 
         active_pool = {gid: g for gid, g in _pool_cache.items() if g.status != GoalStatus.COMPLETE}
         self.persistence.save_pool_snapshot_data(active_pool, _snapshot_focused)
@@ -799,9 +913,16 @@ Respond with JSON only (no markdown): {"approved": true/false, "report": "detail
 # ── Ledger (Append-Only Event Log) ─────────────────────────────
 
 LEDGER_EVENT_TYPES = [
+    # Goal lifecycle
     "goal_created", "task_completed", "goal_paused", "goal_resumed",
     "goal_complete", "goal_deleted", "audit_approved", "audit_rejected",
-    "budget_limited", "task_skipped", "goal_focused", "goal_unfocused",
+    "budget_limited",
+    # Revision / optimistic locking (T0)
+    "goal_revision_bumped", "goal_conflict_detected", "goal_reconciled_from_disk",
+    # Task granularity (T2)
+    "task_created", "task_deleted", "task_moved",
+    # Scheduler (T1)
+    "scheduler_dispatched", "scheduler_backoff_applied",
 ]
 
 

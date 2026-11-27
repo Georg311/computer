@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from cptr.utils.config import AuthResult, check_access
 from cptr.utils.goals import (
+    ConflictError,
     GoalRecord,
     GoalStatus,
     GoalStateManager,
@@ -78,7 +79,10 @@ async def create_goal(request: Request, body: GoalCreateRequest):
         sisyphus_mode=False,
     )
 
-    state.persistence.save_goal(draft)
+    try:
+        state.persistence.save_goal_locked(draft)
+    except ConflictError as e:
+        raise HTTPException(status_code=409, detail=e.message)
     return {"goal_id": goal_id, "status": "draft", "objective": body.description}
 
 
@@ -95,7 +99,10 @@ async def confirm_goal(request: Request):
 
     goal.auto_continue = True
     goal.updated_at = datetime.now().isoformat()
-    state.persistence.save_goal(goal)
+    try:
+        state.persistence.save_goal_locked(goal)
+    except ConflictError as e:
+        raise HTTPException(status_code=409, detail=e.message)
 
     return {
         "status": "confirmed",
@@ -145,7 +152,10 @@ async def pause_goal(request: Request):
     goal.status = GoalStatus.PAUSED
     goal.pause_reason = "User paused"
     goal.updated_at = datetime.now().isoformat()
-    state.persistence.save_goal(goal)
+    try:
+        state.persistence.save_goal_locked(goal)
+    except ConflictError as e:
+        raise HTTPException(status_code=409, detail=e.message)
     return {"ok": True, "status": "paused"}
 
 
@@ -163,7 +173,10 @@ async def resume_goal(request: Request):
     goal.status = GoalStatus.ACTIVE
     goal.pause_reason = None
     goal.updated_at = datetime.now().isoformat()
-    state.persistence.save_goal(goal)
+    try:
+        state.persistence.save_goal_locked(goal)
+    except ConflictError as e:
+        raise HTTPException(status_code=409, detail=e.message)
 
     pending_tasks = [t for t in goal.task_list if t.status == TaskStatus.PENDING]
     followup = f"[GOAL CONTINUATION] Goal: {goal.objective}\n"
@@ -289,6 +302,10 @@ async def create_task(request: Request, body: TaskCreateRequest):
         goal.current_task_id = task_id
 
     goal.updated_at = datetime.now().isoformat()
+    
+    # T2: Log task_created event
+    state.ledger.append(goal.id, "task_created", {"task_id": task_id, "title": body.title.strip()})
+    
     state.save_all_goals()
 
     return {
@@ -684,6 +701,7 @@ async def get_goal(request: Request, goal_id: str):
         "objective": goal.objective,
         "status": goal.status.value,
         "current_task_id": goal.current_task_id,
+        "revision": goal.revision,
         "task_list": [
             {
                 "id": t.id,
