@@ -160,9 +160,11 @@ async def pause_goal(request: Request):
         raise HTTPException(status_code=409, detail=e.message)
 
     # T2: Log status transition event (save_goal_locked only writes revision_bumped)
+    logger.info("DEBUG pause: goal_id=%s, old_status='%s', new_status='%s'", goal.id, old_status, goal.status.value)
     if old_status == "active" and goal.status.value == "paused":
         try:
             state.ledger.append(goal.id, "goal_paused", {"reason": goal.pause_reason})
+            logger.info("DEBUG pause: wrote goal_paused")
         except Exception as e:
             logger.warning("Failed to log goal_paused for %s: %s", goal.id, e)
 
