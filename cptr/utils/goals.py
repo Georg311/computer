@@ -185,6 +185,8 @@ class GoalPersistence:
         self.goal_dir: Path = DATA_DIR / self.GOALS_SUBDIR
         os.makedirs(self.goal_dir, exist_ok=True)
 
+    _saving_from_batch = False  # Thread-local flag: True when called from save_all_goals()
+
     def save_goal(self, goal: GoalRecord) -> None:
         """Save a goal as an atomic JSON file (sync)."""
         filepath = self.goal_dir / f"goal_{goal.id}.json"
@@ -237,6 +239,17 @@ class GoalPersistence:
             tmp_path = str(filepath) + ".tmp"
             with open(tmp_path, "w") as f:
                 json.dump(goal.to_dict(), f, indent=2)
+            os.replace(tmp_path, filepath)
+            return True
+
+        # If called from save_all_goals() which already holds the global lock,
+        # skip per-file locking (avoids deadlock) — optimistic check is enough
+        if self._saving_from_batch:
+            goal.revision = current_revision + 1
+            data = goal.to_dict()
+            tmp_path = str(filepath) + ".tmp"
+            with open(tmp_path, "w") as f:
+                json.dump(data, f, indent=2)
             os.replace(tmp_path, filepath)
             return True
 
@@ -670,40 +683,45 @@ class GoalStateManager:
         global _pool_cache, _snapshot_focused
 
         with self.lock_manager.lock_all_goals():
-            for goal in list(self.goals_by_id.values()):
-                # Append ledger entry on status transitions
-                if goal.id not in getattr(self, '_prev_status', {}):
-                    self.ledger.append(goal.id, "goal_created", {"objective": goal.objective})
-                old_status = self._prev_status.get(goal.id)
-                new_status = goal.status.value
-                if old_status and old_status != new_status:
-                    event_map = {
-                        ("active", "paused"): "goal_paused",
-                        ("paused", "active"): "goal_resumed",
-                        ("active", "complete"): "goal_complete",
-                        ("blocked", "complete"): "goal_complete",
-                    }
-                    self.ledger.append(goal.id, event_map.get((old_status, new_status), "goal_created"))
-                self._prev_status[goal.id] = new_status
+            # Signal persistence that we're inside a batch save — skip per-file locking
+            self.persistence._saving_from_batch = True
+            try:
+                for goal in list(self.goals_by_id.values()):
+                    # Append ledger entry on status transitions
+                    if goal.id not in getattr(self, '_prev_status', {}):
+                        self.ledger.append(goal.id, "goal_created", {"objective": goal.objective})
+                    old_status = self._prev_status.get(goal.id)
+                    new_status = goal.status.value
+                    if old_status and old_status != new_status:
+                        event_map = {
+                            ("active", "paused"): "goal_paused",
+                            ("paused", "active"): "goal_resumed",
+                            ("active", "complete"): "goal_complete",
+                            ("blocked", "complete"): "goal_complete",
+                        }
+                        self.ledger.append(goal.id, event_map.get((old_status, new_status), "goal_created"))
+                    self._prev_status[goal.id] = new_status
 
-                # Optimistic save with per-goal locking (T0)
-                try:
-                    success = self.persistence.save_goal_locked(goal)
-                    _pool_cache[goal.id] = goal
-                except ConflictError as e:
-                    logger.warning("Revision conflict during save_all_goals for %s: %s", goal.id, e.message)
-                    # Reconcile from disk — reload and re-apply mutations in memory
-                    reconciled, rev = self.persistence.load_goal_with_revision(goal.id)
-                    if reconciled:
-                        # Merge in-memory changes onto disk version
-                        reconciled.status = goal.status
-                        reconciled.pause_reason = goal.pause_reason
-                        reconciled.updated_at = goal.updated_at
-                        reconciled.current_task_id = goal.current_task_id
-                        reconciled.task_list = goal.task_list
-                        self.goals_by_id[goal.id] = reconciled
-                        _pool_cache[goal.id] = reconciled
-                        self.ledger.append(goal.id, "goal_reconciled_from_disk", {"revision": rev})
+                    # Optimistic save — per-file lock skipped (already held by outer context)
+                    try:
+                        success = self.persistence.save_goal_locked(goal)
+                        _pool_cache[goal.id] = goal
+                    except ConflictError as e:
+                        logger.warning("Revision conflict during save_all_goals for %s: %s", goal.id, e.message)
+                        # Reconcile from disk — reload and re-apply mutations in memory
+                        reconciled, rev = self.persistence.load_goal_with_revision(goal.id)
+                        if reconciled:
+                            # Merge in-memory changes onto disk version
+                            reconciled.status = goal.status
+                            reconciled.pause_reason = goal.pause_reason
+                            reconciled.updated_at = goal.updated_at
+                            reconciled.current_task_id = goal.current_task_id
+                            reconciled.task_list = goal.task_list
+                            self.goals_by_id[goal.id] = reconciled
+                            _pool_cache[goal.id] = reconciled
+                            self.ledger.append(goal.id, "goal_reconciled_from_disk", {"revision": rev})
+            finally:
+                self.persistence._saving_from_batch = False
 
         active_pool = {gid: g for gid, g in _pool_cache.items() if g.status != GoalStatus.COMPLETE}
         self.persistence.save_pool_snapshot_data(active_pool, _snapshot_focused)
