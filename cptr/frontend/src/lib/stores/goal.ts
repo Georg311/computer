@@ -116,7 +116,7 @@ export async function fetchActiveGoal(): Promise<void> {
 	}
 }
 
-/** Create a new goal from user description. */
+/** Create a new goal from user description and auto-confirm to trigger task generation. */
 export async function createGoal(description: string): Promise<void> {
 	try {
 		const res = await fetch('/api/goal/create', {
@@ -128,7 +128,13 @@ export async function createGoal(description: string): Promise<void> {
 			const err = await res.json();
 			throw new Error(err.detail || 'Failed to create goal');
 		}
-		await fetchActiveGoal();
+		// Auto-confirm so the LLM receives goal context and generates task plan
+		const confirmRes = await fetch('/api/goal/confirm', { method: 'POST' });
+		if (confirmRes.ok) {
+			await fetchActiveGoal();
+		} else if (confirmRes.status !== 404 && confirmRes.status !== 500) {
+			console.warn('[goal] Confirm error:', confirmRes.status);
+		}
 	} catch (e) {
 		console.warn('[goal] Create error:', e);
 		throw e;

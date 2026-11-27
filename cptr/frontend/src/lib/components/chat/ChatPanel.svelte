@@ -62,7 +62,7 @@
 	} from '$lib/stores/audio';
 
 	import { showReasoningTraces } from '$lib/stores/reasoning';
-	import { goal$ } from '$lib/stores/goal';
+	import { goal$, createGoal as apiGoalCreate } from '$lib/stores/goal';
 	import ChatInput from './ChatInput.svelte';
 	import UserMessage from './UserMessage.svelte';
 	import AssistantMessage from './AssistantMessage.svelte';
@@ -1118,6 +1118,39 @@
 		if (hasChatContent && text === '/skills:list') {
 			await handleSkillsListCommand();
 			inputText = '';
+			return;
+		}
+		// Goal command: intercept /goal <description>, create goal via API, then send continuation msg to LLM
+		const goalMatch = /^\/goal\s+(.*)/s.exec(text);
+		if (hasChatContent && goalMatch) {
+			const description = goalMatch[1].trim();
+			inputText = '';
+			if (!description) {
+				toast.error('Bitte beschreibe dein Goal: /goal <Beschreibung>');
+				return;
+			}
+			try {
+				await apiGoalCreate(description);
+				// Send continuation message so LLM knows about the goal and can plan tasks
+				const result = await apiSendMessage(
+					`[GOAL CREATED] ${description}\n\nPlease create a task breakdown for this goal and begin working on the first task.`,
+					selectedModel,
+					workspace,
+					chatId ?? undefined,
+					null,
+					getChatSendParams(),
+					undefined,
+					[]
+				);
+
+				if (result.user_message && result.assistant_message) {
+					allMessages = [...allMessages, result.user_message, result.assistant_message];
+				} else if (result.assistant_message) {
+					allMessages = [...allMessages, result.assistant_message];
+				}
+			} catch (e: any) {
+				toast.error(e?.message || 'Goal creation failed');
+			}
 			return;
 		}
 		stopTtsPlayback();  // Always interrupt TTS when sending a new message, regardless of voice mode

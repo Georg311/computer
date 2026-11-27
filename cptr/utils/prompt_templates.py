@@ -260,12 +260,12 @@ def _build_goal_context() -> str:
         state.load_all_active_goals()
         goal = state.get_focused_goal()
 
-        if not goal or not goal.task_list:
+        if not goal:
             return ""
 
         # Build compact context (under ~500 chars for token efficiency)
         current_task_title = "None"
-        if goal.current_task_id:
+        if goal.current_task_id and goal.task_list:
             task = next(
                 (t for t in goal.task_list if t.id == goal.current_task_id), None
             )
@@ -273,8 +273,11 @@ def _build_goal_context() -> str:
                 current_task_title = task.title
 
         # Build pending tasks summary (truncated)
-        pending = [f"- [{t.status.value}] {t.title}" for t in goal.task_list[:5]]  # Max 5 tasks
-        pending_str = "\n".join(pending) if pending else "None"
+        if goal.task_list:
+            pending = [f"- [{t.status.value}] {t.title}" for t in goal.task_list[:5]]  # Max 5 tasks
+            pending_str = "\n".join(pending)
+        else:
+            pending_str = "Not yet planned"
 
         context = f"""# ACTIVE GOAL
 Objective: {goal.objective}
