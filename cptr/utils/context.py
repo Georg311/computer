@@ -101,13 +101,17 @@ def should_compact_rolling(
     new_messages_since: int = 0,
     threshold: int | None = None,
 ) -> bool:
-    """Rolling compaction: compact when usage exceeds percentage of context window.
+    """Rolling compaction: compact when usage exceeds the token budget minus a tail reserve.
 
-    Note: *threshold* is an absolute token count (from the caller) and has no
-    meaning in rolling mode — always read the real % threshold from config.
+    Mirrors Pi's approach: ``tokens > contextWindow - reserveTokens`` —
+    i.e. compact *just before* the limit, not at an arbitrary percentage.
+
+    The *threshold* parameter (absolute token count from the caller) is
+    used as the effective budget; ``keep_recent_tokens`` reserves space for
+    recent messages to stay verbatim.
     """
-    percent_threshold = _get_percent_threshold()
-    context_window = _get_context_window()
+    reserve = _tail_keep_tokens()  # default 20_000, same as Pi's keepRecentTokens
+    resolved_threshold = threshold or _get_context_window()
 
     last_usage = normalize_usage(last_usage)
     if last_usage and last_usage.get("input_tokens"):
@@ -115,10 +119,10 @@ def should_compact_rolling(
         if new_messages_since > 0:
             new_msgs = messages[-new_messages_since:]
             base += estimate_messages_tokens(new_msgs)
-        return (base * 100.0 / context_window) >= percent_threshold
+        return base > (resolved_threshold - reserve)
 
     total = estimate_tokens(system_prompt) + estimate_messages_tokens(messages)
-    return (total * 100.0 / context_window) >= percent_threshold
+    return total > (resolved_threshold - reserve)
 
 
 def _get_compact_mode() -> str:
