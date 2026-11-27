@@ -1193,7 +1193,7 @@ class GoalLedger:
         filepath = self._ledger_path(goal_id)
         # Atomic append: write to temp then rename (POSIX safe for single-line JSONL)
         tmp_path = str(filepath) + ".tmp"
-        with open(tmp_path, "w") as f:
+        with open(tmp_path, "a") as f:
             json.dump(entry, f)
             f.write("\n")
         os.replace(tmp_path, filepath)
