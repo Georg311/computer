@@ -1,3 +1,18 @@
+## [0.9.21.60] - 2026-11-27
+
+### Added
+- 🧠 **Goal System — Revision Field & Optimistic Locking.** Jedes Goal erhält ein `revision` Feld (int) das bei jeder Mutation automatisch inkrementiert wird. `_save_goal_locked()` prüft den erwarteten revision-Wert und verwirft Konflikt-Erkennung mit `IntegrityError`. Verhindert Datenkorruption bei parallelen Schreibzugriffen auf dieselbe Goal-Datei.
+- 🧠 **Goal System — Granulare Ledger Events.** Ledger protokolliert nun jedes Event einzeln (`goal_created`, `status_changed`, `budget_updated`, `task_completed`, `skip_requested`, `pause_requested`, `resume_requested`) anstatt nur den Status-Change. Alle Mutationen (pause/resume/complete/skip) schreiben explizite Ledger-Einträge mit Timestamp, User und Reason.
+- 🧠 **Goal System — Scheduler mit Idle Backoff.** Automatischer Goal-Scheduler (`goal_scheduler.py`) prüft periodisch auf inaktive Goals und startet sie neu wenn Tasks nicht mehr laufen (idle backoff 30s). Persistiert State via JSON-Datei (`goals/state.json`), überlebt Restart. Integration im auto-continue endpoint: Scheduler wird vor Loop-Start initialisiert und nach Ende sauber beendet.
+
+### Fixed
+- 🐛 **Goal System — Deadlock in save_all_goals.** `_save_goal_locked()` hat den globalen `goal_file_lock` gehalten während sie `_save_goal_locked()` für jedes Goal aufrief, was zu Deadlock führte (bereits haltender Lock). Fix: Lock-Prüfung entfernt, da Methode nur noch innerhalb des bestehenden locks aufgerufen wird.
+- 🐛 **Goal System — Optimistic lock check for None revision.** `expected_revision` konnte `None` sein wenn Goal frisch erstellt wurde und noch kein revision value geschrieben war. Fix: Fallback auf 0 in der Abfrage, damit der erste Schreibvorgang korrekt den initialen revision=0 erwartet.
+- 🐛 **Goal System — /goal Command Intercept & Auto-Confirm Flow.** Der `/goal` Slash Command hat keine korrekte Interaktion im Chat gestartet (keine Bestätigungsabfrage). Fix: Command Handler erkennt jetzt das Goal-Kommando, erstellt ein temporäres Goal mit Status "pending_confirm" und sendet eine Bestätigungsnachricht an den User bevor der Task Loop startet.
+- 🐛 **GoalLedger append() — Datei-Overwriting.** `append()` hat die Ledger-Datei im `'w'` (write) Mode geöffnet, wodurch alle bestehenden Einträge überschrieben wurden. Fix: Öffnung mit `'a'` (append) Mode, damit neue Events an bestehende Ledgers angehängt werden statt alles zu löschen.
+- 🐛 **Goal System — Debug Logging entfernt.** Alle `debug:` prefixed commits (resume logging, old_status logging) wurden cleanup und nur die produktiven Ledger-Einträge behalten.
+
+---
 ## [0.9.21.59] - 2026-11-26
 
 ### Fixed
