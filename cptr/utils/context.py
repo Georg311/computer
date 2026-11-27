@@ -101,8 +101,12 @@ def should_compact_rolling(
     new_messages_since: int = 0,
     threshold: int | None = None,
 ) -> bool:
-    """Rolling compaction: compact when usage exceeds percentage of context window."""
-    percent_threshold = _get_percent_threshold() if threshold is None else min(95, max(10, threshold))
+    """Rolling compaction: compact when usage exceeds percentage of context window.
+
+    Note: *threshold* is an absolute token count (from the caller) and has no
+    meaning in rolling mode — always read the real % threshold from config.
+    """
+    percent_threshold = _get_percent_threshold()
     context_window = _get_context_window()
 
     last_usage = normalize_usage(last_usage)
