@@ -150,6 +150,7 @@ async def pause_goal(request: Request):
         raise HTTPException(status_code=404, detail="No active goal")
 
     goal = state.goals_by_id[state.focused_goal_id]
+    old_status = goal.status.value
     goal.status = GoalStatus.PAUSED
     goal.pause_reason = "User paused"
     goal.updated_at = datetime.now().isoformat()
@@ -157,6 +158,14 @@ async def pause_goal(request: Request):
         state.persistence.save_goal_locked(goal, ledger=state.ledger)
     except ConflictError as e:
         raise HTTPException(status_code=409, detail=e.message)
+
+    # T2: Log status transition event (save_goal_locked only writes revision_bumped)
+    if old_status == "active" and goal.status.value == "paused":
+        try:
+            state.ledger.append(goal.id, "goal_paused", {"reason": goal.pause_reason})
+        except Exception as e:
+            logger.warning("Failed to log goal_paused for %s: %s", goal.id, e)
+
     return {"ok": True, "status": "paused"}
 
 
@@ -171,6 +180,7 @@ async def resume_goal(request: Request):
         raise HTTPException(status_code=404, detail="No active goal")
 
     goal = state.goals_by_id[state.focused_goal_id]
+    old_status = goal.status.value
     goal.status = GoalStatus.ACTIVE
     goal.pause_reason = None
     goal.updated_at = datetime.now().isoformat()
@@ -178,6 +188,13 @@ async def resume_goal(request: Request):
         state.persistence.save_goal_locked(goal, ledger=state.ledger)
     except ConflictError as e:
         raise HTTPException(status_code=409, detail=e.message)
+
+    # T2: Log status transition event (save_goal_locked only writes revision_bumped)
+    if old_status == "paused" and goal.status.value == "active":
+        try:
+            state.ledger.append(goal.id, "goal_resumed", {})
+        except Exception as e:
+            logger.warning("Failed to log goal_resumed for %s: %s", goal.id, e)
 
     pending_tasks = [t for t in goal.task_list if t.status == TaskStatus.PENDING]
     followup = f"[GOAL CONTINUATION] Goal: {goal.objective}\n"
@@ -199,6 +216,7 @@ async def complete_goal(request: Request):
         raise HTTPException(status_code=404, detail="No active goal")
 
     goal = state.goals_by_id[state.focused_goal_id]
+    old_status = goal.status.value
 
     pending_tasks = [t for t in goal.task_list if t.status != TaskStatus.COMPLETE and t.status != TaskStatus.SKIPPED]
     if pending_tasks:
@@ -207,6 +225,13 @@ async def complete_goal(request: Request):
     goal.status = GoalStatus.COMPLETE
     goal.updated_at = datetime.now().isoformat()
     state.save_all_goals()
+
+    # T2: Log status transition event (save_all_goals can't detect transitions per-request)
+    if old_status == "active" and goal.status.value == "complete":
+        try:
+            state.ledger.append(goal.id, "goal_complete", {})
+        except Exception as e:
+            logger.warning("Failed to log goal_complete for %s: %s", goal.id, e)
 
     return {"ok": True, "status": "complete"}
 
@@ -236,6 +261,13 @@ async def complete_task_with_evidence(request: Request, body: TaskCompleteReques
     goal.updated_at = datetime.now().isoformat()
 
     state.save_all_goals()
+
+    # T2: Log task completion event
+    try:
+        state.ledger.append(goal.id, "task_completed", {"task_id": body.task_id, "title": task.title})
+    except Exception as e:
+        logger.warning("Failed to log task_completed for goal %s: %s", goal.id, e)
+
     return {
         "ok": True,
         "task": task.title,
@@ -267,6 +299,13 @@ async def skip_task(request: Request, body: TaskCompleteRequest):
     goal.updated_at = datetime.now().isoformat()
 
     state.save_all_goals()
+
+    # T2: Log task skip event (use task_completed with skip details)
+    try:
+        state.ledger.append(goal.id, "task_completed", {"task_id": body.task_id, "title": task.title, "skipped": True})
+    except Exception as e:
+        logger.warning("Failed to log task_skip for goal %s: %s", goal.id, e)
+
     return {
         "ok": True,
         "task": task.title,
