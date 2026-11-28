@@ -44,7 +44,7 @@
 	import { TAB_DRAG_MIME } from '$lib/constants';
 	import { tooltip } from '$lib/tooltip';
 	import { get } from 'svelte/store';
-	import { focusedGoal } from '$lib/stores/goal';
+	import { createGoal, resumeGoal, pauseGoal, completeGoal, focusedGoal } from '$lib/stores/goal';
 
 	// Keep screen awake during voice mode conversations
 	let voiceWakeLock: WakeLockSentinel | null = null;
@@ -1591,7 +1591,68 @@
 		onsend();
 	}
 
-	function handleSubmit(presetText?: string) {
+	async function handleSubmit(presetText?: string) {
+		if (showSlashCommands) {
+			runSlashSuggestion(slashSuggestionIds[selectedSlashCommandIndex]);
+			return;
+		}
+
+		const text = presetText ?? inputText?.trim();
+
+		// Intercept goal-related slash commands and call API directly
+		if (text?.startsWith('/goal ')) {
+			const description = text.substring(6).trim();
+			if (description) {
+				try {
+					await createGoal(description);
+					inputText = '';
+					toast.success('Goal created');
+					return;
+				} catch (err) {
+					console.error('Failed to create goal:', err);
+					toast.error('Failed to create goal');
+				}
+			}
+		}
+
+		if (text?.startsWith('/goal-resume')) {
+			try {
+				await resumeGoal();
+				inputText = '';
+				toast.success('Goal resumed');
+				return;
+			} catch (err) {
+				console.error('Failed to resume goal:', err);
+				toast.error('Failed to resume goal');
+			}
+		}
+
+		if (text?.startsWith('/goal-pause')) {
+			try {
+				await pauseGoal();
+				inputText = '';
+				toast.success('Goal paused');
+				return;
+			} catch (err) {
+				console.error('Failed to pause goal:', err);
+				toast.error('Failed to pause goal');
+			}
+		}
+
+		if (text?.startsWith('/goal-complete')) {
+			try {
+				await completeGoal();
+				inputText = '';
+				toast.success('Goal completed');
+				return;
+			} catch (err) {
+				console.error('Failed to complete goal:', err);
+				toast.error('Failed to complete goal');
+			}
+		}
+
+		onsend(presetText);
+	}
 		if (showSlashCommands) {
 			runSlashSuggestion(slashSuggestionIds[selectedSlashCommandIndex]);
 			return;
