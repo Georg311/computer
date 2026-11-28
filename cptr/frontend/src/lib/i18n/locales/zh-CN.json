@@ -1243,5 +1243,15 @@
   "voiceMemo.saved": "已保存 ✓",
   "voiceMemo.sttNotConfigured": "STT 未配置。请在设置 → 音频中配置。",
   "voiceMemo.uploadFailed": "音频已保存到本地。服务器上传失败。",
-  "voiceMemo.writeFailed": "无法写入转录文本。音频已安全保存。"
+  "voiceMemo.writeFailed": "无法写入转录文本。音频已安全保存。",
+  "chat.commandGoal": "新目标",
+  "chat.commandGoalDesc": "开始带有任务生成的新目标",
+  "chat.commandGoalResume": "恢复目标",
+  "chat.commandGoalResumeDesc": "继续活跃中的目标",
+  "chat.commandGoalPause": "暂停目标",
+  "chat.commandGoalPauseDesc": "暂时暂停活跃中的目标",
+  "chat.commandGoalComplete": "完成目标",
+  "chat.commandGoalCompleteDesc": "将目标标记为已完成",
+  "chat.commandGoalList": "目标列表",
+  "chat.commandGoalListDesc": "查看所有活跃和已完成的目標"
 }

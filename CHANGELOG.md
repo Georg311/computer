@@ -1,3 +1,9 @@
+## [0.9.21.61] - 2026-11-28
+
+### Added
+- 🎨 **Goal Slash Commands — UI Integration.** Neue Goal-Slash-Commands `/goal-pause`, `/goal-complete`, `/goal-list` sind jetzt im Chat Input Dropdown sichtbar und klickbar. Icons: ⏸ Pause, ✓ Checkmark, ☰ List. i18n-Einträge für alle 10 Sprachen (en, de, es, fr, ja, ko, pt-BR, ru, zh-CN, zh-TW).
+
+---
 ## [0.9.21.60] - 2026-11-27
 
 ### Added

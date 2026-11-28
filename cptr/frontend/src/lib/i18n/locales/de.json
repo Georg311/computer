@@ -1311,5 +1311,15 @@
   "chat.teLifecycleStatus": "Facts ({count})",
   "chat.teLifecycleCandidate": "Kandidat",
   "chat.teLifecycleActive": "Aktiv",
-  "chat.teLifecycleRetired": "Pensioniert"
+  "chat.teLifecycleRetired": "Pensioniert",
+  "chat.commandGoal": "Neues Goal",
+  "chat.commandGoalDesc": "Ein neues Goal mit Aufgabengenerierung starten",
+  "chat.commandGoalResume": "Goal fortsetzen",
+  "chat.commandGoalResumeDesc": "Ein aktives Goal fortsetzen",
+  "chat.commandGoalPause": "Goal pausieren",
+  "chat.commandGoalPauseDesc": "Ein aktives Goal vorübergehend pausieren",
+  "chat.commandGoalComplete": "Goal abschliessen",
+  "chat.commandGoalCompleteDesc": "Ein Goal als abgeschlossen markieren",
+  "chat.commandGoalList": "Goals auflisten",
+  "chat.commandGoalListDesc": "Alle aktiven und abgeschlossenen Goals sehen"
 }

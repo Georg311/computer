@@ -1243,5 +1243,11 @@
   "voiceMemo.saved": "저장됨 ✓",
   "voiceMemo.sttNotConfigured": "STT가 설정되지 않았습니다. 설정 → 오디오에서 설정하세요.",
   "voiceMemo.uploadFailed": "오디오가 로컬에 저장되었습니다. 서버 업로드에 실패했습니다.",
-  "voiceMemo.writeFailed": "자막 작성에 실패했습니다. 오디오는 안전합니다."
+  "voiceMemo.writeFailed": "자막 작성에 실패했습니다. 오디오는 안전합니다.",
+  "chat.commandGoalPause": "목표 일시 정지",
+  "chat.commandGoalPauseDesc": "활성화된 목표를 잠시 동안 일시 정지",
+  "chat.commandGoalComplete": "목표 완료",
+  "chat.commandGoalCompleteDesc": "목표를 완료로 표시",
+  "chat.commandGoalList": "목표 목록",
+  "chat.commandGoalListDesc": "모든 활성화 및 완료된 목표 보기"
 }

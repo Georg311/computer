@@ -1383,9 +1383,9 @@
 		if ('/goal-complete'.startsWith(slashCommandQuery) && onGoalComplete) ids.push('goal-complete');
 		if ('/goal-list'.startsWith(slashCommandQuery) && onGoalList) ids.push('goal-list');
 		if ('/te-status'.startsWith(slashCommandQuery)) ids.push('te-status');
-	if (onteTools && '/te-tools'.startsWith(slashCommandQuery)) ids.push('te-tools');
-	if ('/te-skills'.startsWith(slashCommandQuery)) ids.push('te-skills');
-	if (onteConfig && '/te-config'.startsWith(slashCommandQuery)) ids.push('te-config');
+		if (onteTools && '/te-tools'.startsWith(slashCommandQuery)) ids.push('te-tools');
+		if ('/te-skills'.startsWith(slashCommandQuery)) ids.push('te-skills');
+		if (onteConfig && '/te-config'.startsWith(slashCommandQuery)) ids.push('te-config');
 		return ids;
 	}
 
@@ -2094,6 +2094,142 @@ const combinedQueue = $derived.by(() => {
 					<span class="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
 						<span class="truncate">{$t('chat.commandCreateSkill')}</span>
 						<span class="app-muted text-[0.625rem] truncate shrink-0">/skills:create</span>
+					</span>
+				</button>
+			{/if}
+			{#if slashCommandIds.includes('goal')}
+				<button
+					type="button"
+					aria-label={`${$t('chat.commandGoal')}: ${$t('chat.commandGoalDesc')}`}
+					use:tooltip={{
+						content: $t('chat.commandGoalDesc'),
+						placement: 'top'
+					}}
+					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
+						{selectedSlashCommand('goal') ? 'app-interactive-active' : ''}"
+					onmousedown={(e) => e.preventDefault()}
+					onclick={() => {
+						runSlashCommand('goal');
+					}}
+					onmouseenter={() => selectSlashCommand('goal')}
+				>
+					<span class="app-icon-muted flex items-center justify-center w-4 shrink-0">
+						<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<path d="M12 2L15.31 7.08L21 8.46L17 12.96L18.18 18.66L12 15.66L5.82 18.66L7 12.96L3 8.46L8.69 7.08Z" />
+						</svg>
+					</span>
+					<span class="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
+						<span class="truncate">{$t('chat.commandGoal')}</span>
+						<span class="app-muted text-[0.625rem] truncate shrink-0">/goal</span>
+					</span>
+				</button>
+			{/if}
+			{#if slashCommandIds.includes('goal-resume') && onGoalResume}
+				<button
+					type="button"
+					aria-label={`${$t('chat.commandGoalResume')}: ${$t('chat.commandGoalResumeDesc')}`}
+					use:tooltip={{
+						content: $t('chat.commandGoalResumeDesc'),
+						placement: 'top'
+					}}
+					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
+						{selectedSlashCommand('goal-resume') ? 'app-interactive-active' : ''}"
+					onmousedown={(e) => e.preventDefault()}
+					onclick={() => {
+						runSlashCommand('goal-resume');
+					}}
+					onmouseenter={() => selectSlashCommand('goal-resume')}
+				>
+					<span class="app-icon-muted flex items-center justify-center w-4 shrink-0">
+						<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<path d="M12 6V2m0 0l-3 3m3-3l3 3" />
+						</svg>
+					</span>
+					<span class="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
+						<span class="truncate">{$t('chat.commandGoalResume')}</span>
+						<span class="app-muted text-[0.625rem] truncate shrink-0">/goal-resume</span>
+					</span>
+				</button>
+			{/if}
+			{#if slashCommandIds.includes('goal-pause') && onGoalPause}
+				<button
+					type="button"
+					aria-label={`${$t('chat.commandGoalPause')}: ${$t('chat.commandGoalPauseDesc')}`}
+					use:tooltip={{
+						content: $t('chat.commandGoalPauseDesc'),
+						placement: 'top'
+					}}
+					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
+						{selectedSlashCommand('goal-pause') ? 'app-interactive-active' : ''}"
+					onmousedown={(e) => e.preventDefault()}
+					onclick={() => {
+						runSlashCommand('goal-pause');
+					}}
+					onmouseenter={() => selectSlashCommand('goal-pause')}
+				>
+					<span class="app-icon-muted flex items-center justify-center w-4 shrink-0">
+						<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<rect x="6" y="4" width="4" height="16" rx="1" />
+							<rect x="14" y="4" width="4" height="16" rx="1" />
+						</svg>
+					</span>
+					<span class="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
+						<span class="truncate">{$t('chat.commandGoalPause')}</span>
+						<span class="app-muted text-[0.625rem] truncate shrink-0">/goal-pause</span>
+					</span>
+				</button>
+			{/if}
+			{#if slashCommandIds.includes('goal-complete') && onGoalComplete}
+				<button
+					type="button"
+					aria-label={`${$t('chat.commandGoalComplete')}: ${$t('chat.commandGoalCompleteDesc')}`}
+					use:tooltip={{
+						content: $t('chat.commandGoalCompleteDesc'),
+						placement: 'top'
+					}}
+					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
+						{selectedSlashCommand('goal-complete') ? 'app-interactive-active' : ''}"
+					onmousedown={(e) => e.preventDefault()}
+					onclick={() => {
+						runSlashCommand('goal-complete');
+					}}
+					onmouseenter={() => selectSlashCommand('goal-complete')}
+				>
+					<span class="app-icon-muted flex items-center justify-center w-4 shrink-0">
+						<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<path d="M20 6L9 17l-5-5" />
+						</svg>
+					</span>
+					<span class="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
+						<span class="truncate">{$t('chat.commandGoalComplete')}</span>
+						<span class="app-muted text-[0.625rem] truncate shrink-0">/goal-complete</span>
+					</span>
+				</button>
+			{/if}
+			{#if slashCommandIds.includes('goal-list') && onGoalList}
+				<button
+					type="button"
+					aria-label={`${$t('chat.commandGoalList')}: ${$t('chat.commandGoalListDesc')}`}
+					use:tooltip={{
+						content: $t('chat.commandGoalListDesc'),
+						placement: 'top'
+					}}
+					class="slash-command-row flex items-center gap-2 w-full h-6 px-2 rounded-xl text-xs text-left transition-colors duration-75
+						{selectedSlashCommand('goal-list') ? 'app-interactive-active' : ''}"
+					onmousedown={(e) => e.preventDefault()}
+					onclick={() => {
+						runSlashCommand('goal-list');
+					}}
+					onmouseenter={() => selectSlashCommand('goal-list')}
+				>
+					<span class="app-icon-muted flex items-center justify-center w-4 shrink-0">
+						<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<path d="M8 6h13M8 12h13M8 18h13M8 6l-2 6 2 6M16 6l-2 6 2 6" />
+						</svg>
+					</span>
+					<span class="flex-1 min-w-0 flex items-baseline gap-1.5 overflow-hidden">
+						<span class="truncate">{$t('chat.commandGoalList')}</span>
+						<span class="app-muted text-[0.625rem] truncate shrink-0">/goal-list</span>
 					</span>
 				</button>
 			{/if}

@@ -1243,5 +1243,15 @@
   "voiceMemo.saved": "Enregistré ✓",
   "voiceMemo.sttNotConfigured": "STT non configuré. Configurez dans Paramètres → Audio.",
   "voiceMemo.uploadFailed": "Audio sauvegardé localement. Échec de l'envoi au serveur.",
-  "voiceMemo.writeFailed": "Échec de l'écriture du transcript. L'audio est en sécurité."
+  "voiceMemo.writeFailed": "Échec de l'écriture du transcript. L'audio est en sécurité.",
+  "chat.commandGoal": "Nouvel objectif",
+  "chat.commandGoalDesc": "Démarrer un nouvel objectif avec génération de tâches",
+  "chat.commandGoalResume": "Reprendre l'objectif",
+  "chat.commandGoalResumeDesc": "Poursuivre un objectif actif",
+  "chat.commandGoalPause": "Mettre en pause",
+  "chat.commandGoalPauseDesc": "Mettre temporairement en pause un objectif actif",
+  "chat.commandGoalComplete": "Terminer l'objectif",
+  "chat.commandGoalCompleteDesc": "Marquer un objectif comme terminé",
+  "chat.commandGoalList": "Liste des objectifs",
+  "chat.commandGoalListDesc": "Voir tous les objectifs actifs et terminés"
 }

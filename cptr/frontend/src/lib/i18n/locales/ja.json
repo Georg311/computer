@@ -1243,5 +1243,11 @@
   "voiceMemo.saved": "保存済み ✓",
   "voiceMemo.sttNotConfigured": "STTが未設定です。設定 → オーディオで設定してください。",
   "voiceMemo.uploadFailed": "音声はローカルに保存されました。サーバーへのアップロードに失敗しました。",
-  "voiceMemo.writeFailed": "文字起こしの書き込みに失敗しました。音声は安全です。"
+  "voiceMemo.writeFailed": "文字起こしの書き込みに失敗しました。音声は安全です。",
+  "chat.commandGoalPause": "ゴールを一時停止",
+  "chat.commandGoalPauseDesc": "アクティブなゴールを一時的に一時停止",
+  "chat.commandGoalComplete": "ゴールを完了",
+  "chat.commandGoalCompleteDesc": "ゴールを完了としてマーク",
+  "chat.commandGoalList": "ゴール一覧",
+  "chat.commandGoalListDesc": "すべてのアクティブおよび完了済みゴールを表示"
 }

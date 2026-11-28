@@ -1243,5 +1243,15 @@
   "voiceMemo.saved": "Сохранено ✓",
   "voiceMemo.sttNotConfigured": "STT не настроен. Настройте в Настройки → Аудио.",
   "voiceMemo.uploadFailed": "Аудио сохранено локально. Загрузка на сервер не удалась.",
-  "voiceMemo.writeFailed": "Не удалось записать транскрипцию. Аудио в безопасности."
+  "voiceMemo.writeFailed": "Не удалось записать транскрипцию. Аудио в безопасности.",
+  "chat.commandGoal": "Новая цель",
+  "chat.commandGoalDesc": "Начать новую цель с генерацией задач",
+  "chat.commandGoalResume": "Продолжить цель",
+  "chat.commandGoalResumeDesc": "Продолжить активную цель",
+  "chat.commandGoalPause": "Приостановить цель",
+  "chat.commandGoalPauseDesc": "Временно приостановить активную цель",
+  "chat.commandGoalComplete": "Завершить цель",
+  "chat.commandGoalCompleteDesc": "Отметить цель как завершённую",
+  "chat.commandGoalList": "Список целей",
+  "chat.commandGoalListDesc": "Просмотр всех активных и завершённых целей"
 }
