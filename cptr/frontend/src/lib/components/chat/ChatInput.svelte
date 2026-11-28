@@ -1652,13 +1652,6 @@
 		}
 
 		onsend(presetText);
-	}
-		if (showSlashCommands) {
-			runSlashSuggestion(slashSuggestionIds[selectedSlashCommandIndex]);
-			return;
-		}
-		onsend(presetText);
-	}
 
 	function handleCancel() {
 		oncancel?.();
